@@ -8,7 +8,7 @@ const services = [
     name: "AI Chatbots & Virtual Assistants",
     desc: "24/7 customer support automation that handles inquiries, qualifies leads, and schedules appointments.",
     features: ["Multi-channel deployment", "50+ languages", "Lead qualification", "Appointment scheduling"],
-    price: "$2,500/month",
+    price: "$500/month",
   },
   {
     icon: "⚡",
@@ -36,7 +36,7 @@ const services = [
     name: "Sales & Marketing Automation",
     desc: "Intelligent lead management that nurtures prospects and closes deals faster.",
     features: ["Lead scoring", "Email campaigns", "Retargeting", "A/B testing"],
-    price: "$3,000/month",
+    price: "$2,500/month",
   },
   {
     icon: "🎨",

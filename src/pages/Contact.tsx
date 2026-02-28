@@ -173,6 +173,9 @@ const Contact = () => {
                 <a href="mailto:aniket@ziiro.work" className="flex items-center gap-3 text-muted-alpha hover:text-foreground transition-colors">
                   <Mail size={16} className="text-accent" /> aniket@ziiro.work
                 </a>
+                <a href="mailto:Govind@ziiro.work" className="flex items-center gap-3 text-muted-alpha hover:text-foreground transition-colors">
+                  <Mail size={16} className="text-accent" /> Govind@ziiro.work
+                </a>
                 <div className="flex items-center gap-3 text-muted-alpha">
                   <Clock size={16} className="text-accent" /> Mon–Fri, 9 AM – 6 PM EST
                 </div>

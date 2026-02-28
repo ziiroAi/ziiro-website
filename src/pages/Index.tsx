@@ -43,6 +43,19 @@ const Home = () => {
               </Link>
             </div>
           </AnimatedSection>
+          <AnimatedSection delay={600}>
+            <div className="mt-12 max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-2xl aspect-video">
+              <iframe
+                width="100%"
+                height="100%"
+                src="https://www.youtube.com/embed/djV11Xbc914"
+                title="Ziiro AI Agency"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="border-0"
+              />
+            </div>
+          </AnimatedSection>
         </div>
       </section>
 
@@ -67,23 +80,6 @@ const Home = () => {
                 </GlassCard>
               </AnimatedSection>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="relative z-10 py-20 px-4">
-        <div className="container mx-auto">
-          <AnimatedSection>
-            <h2 className="text-3xl md:text-5xl font-black text-center mb-12 gradient-text">
-              Our Impact
-            </h2>
-          </AnimatedSection>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <AnimatedSection delay={0}><StatBox value="94" suffix="%" label="Client Retention Rate" /></AnimatedSection>
-            <AnimatedSection delay={100}><StatBox value="380" suffix="%" label="Average ROI First Year" /></AnimatedSection>
-            <AnimatedSection delay={200}><StatBox value="50000" suffix="+" prefix="" label="Hours Automated Annually" /></AnimatedSection>
-            <AnimatedSection delay={300}><StatBox value="4.8" suffix="/5" label="Client Satisfaction Score" /></AnimatedSection>
           </div>
         </div>
       </section>

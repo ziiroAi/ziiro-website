@@ -72,6 +72,9 @@ const Footer = () => {
               <a href="mailto:aniket@ziiro.work" className="flex items-center gap-2 hover:text-foreground transition-colors">
                 <Mail size={14} /> aniket@ziiro.work
               </a>
+              <a href="mailto:Govind@ziiro.work" className="flex items-center gap-2 hover:text-foreground transition-colors">
+                <Mail size={14} /> Govind@ziiro.work
+              </a>
               <p>Mon–Fri, 9 AM – 6 PM EST</p>
               <p>Remote-First Company</p>
             </div>
@@ -79,8 +82,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-foreground/10 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-muted-alpha">
-          <p>© 2026 Ziiro AI Agency. All rights reserved.</p>
-          <p>Designed with ❤️ by Ziiro Team</p>
+          <p>© 2026 Ziiro . All rights reserved</p>
         </div>
       </div>
     </footer>
