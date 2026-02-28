@@ -29,7 +29,7 @@ const About = () => {
           <GlassCard hover={false}>
             <h2 className="text-2xl font-bold text-foreground mb-4">Who We Are</h2>
             <p className="text-muted-alpha text-sm mb-6">
-              Ziiro is a forward-thinking AI automation agency that helps businesses streamline operations, reduce costs, and scale intelligently. We combine deep technical expertise with business acumen to deliver solutions that generate real ROI.
+              Ziiro is an AI company that helps businesses streamline operations, reduce costs, and scale intelligently. We combine deep technical expertise with business acumen to deliver solutions that generate real ROI.
             </p>
             <h3 className="text-lg font-semibold text-foreground mb-2">Our Mission</h3>
             <p className="text-muted-alpha text-sm mb-6">
