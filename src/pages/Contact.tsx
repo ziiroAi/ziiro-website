@@ -2,6 +2,7 @@ import { useState, FormEvent } from "react";
 import AnimatedSection from "@/components/AnimatedSection";
 import GlassCard from "@/components/GlassCard";
 import { Mail, Clock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Contact = () => {
   const [form, setForm] = useState({
@@ -32,16 +33,31 @@ const Contact = () => {
     return e;
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const v = validate();
     setErrors(v);
     if (Object.keys(v).length > 0) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const { error } = await supabase.from("contact_submissions").insert({
+        name: form.name,
+        email: form.email,
+        phone: form.phone || null,
+        company: form.company,
+        industry: form.industry || null,
+        service: form.service || null,
+        budget: form.budget || null,
+        timeline: form.timeline || null,
+        message: form.message,
+      });
+      if (error) throw error;
       setSubmitted(true);
-    }, 1500);
+    } catch (err) {
+      console.error("Submission error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputClass =
@@ -183,15 +199,19 @@ const Contact = () => {
               <div className="mt-8">
                 <h4 className="text-sm font-semibold text-foreground mb-3">Follow Us</h4>
                 <div className="flex flex-wrap gap-2">
-                  {["LinkedIn", "Twitter", "Instagram", "Facebook"].map((s) => (
+                  {[
+                    { name: "LinkedIn", url: "https://www.linkedin.com/company/zirroai/about/?viewAsMember=true" },
+                    { name: "Twitter", url: "https://x.com/Ziiro_ai" },
+                    { name: "Instagram", url: "https://www.instagram.com/ziiroai?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" },
+                  ].map((s) => (
                     <a
-                      key={s}
-                      href="#"
+                      key={s.name}
+                      href={s.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="glass px-3 py-1.5 text-xs text-muted-alpha hover:text-foreground transition-colors"
                     >
-                      {s}
+                      {s.name}
                     </a>
                   ))}
                 </div>
