@@ -77,7 +77,7 @@ const Footer = () => {
                 <Mail size={14} /> aniket@ziiro.work
               </a>
               <a href="mailto:Govind@ziiro.work" className="flex items-center gap-2 hover:text-foreground transition-colors">
-                <Mail size={14} /> Govind@ziiro.work
+                <Mail size={14} /> govind@ziiro.work
               </a>
               <p>Mon–Fri, 9 AM – 6 PM EST</p>
               <p>Remote-First Company</p>
