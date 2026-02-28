@@ -11,15 +11,19 @@ const Footer = () => {
             <h3 className="text-xl font-black tracking-widest mb-3 text-foreground">ZIIRO</h3>
             <p className="text-muted-alpha text-sm mb-4">Automating Tomorrow, Today</p>
             <div className="flex gap-3">
-              {["LinkedIn", "Twitter", "Instagram"].map((s) => (
+              {[
+                { name: "LinkedIn", url: "https://www.linkedin.com/company/zirroai/about/?viewAsMember=true" },
+                { name: "Twitter", url: "https://x.com/Ziiro_ai" },
+                { name: "Instagram", url: "https://www.instagram.com/ziiroai?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" },
+              ].map((s) => (
                 <a
-                  key={s}
-                  href="#"
+                  key={s.name}
+                  href={s.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="glass px-3 py-1.5 text-xs font-medium text-muted-alpha hover:text-foreground transition-colors"
                 >
-                  {s}
+                  {s.name}
                 </a>
               ))}
             </div>
