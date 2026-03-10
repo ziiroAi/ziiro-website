@@ -4,39 +4,39 @@ import GlassCard from "@/components/GlassCard";
 
 const services = [
   {
-    icon: "🤖",
-    name: "AI Chatbots & Virtual Assistants",
-    desc: "24/7 customer support automation that handles inquiries, qualifies leads, and schedules appointments.",
-    features: ["Multi-channel deployment", "50+ languages", "Lead qualification", "Appointment scheduling"],
-    price: "$500/month",
-  },
-  {
     icon: "⚡",
     name: "Workflow Automation",
     desc: "Automate repetitive tasks across your entire tech stack and free your team for high-value work.",
     features: ["CRM automation", "Email sequences", "Data sync", "Document processing"],
-    price: "$1,500/month",
+    price: "$1,000/month",
+  },
+  {
+    icon: "🤖",
+    name: "AI Chatbots & Virtual Assistants",
+    desc: "24/7 customer support automation that handles inquiries, qualifies leads, and schedules appointments.",
+    features: ["Multi-channel deployment", "50+ languages", "Lead qualification", "Appointment scheduling "],
+    price: "$500/month",
   },
   {
     icon: "📊",
     name: "Data Processing & Analytics",
     desc: "Transform raw data into actionable insights with AI-powered analytics and visualization.",
     features: ["Predictive analytics", "Custom dashboards", "Automated reporting", "Data visualization"],
-    price: "$2,000/month",
+    price: "$1,500/month",
   },
   {
     icon: "✍️",
     name: "Content Generation",
     desc: "AI-powered content creation at scale for every channel and audience.",
-    features: ["SEO content", "Social media automation", "Email marketing", "Product descriptions"],
-    price: "$1,500/month",
+    features: ["SEO content", "Social media automation", "UGC Ads", "Product descriptions"],
+    price: "$1,000/month",
   },
   {
     icon: "💰",
     name: "Sales & Marketing Automation",
     desc: "Intelligent lead management that nurtures prospects and closes deals faster.",
     features: ["Lead scoring", "Email campaigns", "Retargeting", "A/B testing"],
-    price: "$2,500/month",
+    price: "$1,500/month",
   },
   {
     icon: "🎨",
