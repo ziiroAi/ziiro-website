@@ -26,7 +26,7 @@ const services = [
   },
   {
     icon: "✍️",
-    name: "Content Generation",
+    name: "UGC Content Generation",
     desc: "AI-powered content creation at scale for every channel and audience.",
     features: ["SEO content", "Social media automation", "UGC Ads", "Product descriptions"],
     price: "$1,000/month",
