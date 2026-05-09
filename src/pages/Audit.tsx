@@ -87,12 +87,12 @@ const industries = [
   "Other",
 ];
 
-const employeeSizes = ["1–5", "6–20", "21–50", "51–200", "200+"];
+const employeeSizes = ["1-5", "6-20", "21-50", "51-200", "200+"];
 
 const HOURLY_VALUE = 38; // conservative $/hr for time saved
 
 const calcResults = (ratings: Record<string, number>, size: string) => {
-  const sized = ["1–5", "6–20"].includes(size) ? 0.85 : ["51–200", "200+"].includes(size) ? 1.15 : 1;
+  const sized = ["1-5", "6-20"].includes(size) ? 0.85 : ["51-200", "200+"].includes(size) ? 1.15 : 1;
 
   const areas = painAreas.map((area) => {
     const rating = ratings[area.key] || 0;
@@ -187,7 +187,7 @@ const Audit = () => {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Free AI Readiness Audit – Find Your Automation Gaps"
+        title="Free AI Readiness Audit - Find Your Automation Gaps"
         description="Take our free AI Readiness Audit and discover exactly how many hours and dollars your business is leaving on the table. Get your personalised automation roadmap instantly."
         canonical="/audit"
       />

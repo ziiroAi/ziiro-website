@@ -8,11 +8,11 @@ interface SEOProps {
 }
 
 const BASE_URL = "https://ziiro.work";
-const DEFAULT_OG = `${BASE_URL}/og-image.png`;
+const DEFAULT_OG = `${BASE_URL}/og-image.jpeg`;
 
 const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG }: SEOProps) => {
-  const fullTitle = title ? `${title} | Ziiro AI` : "Ziiro AI – AI Automation Agency | Scale Your Business on Autopilot";
-  const desc = description || "We automate your workflows, build AI agents, and scale your business — while you focus on what matters.";
+  const fullTitle = title ? `${title} | Ziiro AI` : "Ziiro AI - AI Automation Agency | Scale Your Business on Autopilot";
+  const desc = description || "We automate your workflows, build AI agents, and scale your business while you focus on what matters.";
   const url = canonical ? `${BASE_URL}${canonical}` : BASE_URL;
 
   return (

@@ -99,7 +99,7 @@ const Services = () => {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Our Services – Cold Outreach, Lead Gen, Pipeline Automation & More"
+        title="Our Services - Cold Outreach, Lead Gen, Pipeline Automation and More"
         description="Five AI-powered services: cold outreach, UGC ads, pipeline automation, lead generation, and social content. One system built to grow your pipeline on autopilot."
         canonical="/services"
       />

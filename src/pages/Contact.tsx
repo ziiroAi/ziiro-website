@@ -83,7 +83,7 @@ const Contact = () => {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Book a Free Consultation – Talk to Ziiro AI"
+        title="Book a Free Consultation - Talk to Ziiro AI"
         description="Book a free 30-minute call with Ziiro AI. We'll audit your biggest time-wasters and show you exactly how AI fixes them. No commitment required."
         canonical="/contact"
       />
@@ -91,7 +91,7 @@ const Contact = () => {
         <div className="container mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-start max-w-5xl mx-auto">
 
-            {/* Left — headline */}
+            {/* Left - headline */}
             <AnimatedSection>
               <h1 className="display-font text-white leading-none mb-6" style={{ fontSize: "clamp(3.5rem, 7vw, 7rem)" }}>
                 LET&apos;S<br /><span className="gradient-text">TALK.</span>
@@ -122,7 +122,7 @@ const Contact = () => {
               </div>
             </AnimatedSection>
 
-            {/* Right — form */}
+            {/* Right - form */}
             <AnimatedSection delay={150}>
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -198,7 +198,7 @@ const Contact = () => {
                   disabled={loading}
                   className="btn-primary-gradient w-full text-base font-bold disabled:opacity-50"
                 >
-                  {loading ? "Sending..." : "Send Message →"}
+                  {loading ? "Sending..." : "Send Message"}
                 </button>
               </form>
             </AnimatedSection>

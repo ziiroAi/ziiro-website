@@ -73,7 +73,7 @@ const Home = () => {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="AI Automation Agency – Scale Your Business on Autopilot"
+        title="AI Automation Agency - Scale Your Business on Autopilot"
         description="Ziiro AI automates your sales outreach, lead generation, pipeline management, and content — so your business runs 24/7. Book a free consultation today."
         canonical="/"
       />
