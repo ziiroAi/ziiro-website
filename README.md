@@ -1,73 +1,102 @@
-# Welcome to your Lovable project
+# Ziiro AI — AI Automation Agency
 
-## Project info
+> **Scale your business on autopilot.**  
+> Live at [ziiro.work](https://ziiro.work)
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+---
 
-## How can I edit this code?
+## What is Ziiro?
 
-There are several ways of editing your application.
+Ziiro is an AI automation agency that builds custom systems to help businesses grow without growing their headcount. We replace manual, repetitive work with intelligent pipelines that run 24/7 — so founders and teams can focus on what actually moves the needle.
 
-**Use Lovable**
+Our own go-to-market runs entirely on the same system we build for clients. 24+ AI workflows. ~$200/mo in infra. 20 minutes of human oversight per day.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## What We Do
 
-**Use your preferred IDE**
+| Service | Outcome |
+|---|---|
+| **Cold Outreach** | Hyper-personalised email and LinkedIn sequences that land in inboxes, not spam — and get replies |
+| **UGC Ads & Management** | Creator-sourced UGC ads + paid campaign management across Meta and TikTok |
+| **Pipeline Automation** | Automated follow-ups, CRM updates, and deal-stage triggers so your pipeline runs itself |
+| **Lead Generation** | Targeted prospect lists and multi-channel flows that deliver sales-ready leads daily |
+| **Social Content** | Scroll-stopping posts, carousels, and short-form video that keeps your brand always-on |
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## How It Works
 
-Follow these steps:
+1. **Discovery Call** — We learn your business and find where automation creates the biggest leverage
+2. **Architecture Blueprint** — Custom system design with clear timeline and fixed pricing
+3. **Build & Deploy** — Your AI system goes live in weeks, fully connected to your stack
+4. **Autonomous Growth** — Pipeline runs 24/7. You stay in control in 15–20 minutes per day
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+---
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Tech Stack
 
-# Step 3: Install the necessary dependencies.
-npm i
+| Layer | Technology |
+|---|---|
+| Frontend | React + Vite + TypeScript |
+| Styling | Tailwind CSS + shadcn/ui |
+| Backend / DB | Supabase (Postgres + Edge Functions) |
+| Email | Resend API |
+| SEO | react-helmet-async + JSON-LD schema |
+| Deployment | Vercel + custom domain (ziiro.work) |
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+---
+
+## Local Development
+
+```bash
+# Clone the repo
+git clone https://github.com/Govind0404/ziiro-ai-vision.git
+cd ziiro-ai-vision
+
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp .env.example .env
+# Fill in your Supabase and Resend keys in .env
+
+# Start the dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app runs at `http://localhost:8080` by default.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## Environment Variables
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```env
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+VITE_SUPABASE_PROJECT_ID=your_project_id
+```
 
-## What technologies are used for this project?
+> `RESEND_API_KEY` and `SUPABASE_ACCESS_TOKEN` are only needed for deploying Supabase Edge Functions — they never go in the frontend bundle.
 
-This project is built with:
+---
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Pages
 
-## How can I deploy this project?
+| Route | Description |
+|---|---|
+| `/` | Home — hero, how it works, case study, CTA |
+| `/services` | All 5 services with orbital diagram |
+| `/audit` | Free AI audit tool with instant results + Calendly booking |
+| `/contact` | Contact form (sends email notification via Resend) |
+| `/privacy` | Privacy Policy |
+| `/terms` | Terms & Conditions |
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
+## Contact
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+**Email:** govind@ziiro.work · aniket@ziiro.work  
+**X / Twitter:** [@ziir0ai](https://x.com/ziir0ai)  
+**LinkedIn:** [Ziiro AI](https://www.linkedin.com/company/zirroai/)  
+**Instagram:** [@ziiroai](https://www.instagram.com/ziiroai)
