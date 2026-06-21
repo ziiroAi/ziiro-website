@@ -48,7 +48,6 @@ const Navbar = () => {
             width="96"
             height="64"
             decoding="async"
-            fetchPriority="high"
             style={{ height: "64px", width: "auto" }}
           />
         </Link>

@@ -19,7 +19,7 @@ The company direction is agentic AI consultancy and productized systems for lean
 |---|---|
 | **Agentic Systems** | Custom AI operators for research, routing, reporting, follow-ups, and repeated decisions |
 | **Self-Optimizing Systems** | Marketing, outreach, website, and workflow loops that track outcomes and improve automatically |
-| **Workflow Automation** | CRM updates, handoffs, dashboards, approvals, and reporting connected into one operating system |
+| **UGC Ads & Management** | Creator sourcing, UGC-style ads, and paid campaign management as a focused side growth channel |
 | **AI Strategy Sprint** | A focused roadmap for the highest-leverage agentic system to build first |
 | **Role Analyzer** | A diagnostic that maps people to the work they should own and identifies role bottlenecks |
 

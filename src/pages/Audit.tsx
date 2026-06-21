@@ -41,35 +41,35 @@ const painAreas = [
     label: "Self-Optimizing Systems",
     sub: "Marketing, outreach, website, ops",
     recommendation: "A self-optimizing loop can test marketing angles, outreach, website changes, and workflow improvements, then learn from outcomes without guessing forever.",
-    hrsPerRating: [0, 0.5, 1.5, 3.5, 5.5, 8],
+    hrsPerRating: [0, 0.2, 0.6, 1.2, 2.2, 3.5],
   },
   {
     key: "leadgen",
     label: "Research & Qualification",
     sub: "Prospecting, scoring, context",
     recommendation: "Research agents can identify, enrich, and qualify high-fit leads so founders spend time on conversations instead of list-building.",
-    hrsPerRating: [0, 0.5, 1.5, 3, 5, 7.5],
+    hrsPerRating: [0, 0.2, 0.5, 1.1, 2, 3],
   },
   {
     key: "pipeline",
-    label: "Workflow Automation",
-    sub: "CRM, handoffs, reporting",
-    recommendation: "Agentic workflow automation can update systems, trigger handoffs, and summarize what matters without turning your team into data-entry workers.",
-    hrsPerRating: [0, 0.3, 1, 2.5, 4, 6],
+    label: "UGC Ads & Management",
+    sub: "Creators, ads, campaigns",
+    recommendation: "A focused UGC system can source creators, organize ad production, and manage campaign iterations without letting content work become the whole business.",
+    hrsPerRating: [0, 0.1, 0.4, 0.9, 1.5, 2.2],
   },
   {
     key: "content",
     label: "Role Clarity",
     sub: "Owners, strengths, bottlenecks",
     recommendation: "A role analyzer can reveal who should own which work, where people are miscast, and which responsibilities should move to agents.",
-    hrsPerRating: [0, 0.5, 1.5, 3, 4.5, 6.5],
+    hrsPerRating: [0, 0.2, 0.5, 1, 1.8, 2.5],
   },
   {
     key: "reporting",
     label: "Control Dashboards",
     sub: "Metrics, insights, reviews",
     recommendation: "A simple command dashboard can show what your agents did, what worked, what failed, and where a human needs to approve next.",
-    hrsPerRating: [0, 0.3, 0.8, 2, 3.5, 5],
+    hrsPerRating: [0, 0.1, 0.4, 0.8, 1.4, 2],
   },
 ];
 
@@ -87,10 +87,10 @@ const industries = [
 
 const employeeSizes = ["1-5", "6-20", "21-50", "51-200", "200+"];
 
-const HOURLY_VALUE = 38; // conservative $/hr for time saved
+const HOURLY_VALUE = 30; // conservative $/hr for first-pass time reclaimed
 
 const calcResults = (ratings: Record<string, number>, size: string) => {
-  const sized = ["1-5", "6-20"].includes(size) ? 0.85 : ["51-200", "200+"].includes(size) ? 1.15 : 1;
+  const sized = size === "1-5" ? 0.6 : size === "6-20" ? 0.8 : size === "51-200" ? 1.1 : size === "200+" ? 1.2 : 1;
 
   const areas = painAreas.map((area) => {
     const rating = ratings[area.key] || 0;
@@ -102,10 +102,8 @@ const calcResults = (ratings: Record<string, number>, size: string) => {
   const sorted = [...areas].sort((a, b) => b.hrs - a.hrs);
   const totalHrs = +areas.reduce((s, a) => s + a.hrs, 0).toFixed(1);
   const totalAnnual = areas.reduce((s, a) => s + a.annual, 0);
-  const score = Math.round((totalHrs / (painAreas.length * 8)) * 100);
-
-  const benchmarkLow = +(totalHrs * 0.85).toFixed(1);
-  const benchmarkHigh = +(totalHrs * 1.4).toFixed(1);
+  const maxHrs = areas.reduce((s, a) => s + (a.hrsPerRating[5] * sized), 0);
+  const score = maxHrs > 0 ? Math.round((totalHrs / maxHrs) * 100) : 0;
 
   return { sorted, totalHrs, totalAnnual, score };
 };
@@ -184,7 +182,7 @@ const Audit = () => {
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
         title="Free Agentic Systems Audit - Find Your Agentic Leverage"
-        description="Take Ziiro's free Agentic Systems Audit and discover where agents, self-optimizing marketing, outreach, website, and workflow loops, plus role diagnostics, can create leverage."
+        description="Take Ziiro's free Agentic Systems Audit and discover where agents, self-optimizing growth loops, UGC ads management, and role diagnostics can create realistic first-pass leverage."
         canonical="/audit"
       />
       <div className="min-h-screen pt-28 pb-24 px-6">
@@ -200,7 +198,7 @@ const Audit = () => {
                 AGENTIC SYSTEMS<br /><span className="gradient-text">AUDIT</span>
               </h1>
               <p className="text-white/45 text-sm max-w-md leading-relaxed">
-                Find where your business needs agents, self-improving growth loops, workflow automation, website optimization, and clearer roles. Get a practical leverage roadmap instantly.
+                Find where your business needs agents, self-improving growth loops, website optimization, UGC ad management, and clearer roles. Get a practical leverage roadmap instantly.
               </p>
             </div>
           </AnimatedSection>
@@ -342,7 +340,7 @@ const Audit = () => {
                 {/* Pain Ratings */}
                 <div className="mb-8">
                   <p className="section-label mb-1">Rate Your Pain</p>
-                  <p className="text-white/30 text-xs mb-6">Tap 1–5 for each area. How much does this slow you down?</p>
+                  <p className="text-white/30 text-xs mb-6">Tap 1–5 for each area. The estimate uses conservative first-pass time savings, not a best-case automation fantasy.</p>
                   <div className="space-y-5">
                     {painAreas.map((area) => (
                       <div key={area.key}>
@@ -417,15 +415,15 @@ const Audit = () => {
                     <div className="display-font gradient-text leading-none" style={{ fontSize: "clamp(3rem, 6vw, 5rem)" }}>
                       {results!.totalHrs} HRS/WK
                     </div>
-                    <p className="text-white/40 text-xs tracking-widest uppercase mt-1 mb-6">Estimated Time Saved</p>
+                    <p className="text-white/40 text-xs tracking-widest uppercase mt-1 mb-6">Estimated Weekly Time Reclaimed</p>
 
                     <div className="display-font leading-none" style={{ fontSize: "clamp(2rem, 4vw, 3.5rem)", color: "#A8B4C8" }}>
                       ${results!.totalAnnual.toLocaleString()}
                     </div>
-                    <p className="text-white/40 text-xs tracking-widest uppercase mt-1 mb-4">Annual Value</p>
+                    <p className="text-white/40 text-xs tracking-widest uppercase mt-1 mb-4">Estimated Annual Value</p>
 
                     <p className="text-white/30 text-xs italic mb-8">
-                      Companies your size typically reclaim {Math.round(results!.totalHrs * 0.8)}–{Math.round(results!.totalHrs * 1.35)} hours/week with agentic systems.
+                      A realistic first build would usually target {Math.max(1, Math.round(results!.totalHrs * 0.6))}–{Math.max(1, Math.round(results!.totalHrs * 1.05))} hours/week first, then expand after proof.
                     </p>
                   </div>
 

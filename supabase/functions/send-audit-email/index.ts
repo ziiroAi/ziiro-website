@@ -41,17 +41,17 @@ const corsHeaders = (req: Request) => {
 const ratingLabels: Record<string, string> = {
   outreach: 'Self-Optimizing Systems',
   leadgen: 'Research & Qualification',
-  pipeline: 'Workflow Automation',
+  pipeline: 'UGC Ads & Management',
   content: 'Role Clarity',
   reporting: 'Control Dashboards',
 };
 
 const painAreas = [
-  { key: 'outreach', label: ratingLabels.outreach, hrsPerRating: [0, 0.5, 1.5, 3.5, 5.5, 8] },
-  { key: 'leadgen', label: ratingLabels.leadgen, hrsPerRating: [0, 0.5, 1.5, 3, 5, 7.5] },
-  { key: 'pipeline', label: ratingLabels.pipeline, hrsPerRating: [0, 0.3, 1, 2.5, 4, 6] },
-  { key: 'content', label: ratingLabels.content, hrsPerRating: [0, 0.5, 1.5, 3, 4.5, 6.5] },
-  { key: 'reporting', label: ratingLabels.reporting, hrsPerRating: [0, 0.3, 0.8, 2, 3.5, 5] },
+  { key: 'outreach', label: ratingLabels.outreach, hrsPerRating: [0, 0.2, 0.6, 1.2, 2.2, 3.5] },
+  { key: 'leadgen', label: ratingLabels.leadgen, hrsPerRating: [0, 0.2, 0.5, 1.1, 2, 3] },
+  { key: 'pipeline', label: ratingLabels.pipeline, hrsPerRating: [0, 0.1, 0.4, 0.9, 1.5, 2.2] },
+  { key: 'content', label: ratingLabels.content, hrsPerRating: [0, 0.2, 0.5, 1, 1.8, 2.5] },
+  { key: 'reporting', label: ratingLabels.reporting, hrsPerRating: [0, 0.1, 0.4, 0.8, 1.4, 2] },
 ];
 
 const allowedSizes = new Set(['1-5', '6-20', '21-50', '51-200', '200+']);
@@ -66,7 +66,7 @@ const allowedIndustries = new Set([
   'AI-first Service Business',
   'Other',
 ]);
-const hourlyValue = 38;
+const hourlyValue = 30;
 
 const escapeHtml = (value: unknown) =>
   String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -132,7 +132,7 @@ const normalizeRatings = (input: Record<string, unknown>) => {
 };
 
 const calcResults = (ratings: Record<string, number>, size: string) => {
-  const sized = ['1-5', '6-20'].includes(size) ? 0.85 : ['51-200', '200+'].includes(size) ? 1.15 : 1;
+  const sized = size === '1-5' ? 0.6 : size === '6-20' ? 0.8 : size === '51-200' ? 1.1 : size === '200+' ? 1.2 : 1;
   const areas = painAreas.map((area) => {
     const rating = ratings[area.key] || 0;
     const hrs = +(area.hrsPerRating[rating] * sized).toFixed(1);
@@ -142,8 +142,9 @@ const calcResults = (ratings: Record<string, number>, size: string) => {
   const sorted = [...areas].sort((a, b) => b.hrs - a.hrs);
   const totalHrs = +areas.reduce((sum, area) => sum + area.hrs, 0).toFixed(1);
   const totalAnnual = areas.reduce((sum, area) => sum + area.annual, 0);
-  const score = Math.round((totalHrs / (painAreas.length * 8)) * 100);
-  const urgency = totalHrs >= 15 ? 'Critical' : totalHrs >= 8 ? 'High' : 'Moderate';
+  const maxHrs = areas.reduce((sum, area) => sum + (area.hrsPerRating[5] * sized), 0);
+  const score = maxHrs > 0 ? Math.round((totalHrs / maxHrs) * 100) : 0;
+  const urgency = totalHrs >= 12 ? 'Critical' : totalHrs >= 7 ? 'High' : 'Moderate';
   return {
     sorted,
     score,
@@ -231,8 +232,8 @@ serve(async (req) => {
         <table style="border-collapse:collapse;width:100%;margin-bottom:20px;">
           <tr style="background:#f4f4f4;"><td style="padding:10px;border:1px solid #ddd;font-weight:bold;">Agentic Leverage Score</td><td style="padding:10px;border:1px solid #ddd;font-size:1.2em;font-weight:bold;">${escapeHtml(score)} / 100</td></tr>
           <tr><td style="padding:10px;border:1px solid #ddd;font-weight:bold;">Priority Level</td><td style="padding:10px;border:1px solid #ddd;">${escapeHtml(urgency)}</td></tr>
-          <tr style="background:#f4f4f4;"><td style="padding:10px;border:1px solid #ddd;font-weight:bold;">Est. Weekly Time Saved</td><td style="padding:10px;border:1px solid #ddd;">${escapeHtml(savings)}</td></tr>
-          <tr><td style="padding:10px;border:1px solid #ddd;font-weight:bold;">Projected 90-day ROI</td><td style="padding:10px;border:1px solid #ddd;">${escapeHtml(roi)}</td></tr>
+          <tr style="background:#f4f4f4;"><td style="padding:10px;border:1px solid #ddd;font-weight:bold;">Est. Weekly Time Reclaimed</td><td style="padding:10px;border:1px solid #ddd;">${escapeHtml(savings)}</td></tr>
+          <tr><td style="padding:10px;border:1px solid #ddd;font-weight:bold;">Estimated Annual Value</td><td style="padding:10px;border:1px solid #ddd;">${escapeHtml(roi)}</td></tr>
           <tr style="background:#f4f4f4;"><td style="padding:10px;border:1px solid #ddd;font-weight:bold;">Top Pain Areas</td><td style="padding:10px;border:1px solid #ddd;">${escapeHtml(topAreas.join(', '))}</td></tr>
         </table>
 

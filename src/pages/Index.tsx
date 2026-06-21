@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
 import SEO from "@/components/SEO";
-import { Bot, BrainCircuit, RefreshCw, UserCheck, Workflow } from "lucide-react";
+import { Bot, BrainCircuit, Clapperboard, RefreshCw, UserCheck } from "lucide-react";
 import AnimatedSection from "@/components/AnimatedSection";
 import DeferredDottedSurface from "@/components/DeferredDottedSurface";
 import RadialOrbitalTimeline from "@/components/ui/radial-orbital-timeline";
+import { selfOptimizingSystemNodes } from "@/data/self-optimizing-systems";
 
 const steps = [
   { num: "01", title: "Systems Audit", detail: "We find the manual loops, decision bottlenecks, and founder tasks that should become agentic systems." },
@@ -34,14 +35,15 @@ const servicesData = [
     relatedIds: [1, 3],
     status: "completed" as const,
     energy: 94,
+    childNodes: selfOptimizingSystemNodes,
   },
   {
     id: 3,
-    title: "Workflow Automation",
-    date: "Less manual ops",
-    content: "CRM updates, follow-ups, handoffs, dashboards, and internal workflows connected into one reliable operating system.",
-    category: "Automation",
-    icon: Workflow,
+    title: "UGC Ads & Management",
+    date: "Creator-led growth",
+    content: "Creator sourcing, UGC-style ad production, and Meta/TikTok campaign management as a focused side growth channel.",
+    category: "Creative Growth",
+    icon: Clapperboard,
     relatedIds: [1, 2, 4],
     status: "completed" as const,
     energy: 92,

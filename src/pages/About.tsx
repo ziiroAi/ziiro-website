@@ -22,7 +22,7 @@ const About = () => {
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
         title="About Ziiro - Founder-Led Agentic AI Studio"
-        description="Ziiro is a founder-led AI studio building agentic systems, self-optimizing growth and workflow loops, website optimization, and role diagnostics for lean teams."
+        description="Ziiro is a founder-led AI studio building agentic systems, self-optimizing growth and workflow loops, website optimization, role diagnostics, and focused UGC ads management for lean teams."
         canonical="/about"
       />
       <div className="min-h-screen pt-32 pb-28 px-6">
@@ -46,7 +46,7 @@ const About = () => {
               <GlassCard hover={false} className="h-full">
                 <p className="section-label mb-4">Our Mission</p>
                 <p className="text-white/65 leading-relaxed mb-6">
-                  To turn repeated work into self-improving systems. We build agents, marketing and outreach loops, website optimization systems, workflow automations, and role diagnostics that help small teams operate with more clarity and less manual drag.
+                  To turn repeated work into self-improving systems. We build agents, marketing and outreach loops, website optimization systems, role diagnostics, and selective UGC ad management that help small teams grow with more clarity and less manual drag.
                 </p>
                 <div
                   className="glass rounded-xl p-5"

@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import SEO from "@/components/SEO";
-import { Bot, BrainCircuit, RefreshCw, UserCheck, Workflow } from "lucide-react";
+import { Bot, BrainCircuit, Clapperboard, RefreshCw, UserCheck } from "lucide-react";
 import AnimatedSection from "@/components/AnimatedSection";
 import RadialOrbitalTimeline from "@/components/ui/radial-orbital-timeline";
+import { selfOptimizingSystemNodes } from "@/data/self-optimizing-systems";
 
 const services = [
   {
@@ -18,10 +19,10 @@ const services = [
     desc: "We build marketing, outreach, website, and workflow loops that track outcomes, learn what works, and improve automatically instead of guessing forever.",
   },
   {
-    icon: Workflow,
-    name: "Workflow Automation",
-    outcome: "Less manual ops",
-    desc: "We connect CRM updates, follow-ups, dashboards, handoffs, approvals, and reporting into one reliable operating system your team can actually run.",
+    icon: Clapperboard,
+    name: "UGC Ads & Management",
+    outcome: "Creator-led growth",
+    desc: "We source creators, produce UGC-style ads, and manage paid campaigns across Meta and TikTok as a focused side growth channel, not the core identity of Ziiro.",
   },
   {
     icon: BrainCircuit,
@@ -59,14 +60,15 @@ const orbitalData = [
     relatedIds: [1, 3],
     status: "completed" as const,
     energy: 94,
+    childNodes: selfOptimizingSystemNodes,
   },
   {
     id: 3,
-    title: "Workflow Automation",
-    date: "Less manual ops",
-    content: "CRM, dashboards, handoffs, approvals, and reporting connected into one system.",
-    category: "Automation",
-    icon: Workflow,
+    title: "UGC Ads & Management",
+    date: "Creator-led growth",
+    content: "Creator sourcing, UGC-style ad production, and paid campaign management across Meta and TikTok.",
+    category: "Creative Growth",
+    icon: Clapperboard,
     relatedIds: [1, 2, 4],
     status: "completed" as const,
     energy: 92,
@@ -99,8 +101,8 @@ const Services = () => {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Our Services - Agentic Systems, Self-Optimizing Systems, Workflow Automation"
-        description="Ziiro builds agentic AI systems, self-optimizing marketing, outreach, website, and workflow loops, AI strategy sprints, and role diagnostics for lean teams."
+        title="Our Services - Agentic Systems, Self-Optimizing Systems, UGC Ads"
+        description="Ziiro builds agentic AI systems, self-optimizing marketing, outreach, website, and workflow loops, UGC ads management, AI strategy sprints, and role diagnostics for lean teams."
         canonical="/services"
       />
 
@@ -143,7 +145,7 @@ const Services = () => {
         </div>
 
         {/* Mobile orbital */}
-        <div className="lg:hidden w-full" style={{ height: "420px" }}>
+        <div className="lg:hidden w-full" style={{ height: "560px" }}>
           <RadialOrbitalTimeline timelineData={orbitalData} />
         </div>
         <p className="lg:hidden pb-8 text-center text-white/35 text-xs tracking-widest uppercase">

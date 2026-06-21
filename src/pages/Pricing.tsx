@@ -11,7 +11,7 @@ const plans = [
     badge: "Small Business",
     featured: false,
     features: [
-      "1 AI chatbot OR 2 workflow automations",
+      "1 AI chatbot OR 1 focused agentic system",
       "Integration with up to 3 tools",
       "Basic analytics dashboard",
       "Email support (48h response)",
@@ -27,7 +27,7 @@ const plans = [
     badge: "Most Popular",
     featured: true,
     features: [
-      "1 AI chatbot + 4 workflow automations",
+      "1 AI chatbot + 2 self-optimizing systems",
       "Integration with up to 10 tools",
       "Advanced analytics (3 dashboards)",
       "Priority support (24h response)",
@@ -47,7 +47,7 @@ const plans = [
     badge: "Large Teams",
     featured: false,
     features: [
-      "Unlimited chatbots and workflows",
+      "Unlimited chatbots and agentic systems",
       "Unlimited tool integrations",
       "Custom AI model development",
       "Unlimited dashboards & analytics",
@@ -65,7 +65,7 @@ const plans = [
 ];
 
 const addons = [
-  { name: "Extra workflow", price: "+$500/mo" },
+  { name: "Extra agentic system", price: "+$500/mo" },
   { name: "Additional dashboard", price: "+$400/mo" },
   { name: "Training session", price: "$200" },
   { name: "Emergency support", price: "$100/hr" },
@@ -73,7 +73,7 @@ const addons = [
 
 const faqs = [
   { q: "Can I upgrade my plan later?", a: "Absolutely. Upgrade at any time and we'll prorate the difference — no penalty, no hassle." },
-  { q: "What's included in setup?", a: "Integration configuration, custom workflow design, testing, and initial training for your team." },
+  { q: "What's included in setup?", a: "Integration configuration, custom system design, testing, and initial training for your team." },
   { q: "Do you offer refunds?", a: "We offer a satisfaction guarantee within the first 30 days. If you're not happy, we'll work with you to make it right." },
   { q: "How long are the contracts?", a: "Starter: 3 months. Growth: 6 months. Enterprise: 12 months. Annual payment gets you a discount." },
   { q: "What payment methods do you accept?", a: "All major credit cards, ACH transfers, and wire transfers for enterprise accounts." },
