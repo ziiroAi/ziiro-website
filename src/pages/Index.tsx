@@ -95,11 +95,11 @@ const Home = () => {
               <h1 className="display-font leading-none mb-6" style={{ fontSize: "clamp(2.6rem, 5.5vw, 5.5rem)" }}>
                 <span className="text-white">ZIIRO</span>
                 <br />
-                <span className="text-white">BUILDS</span>
+                <span className="text-white">LIMITS</span>
                 <br />
-                <span className="gradient-text">AGENTIC</span>
+                <span className="gradient-text">INFINITE</span>
                 <br />
-                <span className="gradient-text">SYSTEMS.</span>
+                <span className="gradient-text">POSSIBILITIES.</span>
               </h1>
 
               <p className="text-white/50 text-base max-w-md mb-8 leading-relaxed">
