@@ -15,7 +15,9 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['Space Grotesk', 'Inter', 'sans-serif'],
+        mono: ['Space Mono', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -66,7 +68,19 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 4px)",
         sm: "calc(var(--radius) - 8px)",
+        xl: "var(--radius-xl)",
         pill: "50px",
+      },
+      boxShadow: {
+        "neo": "8px 8px 16px var(--neo-shadow-dark), -8px -8px 16px var(--neo-shadow-light)",
+        "neo-sm": "4px 4px 8px var(--neo-shadow-dark), -4px -4px 8px var(--neo-shadow-light)",
+        "neo-inset": "inset 4px 4px 8px var(--neo-shadow-dark), inset -4px -4px 8px var(--neo-shadow-light)",
+        "glass": "0 8px 32px rgba(0, 0, 0, 0.1)",
+        "glass-lg": "0 16px 48px rgba(0, 0, 0, 0.15)",
+      },
+      backdropBlur: {
+        glass: "40px",
+        "glass-strong": "60px",
       },
       zIndex: {
         "-1": "-1",
@@ -80,10 +94,20 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "orbit-rotate": {
+          from: { transform: "rotate(0deg)" },
+          to: { transform: "rotate(360deg)" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { opacity: "0.4" },
+          "50%": { opacity: "0.8" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "orbit": "orbit-rotate 60s linear infinite",
+        "pulse-glow": "pulse-glow 3s ease-in-out infinite",
       },
     },
   },
