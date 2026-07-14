@@ -73,7 +73,7 @@ export default function CinematicParticles() {
       aScale: { size: 1, data: scales, instanced: 1 },
       aSeed: { size: 1, data: seeds, instanced: 1 },
     });
-    (geometry as any).instancedCount = PARTICLE_COUNT;
+    (geometry as unknown as { instancedCount: number }).instancedCount = PARTICLE_COUNT;
 
     const program = new Program(gl, {
       vertex: dotVertex,
