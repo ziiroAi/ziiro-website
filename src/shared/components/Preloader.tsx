@@ -33,6 +33,7 @@ export default function Preloader() {
   // Show only once per browser session — a refresh or deep-link within the
   // same session skips it, so the preloader never re-gates paint/LCP again.
   const [gone, setGone] = useState(() => {
+    if (typeof window === "undefined") return true; // never render server-side
     try {
       return sessionStorage.getItem("ziiro-preloaded") === "1";
     } catch {

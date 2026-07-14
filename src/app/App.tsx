@@ -45,39 +45,53 @@ function ScrollToTop() {
 
 const queryClient = new QueryClient();
 
+/** App-wide providers, shared by the client entry and the SSG server entry. */
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>{children}</TooltipProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
+  );
+}
+
+/** The route table (shared shape; server entry imports pages eagerly). */
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Index />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/audit" element={<Audit />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/mission" element={<Mission />} />
+      <Route path="/products" element={<Products />} />
+      <Route path="/process" element={<Process />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      {/* Redirects from old routes */}
+      <Route path="/services" element={<Navigate to="/" replace />} />
+      <Route path="/about" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Preloader />
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <ScrollToTop />
-          <ParticleBackground />
-          <Navbar />
-          <Suspense fallback={<div className="min-h-screen" />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/audit" element={<Audit />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/mission" element={<Mission />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/process" element={<Process />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
-              {/* Redirects from old routes */}
-              <Route path="/services" element={<Navigate to="/" replace />} />
-              <Route path="/about" element={<Navigate to="/" replace />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
-          <Footer />
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </ThemeProvider>
+  <Providers>
+    <Preloader />
+    <Toaster />
+    <Sonner />
+    <BrowserRouter>
+      <ScrollToTop />
+      <ParticleBackground />
+      <Navbar />
+      <Suspense fallback={<div className="min-h-screen" />}>
+        <AppRoutes />
+      </Suspense>
+      <Footer />
+    </BrowserRouter>
+  </Providers>
 );
 
 export default App;

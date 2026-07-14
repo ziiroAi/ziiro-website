@@ -35,3 +35,4 @@ dist-ssr
 # Session/tooling artifacts
 .playwright-mcp/
 *.mp4
+dist-ssr/
