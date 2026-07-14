@@ -5,10 +5,15 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'placeholder';
 
+// SSR-safe: this module is imported during the build-time prerender (pure
+// Node), where localStorage/window don't exist. Fall back to in-memory
+// session there; the browser uses real localStorage.
+const isBrowser = typeof window !== 'undefined';
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+    storage: isBrowser ? window.localStorage : undefined,
+    persistSession: isBrowser,
+    autoRefreshToken: isBrowser,
   }
 });
