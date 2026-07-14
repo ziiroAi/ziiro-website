@@ -69,18 +69,6 @@ const App = () => (
           </Routes>
           <Footer />
           <BottomDock />
-          {/* Chatbot-style floating button — mobile only, above dock */}
-          <a
-            href="/contact"
-            className="fixed bottom-20 right-6 z-50 w-12 h-12 bg-white rounded-full shadow-lg shadow-black/20 flex items-center justify-center hover:scale-105 transition-transform lg:hidden"
-            aria-label="Chat with us"
-          >
-            <img
-              src="/logo/ziiro-logo-small.webp"
-              alt=""
-              className="w-7 h-7 object-contain invert"
-            />
-          </a>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
