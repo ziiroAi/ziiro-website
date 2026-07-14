@@ -11,10 +11,10 @@ const WAYPOINTS: [number, number][] = [
   [0.5, 0.9],
 ];
 
-const W = 460;
-const H = 600;
-const COLS = 23;
-const ROWS = 30;
+const W = 560;
+const H = 720;
+const COLS = 26;
+const ROWS = 34;
 
 const DEFAULT_LABELS = ["01", "02", "03", "04", "05", "06", "07"];
 
@@ -110,14 +110,15 @@ export default function MethodPath({
       ctx.strokeStyle = color;
 
       // Grid + lit route
+      const ROUTE_W = 16; // route thickness in px
       for (const cell of cells) {
-        const onPath = cell.dist < 11 && cell.t <= p + 0.15;
+        const onPath = cell.dist < ROUTE_W && cell.t <= p + 0.15;
         const litness = onPath
           ? Math.max(0, Math.min((p + 0.15 - cell.t) * 2.5, 1)) *
-            Math.max(0, 1 - cell.dist / 11)
+            Math.max(0, 1 - cell.dist / ROUTE_W)
           : 0;
-        ctx.globalAlpha = 0.1 + litness * 0.65;
-        const rad = 1.15 + litness * 1.5;
+        ctx.globalAlpha = 0.12 + litness * 0.68;
+        const rad = 1.7 + litness * 2.6;
         ctx.beginPath();
         ctx.arc(cell.x, cell.y, rad, 0, Math.PI * 2);
         ctx.fill();
@@ -126,16 +127,16 @@ export default function MethodPath({
       // Waypoint stations + labels
       nodes.forEach(([x, y], i) => {
         const lit = i <= p + 0.2;
-        ctx.globalAlpha = lit ? 0.95 : 0.3;
+        ctx.globalAlpha = lit ? 0.95 : 0.4;
         ctx.beginPath();
-        ctx.arc(x, y, lit ? 4.5 : 3, 0, Math.PI * 2);
+        ctx.arc(x, y, lit ? 7 : 5, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.globalAlpha = lit ? 0.75 : 0.3;
-        ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+        ctx.globalAlpha = lit ? 0.8 : 0.4;
+        ctx.font = "700 14px ui-monospace, SFMono-Regular, Menlo, monospace";
         ctx.textBaseline = "middle";
         const label = labels[i] ?? "";
-        const lx = x < W / 2 ? x + 14 : x - 14 - ctx.measureText(label).width;
+        const lx = x < W / 2 ? x + 20 : x - 20 - ctx.measureText(label).width;
         ctx.fillText(label, lx, y);
       });
 
@@ -143,21 +144,21 @@ export default function MethodPath({
       const activeIdx = Math.max(0, Math.min(Math.round(p), nodes.length - 1));
       const [ax, ay] = nodes[activeIdx];
       ctx.globalAlpha = 0.65;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.arc(ax, ay, 11 + Math.sin(time * 2.2) * 2.5, 0, Math.PI * 2);
+      ctx.arc(ax, ay, 17 + Math.sin(time * 2.2) * 4, 0, Math.PI * 2);
       ctx.stroke();
 
       // A pulse travels the lit portion of the route
       if (p > 0.05) {
         const u = ((time * 0.22) % 1) * p;
-        for (let k = 0; k < 4; k++) {
+        for (let k = 0; k < 5; k++) {
           const tp = u - k * 0.06;
           if (tp < 0) continue;
           const [px, py] = pathAt(tp);
-          ctx.globalAlpha = 0.85 * (1 - k / 4);
+          ctx.globalAlpha = 0.9 * (1 - k / 5);
           ctx.beginPath();
-          ctx.arc(px, py, 3 - k * 0.5, 0, Math.PI * 2);
+          ctx.arc(px, py, 5 - k * 0.8, 0, Math.PI * 2);
           ctx.fill();
         }
       }

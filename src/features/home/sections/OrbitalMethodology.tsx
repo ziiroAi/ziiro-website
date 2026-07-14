@@ -93,7 +93,7 @@ export default function OrbitalMethodology() {
         <div className="mt-20 grid grid-cols-1 gap-16 lg:grid-cols-2">
           {/* The journey map rides along while the phases scroll */}
           <div className="hidden lg:block">
-            <div className="sticky top-[calc(50vh_-_300px)] flex justify-center">
+            <div className="sticky top-[calc(50vh_-_360px)] flex justify-center">
               <MethodPath progress={progress.current} />
             </div>
           </div>
