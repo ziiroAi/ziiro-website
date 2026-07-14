@@ -168,6 +168,13 @@ export default function HeroCarousel() {
         ref={heroRef}
         className="relative bg-[var(--background)]/80 dark:bg-transparent pt-28 md:pt-32 pb-0 overflow-hidden"
       >
+        {/* Single semantic H1 for crawlers & AI engines — the visible
+            "Leverage / AI / Anywhere" kinetic type is decorative. */}
+        <h1 className="sr-only">
+          Leverage AI Anywhere — agentic AI systems and business intelligence
+          for startups and founder-led teams.
+        </h1>
+
         {/* Row 1: "Leverage" + 3 icons */}
         <div className="border-b border-black/8 dark:border-white/8">
           <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-5 md:py-7 flex items-center gap-3 md:gap-5 overflow-hidden">

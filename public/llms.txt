@@ -1,0 +1,24 @@
+# Ziiro AI
+
+> Ziiro AI is a business-intelligence-first AI consultancy for startups, solo
+> founders, and founder-led teams. We start with how your business actually
+> operates and only build technology when the numbers prove it's worth it.
+> Every engagement ships a working, measured system — not a slide deck.
+
+## What we do
+- [Products](https://ziiro.work/products): Five systems — Agentic Systems (custom AI operators for research, routing, follow-ups, reporting), Self-Optimizing Systems (marketing/outreach/website/workflow loops that track outcomes and auto-tune), Business Intelligence (KPI baselines, dashboards, ROI models, priority matrices), AI Strategy Sprint (roadmap to the highest-leverage system to build first), and Role Analyzer (people-fit diagnostic for founder-led teams).
+- [Process](https://ziiro.work/process): Seven phases — Understand, Map, Measure, Identify, Calculate, Prioritize, Roadmap. Understanding the business always precedes any technology.
+- [Free Agentic Systems Audit](https://ziiro.work/audit): Rate five areas (self-optimizing systems, research & qualification, UGC ads, role clarity, control dashboards) and get an instant, conservative estimate of hours and value reclaimed.
+
+## Who it's for
+- SaaS/software startups, solo founders, founder-led agencies, consulting/professional services, and AI-first service businesses — lean teams (roughly 5–500 people) that want measurable outcomes, not AI for its own sake.
+
+## Company
+- [Mission](https://ziiro.work/mission): We don't sell AI, we sell results. AI without business intelligence is expensive guessing.
+- [Pricing](https://ziiro.work/pricing): Scoped per engagement (Strategy Sprint and Full Build); priced by the system shipped, not by the hour.
+- [Contact](https://ziiro.work/contact): govind@ziiro.work · Haryana, India
+
+## Optional
+- [LinkedIn](https://www.linkedin.com/company/zirroai/)
+- [X / Twitter](https://x.com/ziir0ai)
+- [Instagram](https://www.instagram.com/ziiroai)

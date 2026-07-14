@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { animate, stagger } from "animejs";
+import SEO from "@/shared/components/SEO";
 
 /** Small dot marker for editorial list items — same language as the dot world. */
 const Dot = () => (
@@ -106,6 +107,11 @@ const Terms = () => {
 
   return (
     <div className="relative" style={{ zIndex: 1 }}>
+      <SEO
+        title="Terms of Service"
+        description="The terms that govern your use of the Ziiro AI website and services."
+        canonical="/terms"
+      />
       <div className="min-h-screen pb-28">
         <div className="mx-auto max-w-3xl px-6 md:px-10">
           {/* ─── Page hero ─── */}

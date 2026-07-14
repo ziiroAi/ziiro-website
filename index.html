@@ -4,25 +4,35 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Primary Meta -->
-    <title>Ziiro AI – Agentic AI Systems for Startups and Solo Founders</title>
-    <meta name="description" content="Ziiro AI builds agentic AI systems, self-optimizing marketing, outreach, website, and workflow loops, plus role diagnostics and focused UGC ads management for lean teams." />
-    <meta name="keywords" content="agentic AI systems, AI agents for startups, self-optimizing systems, website optimization, UGC ads management, role analyzer, AI consultancy India, founder automation" />
+    <!-- Primary Meta (homepage defaults; react-helmet-async sets per-route
+         title/description/canonical/OG at runtime — no static canonical here
+         so Helmet is the single canonical source and never conflicts). -->
+    <title>Ziiro AI — Leverage AI Anywhere | Agentic AI Systems for Startups</title>
+    <meta name="description" content="Ziiro AI is a business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems, self-optimizing loops, and BI dashboards that pay for themselves." />
+    <meta name="keywords" content="AI consultancy, agentic AI systems, AI agents for startups, AI automation agency, business intelligence consultancy, self-optimizing systems, AI ROI audit, role analyzer, AI consultancy India, founder automation" />
     <meta name="author" content="Ziiro AI" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://ziiro.work" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <!-- Load font CSS async so it doesn't block first paint -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,900&family=Space+Grotesk:wght@500;600;700&display=swap"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript>
+      <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    </noscript>
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://ziiro.work" />
-    <meta property="og:title" content="Ziiro AI – Agentic AI Systems for Startups and Solo Founders" />
-    <meta property="og:description" content="We build AI agents, self-improving marketing, outreach, website, and workflow loops, plus role diagnostics and focused UGC ads management." />
+    <meta property="og:title" content="Ziiro AI — Leverage AI Anywhere" />
+    <meta property="og:description" content="Business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems and self-optimizing loops." />
     <meta property="og:image" content="https://ziiro.work/og-image.jpeg" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="1024" />
     <meta property="og:site_name" content="Ziiro AI" />
     <meta property="og:locale" content="en_IN" />
 
@@ -30,40 +40,107 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@ziir0ai" />
     <meta name="twitter:creator" content="@ziir0ai" />
-    <meta name="twitter:title" content="Ziiro AI – Agentic AI Systems" />
-    <meta name="twitter:description" content="We build AI agents, self-improving marketing, outreach, website, and workflow loops, plus role diagnostics and focused UGC ads management." />
+    <meta name="twitter:title" content="Ziiro AI — Leverage AI Anywhere" />
+    <meta name="twitter:description" content="Business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems and self-optimizing loops." />
     <meta name="twitter:image" content="https://ziiro.work/og-image.jpeg" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    <!-- JSON-LD Structured Data -->
+    <!-- JSON-LD Structured Data (static so non-JS crawlers ingest it) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Ziiro AI",
-      "url": "https://ziiro.work",
-      "logo": "https://ziiro.work/logo/ziiro-logo-small.webp",
-      "description": "Ziiro AI builds agentic AI systems, self-optimizing marketing, outreach, website, and workflow loops, plus role diagnostics and focused UGC ads management for lean teams.",
-      "email": "govind@ziiro.work",
-      "address": {
-        "@type": "PostalAddress",
-        "addressCountry": "IN",
-        "addressRegion": "Haryana"
-      },
-      "sameAs": [
-        "https://www.linkedin.com/company/zirroai/",
-        "https://x.com/ziir0ai",
-        "https://www.instagram.com/ziiroai"
-      ],
-      "offers": {
-        "@type": "Offer",
-        "description": "Free 30-minute agentic systems strategy call",
-        "price": "0",
-        "priceCurrency": "USD"
-      }
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://ziiro.work/#organization",
+          "name": "Ziiro AI",
+          "alternateName": "Ziiro",
+          "url": "https://ziiro.work",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://ziiro.work/logo/ziiro-logo-small.webp",
+            "width": 192,
+            "height": 128
+          },
+          "image": "https://ziiro.work/og-image.jpeg",
+          "description": "Ziiro AI is a business-intelligence-first AI consultancy that builds agentic AI systems, self-optimizing loops, and BI dashboards for startups and founder-led teams.",
+          "slogan": "We don't sell AI. We sell results.",
+          "email": "govind@ziiro.work",
+          "areaServed": "Worldwide",
+          "knowsAbout": [
+            "Agentic AI systems",
+            "AI automation",
+            "Self-optimizing marketing loops",
+            "Business intelligence",
+            "AI strategy",
+            "Workflow automation"
+          ],
+          "address": {
+            "@type": "PostalAddress",
+            "addressRegion": "Haryana",
+            "addressCountry": "IN"
+          },
+          "contactPoint": [
+            {
+              "@type": "ContactPoint",
+              "contactType": "sales",
+              "email": "govind@ziiro.work",
+              "url": "https://ziiro.work/contact",
+              "availableLanguage": ["English"]
+            },
+            {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "aniket@ziiro.work",
+              "url": "https://ziiro.work/contact",
+              "availableLanguage": ["English"]
+            }
+          ],
+          "sameAs": [
+            "https://www.linkedin.com/company/zirroai/",
+            "https://x.com/ziir0ai",
+            "https://www.instagram.com/ziiroai"
+          ],
+          "makesOffer": {
+            "@type": "Offer",
+            "name": "Free 30-minute agentic systems strategy call",
+            "description": "A free 30-minute strategy call to map where agentic AI creates leverage in your business.",
+            "price": "0",
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock",
+            "url": "https://ziiro.work/contact",
+            "itemOffered": {
+              "@type": "Service",
+              "name": "Agentic AI systems strategy consultation",
+              "provider": { "@id": "https://ziiro.work/#organization" }
+            }
+          },
+          "hasOfferCatalog": {
+            "@type": "OfferCatalog",
+            "name": "Ziiro AI Services",
+            "itemListElement": [
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Agentic Systems", "description": "Custom AI operators that handle research, routing, follow-ups, and reporting.", "provider": { "@id": "https://ziiro.work/#organization" } } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Self-Optimizing Systems", "description": "Marketing, outreach, website, and workflow loops that track outcomes and improve automatically.", "provider": { "@id": "https://ziiro.work/#organization" } } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Business Intelligence", "description": "KPI baselines, dashboards, ROI models, and priority matrices.", "provider": { "@id": "https://ziiro.work/#organization" } } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "AI Strategy Sprint", "description": "A focused roadmap to the highest-leverage system to build first.", "provider": { "@id": "https://ziiro.work/#organization" } } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Role Analyzer", "description": "A people-fit diagnostic for founder-led teams: ownership mapping and throughput redesign.", "provider": { "@id": "https://ziiro.work/#organization" } } }
+            ]
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://ziiro.work/#website",
+          "url": "https://ziiro.work",
+          "name": "Ziiro AI",
+          "alternateName": "Ziiro",
+          "description": "Business-intelligence-first AI consultancy building agentic systems and self-optimizing loops for startups and founder-led teams.",
+          "inLanguage": "en",
+          "publisher": { "@id": "https://ziiro.work/#organization" }
+        }
+      ]
     }
     </script>
   </head>

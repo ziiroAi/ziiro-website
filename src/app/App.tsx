@@ -9,15 +9,18 @@ import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
 import Preloader from "@/shared/components/Preloader";
 import Index from "@/pages/Index";
-import Contact from "@/pages/Contact";
-import Privacy from "@/pages/Privacy";
-import Terms from "@/pages/Terms";
-import Audit from "@/pages/Audit";
-import Pricing from "@/pages/Pricing";
-import Mission from "@/pages/Mission";
-import Products from "@/pages/Products";
-import Process from "@/pages/Process";
-import NotFound from "@/pages/NotFound";
+
+// Secondary routes are code-split so they don't ship in the homepage's
+// critical bundle — each loads on demand when its route is visited.
+const Contact = lazy(() => import("@/pages/Contact"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
+const Terms = lazy(() => import("@/pages/Terms"));
+const Audit = lazy(() => import("@/pages/Audit"));
+const Pricing = lazy(() => import("@/pages/Pricing"));
+const Mission = lazy(() => import("@/pages/Mission"));
+const Products = lazy(() => import("@/pages/Products"));
+const Process = lazy(() => import("@/pages/Process"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const CinematicParticles = lazy(() => import("@/ogl/CinematicParticles"));
 
@@ -53,21 +56,23 @@ const App = () => (
           <ScrollToTop />
           <ParticleBackground />
           <Navbar />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/audit" element={<Audit />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/mission" element={<Mission />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/process" element={<Process />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            {/* Redirects from old routes */}
-            <Route path="/services" element={<Navigate to="/" replace />} />
-            <Route path="/about" element={<Navigate to="/" replace />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<div className="min-h-screen" />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/audit" element={<Audit />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/mission" element={<Mission />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/process" element={<Process />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms" element={<Terms />} />
+              {/* Redirects from old routes */}
+              <Route path="/services" element={<Navigate to="/" replace />} />
+              <Route path="/about" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
           <Footer />
         </BrowserRouter>
       </TooltipProvider>

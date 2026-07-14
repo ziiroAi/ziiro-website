@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { animate, createAnimatable, stagger } from "animejs";
 import DotGlyph from "@/shared/ui/dot-glyph";
+import SEO from "@/shared/components/SEO";
 
 const DIGITS = ["4", "0", "4"];
 
@@ -64,6 +65,7 @@ const NotFound = () => {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[var(--background)] px-6 pb-16 pt-28">
+      <SEO title="Page Not Found" canonical="/404" noindex />
       <div ref={rootRef} className="flex w-full max-w-3xl flex-col items-center text-center">
         <p
           data-nf-rise
