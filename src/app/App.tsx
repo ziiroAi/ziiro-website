@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { lazy, Suspense, useEffect } from "react";
 import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
+import Preloader from "@/shared/components/Preloader";
 import Index from "@/pages/Index";
 import Contact from "@/pages/Contact";
 import Privacy from "@/pages/Privacy";
@@ -45,6 +46,7 @@ const App = () => (
   <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <Preloader />
         <Toaster />
         <Sonner />
         <BrowserRouter>
