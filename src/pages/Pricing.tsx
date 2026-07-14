@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { animate, createAnimatable, createTimeline, stagger } from "animejs";
-import MotionReveal from "@/components/motion/MotionReveal";
-import TextReveal from "@/components/motion/TextReveal";
-import SEO from "@/components/SEO";
+import MotionReveal from "@/shared/motion/MotionReveal";
+import TextReveal from "@/shared/motion/TextReveal";
+import SEO from "@/shared/components/SEO";
 
 const tiers = [
   {

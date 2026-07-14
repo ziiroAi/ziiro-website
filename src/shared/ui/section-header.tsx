@@ -1,4 +1,4 @@
-import MotionReveal from "@/components/motion/MotionReveal";
+import MotionReveal from "@/shared/motion/MotionReveal";
 
 /**
  * Shared editorial section header: hairline rule, dot marker, mono

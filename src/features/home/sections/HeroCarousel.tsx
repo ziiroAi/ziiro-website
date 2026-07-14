@@ -12,8 +12,8 @@ import {
   Brain,
   Workflow,
 } from "lucide-react";
-import DotGlyph from "@/components/ui/dot-glyph";
-import TextReveal from "@/components/motion/TextReveal";
+import DotGlyph from "@/shared/ui/dot-glyph";
+import TextReveal from "@/shared/motion/TextReveal";
 
 function IconCircle({
   Icon,

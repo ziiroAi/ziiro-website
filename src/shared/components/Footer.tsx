@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { createAnimatable } from "animejs";
-import ZiiroMark from "@/components/ui/ziiro-mark";
+import ZiiroMark from "@/shared/ui/ziiro-mark";
 
 const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
   {

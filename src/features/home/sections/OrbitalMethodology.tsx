@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { animate, onScroll, utils } from "animejs";
-import SectionHeader from "@/components/ui/section-header";
-import MethodPath from "@/components/ui/method-path";
+import SectionHeader from "@/shared/ui/section-header";
+import MethodPath from "@/shared/ui/method-path";
 
 const phases = [
   { num: "01", name: "Understand", output: "Business model canvas", desc: "Discovery sessions examining revenue models, customer journeys, operations, cost structure, and growth blockers." },

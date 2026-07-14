@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { animate, createAnimatable, createSpring, stagger } from "animejs";
-import SectionHeader from "@/components/ui/section-header";
-import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/components/ui/dot-glyph";
+import SectionHeader from "@/shared/ui/section-header";
+import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/shared/ui/dot-glyph";
 
 interface Service {
   name: string;

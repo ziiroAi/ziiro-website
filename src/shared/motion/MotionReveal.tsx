@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
-import { smoothEase } from "@/lib/animations";
+import { smoothEase } from "@/shared/lib/animations";
 
 interface MotionRevealProps {
   children: ReactNode;

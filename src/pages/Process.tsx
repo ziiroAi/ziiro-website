@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { animate, createAnimatable, createTimeline, stagger } from "animejs";
-import SEO from "@/components/SEO";
-import MotionReveal from "@/components/motion/MotionReveal";
-import TextReveal from "@/components/motion/TextReveal";
-import SectionHeader from "@/components/ui/section-header";
-import MethodPath from "@/components/ui/method-path";
+import SEO from "@/shared/components/SEO";
+import MotionReveal from "@/shared/motion/MotionReveal";
+import TextReveal from "@/shared/motion/TextReveal";
+import SectionHeader from "@/shared/ui/section-header";
+import MethodPath from "@/shared/ui/method-path";
 
 interface Phase {
   num: string;

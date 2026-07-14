@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { animate, onScroll, stagger, utils } from "animejs";
-import SectionHeader from "@/components/ui/section-header";
+import SectionHeader from "@/shared/ui/section-header";
 
 const metrics = [
   { value: 2400, suffix: "+", label: "Hours Automated", sub: "Weekly across client systems" },

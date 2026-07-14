@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState, type FocusEvent, type FormEvent } from "react";
 import { animate, createAnimatable, createSpring, createTimeline, utils } from "animejs";
-import SEO from "@/components/SEO";
-import DotGlyph from "@/components/ui/dot-glyph";
-import { supabase } from "@/integrations/supabase/client";
+import SEO from "@/shared/components/SEO";
+import DotGlyph from "@/shared/ui/dot-glyph";
+import {
+  emptyContactForm,
+  validateContactForm,
+} from "@/features/contact/entities/contactForm";
+import { sendContactMessage } from "@/features/contact/services/contactService";
 
 // Tactile spring for form-field focus (transform only — no layout shift)
 const focusSpring = createSpring({ stiffness: 340, damping: 22 });
@@ -21,14 +25,7 @@ const emails = ["aniket@ziiro.work", "govind@ziiro.work"];
 const metas = ["[ RESPONSE < 24H ]", "[ FREE 30 MIN ]", "[ NO PITCH ]"];
 
 const Contact = () => {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    company: "",
-    message: "",
-    consent: false,
-  });
+  const [form, setForm] = useState(emptyContactForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -84,29 +81,15 @@ const Contact = () => {
     animate(el, { scale: 1, duration: 320, ease: "out(4)" });
   };
 
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "Required";
-    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Valid email required";
-    if (!form.company.trim()) e.company = "Required";
-    if (!form.message.trim()) e.message = "Required";
-    if (!form.consent) e.consent = "Required";
-    return e;
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const v = validate();
+    const v = validateContactForm(form);
     setErrors(v);
     if (Object.keys(v).length > 0) return;
     setLoading(true);
     setSubmitError("");
     try {
-      const { data, error: emailError } = await supabase.functions.invoke("send-contact-email", {
-        body: { name: form.name, email: form.email, phone: form.phone, company: form.company, message: form.message },
-      });
-      if (emailError || data?.success === false) throw emailError ?? new Error("Contact email failed");
-
+      await sendContactMessage(form);
       setSubmitted(true);
     } catch (err) {
       console.error(err);

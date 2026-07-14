@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import ThemeToggle from "@/components/ui/theme-toggle";
-import ZiiroMark from "@/components/ui/ziiro-mark";
+import ThemeToggle from "@/shared/ui/theme-toggle";
+import ZiiroMark from "@/shared/ui/ziiro-mark";
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
