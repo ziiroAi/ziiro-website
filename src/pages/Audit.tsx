@@ -180,7 +180,7 @@ const Audit = () => {
               style={{ opacity: 0, fontSize: "clamp(2.6rem, 6vw, 4.8rem)", letterSpacing: "-0.03em", lineHeight: 1.04 }}
               className="font-display font-semibold text-[var(--text-primary)]"
             >
-              Agentic systems
+              Agentic systems{" "}
               <br />
               <span className="text-[var(--text-secondary)]">audit.</span>
             </h1>
