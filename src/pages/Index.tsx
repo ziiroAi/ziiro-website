@@ -1,9 +1,9 @@
-import SEO from "@/components/SEO";
-import HeroCarousel from "@/components/sections/HeroCarousel";
-import DotArtSection from "@/components/sections/DotArtSection";
-import ServicesCarousel from "@/components/sections/ServicesCarousel";
-import OrbitalMethodology from "@/components/sections/OrbitalMethodology";
-import RollingCounters from "@/components/sections/RollingCounters";
+import SEO from "@/shared/components/SEO";
+import HeroCarousel from "@/features/home/sections/HeroCarousel";
+import DotArtSection from "@/features/home/sections/DotArtSection";
+import ServicesCarousel from "@/features/home/sections/ServicesCarousel";
+import OrbitalMethodology from "@/features/home/sections/OrbitalMethodology";
+import RollingCounters from "@/features/home/sections/RollingCounters";
 
 export default function Home() {
   return (

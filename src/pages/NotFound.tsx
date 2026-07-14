@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { animate, createAnimatable, stagger } from "animejs";
-import DotGlyph from "@/components/ui/dot-glyph";
+import DotGlyph from "@/shared/ui/dot-glyph";
 
 const DIGITS = ["4", "0", "4"];
 

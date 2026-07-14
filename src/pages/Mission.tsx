@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { animate, createAnimatable, createTimeline, stagger } from "animejs";
-import SEO from "@/components/SEO";
-import SectionHeader from "@/components/ui/section-header";
-import MotionReveal from "@/components/motion/MotionReveal";
-import TextReveal from "@/components/motion/TextReveal";
-import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/components/ui/dot-glyph";
+import SEO from "@/shared/components/SEO";
+import SectionHeader from "@/shared/ui/section-header";
+import MotionReveal from "@/shared/motion/MotionReveal";
+import TextReveal from "@/shared/motion/TextReveal";
+import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/shared/ui/dot-glyph";
 
 const words = [
   {
