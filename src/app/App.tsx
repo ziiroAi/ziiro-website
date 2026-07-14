@@ -7,7 +7,6 @@ import { ThemeProvider } from "next-themes";
 import { lazy, Suspense, useEffect } from "react";
 import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
-import BottomDock from "@/shared/components/layout/MobileBottomDock";
 import Index from "@/pages/Index";
 import Contact from "@/pages/Contact";
 import Privacy from "@/pages/Privacy";
@@ -68,7 +67,6 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           <Footer />
-          <BottomDock />
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
