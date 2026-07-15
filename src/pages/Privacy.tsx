@@ -108,8 +108,8 @@ const Privacy = () => {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Privacy Policy"
-        description="How Ziiro AI collects, uses, and protects the information you share when you contact us or use the site."
+        title="Privacy Policy & Your Data"
+        description="How Ziiro AI collects, uses, shares, and protects information you provide through forms, calls, bookings, or SMS on our website or services."
         canonical="/privacy"
       />
       <div className="min-h-screen pb-28">

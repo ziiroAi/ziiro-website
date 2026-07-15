@@ -10,7 +10,7 @@ export default function Home() {
     <div className="relative">
       <SEO
         title="Ziiro — Leverage AI Anywhere"
-        description="Ziiro is a force multiplier for founder-led teams: we start with business intelligence, prove the ROI, then build agentic systems and self-optimizing loops — any industry, any function, any process."
+        description="Ziiro is a force multiplier for founder-led teams: we start with business intelligence, prove the ROI, then build agentic systems and self-optimizing loops."
         canonical="/"
       />
 

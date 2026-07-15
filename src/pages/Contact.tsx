@@ -148,7 +148,7 @@ const Contact = () => {
   return (
     <div ref={rootRef} className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Book a Free Agentic Systems Call - Talk to Ziiro AI"
+        title="Book a Free Agentic Systems Call"
         description="Book a free 30-minute call with Ziiro AI. We'll identify the first agentic system worth building for your startup, solo founder workflow, or lean team."
         canonical="/contact"
       />

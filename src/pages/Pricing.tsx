@@ -176,7 +176,7 @@ export default function Pricing() {
     <div className="relative">
       <SEO
         title="Investment — Ziiro AI Systems"
-        description="Custom pricing based on scope, complexity, and timeline. Book a free call to discuss your AI systems project."
+        description="No fixed pricing. Ziiro scopes each project to your needs: a Strategy Sprint (1-3 weeks) or a Full Build (4-12 weeks). Book a free call to start."
         canonical="/pricing"
       />
 

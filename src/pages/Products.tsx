@@ -179,7 +179,7 @@ export default function Products() {
     <div className="relative">
       <SEO
         title="Products — Systems, Not Software"
-        description="Five ways Ziiro builds leverage: agentic systems, self-optimizing loops, business intelligence, AI strategy sprints, and role diagnostics. Every engagement ships a working system."
+        description="Ziiro builds leverage: agentic systems, self-optimizing loops, business intelligence, strategy sprints, and role diagnostics — each a working system."
         canonical="/products"
       />
 
