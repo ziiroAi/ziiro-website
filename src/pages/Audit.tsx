@@ -156,8 +156,8 @@ const Audit = () => {
   return (
     <div ref={rootRef} className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Free Agentic Systems Audit - Find Your Agentic Leverage"
-        description="Take Ziiro's free Agentic Systems Audit and discover where agents, self-optimizing growth loops, UGC ads management, and role diagnostics can create realistic first-pass leverage."
+        title="Free Agentic Systems Audit for Your Business"
+        description="Take Ziiro's free Agentic Systems Audit to find where agents, self-optimizing loops, and clearer roles create real, first-pass leverage for your business."
         canonical="/audit"
       />
       <div className="min-h-screen pb-24">

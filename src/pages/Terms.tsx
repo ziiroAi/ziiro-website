@@ -108,8 +108,8 @@ const Terms = () => {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Terms of Service"
-        description="The terms that govern your use of the Ziiro AI website and services."
+        title="Terms & Conditions of Service"
+        description="The Terms & Conditions governing your use of the Ziiro AI website and services, including AI outputs, SMS messages, and liability limits."
         canonical="/terms"
       />
       <div className="min-h-screen pb-28">
