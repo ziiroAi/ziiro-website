@@ -1,21 +1,26 @@
 /**
  * Contact service: external communication for the contact feature.
- * Stateless; throws on failure so the caller owns UI error handling.
+ * Posts to the Vercel serverless endpoint (/api/send-contact), which emails
+ * the team via Resend. Stateless; throws on failure so the caller owns UI
+ * error handling.
  */
-import { supabase } from "@/shared/services/supabase/client";
 import type { ContactForm } from "../entities/contactForm";
 
 export async function sendContactMessage(form: ContactForm): Promise<void> {
-  const { data, error } = await supabase.functions.invoke("send-contact-email", {
-    body: {
+  const res = await fetch("/api/send-contact", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       name: form.name,
       email: form.email,
       phone: form.phone,
       company: form.company,
       message: form.message,
-    },
+    }),
   });
-  if (error || data?.success === false) {
-    throw error ?? new Error("Contact email failed");
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data?.success === false) {
+    throw new Error(data?.error ?? "Contact email failed");
   }
 }

@@ -1,8 +1,9 @@
 /**
  * Audit service: external communication for the self-audit feature —
- * emailing results and checking a domain's mail records. Stateless.
+ * emailing results and checking a domain's mail records. Posts to the Vercel
+ * serverless endpoint (/api/send-audit), which scores and emails the team via
+ * Resend. Stateless.
  */
-import { supabase } from "@/shared/services/supabase/client";
 import type { AuditForm } from "../entities/audit";
 
 interface AuditSubmission extends AuditForm {
@@ -10,17 +11,21 @@ interface AuditSubmission extends AuditForm {
 }
 
 export async function sendAuditEmail(submission: AuditSubmission): Promise<void> {
-  const { data, error } = await supabase.functions.invoke("send-audit-email", {
-    body: {
+  const res = await fetch("/api/send-audit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
       name: submission.name,
       email: submission.email,
       industry: submission.industry,
       size: submission.size,
       ratings: submission.ratings,
-    },
+    }),
   });
-  if (error || data?.success === false) {
-    throw error ?? new Error("Audit email failed");
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data?.success === false) {
+    throw new Error(data?.error ?? "Audit email failed");
   }
 }
 
