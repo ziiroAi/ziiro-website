@@ -1,0 +1,2 @@
+round	timestamp	hypothesis	changed_files	before	after	decision	notes
+0	2026-07-15	baseline	-	-	82.54	baseline	9 routes; schema 66.7 uniform; meta-tag gaps; title/meta outliers; 0 internal links

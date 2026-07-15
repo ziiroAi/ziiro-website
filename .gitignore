@@ -38,3 +38,6 @@ dist-ssr
 dist-ssr/
 .vercel
 .env*
+
+# auto-research scorer venv
+.auto-research/.venv/
