@@ -28,14 +28,9 @@ export interface Formation {
 
 export const FORMATION_LABELS = [
   "THE WAVE",
-  "THE RIBBON",
-  "THE HELIX",
   "THE NETWORK",
-  "THE LATTICE",
-  "THE TUNNEL",
   "THE TERRAIN",
   "THE TREE",
-  "THE STREAMS",
   "THE SPHERE",
   "INFINITY",
 ] as const;
@@ -43,9 +38,10 @@ export const FORMATION_LABELS = [
 export const SCENE_COUNT = FORMATION_LABELS.length;
 
 // Per-scene effect strengths, lerped by the component each frame
-export const SCENE_PULSE = [0, 0.25, 0.5, 0.55, 0.4, 0.6, 0.35, 0.45, 0.5, 0, 0];
-export const SCENE_CLOTH = [6, 0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-export const SCENE_BREATH = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0.07, 0];
+// Index-aligned to FORMATION_LABELS: wave, network, terrain, tree, sphere, infinity
+export const SCENE_PULSE = [0, 0.55, 0.35, 0.45, 0, 0];
+export const SCENE_CLOTH = [6, 0, 0, 0, 0, 0];
+export const SCENE_BREATH = [0, 0, 0, 0, 0.07, 0];
 // The sphere -> universe explosion is driven by radial wind instead
 export const COLLAPSE_SEGMENT = -1;
 
@@ -109,83 +105,6 @@ function genWaveSurface(count: number): Pt[] {
         z: 0,
         s: 0.45 + 0.15 * Math.sin(c * 0.25) * Math.sin(r * 0.3),
         f: 0,
-      });
-    }
-  }
-  return pts;
-}
-
-// ==================================================================
-// 2 — THE RIBBON: a broad Möbius band folding through space
-// ==================================================================
-function genRibbon(count: number): Pt[] {
-  const pts: Pt[] = [];
-  const width = 40;
-  const steps = Math.floor(count / width);
-  const R = 26;
-  const halfW = 6.5;
-  for (let i = 0; i < steps; i++) {
-    const t = (i / steps) * TAU;
-    for (let j = 0; j < width; j++) {
-      const w = ((j / (width - 1)) * 2 - 1) * halfW;
-      const rr = R + w * Math.cos(t / 2);
-      pts.push({
-        x: rr * Math.cos(t),
-        y: w * Math.sin(t / 2) * 1.6,
-        z: rr * Math.sin(t),
-        s: 0.48 + 0.27 * Math.abs(w / halfW),
-        f: 1 + t * 8,
-      });
-    }
-  }
-  return pts;
-}
-
-// ==================================================================
-// 3 — THE HELIX: DNA — two thick strands, rungs, pulses climbing
-// ==================================================================
-function genHelix(scale: number): Pt[] {
-  const pts: Pt[] = [];
-  const nS = Math.floor(850 * scale);
-  const r = 10;
-  const turns = 3.6;
-
-  for (let strand = 0; strand < 2; strand++) {
-    for (let k = 0; k < nS; k++) {
-      const t = k / (nS - 1);
-      const y = -36 + t * 72;
-      const ang = t * TAU * turns + strand * Math.PI;
-      // four parallel offsets thicken each strand into an open cable
-      for (let o = 0; o < 4; o++) {
-        const oa = ang + (o - 1.5) * 0.22;
-        const oy = y + ((o % 2) - 0.5) * 1.0;
-        pts.push({
-          x: Math.cos(oa) * r,
-          y: oy,
-          z: Math.sin(oa) * r,
-          s: 0.6 + 0.1 * Math.sin(k * 0.4 + o),
-          f: 1 + t * 55,
-        });
-      }
-    }
-  }
-
-  // Base-pair rungs
-  const nR = Math.floor(56 * scale);
-  for (let ri = 0; ri < nR; ri++) {
-    const t = (ri + 0.5) / nR;
-    const y = -36 + t * 72;
-    const ang = t * TAU * turns;
-    const ax = Math.cos(ang) * r;
-    const az = Math.sin(ang) * r;
-    for (let u = 0; u < 16; u++) {
-      const uu = u / 15;
-      pts.push({
-        x: ax * (1 - 2 * uu),
-        y,
-        z: az * (1 - 2 * uu),
-        s: 0.45,
-        f: 1 + t * 55 + uu * 2,
       });
     }
   }
@@ -286,102 +205,6 @@ function genNetwork(scale: number): Pt[] {
 }
 
 // ==================================================================
-// 5 — THE LATTICE: giant architectural strut lattice
-// ==================================================================
-function genLattice(scale: number): Pt[] {
-  const pts: Pt[] = [];
-  const nx = 8;
-  const ny = 6;
-  const nz = 5;
-  const sp = 13;
-  const ox = ((nx - 1) * sp) / 2;
-  const oy = ((ny - 1) * sp) / 2;
-  const oz = ((nz - 1) * sp) / 2;
-  const perEdge = Math.max(4, Math.floor(11 * scale));
-
-  const edge = (
-    ax: number, ay: number, az: number,
-    bx: number, by: number, bz: number,
-    phase: number,
-  ) => {
-    for (let i = 1; i < perEdge; i++) {
-      const u = i / perEdge;
-      pts.push({
-        x: ax + (bx - ax) * u,
-        y: ay + (by - ay) * u,
-        z: az + (bz - az) * u,
-        s: 0.48,
-        f: 1 + phase * 2 + u * 2,
-      });
-    }
-  };
-
-  for (let i = 0; i < nx; i++) {
-    for (let j = 0; j < ny; j++) {
-      for (let k = 0; k < nz; k++) {
-        const x = i * sp - ox;
-        const y = j * sp - oy;
-        const z = k * sp - oz;
-        // node accents
-        for (let a = 0; a < 4; a++) {
-          const th = a * 1.9;
-          pts.push({
-            x: x + Math.cos(th) * 0.6,
-            y: y + Math.sin(th) * 0.6,
-            z: z + Math.sin(th + 1) * 0.6,
-            s: 0.85,
-            f: 0,
-          });
-        }
-        if (i < nx - 1) edge(x, y, z, x + sp, y, z, i + j + k);
-        if (j < ny - 1) edge(x, y, z, x, y + sp, z, i + j + k);
-        if (k < nz - 1) edge(x, y, z, x, y, z + sp, i + j + k);
-      }
-    }
-  }
-  return pts;
-}
-
-// ==================================================================
-// 6 — THE TUNNEL: rings receding into deep space, pulses diving in
-// ==================================================================
-function genTunnel(scale: number): Pt[] {
-  const pts: Pt[] = [];
-  const rings = 64;
-  const perRing = Math.floor(120 * scale);
-  for (let ri = 0; ri < rings; ri++) {
-    const z = 24 - ri * 4;
-    const rad = 15 + 2 * Math.sin(ri * 0.3);
-    for (let i = 0; i < perRing; i++) {
-      const a = (i / perRing) * TAU + ri * 0.05;
-      pts.push({
-        x: Math.cos(a) * rad,
-        y: Math.sin(a) * rad,
-        z,
-        s: Math.max(0.35, 0.68 - ri * 0.004),
-        f: 1 + ri * 2.5,
-      });
-    }
-  }
-  // longitudinal rails
-  const rails = 14;
-  for (let li = 0; li < rails; li++) {
-    const a = (li / rails) * TAU;
-    for (let ri = 0; ri < rings; ri++) {
-      const rad = 15 + 2 * Math.sin(ri * 0.3);
-      pts.push({
-        x: Math.cos(a) * rad,
-        y: Math.sin(a) * rad,
-        z: 24 - ri * 4,
-        s: 0.5,
-        f: 1 + ri * 2.5,
-      });
-    }
-  }
-  return pts;
-}
-
-// ==================================================================
 // 7 — THE TERRAIN: topographic landscape with contour emphasis
 // ==================================================================
 function genTerrain(count: number): Pt[] {
@@ -462,47 +285,6 @@ function genTree(count: number): Pt[] {
 }
 
 // ==================================================================
-// 9 — THE STREAMS: flow-field streamlines swirling through space
-// ==================================================================
-function genStreams(scale: number): Pt[] {
-  const pts: Pt[] = [];
-  const rand = seededRandom(31);
-  const lines = Math.floor(66 * scale * 2) / 2;
-  const steps = 150;
-  for (let li = 0; li < lines; li++) {
-    // seed inside a sphere
-    const th = rand() * TAU;
-    const ph = Math.acos(2 * rand() - 1);
-    const rr = Math.pow(rand(), 0.6) * 30;
-    let x = rr * Math.sin(ph) * Math.cos(th);
-    let y = rr * Math.sin(ph) * Math.sin(th) * 0.8;
-    let z = rr * Math.cos(ph);
-    for (let i = 0; i < steps; i++) {
-      let vx = Math.sin(y * 0.09 + z * 0.07 + 2.1);
-      let vy = Math.sin(z * 0.09 + x * 0.06 + 4.2);
-      let vz = Math.sin(x * 0.08 + y * 0.05 + 1.3);
-      // gentle centripetal pull keeps the swarm composed
-      vx -= x * 0.012;
-      vy -= y * 0.012;
-      vz -= z * 0.012;
-      const vl = Math.hypot(vx, vy, vz) || 1;
-      x += (vx / vl) * 0.85;
-      y += (vy / vl) * 0.85;
-      z += (vz / vl) * 0.85;
-      const t = i / (steps - 1);
-      pts.push({
-        x,
-        y,
-        z,
-        s: 0.35 + 0.4 * Math.sin(Math.PI * t),
-        f: 1 + i * 1.1,
-      });
-    }
-  }
-  return pts;
-}
-
-// ==================================================================
 // 10 — THE SPHERE: a perfect breathing fibonacci sphere
 // ==================================================================
 function genSphere(scale: number): Pt[] {
@@ -554,14 +336,9 @@ export function buildFormations(count: number, mobile: boolean): Formation[] {
 
   const pointSets: Pt[][] = [
     genWaveSurface(count),
-    genRibbon(count),
-    genHelix(scale),
     genNetwork(scale),
-    genLattice(scale),
-    genTunnel(scale),
     genTerrain(count),
     genTree(count),
-    genStreams(scale),
     genSphere(scale),
     genUniverse(scale),
   ];

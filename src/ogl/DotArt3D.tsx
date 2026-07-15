@@ -33,14 +33,9 @@ function smooth01(t: number): number {
 // zf scales the fitted base distance; x/y are world offsets.
 const CAM_KEYS = [
   { x: 0, y: 26, zf: 0.85 },  // high above the wave fabric
-  { x: -9, y: 6, zf: 0.72 },  // circling down to the ribbon
-  { x: 7, y: 0, zf: 0.8 },    // alongside the helix
   { x: -6, y: 2, zf: 0.85 },  // drifting through the network
-  { x: 9, y: 5, zf: 0.95 },   // stepping back for the lattice
-  { x: 0, y: 0, zf: 0.5 },    // at the tunnel mouth, looking in
   { x: 0, y: 34, zf: 0.8 },   // aerial over the terrain
   { x: -6, y: -2, zf: 0.9 },  // at the foot of the tree
-  { x: 8, y: 3, zf: 0.75 },   // inside the particle streams
   { x: 0, y: 0, zf: 0.85 },   // face to face with the sphere
   { x: 0, y: 0, zf: 1.4 },    // wide on the burst universe
   { x: 0, y: 3, zf: 1.7 },    // spline tail: drifting further out
@@ -73,16 +68,11 @@ function camAt(u: number): { x: number; y: number; zf: number } {
 // Inherited momentum per transition segment: the direction dots ride
 // while travelling, so each sculpture hands its energy to the next.
 const WINDS: [number, number, number, number][] = [
-  // [x, y, z, radial]
-  [0, 7, -4, 0],    // the fabric lifts and folds into the ribbon
-  [0, 10, 0, -4],   // the ribbon twists upward, tightening into the helix
-  [4, 0, 4, 7],     // the helix unwinds outward into the network
-  [0, 0, 0, 11],    // the network expands into the giant lattice
-  [0, 0, -15, 2],   // the lattice bends away into the tunnel's depth
-  [0, -9, 8, 4],    // the tunnel opens and settles into the terrain
+  // [x, y, z, radial] — one per transition (5 segments)
+  [0, 5, 4, 6],     // the fabric lifts and weaves into the network
+  [0, -9, 8, 2],    // the network settles down into the terrain
   [0, 13, 0, -5],   // the landscape rises into the branching tree
-  [6, 3, -5, 4],    // the tree dissolves into flowing streams
-  [0, 0, 0, -9],    // the streams organize inward into the sphere
+  [4, 2, -4, -7],   // the tree dissolves and gathers into the sphere
   [0, 0, 0, 26],    // the sphere explodes into the universe
 ];
 
@@ -390,7 +380,7 @@ export default function DotArt3D() {
     <section
       ref={sectionRef}
       className="relative w-full"
-      style={{ height: "1100vh" }}
+      style={{ height: "600vh" }}
     >
       <div className="sticky top-0 left-0 w-full h-screen overflow-hidden">
         <div
