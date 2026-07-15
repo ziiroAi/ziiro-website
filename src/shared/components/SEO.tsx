@@ -13,11 +13,73 @@ interface SEOProps {
 
 const BASE_URL = "https://ziiro.work";
 const DEFAULT_OG = `${BASE_URL}/og-image.jpeg`;
+/** Matches the WebSite node @id in index.html's static @graph. */
+const WEBSITE_ID = `${BASE_URL}/#website`;
+
+/** Turn a path segment ("self-hosted") into a human label ("Self Hosted"). */
+const titleCase = (segment: string): string =>
+  segment
+    .split("-")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+
+/**
+ * Build a truthful BreadcrumbList from the canonical path.
+ * "/" → [Home]; "/products" → [Home, Products].
+ */
+const buildBreadcrumb = (path: string, id: string) => {
+  const segments = path.split("/").filter(Boolean);
+  const itemListElement: Array<Record<string, unknown>> = [
+    {
+      "@type": "ListItem",
+      position: 1,
+      name: "Home",
+      item: BASE_URL,
+    },
+  ];
+
+  let cumulative = "";
+  segments.forEach((segment, index) => {
+    cumulative += `/${segment}`;
+    itemListElement.push({
+      "@type": "ListItem",
+      position: index + 2,
+      name: titleCase(segment),
+      item: `${BASE_URL}${cumulative}`,
+    });
+  });
+
+  return {
+    "@type": "BreadcrumbList",
+    "@id": id,
+    itemListElement,
+  };
+};
 
 const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noindex }: SEOProps) => {
   const fullTitle = title ? `${title} | Ziiro AI` : "Ziiro AI — Leverage AI Anywhere | Agentic AI Systems for Startups";
   const desc = description || "Business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems and self-optimizing loops.";
+  const path = canonical || "/";
   const url = canonical ? `${BASE_URL}${canonical}` : BASE_URL;
+
+  const breadcrumbId = `${url}#breadcrumb`;
+  const pageGraph = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        "@id": `${url}#webpage`,
+        name: fullTitle,
+        description: desc,
+        url,
+        isPartOf: { "@id": WEBSITE_ID },
+        inLanguage: "en",
+        breadcrumb: { "@id": breadcrumbId },
+      },
+      buildBreadcrumb(path, breadcrumbId),
+    ],
+  };
 
   return (
     <Helmet>
@@ -34,6 +96,8 @@ const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noin
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={desc} />
       <meta name="twitter:image" content={ogImage} />
+
+      <script type="application/ld+json">{JSON.stringify(pageGraph)}</script>
 
       {schema && (
         <script type="application/ld+json">{JSON.stringify(schema)}</script>
