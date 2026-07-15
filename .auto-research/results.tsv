@@ -1,3 +1,4 @@
 round	timestamp	hypothesis	changed_files	before	after	decision	notes
 0	2026-07-15	baseline	-	-	82.54	baseline	9 routes; schema 66.7 uniform; meta-tag gaps; title/meta outliers; 0 internal links
 1	2026-07-15	Per-page WebPage+BreadcrumbList @graph via SEO.tsx	src/shared/components/SEO.tsx	82.54	89.26	KEEP	schema 66.7->100 on all 9 routes; build 9/9; valid JSON-LD, no fabrication
+2	2026-07-15	Complete social/robots meta in SEO.tsx (og:type/site_name/image:alt+dims, twitter:card, robots preview)	src/shared/components/SEO.tsx	89.26	90.19	KEEP	meta-tag coverage up sitewide; build 9/9; no invented handle

@@ -87,12 +87,24 @@ const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noin
       <meta name="description" content={desc} />
       <link rel="canonical" href={url} />
       {noindex && <meta name="robots" content="noindex, follow" />}
+      {!noindex && (
+        <meta
+          name="robots"
+          content="max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+        />
+      )}
 
+      <meta property="og:type" content="website" />
+      <meta property="og:site_name" content="Ziiro AI" />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={desc} />
       <meta property="og:url" content={url} />
       <meta property="og:image" content={ogImage} />
+      <meta property="og:image:alt" content={fullTitle} />
+      <meta property="og:image:width" content="1024" />
+      <meta property="og:image:height" content="1024" />
 
+      <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={desc} />
       <meta name="twitter:image" content={ogImage} />
