@@ -35,7 +35,7 @@ export default function Navbar() {
           aria-label="Ziiro — home"
           className="flex items-center gap-3 text-[var(--text-primary)] transition-opacity hover:opacity-80"
         >
-          <ZiiroMark className="h-9 w-9" />
+          <ZiiroMark className="h-8" />
           <span className="font-display text-[26px] font-bold leading-none tracking-tight">
             Ziiro
           </span>

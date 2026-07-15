@@ -93,7 +93,7 @@ export default function Footer() {
               className="inline-block text-[var(--text-primary)] transition-opacity duration-300 hover:opacity-80"
               aria-label="Ziiro — home"
             >
-              <ZiiroMark className="h-8 w-8" />
+              <ZiiroMark className="h-10" />
             </Link>
 
             <p

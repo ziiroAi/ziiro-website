@@ -1,26 +1,31 @@
 /**
- * The Ziiro overlapping-cards mark, drawn as an SVG with currentColor —
- * crisp at any size and correct in both themes. Single source of truth
- * for the brand mark (navbar, footer, favicase moments).
+ * The Ziiro brand mark — the original dot-art monogram (public/logo/), painted
+ * with currentColor via a CSS mask so it stays crisp and correct in both themes
+ * (near-black on light, near-white on dark) and matches the adjacent wordmark.
+ * Single source of truth for the mark (navbar, footer). The asset is portrait
+ * (~2:3), so size it by HEIGHT — width follows from aspect-ratio.
  */
-export default function ZiiroMark({ className = "h-9 w-9" }: { className?: string }) {
+const MARK_URL = "/logo/ziiro-mark.webp";
+
+export default function ZiiroMark({ className = "h-9" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 48 48" className={className} fill="none" aria-hidden>
-      <rect
-        x="8"
-        y="14"
-        width="18"
-        height="28"
-        rx="3.5"
-        fill="currentColor"
-        opacity="0.45"
-      />
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M20 6h18a3.5 3.5 0 0 1 3.5 3.5v25A3.5 3.5 0 0 1 38 38H20a3.5 3.5 0 0 1-3.5-3.5v-25A3.5 3.5 0 0 1 20 6Zm5 8.5h8v15h-8v-15Z"
-        fill="currentColor"
-      />
-    </svg>
+    <span
+      role="img"
+      aria-label="Ziiro"
+      className={className}
+      style={{
+        display: "inline-block",
+        aspectRatio: "476 / 721",
+        backgroundColor: "currentColor",
+        WebkitMaskImage: `url(${MARK_URL})`,
+        maskImage: `url(${MARK_URL})`,
+        WebkitMaskSize: "contain",
+        maskSize: "contain",
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+      }}
+    />
   );
 }
