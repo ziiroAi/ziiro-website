@@ -58,7 +58,7 @@ const buildBreadcrumb = (path: string, id: string) => {
 };
 
 const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noindex }: SEOProps) => {
-  const fullTitle = title ? `${title} | Ziiro AI` : "Ziiro AI — Leverage AI Anywhere | Agentic AI Systems for Startups";
+  const fullTitle = title ? `${title} | Ziiro AI` : "Ziiro AI: Leverage AI Anywhere | Agentic AI Systems for Startups";
   const desc = description || "Business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems and self-optimizing loops.";
   const path = canonical || "/";
   const url = canonical ? `${BASE_URL}${canonical}` : BASE_URL;

@@ -8,7 +8,7 @@ import {
 } from "@/features/contact/entities/contactForm";
 import { sendContactMessage } from "@/features/contact/services/contactService";
 
-// Tactile spring for form-field focus (transform only — no layout shift)
+// Tactile spring for form-field focus (transform only, no layout shift)
 const focusSpring = createSpring({ stiffness: 340, damping: 22 });
 
 const inputClass =
@@ -117,7 +117,7 @@ const Contact = () => {
             style={{ opacity: 0 }}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-            {"( ZIIRO — CONTACT )"}
+            {"( ZIIRO / CONTACT )"}
           </p>
           <h2
             data-rise
@@ -162,7 +162,7 @@ const Contact = () => {
             style={{ opacity: 0 }}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-            {"( ZIIRO — CONTACT )"}
+            {"( ZIIRO / CONTACT )"}
           </p>
           <h1
             data-rise
@@ -184,14 +184,14 @@ const Contact = () => {
             style={{ opacity: 0 }}
           >
             A free 30-minute consultation. We&apos;ll identify the first agentic
-            system worth building for your business — and you leave with a clear
+            system worth building for your business, and you leave with a clear
             roadmap, no commitment required.
           </p>
         </header>
 
         {/* ─── Two-column body ─── */}
         <div className="grid grid-cols-1 gap-16 pb-28 pt-16 lg:grid-cols-12">
-          {/* Left — pitch, direct lines, metas */}
+          {/* Left: pitch, direct lines, metas */}
           <div className="lg:col-span-5">
             <p
               data-rise
@@ -199,7 +199,7 @@ const Contact = () => {
               style={{ opacity: 0 }}
             >
               Tell us where the hours go. We&apos;ll tell you which agent,
-              website, marketing loop, or workflow to fix first — with real
+              website, marketing loop, or workflow to fix first, with real
               numbers attached.
             </p>
 
@@ -245,7 +245,7 @@ const Contact = () => {
             </div>
           </div>
 
-          {/* Right — form */}
+          {/* Right: form */}
           <div className="lg:col-span-6 lg:col-start-7">
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -300,7 +300,7 @@ const Contact = () => {
                 </div>
                 <div data-rise style={{ opacity: 0 }}>
                   <label htmlFor="contact-phone" className={labelClass}>
-                    Phone — optional
+                    Phone (optional)
                   </label>
                   <input
                     id="contact-phone"

@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { animate, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
 
-/** Small dot marker for editorial list items — same language as the dot world. */
+/** Small dot marker for editorial list items, same language as the dot world. */
 const Dot = () => (
   <span
     aria-hidden
@@ -123,10 +123,10 @@ const Terms = () => {
             >
               <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                ( Ziiro — Terms )
+                ( Ziiro / Terms )
               </p>
               <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
-                [ Legal — 12 sections ]
+                [ Legal / 12 sections ]
               </p>
             </div>
 
@@ -163,7 +163,7 @@ const Terms = () => {
               style={{ opacity: 0 }}
               className="mt-10 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)]"
             >
-              Effective date — January 30, 2026
+              Effective date: January 30, 2026
             </p>
           </header>
 
@@ -304,7 +304,7 @@ const Terms = () => {
 
             <div className="border-t border-[var(--border)] pt-6">
               <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                ( End of document — Ziiro AI )
+                ( End of document / Ziiro AI )
               </p>
             </div>
           </div>

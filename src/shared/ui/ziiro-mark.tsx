@@ -1,9 +1,9 @@
 /**
- * The Ziiro brand mark — the original dot-art monogram (public/logo/), painted
+ * The Ziiro brand mark: the original dot-art monogram (public/logo/), painted
  * with currentColor via a CSS mask so it stays crisp and correct in both themes
  * (near-black on light, near-white on dark) and matches the adjacent wordmark.
  * Single source of truth for the mark (navbar, footer). The asset is portrait
- * (~2:3), so size it by HEIGHT — width follows from aspect-ratio.
+ * (~2:3), so size it by HEIGHT; width follows from aspect-ratio.
  */
 const MARK_URL = "/logo/ziiro-mark.webp";
 

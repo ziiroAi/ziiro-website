@@ -115,8 +115,8 @@ function DotGrid() {
 export default function HeroCarousel() {
   const heroRef = useRef<HTMLElement>(null);
 
-  // Hero entrance: one sequenced timeline — words rise, annotations fade in,
-  // connectors draw, icons pop — instead of a pile of ad-hoc delays.
+  // Hero entrance: one sequenced timeline. Words rise, annotations fade in,
+  // connectors draw, icons pop, instead of a pile of ad-hoc delays.
   useEffect(() => {
     const root = heroRef.current;
     if (!root) return;
@@ -168,10 +168,10 @@ export default function HeroCarousel() {
         ref={heroRef}
         className="relative bg-[var(--background)]/80 dark:bg-transparent pt-28 md:pt-32 pb-0 overflow-hidden"
       >
-        {/* Single semantic H1 for crawlers & AI engines — the visible
+        {/* Single semantic H1 for crawlers & AI engines. The visible
             "Leverage / AI / Anywhere" kinetic type is decorative. */}
         <h1 className="sr-only">
-          Leverage AI Anywhere — agentic AI systems and business intelligence
+          Leverage AI Anywhere: agentic AI systems and business intelligence
           for startups and founder-led teams.
         </h1>
 
@@ -190,7 +190,7 @@ export default function HeroCarousel() {
               style={{ opacity: 0 }}
               className="hidden lg:block self-end pb-3 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)] shrink-0"
             >
-              ( a force multiplier — we amplify what's there )
+              ( a force multiplier / we amplify what's there )
             </span>
             <div className="flex items-center gap-2 md:gap-3 ml-auto">
               <Connector />
@@ -290,7 +290,7 @@ export default function HeroCarousel() {
         </div>
       </section>
 
-      {/* Dark cinematic section — "The Difference" */}
+      {/* Dark cinematic section: "The Difference" */}
       <section className="relative py-24 md:py-32 bg-[#0a0a0f]/90 overflow-hidden">
         {/* Radiating lines background */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
@@ -332,8 +332,8 @@ export default function HeroCarousel() {
             transition={{ delay: 0.2, duration: 0.6 }}
             className="text-white/50 text-base md:text-lg leading-relaxed max-w-xl mx-auto"
           >
-            We start with business intelligence — how your company actually
-            operates — and only recommend technology when the numbers prove
+            We start with business intelligence, how your company actually
+            operates, and only recommend technology when the numbers prove
             it's worth building. Most AI consultants skip the understanding
             phase. It's the only place we start.
           </motion.p>
@@ -345,7 +345,7 @@ export default function HeroCarousel() {
         </div>
       </section>
 
-      {/* What Powers Our AI — 3 cards */}
+      {/* What Powers Our AI: 3 cards */}
       <section
         id="capabilities"
         className="relative py-24 md:py-32 bg-[#0a0a0f]/90 px-6 md:px-10"
@@ -375,7 +375,7 @@ export default function HeroCarousel() {
               {
                 num: "01",
                 title: "Agentic Systems",
-                desc: "Agents that run real workflows — research, routing, follow-ups, reporting — under your rules, with your context.",
+                desc: "Agents that run real workflows (research, routing, follow-ups, reporting) under your rules, with your context.",
                 glyph: "agents" as const,
               },
               {
@@ -399,7 +399,7 @@ export default function HeroCarousel() {
                 transition={{ delay: i * 0.1, duration: 0.6, ease: [0.25, 0.4, 0.25, 1] }}
                 className="relative bg-[#111118] rounded-2xl p-7 overflow-hidden group hover:-translate-y-1 transition-transform duration-300 border border-white/5 min-h-[280px] flex flex-col justify-end"
               >
-                {/* Living dot-matrix background — same language as the hero world */}
+                {/* Living dot-matrix background: same language as the hero world */}
                 <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 opacity-30 transition-opacity duration-300 group-hover:opacity-50">
                   <DotGlyph variant={card.glyph} className="text-white" />
                 </div>
@@ -417,7 +417,7 @@ export default function HeroCarousel() {
         </div>
       </section>
 
-      {/* CTA — "Let's Build Together" with input bar */}
+      {/* CTA: "Let's Build Together" with input bar */}
       <section className="relative py-24 md:py-32 bg-[#0a0a0f]/90 overflow-hidden">
         <div className="absolute inset-0 flex items-end justify-center pointer-events-none opacity-20">
           <div
@@ -476,7 +476,7 @@ export default function HeroCarousel() {
 
           <p className="text-white/30 text-xs mt-6">
             One call. We'll tell you whether AI is even worth it for your
-            workflows — and what the numbers say.
+            workflows, and what the numbers say.
           </p>
         </div>
       </section>

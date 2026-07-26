@@ -85,7 +85,7 @@ void main() {
     size *= 1.0 + uBreath * br;
   }
 
-  // ---- Living world: layered idle motion — nothing is ever still ----
+  // ---- Living world: layered idle motion, nothing is ever still ----
   // Oscillating twist wave torques the whole structure without smearing it
   float r2d = length(pos.xz);
   float tw = 0.08 * sin(uTime * 0.15 + r2d * 0.04 + pos.y * 0.02);
@@ -140,7 +140,7 @@ void main() {
   float grow = 1.0 + hover * 0.45;
 
   // Constant screen-space sizing: dot radius stays uDotSize*size CSS px
-  // regardless of camera distance — depth reads through spacing only.
+  // regardless of camera distance; depth reads through spacing only.
   float fovFactor = projectionMatrix[1][1];
   float worldPerPixel = (2.0 * depth) / (fovFactor * uResolution.y);
   float worldSize = uDotSize * size * grow * worldPerPixel;
@@ -172,7 +172,7 @@ varying float vSizePx;
 uniform vec3 uColor;
 
 void main() {
-  // Perfect flat disc — no shading, no gradient, no glow.
+  // Perfect flat disc: no shading, no gradient, no glow.
   float dist = length(vUv);
   if (dist > 1.0) discard;
 
@@ -180,7 +180,7 @@ void main() {
   float aa = clamp(1.2 / max(vSizePx, 1.0), 0.06, 0.5);
   float edge = 1.0 - smoothstep(1.0 - aa, 1.0, dist);
 
-  // Premultiplied output — composites correctly over the page
+  // Premultiplied output: composites correctly over the page
   float a = edge * vAlpha;
   gl_FragColor = vec4(uColor * a, a);
 }

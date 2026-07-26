@@ -24,16 +24,16 @@ const products: Product[] = [
     deliverables: ["Inbox & follow-up agents", "Research & enrichment", "Ops routing", "Reporting agents"],
     glyph: "agents",
     figCaption: "Operators in motion",
-    build: "Typical build — 2-6 weeks",
+    build: "Typical build: 2-6 weeks",
   },
   {
     name: "Self-Optimizing Systems",
     sub: "Feedback loops that learn",
-    desc: "Marketing, outreach, website, and workflow loops that track their own outcomes and improve automatically — instead of guessing forever.",
+    desc: "Marketing, outreach, website, and workflow loops that track their own outcomes and improve automatically, instead of guessing forever.",
     deliverables: ["Outcome tracking", "A/B loops", "Auto-tuned campaigns", "Weekly learning reports"],
     glyph: "loops",
     figCaption: "A loop, learning",
-    build: "Typical build — 2-4 weeks",
+    build: "Typical build: 2-4 weeks",
   },
   {
     name: "Business Intelligence",
@@ -42,16 +42,16 @@ const products: Product[] = [
     deliverables: ["KPI baselines", "Live dashboards", "ROI models", "Priority matrix"],
     glyph: "bars",
     figCaption: "Signal over noise",
-    build: "Typical build — 1-3 weeks",
+    build: "Typical build: 1-3 weeks",
   },
   {
     name: "AI Strategy Sprint",
     sub: "Know what to build",
-    desc: "We map your team, stack, and constraints into a focused roadmap. No random tools — just the highest-leverage system to ship first.",
+    desc: "We map your team, stack, and constraints into a focused roadmap. No random tools, just the highest-leverage system to ship first.",
     deliverables: ["Team & stack audit", "Opportunity map", "Build roadmap", "First-system spec"],
     glyph: "path",
     figCaption: "The shortest route",
-    build: "Typical build — 1-2 weeks",
+    build: "Typical build: 1-2 weeks",
   },
   {
     name: "Role Analyzer",
@@ -60,14 +60,14 @@ const products: Product[] = [
     deliverables: ["Role diagnostics", "Ownership map", "Throughput redesign", "Hiring guidance"],
     glyph: "clusters",
     figCaption: "Right people, right seats",
-    build: "Typical build — 1 week",
+    build: "Typical build: 1 week",
   },
 ];
 
 const sequence = [
   {
     step: "Audit",
-    line: "Understand how the business actually runs — before touching any technology.",
+    line: "Understand how the business actually runs, before touching any technology.",
   },
   {
     step: "Strategy",
@@ -75,7 +75,7 @@ const sequence = [
   },
   {
     step: "Build",
-    line: "Ship a working system into your operation — not a slide deck.",
+    line: "Ship a working system into your operation, not a slide deck.",
   },
   {
     step: "Optimize",
@@ -178,8 +178,8 @@ export default function Products() {
   return (
     <div className="relative">
       <SEO
-        title="Products — Systems, Not Software"
-        description="Ziiro builds leverage: agentic systems, self-optimizing loops, business intelligence, strategy sprints, and role diagnostics — each a working system."
+        title="Products: Systems, Not Software"
+        description="Ziiro builds leverage: agentic systems, self-optimizing loops, business intelligence, strategy sprints, and role diagnostics, each a working system."
         canonical="/products"
       />
 
@@ -192,7 +192,7 @@ export default function Products() {
             style={{ opacity: 0 }}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-            ( Ziiro — Products )
+            ( Ziiro / Products )
           </p>
           <h1
             data-hero-title
@@ -215,7 +215,7 @@ export default function Products() {
             className="mt-8 max-w-xl leading-relaxed text-[var(--text-secondary)]"
             style={{ opacity: 0 }}
           >
-            Every engagement ships a working system — something running inside
+            Every engagement ships a working system: something running inside
             your business, doing real work, measured against real numbers. Not
             a license, not a slide deck. These are the five we build.
           </p>
@@ -286,7 +286,7 @@ export default function Products() {
                 <div className="hidden md:col-span-4 md:col-start-9 md:flex md:flex-col md:items-center md:justify-center">
                   <DotGlyph variant={p.glyph} energy={energies.current[i]} />
                   <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-secondary)]">
-                    Fig. {String(i + 1).padStart(2, "0")} — {p.figCaption}
+                    Fig. {String(i + 1).padStart(2, "0")} / {p.figCaption}
                   </p>
                 </div>
               </article>
@@ -303,7 +303,7 @@ export default function Products() {
               <div className="flex items-center justify-between gap-4">
                 <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                  Sec. 02 — Sequence
+                  Sec. 02 / Sequence
                 </p>
                 <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
                   [ 04 steps ]
@@ -326,7 +326,7 @@ export default function Products() {
 
           <MotionReveal>
             <p className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
-              Start anywhere, but this is the route most teams take —
+              Start anywhere, but this is the route most teams take:
               understanding first, technology only when the numbers prove it.
             </p>
           </MotionReveal>

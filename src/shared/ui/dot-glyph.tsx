@@ -14,7 +14,7 @@ const H = 220;
 
 /**
  * A small living dot-matrix illustration. Each variant animates a grid of
- * tiny monochrome dots — the same visual language as the hero dot world.
+ * tiny monochrome dots, the same visual language as the hero dot world.
  * `energy` is a mutable object (driven by an anime.js Animatable) that
  * modulates speed and brightness, e.g. while the row is hovered.
  */

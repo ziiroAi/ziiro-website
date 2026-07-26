@@ -1,4 +1,4 @@
-# Ziiro AI — Agentic AI Systems
+# Ziiro AI: Agentic AI Systems
 
 > **Agentic AI systems for startups and solo founders.**  
 > Live at [ziiro.work](https://ziiro.work)
@@ -27,10 +27,10 @@ The company direction is agentic AI consultancy and productized systems for lean
 
 ## How It Works
 
-1. **Systems Audit** — We find the manual loops, decisions, and founder tasks that should become agents
-2. **Agent Blueprint** — We design the agents, tools, data, feedback loops, and guardrails
-3. **Build & Connect** — We ship the system into your stack
-4. **Measure & Improve** — The system tracks outcomes and gets sharper over time
+1. **Systems Audit**: We find the manual loops, decisions, and founder tasks that should become agents
+2. **Agent Blueprint**: We design the agents, tools, data, feedback loops, and guardrails
+3. **Build & Connect**: We ship the system into your stack
+4. **Measure & Improve**: The system tracks outcomes and gets sharper over time
 
 ---
 
@@ -77,7 +77,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 VITE_SUPABASE_PROJECT_ID=your_project_id
 ```
 
-> `RESEND_API_KEY` and `SUPABASE_ACCESS_TOKEN` are only needed for deploying Supabase Edge Functions — they never go in the frontend bundle.
+> `RESEND_API_KEY` and `SUPABASE_ACCESS_TOKEN` are only needed for deploying Supabase Edge Functions; they never go in the frontend bundle.
 
 ---
 
@@ -85,7 +85,7 @@ VITE_SUPABASE_PROJECT_ID=your_project_id
 
 | Route | Description |
 |---|---|
-| `/` | Home — agentic systems positioning, how it works, strategic focus, CTA |
+| `/` | Home: agentic systems positioning, how it works, strategic focus, CTA |
 | `/services` | All 5 agentic offers with orbital diagram |
 | `/audit` | Free Agentic Systems Audit with instant results + Calendly booking |
 | `/contact` | Contact form (sends email notification via Resend) |

@@ -1,6 +1,6 @@
 /**
  * Audit entity: the self-audit's data model and business logic
- * (pain areas, sizing, scoring, and email validation) — free of any
+ * (pain areas, sizing, scoring, and email validation), free of any
  * UI or transport concern.
  */
 

@@ -105,7 +105,7 @@ const NotFound = () => {
           style={{ opacity: 0 }}
           className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]"
         >
-          This route doesn't exist — yet.
+          This route doesn't exist. Yet.
         </p>
 
         <div data-nf-rise style={{ opacity: 0 }} className="mt-10">
@@ -115,7 +115,7 @@ const NotFound = () => {
             <DotGlyph variant="path" />
           </div>
           <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-secondary)]">
-            Fig. 404 — No route found
+            Fig. 404 / No route found
           </p>
         </div>
 

@@ -12,13 +12,14 @@ import Terms from "@/pages/Terms";
 import Audit from "@/pages/Audit";
 import Pricing from "@/pages/Pricing";
 import Mission from "@/pages/Mission";
+import WhoWeAre from "@/pages/WhoWeAre";
 import Products from "@/pages/Products";
 import Process from "@/pages/Process";
 import NotFound from "@/pages/NotFound";
 
 // Eager map (no lazy) so renderToString emits full content, not Suspense
 // fallbacks. Decorative WebGL (DotArtSection/particles) stays lazy inside
-// pages and renders its fallback server-side — that's fine, it's visual only.
+// pages and renders its fallback server-side. That's fine, it's visual only.
 const routes: Record<string, ComponentType> = {
   "/": Index,
   "/contact": Contact,
@@ -27,6 +28,7 @@ const routes: Record<string, ComponentType> = {
   "/audit": Audit,
   "/pricing": Pricing,
   "/mission": Mission,
+  "/who-we-are": WhoWeAre,
   "/products": Products,
   "/process": Process,
 };

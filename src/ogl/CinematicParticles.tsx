@@ -136,10 +136,10 @@ export default function CinematicParticles() {
 
       // --- Scene timeline ---
       // Scene 1 (0–0.15): Infinite cloud, camera drifts forward
-      // Scene 2 (0.15–0.3): Flow field — dots organize
-      // Scene 3 (0.3–0.5): Network morph — abstract business structures
+      // Scene 2 (0.15–0.3): Flow field: dots organize
+      // Scene 3 (0.3–0.5): Network morph: abstract business structures
       // Scene 4 (0.5–0.7): Horizontal camera travel through dot wall
-      // Scene 5 (0.7–1.0): Final convergence — intelligent structure
+      // Scene 5 (0.7–1.0): Final convergence: intelligent structure
 
       u.uFlowStrength.value = smoothstep(0.12, 0.25, s) * (1 - smoothstep(0.4, 0.55, s));
       u.uNetworkStrength.value = smoothstep(0.28, 0.45, s) * (1 - smoothstep(0.55, 0.7, s));

@@ -21,7 +21,7 @@ interface Particle {
 
 const CELL = 7; // sampling resolution (px per cell)
 const DURATION = 850; // assembly duration (ms)
-const MIN_VISIBLE = 650; // never hide before this (ms) — keep short so it never gates LCP
+const MIN_VISIBLE = 650; // never hide before this (ms); keep short so it never gates LCP
 const FADE = 500; // fade-out duration (ms)
 const FONT_CAP = 400; // never wait longer than this on fonts before dismissing
 
@@ -30,7 +30,7 @@ function easeOutQuart(t: number): number {
 }
 
 export default function Preloader() {
-  // Show only once per browser session — a refresh or deep-link within the
+  // Show only once per browser session. A refresh or deep-link within the
   // same session skips it, so the preloader never re-gates paint/LCP again.
   const [gone, setGone] = useState(() => {
     if (typeof window === "undefined") return true; // never render server-side
@@ -49,7 +49,7 @@ export default function Preloader() {
     try {
       sessionStorage.setItem("ziiro-preloaded", "1");
     } catch {
-      /* private mode — fine, just shows each load */
+      /* private mode: fine, just shows each load */
     }
     const canvas = canvasRef.current;
     const root = rootRef.current;
@@ -93,7 +93,7 @@ export default function Preloader() {
         (octx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
           `${Math.floor(fontPx * 0.02)}px`;
       } catch {
-        /* letterSpacing unsupported — fine */
+        /* letterSpacing unsupported: fine */
       }
       octx.fillText("ZIIRO", off.width / 2, off.height / 2);
 
@@ -161,7 +161,7 @@ export default function Preloader() {
     // ---- Dismiss once ready ----
     // Wait for fonts, but never longer than FONT_CAP; and always hold at
     // least MIN_VISIBLE. Whichever of (capped fonts) / (min hold) is longer
-    // wins — so a slow font network can't drag paint past ~MIN_VISIBLE.
+    // wins, so a slow font network can't drag paint past ~MIN_VISIBLE.
     const fontsReady = Promise.race([
       (document as Document & { fonts?: { ready: Promise<unknown> } }).fonts?.ready ??
         Promise.resolve(),

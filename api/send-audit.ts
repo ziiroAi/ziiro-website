@@ -1,5 +1,5 @@
 /**
- * POST /api/send-audit — free Agentic Systems Audit form handler.
+ * POST /api/send-audit: free Agentic Systems Audit form handler.
  * Vercel Edge Function. Scores the submission and emails the results to the
  * team inbox via Resend. Requires the RESEND_API_KEY environment variable.
  */

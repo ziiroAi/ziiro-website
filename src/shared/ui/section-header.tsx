@@ -27,7 +27,7 @@ export default function SectionHeader({
         <div className="mb-10 flex items-center justify-between gap-4">
           <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-            Sec. {index} — {label}
+            Sec. {index} / {label}
           </p>
           {meta && (
             <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">

@@ -15,7 +15,7 @@ const { render } = await import(
 
 const template = readFileSync(resolve(distDir, "index.html"), "utf8");
 
-// Per-route-varying tags the template ships as defaults — Helmet emits the
+// Per-route-varying tags the template ships as defaults. Helmet emits the
 // correct per-route versions, so strip these to avoid duplicates.
 const STRIP = [
   /<title>[\s\S]*?<\/title>\s*/i,
@@ -30,6 +30,7 @@ const STRIP = [
 const routes = [
   "/",
   "/mission",
+  "/who-we-are",
   "/products",
   "/process",
   "/audit",

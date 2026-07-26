@@ -29,10 +29,10 @@ export default function Navbar() {
       }}
     >
       <div className="w-full max-w-[1400px] mx-auto px-6 md:px-10 flex items-center justify-between">
-        {/* Left — logo mark + brand */}
+        {/* Left: logo mark + brand */}
         <Link
           to="/"
-          aria-label="Ziiro — home"
+          aria-label="Ziiro home"
           className="flex items-center gap-3 text-[var(--text-primary)] transition-opacity hover:opacity-80"
         >
           <ZiiroMark className="h-8" />
@@ -41,7 +41,7 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* Right — actions */}
+        {/* Right: actions */}
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <Link

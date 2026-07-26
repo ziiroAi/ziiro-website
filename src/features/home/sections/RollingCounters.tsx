@@ -14,7 +14,7 @@ const format = (n: number, suffix: string) =>
 export default function RollingCounters() {
   const gridRef = useRef<HTMLDivElement>(null);
 
-  // Cards rise in and the numbers count up — both fire once, on scroll enter.
+  // Cards rise in and the numbers count up. Both fire once, on scroll enter.
   useEffect(() => {
     const grid = gridRef.current;
     if (!grid) return;

@@ -5,11 +5,11 @@ import MethodPath from "@/shared/ui/method-path";
 
 const phases = [
   { num: "01", name: "Understand", output: "Business model canvas", desc: "Discovery sessions examining revenue models, customer journeys, operations, cost structure, and growth blockers." },
-  { num: "02", name: "Map", output: "Process flowcharts", desc: "Visual documentation of every process step — flagging manual work, bottlenecks, repeated tasks, errors, and handoffs." },
-  { num: "03", name: "Measure", output: "KPI baselines", desc: "Establishing baseline metrics: revenue health, operational efficiency, error rates — before any changes." },
+  { num: "02", name: "Map", output: "Process flowcharts", desc: "Visual documentation of every process step, flagging manual work, bottlenecks, repeated tasks, errors, and handoffs." },
+  { num: "03", name: "Measure", output: "KPI baselines", desc: "Establishing baseline metrics before any changes: revenue health, operational efficiency, error rates." },
   { num: "04", name: "Identify", output: "AI opportunity list", desc: "Evaluating each problem against automation, prediction, summarization, classification, optimization, and decision assistance criteria." },
   { num: "05", name: "Calculate", output: "ROI per opportunity", desc: "Quantifying monthly savings, implementation costs, break-even timelines, and Year 1 ROI for every opportunity." },
-  { num: "06", name: "Prioritize", output: "Priority matrix", desc: "Ranking opportunities by value vs. implementation difficulty — a clear 2×2 grid for decision-making." },
+  { num: "06", name: "Prioritize", output: "Priority matrix", desc: "Ranking opportunities by value vs. implementation difficulty, on a clear 2×2 grid for decision-making." },
   { num: "07", name: "Roadmap", output: "Implementation plan", desc: "Month-by-month implementation with milestones, dependencies, and success criteria for each system." },
 ];
 
@@ -20,7 +20,7 @@ export default function OrbitalMethodology() {
   const activeRef = useRef(0);
 
   // The journey-map progress is scrubbed directly by scroll (with smoothing),
-  // so fast scrolling never skips or snaps — the route light always glides.
+  // so fast scrolling never skips or snaps. The route light always glides.
   // The active phase falls out of the same value, keeping map and copy in sync.
   useEffect(() => {
     const root = blocksRef.current;
@@ -54,7 +54,7 @@ export default function OrbitalMethodology() {
     const scrubber = onScroll({
       target: root,
       // p = 0 when the first station reaches viewport center,
-      // p = 6 when the last one leaves it — mirrors the sticky map.
+      // p = 6 when the last one leaves it, mirroring the sticky map.
       enter: "center top",
       leave: "center bottom",
       sync: 0.12,

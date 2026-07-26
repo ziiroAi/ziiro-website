@@ -26,7 +26,7 @@ const services: Service[] = [
   {
     name: "Self-Optimizing Systems",
     sub: "Feedback loops that learn",
-    desc: "Marketing, outreach, website, and workflow loops that track their own outcomes and improve automatically — instead of guessing forever.",
+    desc: "Marketing, outreach, website, and workflow loops that track their own outcomes and improve automatically, instead of guessing forever.",
     deliverables: ["Outcome tracking", "A/B loops", "Auto-tuned campaigns", "Weekly learning reports"],
     glyph: "loops",
     figCaption: "A loop, learning",
@@ -42,7 +42,7 @@ const services: Service[] = [
   {
     name: "AI Strategy Sprint",
     sub: "Know what to build",
-    desc: "We map your team, stack, and constraints into a focused roadmap. No random tools — just the highest-leverage system to ship first.",
+    desc: "We map your team, stack, and constraints into a focused roadmap. No random tools, just the highest-leverage system to ship first.",
     deliverables: ["Team & stack audit", "Opportunity map", "Build roadmap", "First-system spec"],
     glyph: "path",
     figCaption: "The shortest route",
@@ -185,7 +185,7 @@ export default function ServicesCarousel() {
           meta="05 systems"
           titleA="Five systems."
           titleB="One direction."
-          sub="Every engagement ships a working system — not a slide deck. These are the five we build, in the order most teams need them."
+          sub="Every engagement ships a working system, not a slide deck. These are the five we build, in the order most teams need them."
         />
 
         <div ref={listRef} className="mt-16 border-t border-[var(--border)]">
@@ -265,7 +265,7 @@ export default function ServicesCarousel() {
                     <div className="hidden md:col-span-4 md:col-start-9 md:flex md:flex-col md:items-center md:justify-center">
                       <DotGlyph variant={s.glyph} energy={energy} />
                       <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-secondary)]">
-                        Fig. {String(i + 1).padStart(2, "0")} — {s.figCaption}
+                        Fig. {String(i + 1).padStart(2, "0")} / {s.figCaption}
                       </p>
                     </div>
                   </div>

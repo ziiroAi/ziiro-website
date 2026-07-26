@@ -1,5 +1,5 @@
 /**
- * Audit service: external communication for the self-audit feature —
+ * Audit service: external communication for the self-audit feature.
  * emailing results and checking a domain's mail records. Posts to the Vercel
  * serverless endpoint (/api/send-audit), which scores and emails the team via
  * Resend. Stateless.

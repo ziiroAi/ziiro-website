@@ -11,13 +11,14 @@ import Preloader from "@/shared/components/Preloader";
 import Index from "@/pages/Index";
 
 // Secondary routes are code-split so they don't ship in the homepage's
-// critical bundle — each loads on demand when its route is visited.
+// critical bundle. Each loads on demand when its route is visited.
 const Contact = lazy(() => import("@/pages/Contact"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
 const Audit = lazy(() => import("@/pages/Audit"));
 const Pricing = lazy(() => import("@/pages/Pricing"));
 const Mission = lazy(() => import("@/pages/Mission"));
+const WhoWeAre = lazy(() => import("@/pages/WhoWeAre"));
 const Products = lazy(() => import("@/pages/Products"));
 const Process = lazy(() => import("@/pages/Process"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
@@ -34,7 +35,7 @@ function ParticleBackground() {
   );
 }
 
-// Every page opens from the top — no inherited scroll positions
+// Every page opens from the top, with no inherited scroll positions
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -65,13 +66,14 @@ export function AppRoutes() {
       <Route path="/audit" element={<Audit />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/mission" element={<Mission />} />
+      <Route path="/who-we-are" element={<WhoWeAre />} />
       <Route path="/products" element={<Products />} />
       <Route path="/process" element={<Process />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       {/* Redirects from old routes */}
       <Route path="/services" element={<Navigate to="/" replace />} />
-      <Route path="/about" element={<Navigate to="/" replace />} />
+      <Route path="/about" element={<Navigate to="/who-we-are" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

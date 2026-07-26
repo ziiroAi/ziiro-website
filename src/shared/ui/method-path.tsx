@@ -71,7 +71,7 @@ export default function MethodPath({
     };
 
     // Precompute each grid dot's distance to the path and the global
-    // parameter of its closest point — lighting becomes a cheap lookup.
+    // parameter of its closest point, so lighting becomes a cheap lookup.
     interface Cell { x: number; y: number; dist: number; t: number }
     const cells: Cell[] = [];
     for (let r = 0; r < ROWS; r++) {

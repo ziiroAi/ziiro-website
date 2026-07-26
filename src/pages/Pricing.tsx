@@ -175,7 +175,7 @@ export default function Pricing() {
   return (
     <div className="relative">
       <SEO
-        title="Investment — Ziiro AI Systems"
+        title="Investment: Ziiro AI Systems"
         description="No fixed pricing. Ziiro scopes each project to your needs: a Strategy Sprint (1-3 weeks) or a Full Build (4-12 weeks). Book a free call to start."
         canonical="/pricing"
       />
@@ -189,7 +189,7 @@ export default function Pricing() {
             className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]"
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-            ( Ziiro — Investment )
+            ( Ziiro / Investment )
           </p>
 
           <h1
@@ -212,7 +212,7 @@ export default function Pricing() {
             style={{ opacity: 0 }}
             className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]"
           >
-            Every project is different. We scope systems to your exact needs —
+            Every project is different. We scope systems to your exact needs, with
             custom pricing based on scope, complexity, and timeline.
           </p>
 
@@ -310,7 +310,7 @@ export default function Pricing() {
               ( Framing )
             </p>
             <TextReveal
-              text="We price the system, not the hours — every engagement is scoped to what it ships and what it saves."
+              text="We price the system, not the hours. Every engagement is scoped to what it ships and what it saves."
               as="h2"
               className="mt-10 max-w-4xl font-display font-semibold text-[var(--text-primary)]"
               style={{
@@ -330,7 +330,7 @@ export default function Pricing() {
             <div className="flex items-center justify-between border-t border-[var(--border)] pt-6">
               <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                Sec. 01 — Questions
+                Sec. 01 / Questions
               </p>
               <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
                 [ {String(faqs.length).padStart(2, "0")} Answers ]
@@ -425,7 +425,7 @@ export default function Pricing() {
                 </Link>
               </div>
               <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                [ No pitch — just a clear read ]
+                [ No pitch / just a clear read ]
               </p>
             </div>
           </MotionReveal>

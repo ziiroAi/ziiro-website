@@ -7,6 +7,7 @@ const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
   {
     head: "Explore",
     links: [
+      { label: "Who We Are", to: "/who-we-are" },
       { label: "Mission", to: "/mission" },
       { label: "Products", to: "/products" },
       { label: "Process", to: "/process" },
@@ -91,7 +92,7 @@ export default function Footer() {
             <Link
               to="/"
               className="inline-block text-[var(--text-primary)] transition-opacity duration-300 hover:opacity-80"
-              aria-label="Ziiro — home"
+              aria-label="Ziiro home"
             >
               <ZiiroMark className="h-10" />
             </Link>
@@ -137,7 +138,7 @@ export default function Footer() {
         {/* ─── Bottom row ─── */}
         <div className="mt-16 flex flex-col-reverse items-center justify-between gap-6 border-t border-[var(--border)] pt-8 sm:flex-row md:mt-20">
           <p className="text-center font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)] sm:text-left">
-            &copy; 2026 Ziiro AI — All rights reserved
+            &copy; 2026 Ziiro AI · All rights reserved
           </p>
 
           <div className="flex items-center gap-5">

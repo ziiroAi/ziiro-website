@@ -106,7 +106,7 @@ const Audit = () => {
     animate(el, { scale: 1, ease: pillSpring });
   };
 
-  // Spring focus micro-interaction on inputs/selects — transform only, no layout shift
+  // Spring focus micro-interaction on inputs/selects: transform only, no layout shift
   const fieldFocus = (e: React.FocusEvent<HTMLElement>) => {
     if (submitted || reduced.current) return;
     const el = e.currentTarget;
@@ -123,7 +123,7 @@ const Audit = () => {
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = "Required";
-    if (emailChecking) { e.email = "Please wait — checking email..."; }
+    if (emailChecking) { e.email = "Please wait, checking email..."; }
     else if (!emailStatus?.valid) { e.email = emailStatus?.message || "Enter a valid email address"; }
     if (!form.industry) e.industry = "Required";
     if (!form.size) e.size = "Required";
@@ -168,7 +168,7 @@ const Audit = () => {
             <div data-rise style={{ opacity: 0 }} className="mb-10 flex items-center justify-between gap-4">
               <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                ( ZIIRO — SELF-AUDIT )
+                ( ZIIRO / SELF-AUDIT )
               </p>
               <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
                 [ FREE ASSESSMENT ]
@@ -188,19 +188,19 @@ const Audit = () => {
             <p data-rise style={{ opacity: 0 }} className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
               Find where your business needs agents, self-improving growth loops, website
               optimization, UGC ad management, and clearer roles. Rate five areas and get a
-              practical, conservative estimate of hours and value reclaimed — instantly.
+              practical, conservative estimate of hours and value reclaimed, instantly.
             </p>
           </header>
 
           {/* ── Form / Results ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2">
 
-            {/* LEFT — Form */}
+            {/* LEFT: Form */}
             <div data-rise style={{ opacity: 0 }} className="py-12 lg:border-r lg:border-[var(--border)] lg:pr-12">
               <form onSubmit={handleSubmit} noValidate>
                 <p className="mb-8 flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                  01 — Tell us about your business
+                  01 / Tell us about your business
                 </p>
 
                 {/* Name */}
@@ -341,7 +341,7 @@ const Audit = () => {
                   <div className="flex items-center justify-between gap-4">
                     <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                      02 — Rate your pain
+                      02 / Rate your pain
                     </p>
                     <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70">
                       AREA {String(ratedCount).padStart(2, "0")} / {String(painAreas.length).padStart(2, "0")}
@@ -437,7 +437,7 @@ const Audit = () => {
               </form>
             </div>
 
-            {/* RIGHT — Results */}
+            {/* RIGHT: Results */}
             <div ref={resultsRef} data-rise style={{ opacity: 0 }} className="border-t border-[var(--border)] py-12 lg:border-t-0 lg:pl-12">
               {!submitted ? (
                 <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-6">

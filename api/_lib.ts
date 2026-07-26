@@ -3,7 +3,7 @@
  * Files prefixed with "_" are bundled into functions but never routed themselves.
  *
  * These endpoints replace the former Supabase Edge Functions. They deliver mail
- * through Resend and intentionally do NOT persist to a database — the previous
+ * through Resend and intentionally do NOT persist to a database. The previous
  * Supabase insert was the single point of failure whenever the free project
  * auto-paused, silently swallowing every submission. Email delivery is the goal.
  */

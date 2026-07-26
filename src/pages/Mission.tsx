@@ -36,7 +36,7 @@ const beliefs: {
   {
     num: "01",
     name: "Start with numbers. Always.",
-    desc: "Every engagement begins with understanding operations — not pitching solutions.",
+    desc: "Every engagement begins with understanding operations, not pitching solutions.",
     glyph: "bars",
     figCaption: "Numbers first",
   },
@@ -57,7 +57,7 @@ const beliefs: {
   {
     num: "04",
     name: "Simple beats clever.",
-    desc: "If a spreadsheet fix saves more than an AI system, we'll tell you. We recommend what works, even if it's simpler — and cheaper — than expected.",
+    desc: "If a spreadsheet fix saves more than an AI system, we'll tell you. We recommend what works, even if it's simpler and cheaper than expected.",
     glyph: "clusters",
     figCaption: "The simpler fix",
   },
@@ -74,7 +74,7 @@ const steps = [
   {
     num: "01",
     name: "Understand",
-    desc: "We audit your operations — processes, costs, time allocation, pain points. We find where the leaks are and put numbers on them.",
+    desc: "We audit your operations: processes, costs, time allocation, pain points. We find where the leaks are and put numbers on them.",
   },
   {
     num: "02",
@@ -84,7 +84,7 @@ const steps = [
   {
     num: "03",
     name: "Build",
-    desc: "We design and deploy AI-powered systems tailored to your actual workflows — not off-the-shelf tools forced into your operations.",
+    desc: "We design and deploy AI-powered systems tailored to your actual workflows, not off-the-shelf tools forced into your operations.",
   },
   {
     num: "04",
@@ -189,8 +189,8 @@ export default function Mission() {
   return (
     <div className="relative">
       <SEO
-        title="Our Mission — We Don't Sell AI. We Sell Results."
-        description="Ziiro is a Business Intelligence and AI consultancy that starts with understanding your operations — then builds systems that deliver measurable returns."
+        title="Our Mission: We Don't Sell AI. We Sell Results."
+        description="Ziiro is a Business Intelligence and AI consultancy that starts with understanding your operations, then builds systems that deliver measurable returns."
         canonical="/mission"
       />
 
@@ -203,7 +203,7 @@ export default function Mission() {
             style={{ opacity: 0 }}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-            ( ZIIRO — MISSION )
+            ( ZIIRO / MISSION )
           </p>
           <h1
             data-hero-title
@@ -225,7 +225,7 @@ export default function Mission() {
             style={{ opacity: 0 }}
           >
             Ziiro is a Business Intelligence and AI consultancy that starts with
-            understanding your operations — then builds systems that deliver
+            understanding your operations, then builds systems that deliver
             measurable returns.
           </p>
           <div
@@ -257,7 +257,7 @@ export default function Mission() {
             <MotionReveal delay={0.1}>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 We start where others skip: the business intelligence layer. We
-                map how a company actually operates — where the hours go, where
+                map how a company actually operates: where the hours go, where
                 the money leaks, where the bottlenecks compound. Only then do we
                 build. And we only build what the numbers prove is worth
                 building.
@@ -267,7 +267,7 @@ export default function Mission() {
           <MotionReveal delay={0.15}>
             <p className="mt-12 max-w-3xl font-display text-xl font-semibold leading-relaxed text-[var(--text-primary)] md:text-2xl">
               Help businesses leverage AI anywhere it creates real, measurable
-              value — and nowhere it doesn't.
+              value, and nowhere it doesn't.
             </p>
           </MotionReveal>
         </div>
@@ -359,7 +359,7 @@ export default function Mission() {
                       <DotGlyph variant={p.glyph} energy={energy} />
                     </div>
                     <p className="-mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-secondary)]/70">
-                      Fig. {p.num} — {p.figCaption}
+                      Fig. {p.num} / {p.figCaption}
                     </p>
                   </div>
                 </div>
@@ -416,7 +416,7 @@ export default function Mission() {
             <MotionReveal>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 Businesses with 5 to 500 people who know they should be using
-                AI but don't know where to start — or tried and got burned.
+                AI but don't know where to start, or tried and got burned.
               </p>
             </MotionReveal>
             <MotionReveal delay={0.1}>
@@ -475,8 +475,8 @@ export default function Mission() {
           <MotionReveal>
             <p className="mt-12 max-w-2xl leading-relaxed text-[var(--text-secondary)]">
               The tagline isn't marketing. It's how we operate. We look at
-              every function of a business — marketing, sales, operations,
-              legal, accounts, HR, management — and find where AI creates
+              every function of a business (marketing, sales, operations,
+              legal, accounts, HR, management) and find where AI creates
               leverage. Then we build it.
             </p>
           </MotionReveal>
@@ -491,7 +491,7 @@ export default function Mission() {
               <div className="flex items-center justify-between gap-4">
                 <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                  Sec. 07 — The Ziiro Standard
+                  Sec. 07 / The Ziiro Standard
                 </p>
                 <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
                   [ The bar ]
@@ -515,7 +515,7 @@ export default function Mission() {
             <p className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
               We ask it before we publish anything, recommend anything, or
               build anything. If the answer is yes, we haven't gone deep
-              enough. Our work should show its depth — process maps, real
+              enough. Our work should show its depth: process maps, real
               numbers, specific frameworks.
             </p>
           </MotionReveal>

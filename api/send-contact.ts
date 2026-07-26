@@ -1,5 +1,5 @@
 /**
- * POST /api/send-contact — Contact / "Book a Call" form handler.
+ * POST /api/send-contact: Contact / "Book a Call" form handler.
  * Vercel Edge Function. Emails the submission to the team inbox via Resend.
  * Requires the RESEND_API_KEY environment variable.
  */

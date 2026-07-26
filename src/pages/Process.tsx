@@ -33,7 +33,7 @@ const phases: Phase[] = [
     num: "02",
     name: "Map",
     output: "Process flowcharts",
-    desc: "Visual documentation of every process step — flagging manual work, bottlenecks, repeated tasks, errors, and handoffs.",
+    desc: "Visual documentation of every process step, flagging manual work, bottlenecks, repeated tasks, errors, and handoffs.",
     days: "Days 3-5",
     gets: [
       "Flowcharts for every core process, step by step",
@@ -45,10 +45,10 @@ const phases: Phase[] = [
     num: "03",
     name: "Measure",
     output: "KPI baselines",
-    desc: "Establishing baseline metrics: revenue health, operational efficiency, error rates — before any changes.",
+    desc: "Establishing baseline metrics before any changes: revenue health, operational efficiency, error rates.",
     days: "Week 1",
     gets: [
-      "A KPI baseline sheet — your numbers before anything changes",
+      "A KPI baseline sheet: your numbers before anything changes",
       "Error and rework rates per process",
       "Cost-per-task estimates for the manual work we flagged",
     ],
@@ -61,7 +61,7 @@ const phases: Phase[] = [
     days: "Week 2",
     gets: [
       "A scored list of AI opportunities tied to specific processes",
-      "A fit assessment for each — and what we ruled out, and why",
+      "A fit assessment for each, plus what we ruled out and why",
     ],
   },
   {
@@ -80,12 +80,12 @@ const phases: Phase[] = [
     num: "06",
     name: "Prioritize",
     output: "Priority matrix",
-    desc: "Ranking opportunities by value vs. implementation difficulty — a clear 2×2 grid for decision-making.",
+    desc: "Ranking opportunities by value vs. implementation difficulty, on a clear 2×2 grid for decision-making.",
     days: "Week 3",
     gets: [
       "A 2×2 value vs. difficulty matrix of every opportunity",
       "The single first build, with the rationale in writing",
-      "A do-not-build list — things that don't pay for themselves",
+      "A do-not-build list: things that don't pay for themselves",
     ],
   },
   {
@@ -103,9 +103,9 @@ const phases: Phase[] = [
 ];
 
 const metaCells = [
-  "Duration — 2-3 weeks",
-  "Scope — Fixed",
-  "Obligation — None",
+  "Duration: 2-3 weeks",
+  "Scope: Fixed",
+  "Obligation: None",
 ];
 
 export default function Process() {
@@ -216,8 +216,8 @@ export default function Process() {
   return (
     <div className="relative">
       <SEO
-        title="Process — The AI Transformation Audit"
-        description="A fixed-scope, 2-3 week engagement that maps how your business runs and proves where AI pays for itself — before anything gets built."
+        title="Process: The AI Transformation Audit"
+        description="A fixed-scope, 2-3 week engagement that maps how your business runs and proves where AI pays for itself, before anything gets built."
         canonical="/process"
       />
 
@@ -230,7 +230,7 @@ export default function Process() {
             style={{ opacity: 0 }}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-            ( Ziiro — Process )
+            ( Ziiro / Process )
           </p>
 
           {/* The page's statement: word-by-word reveal inside the sequenced hero */}
@@ -254,7 +254,7 @@ export default function Process() {
           >
             The AI Transformation Audit is a fixed-scope engagement that maps
             how your business actually runs and proves where AI pays for
-            itself — before anything gets built.
+            itself, before anything gets built.
           </p>
 
           {/* Meta strip: hairline top (drawn by the hero timeline) + bottom */}
@@ -290,7 +290,7 @@ export default function Process() {
             meta="07 phases"
             titleA="What happens,"
             titleB="and when."
-            sub="Seven phases over three weeks. Every one ends in a concrete artifact you keep — whether or not we ever build anything together."
+            sub="Seven phases over three weeks. Every one ends in a concrete artifact you keep, whether or not we ever build anything together."
           />
 
           <div className="mt-20 grid grid-cols-1 gap-16 lg:grid-cols-2">

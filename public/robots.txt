@@ -1,4 +1,4 @@
-# Ziiro AI — allow all search + AI-citation crawlers (visibility is the goal)
+# Ziiro AI: allow all search + AI-citation crawlers (visibility is the goal)
 User-agent: GPTBot
 Allow: /
 

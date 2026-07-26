@@ -1,5 +1,5 @@
 /**
- * Cinematic point-cloud sculpture engine — 11 scenes.
+ * Cinematic point-cloud sculpture engine: 11 scenes.
  *
  * Every formation is a large-scale parametric 3D sculpture (no icons,
  * no flat clip-art): fabric, Möbius ribbon, DNA helix, organic network,
@@ -9,7 +9,7 @@
  *
  * All formations pack into one particle count. Points are sorted
  * bottom-to-top so particle i occupies an analogous position in
- * consecutive sculptures — each form inherits the previous one's body.
+ * consecutive sculptures; each form inherits the previous one's body.
  * Unused particles park on an active dot with size 0: nothing fades,
  * nothing pops, dots only travel.
  *
@@ -89,7 +89,7 @@ function pack(points: Pt[], count: number): Formation {
 }
 
 // ==================================================================
-// 1 — THE WAVE: a vast fabric surface; cloth motion lives in-shader
+// 1. THE WAVE: a vast fabric surface; cloth motion lives in-shader
 // ==================================================================
 function genWaveSurface(count: number): Pt[] {
   const pts: Pt[] = [];
@@ -112,7 +112,7 @@ function genWaveSurface(count: number): Pt[] {
 }
 
 // ==================================================================
-// 4 — THE NETWORK: organic pathways — curved links, dendrite twigs
+// 4. THE NETWORK: organic pathways, curved links, dendrite twigs
 // ==================================================================
 function genNetwork(scale: number): Pt[] {
   const pts: Pt[] = [];
@@ -205,7 +205,7 @@ function genNetwork(scale: number): Pt[] {
 }
 
 // ==================================================================
-// 7 — THE TERRAIN: topographic landscape with contour emphasis
+// 7. THE TERRAIN: topographic landscape with contour emphasis
 // ==================================================================
 function genTerrain(count: number): Pt[] {
   const pts: Pt[] = [];
@@ -236,7 +236,7 @@ function genTerrain(count: number): Pt[] {
 }
 
 // ==================================================================
-// 8 — THE TREE: fractal 3D branching system, growth pulses rising
+// 8. THE TREE: fractal 3D branching system, growth pulses rising
 // ==================================================================
 function genTree(count: number): Pt[] {
   const pts: Pt[] = [];
@@ -285,7 +285,7 @@ function genTree(count: number): Pt[] {
 }
 
 // ==================================================================
-// 10 — THE SPHERE: a perfect breathing fibonacci sphere
+// 10. THE SPHERE: a perfect breathing fibonacci sphere
 // ==================================================================
 function genSphere(scale: number): Pt[] {
   const pts: Pt[] = [];
@@ -307,7 +307,7 @@ function genSphere(scale: number): Pt[] {
 }
 
 // ==================================================================
-// 11 — INFINITY: the burst universe behind the final CTA
+// 11. INFINITY: the burst universe behind the final CTA
 // ==================================================================
 function genUniverse(scale: number): Pt[] {
   const pts: Pt[] = [];

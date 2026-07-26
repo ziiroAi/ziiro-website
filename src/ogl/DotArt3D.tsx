@@ -42,7 +42,7 @@ const CAM_KEYS = [
 ];
 
 // Catmull-Rom through the keys: velocity stays continuous across scene
-// boundaries, so the camera never stops — one uninterrupted travel.
+// boundaries, so the camera never stops: one uninterrupted travel.
 function camAt(u: number): { x: number; y: number; zf: number } {
   const last = CAM_KEYS.length - 2; // last boundary index (12 boundaries)
   const uu = Math.max(0, Math.min(u, last - 0.0001));
@@ -68,7 +68,7 @@ function camAt(u: number): { x: number; y: number; zf: number } {
 // Inherited momentum per transition segment: the direction dots ride
 // while travelling, so each sculpture hands its energy to the next.
 const WINDS: [number, number, number, number][] = [
-  // [x, y, z, radial] — one per transition (5 segments)
+  // [x, y, z, radial], one per transition (5 segments)
   [0, 5, 4, 6],     // the fabric lifts and weaves into the network
   [0, -9, 8, 2],    // the network settles down into the terrain
   [0, 13, 0, -5],   // the landscape rises into the branching tree
@@ -305,7 +305,7 @@ export default function DotArt3D() {
       updateBuffers(seg, seg + 1);
 
       // Wide morph window with heavy per-dot stagger: the previous shape
-      // is always evolving into the next — no dead dwell, no hard cut
+      // is always evolving into the next: no dead dwell, no hard cut
       const morphT = smooth01((t - 0.16) / 0.68);
       u.uMorph.value = morphT;
       u.uCollapse.value = seg === COLLAPSE_SEGMENT ? 1 : 0;
@@ -319,7 +319,7 @@ export default function DotArt3D() {
       u.uCloth.value = lerp(SCENE_CLOTH[seg], SCENE_CLOTH[seg + 1], morphT);
       u.uBreath.value = lerp(SCENE_BREATH[seg], SCENE_BREATH[seg + 1], morphT);
 
-      // Camera rides a spline through all boundary keys — it never stops
+      // Camera rides a spline through all boundary keys, and it never stops
       const cam = camAt(sceneFloat);
       let camX = cam.x;
       let camY = cam.y;
@@ -338,12 +338,12 @@ export default function DotArt3D() {
         0,
       ]);
 
-      // The whole cloud slowly sways — the world itself never holds still
+      // The whole cloud slowly sways: the world itself never holds still
       scene.rotation.y = Math.sin(time * 0.07) * 0.07;
       scene.rotation.x = Math.cos(time * 0.055) * 0.025;
 
       // Cinematic black backdrop fades in as the story begins and the
-      // dots blend from ink to light — the canvas itself never stops.
+      // dots blend from ink to light; the canvas itself never stops.
       const bgAlpha = smooth01(scrollProgress / 0.035);
       if (Math.abs(bgAlpha - lastBgAlpha) > 0.005) {
         lastBgAlpha = bgAlpha;
@@ -402,12 +402,12 @@ export default function DotArt3D() {
               className="font-mono text-[11px] uppercase tracking-[0.35em]"
               style={{ color: "rgba(235, 238, 245, 0.5)" }}
             >
-              {String(sceneIdx + 1).padStart(2, "0")} — {FORMATION_LABELS[sceneIdx]}
+              {String(sceneIdx + 1).padStart(2, "0")} / {FORMATION_LABELS[sceneIdx]}
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* Final CTA — fades in over the burst universe */}
+        {/* Final CTA: fades in over the burst universe */}
         <AnimatePresence>
           {isFinale && (
             <motion.div
