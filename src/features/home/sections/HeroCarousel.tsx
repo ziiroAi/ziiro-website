@@ -259,9 +259,12 @@ export default function HeroCarousel() {
         </div>
 
         {/* Sub-nav links row */}
-        <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-6 flex items-center gap-8 md:gap-12">
+        {/* Wraps to a second row on narrow screens — five labels won't fit on
+            one line at 390px, and squeezing them breaks each label mid-word. */}
+        <div className="max-w-[1400px] mx-auto px-6 md:px-10 py-6 flex flex-wrap items-center gap-x-6 gap-y-3 md:flex-nowrap md:gap-x-12">
           {[
             { label: "Our Mission", href: "/mission" },
+            { label: "Who We Are", href: "/who-we-are" },
             { label: "Products", href: "/products" },
             { label: "Process", href: "/process" },
             { label: "Contact Us", href: "/contact" },
@@ -270,7 +273,7 @@ export default function HeroCarousel() {
               <Link
                 key={link.label}
                 to={link.href}
-                className="text-xs md:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors tracking-wide"
+                className="whitespace-nowrap text-xs md:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors tracking-wide"
               >
                 {link.label}
               </Link>
@@ -278,7 +281,7 @@ export default function HeroCarousel() {
               <a
                 key={link.label}
                 href={link.href}
-                className="text-xs md:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors tracking-wide"
+                className="whitespace-nowrap text-xs md:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors tracking-wide"
               >
                 {link.label}
               </a>
