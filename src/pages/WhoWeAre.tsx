@@ -28,7 +28,16 @@ import VslPlayer, {
  *     runtime: "3 min",           // shown on the frame
  *   };
  */
-const VSL: VslConfig | null = null;
+const VSL: VslConfig | null = {
+  source: { kind: "youtube", id: "_R1Z7rfoaJA" },
+  title: "I built an AI agency. Here's exactly how it works.",
+  description:
+    "A screen-share walkthrough of Ziiro, top to bottom: what we do, how we work, what it costs, and where your data goes. We don't sell AI for AI's sake. We start with your numbers, where the hours go and where the money leaks, and only build something when the math says it's worth it.",
+  uploadDate: "2026-07-26",
+  duration: "PT7M50S",
+  poster: "/vsl-poster.jpg",
+  runtime: "8 min",
+};
 
 /**
  * ── TEAM ──────────────────────────────────────────────────────────────
