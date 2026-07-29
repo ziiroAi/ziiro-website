@@ -9,7 +9,7 @@
 
 Ziiro builds agentic AI systems for startups, solo founders, and lean teams. We turn repeated work into agents, self-optimizing marketing, outreach, website, and workflow loops, plus role diagnostics so founders can get leverage before they can afford headcount.
 
-The company direction is agentic AI consultancy and productized systems for lean, founder-led teams.
+The company direction is agentic AI consultancy and productized systems for lean, founder-led teams..
 
 ---
 
