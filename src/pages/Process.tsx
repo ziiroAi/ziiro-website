@@ -371,6 +371,56 @@ export default function Process() {
         </div>
       </section>
 
+      {/* ── Who runs it ──────────────────────────────────────── */}
+      <section className="pb-24 md:pb-32">
+        <div className="mx-auto max-w-7xl px-6 md:px-10">
+          <SectionHeader
+            index="02"
+            label="Who Runs It"
+            meta="No handoffs"
+            titleA="The people who scope it"
+            titleB="are the people who build it."
+            sub="We stay small on purpose. No account layers, no handoff to a junior after the pitch. The person who maps your process in week one is the person who ships the system in week ten."
+          />
+          <div className="mt-10 grid gap-10 md:grid-cols-2">
+            <MotionReveal>
+              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
+                What you end up with is working software: agents, dashboards,
+                self-optimizing loops. Never a slide deck. Even if the audit
+                ends with us telling you not to build anything, you keep the
+                process maps, the baselines, and the ROI math.
+              </p>
+            </MotionReveal>
+            <MotionReveal delay={0.1}>
+              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
+                More on{" "}
+                <Link
+                  to="/who-we-are"
+                  className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+                >
+                  who we are
+                </Link>{" "}
+                and the{" "}
+                <Link
+                  to="/mission"
+                  className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+                >
+                  principles we work to
+                </Link>
+                . How we price the work is on{" "}
+                <Link
+                  to="/pricing"
+                  className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+                >
+                  the pricing page
+                </Link>
+                .
+              </p>
+            </MotionReveal>
+          </div>
+        </div>
+      </section>
+
       {/* ── Final CTA ────────────────────────────────────────── */}
       <section className="py-24 md:py-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">

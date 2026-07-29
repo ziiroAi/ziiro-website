@@ -69,14 +69,17 @@ const dotFill = {
 function Frame({
   label,
   meta,
+  flush,
   children,
 }: {
   label: string;
   meta?: string;
+  /** Section above already draws a hairline: skip ours, don't stack two. */
+  flush?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-t border-[var(--border)] pt-4">
+    <div className={flush ? "pt-6" : "border-t border-[var(--border)] pt-4"}>
       <div className="mb-4 flex items-center justify-between gap-4">
         <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
           <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
@@ -108,15 +111,18 @@ function Frame({
 export default function VslPlayer({
   vsl,
   label = "The video",
+  flush = false,
 }: {
   vsl: VslConfig | null;
   label?: string;
+  /** Drop the frame's own top hairline when the section above supplies one. */
+  flush?: boolean;
 }) {
   const [playing, setPlaying] = useState(false);
 
   if (!vsl) {
     return (
-      <Frame label={label} meta="Coming soon">
+      <Frame label={label} meta="Coming soon" flush={flush}>
         <div className="absolute inset-0" style={dotFill} />
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
           <span className="flex h-16 w-16 items-center justify-center rounded-full border border-[var(--border)]">
@@ -140,7 +146,7 @@ export default function VslPlayer({
   const { source, title, poster, runtime } = vsl;
 
   return (
-    <Frame label={label} meta={runtime}>
+    <Frame label={label} meta={runtime} flush={flush}>
       {playing ? (
         source.kind === "file" ? (
           <video

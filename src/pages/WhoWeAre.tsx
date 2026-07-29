@@ -47,52 +47,6 @@ const VSL: VslConfig | null = {
  */
 const team: { name: string; role: string; bio: string; photo?: string }[] = [];
 
-const facts = [
-  {
-    num: "01",
-    k: "What we are",
-    v: "A business-intelligence-first AI consultancy. We measure before we build.",
-  },
-  {
-    num: "02",
-    k: "Who we work with",
-    v: "Startups and founder-led teams, roughly 5–500 people, that want outcomes over optics.",
-  },
-  {
-    num: "03",
-    k: "What we ship",
-    v: "Working systems: agents, dashboards, self-optimizing loops. Never a slide deck.",
-  },
-  {
-    num: "04",
-    k: "How we charge",
-    v: "Against what the system is worth. If the numbers don't clear the cost, we say so.",
-  },
-];
-
-const traits = [
-  {
-    num: "01",
-    name: "We're operators, not theorists.",
-    desc: "We run our own company on the systems we sell. Every agent, dashboard, and loop we recommend is one we've already lived with.",
-  },
-  {
-    num: "02",
-    name: "We'd rather lose the deal than oversell it.",
-    desc: "If a spreadsheet, a process change, or nothing at all beats what we'd build, that's what you'll hear. It costs us projects. It's still the right call.",
-  },
-  {
-    num: "03",
-    name: "We show our working.",
-    desc: "Process maps, baselines, ROI math. You should be able to check every number we put in front of you, and we'd rather you did.",
-  },
-  {
-    num: "04",
-    name: "We stay small on purpose.",
-    desc: "No account layers, no handoffs to a junior after the pitch. The people who scope your work are the people who build it.",
-  },
-];
-
 export default function WhoWeAre() {
   const heroRef = useRef<HTMLElement>(null);
 
@@ -134,7 +88,7 @@ export default function WhoWeAre() {
       />
 
       {/* ── Page hero ── */}
-      <header ref={heroRef} className="pt-36 pb-20">
+      <header ref={heroRef} className="pt-36">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <p
             data-hero-label
@@ -178,42 +132,72 @@ export default function WhoWeAre() {
         </div>
       </header>
 
-      {/* ── 01 · The VSL ── */}
-      <section className="pb-24 md:pb-32">
+      {/* ── The VSL, dropped straight into the gap under the hero ── */}
+      <section className="pb-16 md:pb-20">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <SectionHeader
-            index="01"
-            label="Watch First"
-            meta={VSL?.runtime ?? "Short"}
-            titleA="Everything we do,"
-            titleB="in a few minutes."
-            sub="The fastest way to understand how we work. No deck, no discovery call required. Just what we look at, in what order, and why."
-          />
-          <MotionReveal delay={0.1}>
-            <div className="mt-12">
-              <VslPlayer vsl={VSL} label="Sec. 01 / The Video" />
-            </div>
-          </MotionReveal>
-          <MotionReveal delay={0.15}>
-            <p className="mt-6 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]">
-              Still have questions after watching?{" "}
-              <Link
-                to="/contact"
-                className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
-              >
-                Book fifteen minutes
-              </Link>{" "}
-              and ask them directly.
-            </p>
+          <MotionReveal>
+            <VslPlayer vsl={VSL} label="Watch First" flush />
           </MotionReveal>
         </div>
       </section>
 
-      {/* ── 02 · Why we exist ── */}
+      {/* ── The ask, straight off the back of the video ── */}
+      <section className="pb-24 md:pb-32">
+        <div className="mx-auto max-w-7xl px-6 md:px-10">
+          <MotionReveal>
+            <div className="border-t border-[var(--border)] pt-16 text-center">
+              <p className="mb-8 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                ( That's the whole pitch )
+              </p>
+              <h2
+                className="font-display font-semibold text-[var(--text-primary)]"
+                style={{
+                  fontSize: "clamp(2.4rem, 5vw, 4.3rem)",
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1.04,
+                }}
+              >
+                Let's look at
+                <br />
+                <span className="text-[var(--text-secondary)]">
+                  your numbers.
+                </span>
+              </h2>
+              <p className="mx-auto mt-6 max-w-md text-sm text-[var(--text-secondary)]">
+                Fifteen minutes. Real numbers. We'll show you where the hours
+                and money are going.
+              </p>
+              <div className="mt-10">
+                <Link
+                  to="/contact"
+                  className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
+                >
+                  Book a 15-minute call
+                </Link>
+              </div>
+
+              {/* Handing over your numbers is the scary part; answer it here. */}
+              <p className="mx-auto mt-7 max-w-md text-xs leading-relaxed text-[var(--text-secondary)]/70">
+                Your numbers stay yours. Nothing you share gets sold or passed
+                on, and you can have it deleted whenever you ask.{" "}
+                <Link
+                  to="/privacy"
+                  className="underline underline-offset-4 transition-opacity hover:opacity-70"
+                >
+                  How we handle your data
+                </Link>
+                .
+              </p>
+            </div>
+          </MotionReveal>
+        </div>
+      </section>
+
+      {/* ── 01 · Why we exist ── */}
       <section className="pb-24 md:pb-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <SectionHeader
-            index="02"
+            index="01"
             label="Why We Started"
             meta="The origin"
             titleA="We got tired of"
@@ -248,78 +232,10 @@ export default function WhoWeAre() {
               lineHeight: 1.08,
             }}
           />
-        </div>
-      </section>
 
-      {/* ── 03 · The short version ── */}
-      <section className="pb-24 md:pb-32">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <SectionHeader
-            index="03"
-            label="The Short Version"
-            meta="04 facts"
-            titleA="If you only read"
-            titleB="four lines."
-          />
-          <div className="mt-16 grid grid-cols-1 border-t border-[var(--border)] sm:grid-cols-2 lg:grid-cols-4">
-            {facts.map((f, i) => (
-              <MotionReveal key={f.num} delay={i * 0.08}>
-                <div className="h-full border-b border-[var(--border)] py-10 sm:pr-8 lg:border-b-0 lg:py-12">
-                  <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                    {f.num}
-                  </p>
-                  <h3
-                    className="mt-4 font-display font-semibold text-[var(--text-primary)]"
-                    style={{ fontSize: "1.35rem", letterSpacing: "-0.02em" }}
-                  >
-                    {f.k}
-                  </h3>
-                  <p className="mt-4 text-sm leading-relaxed text-[var(--text-secondary)]">
-                    {f.v}
-                  </p>
-                </div>
-              </MotionReveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 04 · How we're different ── */}
-      <section className="pb-24 md:pb-32">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <SectionHeader
-            index="04"
-            label="How We Work"
-            meta="04 traits"
-            titleA="Four things that"
-            titleB="make us awkward."
-          />
-          <div className="mt-16 border-t border-[var(--border)]">
-            {traits.map((t, i) => (
-              <MotionReveal key={t.num} delay={i * 0.06}>
-                <div className="group grid grid-cols-12 items-baseline gap-4 border-b border-[var(--border)] py-10 md:py-12">
-                  <span className="col-span-2 font-mono text-sm text-[var(--text-secondary)] md:col-span-1">
-                    {t.num}
-                  </span>
-                  <h3
-                    className="col-span-10 font-display font-semibold text-[var(--text-primary)]/80 transition-colors duration-300 group-hover:text-[var(--text-primary)] md:col-span-6"
-                    style={{
-                      fontSize: "clamp(1.35rem, 2.6vw, 2.1rem)",
-                      letterSpacing: "-0.03em",
-                    }}
-                  >
-                    {t.name}
-                  </h3>
-                  <p className="col-span-10 col-start-3 max-w-md leading-relaxed text-[var(--text-secondary)] md:col-span-4 md:col-start-9">
-                    {t.desc}
-                  </p>
-                </div>
-              </MotionReveal>
-            ))}
-          </div>
           <MotionReveal delay={0.1}>
             <p className="mt-10 max-w-xl leading-relaxed text-[var(--text-secondary)]">
-              The full set of principles, and what we refuse to do, lives on{" "}
+              The principles behind that, and what we refuse to do, live on{" "}
               <Link
                 to="/mission"
                 className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
@@ -333,18 +249,25 @@ export default function WhoWeAre() {
               >
                 the process page
               </Link>
+              . Or skip the reading and{" "}
+              <Link
+                to="/contact"
+                className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+              >
+                book the call
+              </Link>
               .
             </p>
           </MotionReveal>
         </div>
       </section>
 
-      {/* ── 05 · The team (renders only once `team` has real people in it) ── */}
+      {/* ── 02 · The team (renders only once `team` has real people in it) ── */}
       {team.length > 0 && (
         <section className="pb-24 md:pb-32">
           <div className="mx-auto max-w-7xl px-6 md:px-10">
             <SectionHeader
-              index="05"
+              index="02"
               label="The Team"
               meta={`0${team.length} people`}
               titleA="The people who"
@@ -385,44 +308,6 @@ export default function WhoWeAre() {
         </section>
       )}
 
-      {/* ── Final CTA ── */}
-      <section className="pb-24 md:pb-32">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <MotionReveal>
-            <div className="border-t border-[var(--border)] pt-20 text-center">
-              <p className="mb-8 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                ( Now you know us )
-              </p>
-              <h2
-                className="font-display font-semibold text-[var(--text-primary)]"
-                style={{
-                  fontSize: "clamp(2.4rem, 5vw, 4.3rem)",
-                  letterSpacing: "-0.03em",
-                  lineHeight: 1.04,
-                }}
-              >
-                Let's look at
-                <br />
-                <span className="text-[var(--text-secondary)]">
-                  your numbers.
-                </span>
-              </h2>
-              <p className="mx-auto mt-6 max-w-md text-sm text-[var(--text-secondary)]">
-                Fifteen minutes. Real numbers. We'll show you where the hours
-                and money are going.
-              </p>
-              <div className="mt-12">
-                <Link
-                  to="/contact"
-                  className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
-                >
-                  Book a 15-minute call
-                </Link>
-              </div>
-            </div>
-          </MotionReveal>
-        </div>
-      </section>
     </div>
   );
 }
