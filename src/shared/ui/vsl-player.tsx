@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type VslSource =
   | { kind: "youtube"; id: string }
@@ -14,13 +14,37 @@ export interface VslConfig {
   uploadDate: string;
   /** ISO 8601 duration, e.g. "PT3M42S". */
   duration?: string;
-  /** Poster frame: root-relative ("/vsl-poster.jpg") or absolute URL. */
+  /**
+   * Optional poster override: root-relative ("/vsl-poster.jpg") or absolute
+   * URL. Leave it unset and the thumbnail is pulled from the video itself, so
+   * re-cutting the video or swapping the ID updates the frame with no asset to
+   * re-export and no stale JPG left behind in public/.
+   */
   poster?: string;
   /** Human-readable runtime shown on the frame, e.g. "3 MIN". */
   runtime?: string;
 }
 
 const BASE_URL = "https://ziiro.work";
+
+/**
+ * YouTube publishes derived stills at fixed paths. `maxresdefault` is the 1280w
+ * frame but only exists for videos uploaded above 720p, so callers fall back to
+ * `hqdefault` (always present) when it 404s.
+ */
+const youtubeThumb = (id: string, quality: "maxres" | "hq") =>
+  `https://i.ytimg.com/vi/${id}/${quality}default.jpg`;
+
+/**
+ * Best thumbnail known without a network round-trip. Explicit poster wins;
+ * YouTube resolves synchronously; Vimeo needs oEmbed, so it resolves later in
+ * the component and returns undefined here.
+ */
+export const resolvePoster = (vsl: VslConfig): string | undefined => {
+  if (vsl.poster) return vsl.poster;
+  if (vsl.source.kind === "youtube") return youtubeThumb(vsl.source.id, "maxres");
+  return undefined;
+};
 
 const embedUrl = (source: VslSource): string => {
   switch (source.kind) {
@@ -43,6 +67,9 @@ const absolute = (url: string) =>
  */
 export const videoObjectSchema = (vsl: VslConfig) => {
   const { source } = vsl;
+  // Uses the resolved thumbnail, not the raw config field, so the schema still
+  // carries a thumbnailUrl when the poster is derived rather than hardcoded.
+  const poster = resolvePoster(vsl);
   return {
     "@context": "https://schema.org",
     "@type": "VideoObject",
@@ -50,7 +77,7 @@ export const videoObjectSchema = (vsl: VslConfig) => {
     description: vsl.description,
     uploadDate: vsl.uploadDate,
     ...(vsl.duration && { duration: vsl.duration }),
-    ...(vsl.poster && { thumbnailUrl: [absolute(vsl.poster)] }),
+    ...(poster && { thumbnailUrl: [absolute(poster)] }),
     ...(source.kind === "file"
       ? { contentUrl: absolute(source.src) }
       : { embedUrl: embedUrl(source) }),
@@ -119,6 +146,39 @@ export default function VslPlayer({
   flush?: boolean;
 }) {
   const [playing, setPlaying] = useState(false);
+  // Starts at whatever is known synchronously so the first paint already has a
+  // frame; Vimeo fills in after oEmbed, YouTube downgrades on a 404.
+  const [poster, setPoster] = useState<string | undefined>(() =>
+    vsl ? resolvePoster(vsl) : undefined,
+  );
+
+  const source = vsl?.source;
+  const explicitPoster = vsl?.poster;
+
+  useEffect(() => {
+    if (!vsl) return;
+    setPoster(resolvePoster(vsl));
+
+    // Vimeo doesn't expose a guessable still URL, so ask oEmbed for it. No key,
+    // no SDK, one cached GET.
+    if (!explicitPoster && source?.kind === "vimeo") {
+      const ctrl = new AbortController();
+      fetch(
+        `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(
+          `https://vimeo.com/${source.id}`,
+        )}&width=1280`,
+        { signal: ctrl.signal },
+      )
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d?.thumbnail_url) setPoster(d.thumbnail_url as string);
+        })
+        // A missing thumbnail is not worth surfacing: the dot-grid fill below
+        // is a perfectly good frame to fall back to.
+        .catch(() => {});
+      return () => ctrl.abort();
+    }
+  }, [vsl, explicitPoster, source?.kind, source && "id" in source ? source.id : ""]);
 
   if (!vsl) {
     return (
@@ -143,15 +203,16 @@ export default function VslPlayer({
     );
   }
 
-  const { source, title, poster, runtime } = vsl;
+  const { title, runtime } = vsl;
+  const vslSource = vsl.source;
 
   return (
     <Frame label={label} meta={runtime} flush={flush}>
       {playing ? (
-        source.kind === "file" ? (
+        vslSource.kind === "file" ? (
           <video
             className="absolute inset-0 h-full w-full"
-            src={source.src}
+            src={vslSource.src}
             poster={poster}
             controls
             autoPlay
@@ -160,7 +221,7 @@ export default function VslPlayer({
         ) : (
           <iframe
             className="absolute inset-0 h-full w-full"
-            src={embedUrl(source)}
+            src={embedUrl(vslSource)}
             title={title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
@@ -180,6 +241,16 @@ export default function VslPlayer({
               className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"
               decoding="async"
+              onError={() => {
+                // maxresdefault only exists above 720p. Step down to hqdefault
+                // once, then give up and let the dot-grid fill take over.
+                if (!explicitPoster && vslSource.kind === "youtube") {
+                  const hq = youtubeThumb(vslSource.id, "hq");
+                  setPoster((p) => (p === hq ? undefined : hq));
+                } else {
+                  setPoster(undefined);
+                }
+              }}
             />
           ) : (
             <span className="absolute inset-0 block" style={dotFill} />
