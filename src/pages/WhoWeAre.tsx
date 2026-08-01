@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { createTimeline } from "animejs";
+import { createTimeline, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SectionHeader from "@/shared/ui/section-header";
 import MotionReveal from "@/shared/motion/MotionReveal";
@@ -24,9 +24,12 @@ import VslPlayer, {
  *     description: "A three-minute look at how we find the money and hours leaking out of a business, before anyone says the word AI.",
  *     uploadDate: "2026-08-01",   // ISO date the video went live
  *     duration: "PT3M42S",        // ISO 8601 runtime
- *     poster: "/vsl-poster.jpg",  // 1920×1080, lives in public/
  *     runtime: "3 min",           // shown on the frame
  *   };
+ *
+ * The thumbnail is pulled from the video itself, so there is nothing to export
+ * or upload: change the ID (or re-cut the video) and the frame follows. Only
+ * set `poster` if you want to override that with a custom still.
  */
 const VSL: VslConfig | null = {
   source: { kind: "youtube", id: "_R1Z7rfoaJA" },
@@ -35,7 +38,6 @@ const VSL: VslConfig | null = {
     "A screen-share walkthrough of Ziiro, top to bottom: what we do, how we work, what it costs, and where your data goes. We don't sell AI for AI's sake. We start with your numbers, where the hours go and where the money leaks, and only build something when the math says it's worth it.",
   uploadDate: "2026-07-26",
   duration: "PT7M50S",
-  poster: "/vsl-poster.jpg",
   runtime: "8 min",
 };
 
@@ -57,12 +59,14 @@ export default function WhoWeAre() {
     if (!root) return;
     const label = root.querySelector<HTMLElement>("[data-hero-label]");
     const title = root.querySelector<HTMLElement>("[data-hero-title]");
-    const sub = root.querySelector<HTMLElement>("[data-hero-sub]");
+    // Plural: the hero carries more than one paragraph, and a singular
+    // querySelector would leave every one after the first stuck at opacity 0.
+    const subs = [...root.querySelectorAll<HTMLElement>("[data-hero-sub]")];
     const rule = root.querySelector<HTMLElement>("[data-hero-rule]");
-    if (!label || !title || !sub || !rule) return;
+    if (!label || !title || !subs.length || !rule) return;
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      for (const el of [label, title, sub]) el.style.opacity = "1";
+      for (const el of [label, title, ...subs]) el.style.opacity = "1";
       rule.style.transform = "scaleX(1)";
       return;
     }
@@ -70,7 +74,7 @@ export default function WhoWeAre() {
     const tl = createTimeline({ defaults: { duration: 700, ease: "out(3)" } });
     tl.add(label, { opacity: [0, 1], y: [14, 0] })
       .add(title, { opacity: [0, 1], y: [26, 0] }, "-=520")
-      .add(sub, { opacity: [0, 1], y: [18, 0] }, "-=540")
+      .add(subs, { opacity: [0, 1], y: [18, 0], delay: stagger(90) }, "-=540")
       .add(rule, { scaleX: [0, 1], duration: 800, ease: "inOut(3)" }, "-=460");
 
     return () => {
@@ -119,10 +123,21 @@ export default function WhoWeAre() {
             className="mt-8 max-w-xl leading-relaxed text-[var(--text-secondary)]"
             style={{ opacity: 0 }}
           >
-            We're Ziiro, a business-intelligence-first AI consultancy. We
-            spend the first part of every engagement finding out where your
-            hours and money actually go, and the rest building only what those
-            numbers justify.
+            We're Ziiro, a business-intelligence-first AI consultancy. Every
+            engagement begins by understanding where your business spends time,
+            money, and operational effort. Only once we've quantified those
+            opportunities do we recommend technology.
+          </p>
+
+          {/* The homepage sells the value; this is the line that carries the
+              story, so it gets its own weight rather than a bullet. */}
+          <p
+            data-hero-sub
+            className="mt-8 max-w-xl text-lg leading-relaxed text-[var(--text-primary)]"
+            style={{ opacity: 0 }}
+          >
+            Most AI consultancies start with tools. We start with the numbers.
+            That difference determines everything we build.
           </p>
           <div
             data-hero-rule

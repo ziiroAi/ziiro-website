@@ -23,17 +23,11 @@ const Products = lazy(() => import("@/pages/Products"));
 const Process = lazy(() => import("@/pages/Process"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
-const CinematicParticles = lazy(() => import("@/ogl/CinematicParticles"));
-
-function ParticleBackground() {
-  const location = useLocation();
-  if (location.pathname !== "/") return null;
-  return (
-    <Suspense fallback={null}>
-      <CinematicParticles />
-    </Suspense>
-  );
-}
+// The homepage used to render a full-bleed CinematicParticles field behind
+// every section. It competed with the headline for attention and bled its
+// spiral trails across the content below, so the homepage now runs on a plain
+// background and the point-cloud work is concentrated in DotArtSection, where
+// it's the subject rather than the wallpaper.
 
 // Every page opens from the top, with no inherited scroll positions
 function ScrollToTop() {
@@ -86,7 +80,6 @@ const App = () => (
     <Sonner />
     <BrowserRouter>
       <ScrollToTop />
-      <ParticleBackground />
       <Navbar />
       <Suspense fallback={<div className="min-h-screen" />}>
         <AppRoutes />

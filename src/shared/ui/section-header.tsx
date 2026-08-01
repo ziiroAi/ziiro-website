@@ -1,4 +1,4 @@
-import MotionReveal from "@/shared/motion/MotionReveal";
+import ScrollScene from "@/shared/motion/ScrollScene";
 
 /**
  * Shared editorial section header: hairline rule, dot marker, mono
@@ -22,7 +22,10 @@ export default function SectionHeader({
   sub?: string;
 }) {
   return (
-    <MotionReveal>
+    // exitTo={1}: headers resolve on scroll but never dim on the way out.
+    // The homepage opts into overlap at the section level instead, so pages
+    // like /process and /mission keep their headings at full strength.
+    <ScrollScene exitTo={1}>
       <div className="border-t border-[var(--border)] pt-6">
         <div className="mb-10 flex items-center justify-between gap-4">
           <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
@@ -59,6 +62,6 @@ export default function SectionHeader({
           </p>
         )}
       </div>
-    </MotionReveal>
+    </ScrollScene>
   );
 }
