@@ -1,4 +1,22 @@
-# Ziiro AI: allow all search + AI-citation crawlers (visibility is the goal)
+# Ziiro AI: allow all search + AI-citation crawlers (visibility is the goal).
+#
+# The catch-all at the bottom already permits everything, so the named groups
+# below are a statement of intent rather than a functional requirement: the
+# training/citation opt-out bots (Google-Extended, Applebot-Extended, CCBot)
+# only opt you out when you name them, so naming them with Allow is the
+# explicit "yes, cite us" we want on record.
+
+# --- Search ---
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# --- AI answers & citations ---
 User-agent: GPTBot
 Allow: /
 
@@ -20,16 +38,39 @@ Allow: /
 User-agent: Claude-User
 Allow: /
 
+User-agent: Claude-SearchBot
+Allow: /
+
 User-agent: Google-Extended
+Allow: /
+
+User-agent: Google-CloudVertexBot
+Allow: /
+
+User-agent: Applebot
 Allow: /
 
 User-agent: Applebot-Extended
 Allow: /
 
-User-agent: Bingbot
+User-agent: meta-externalagent
 Allow: /
 
+User-agent: Amazonbot
+Allow: /
+
+User-agent: MistralAI-User
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+# --- Everyone else ---
 User-agent: *
 Allow: /
 
+# A plain-language summary of the site for LLMs lives at /llms.txt
 Sitemap: https://ziiro.work/sitemap.xml

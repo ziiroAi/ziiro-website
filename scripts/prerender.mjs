@@ -4,6 +4,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { routePaths } from "./routes.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -27,18 +28,9 @@ const STRIP = [
   /<meta name="twitter:description"[^>]*>\s*/i,
 ];
 
-const routes = [
-  "/",
-  "/mission",
-  "/who-we-are",
-  "/products",
-  "/process",
-  "/audit",
-  "/contact",
-  "/pricing",
-  "/privacy",
-  "/terms",
-];
+// Shared with the sitemap generator, so a route can't be prerendered without
+// being listed for crawlers (or listed but never built).
+const routes = routePaths;
 
 function buildHtml(appHtml, head) {
   let html = template;

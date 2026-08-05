@@ -5,21 +5,30 @@
 > operates and only build technology when the numbers prove it's worth it.
 > Every engagement ships a working, measured system, not a slide deck.
 
+The order is the product: understand the business, find the bottlenecks,
+quantify the ROI, then build only what the numbers justify. We turn down work
+when the math doesn't support it.
+
+## Start here
+- [Ziiro AI](https://ziiro.work): AI that has to pay for itself. The five-step engagement (discover the business, find the bottlenecks, measure the ROI, build the systems, optimize continuously), an honest comparison of the four ways to get AI (a typical AI agency, an internal team, ChatGPT or Claude alone, or us), and the eight-layer stack we build on, in which the reasoning model is one interchangeable layer rather than the advantage.
+- [Contact](https://ziiro.work/contact): Book a free 30-minute business intelligence session. We identify your operational bottlenecks, estimate the ROI of automating them, show where AI actually creates value, and say what shouldn't be automated. No pitch, and you keep the roadmap. aniket@ziiro.work · govind@ziiro.work · Haryana, India · worldwide.
+
 ## What we do
-- [Products](https://ziiro.work/products): Five systems: Agentic Systems (custom AI operators for research, routing, follow-ups, reporting), Self-Optimizing Systems (marketing/outreach/website/workflow loops that track outcomes and auto-tune), Business Intelligence (KPI baselines, dashboards, ROI models, priority matrices), AI Strategy Sprint (roadmap to the highest-leverage system to build first), and Role Analyzer (people-fit diagnostic for founder-led teams).
-- [Process](https://ziiro.work/process): Seven phases: Understand, Map, Measure, Identify, Calculate, Prioritize, Roadmap. Understanding the business always precedes any technology.
-- [Free Agentic Systems Audit](https://ziiro.work/audit): Rate five areas (self-optimizing systems, research & qualification, UGC ads, role clarity, control dashboards) and get an instant, conservative estimate of hours and value reclaimed.
+- [Products](https://ziiro.work/products): Five systems: Agentic Systems (custom AI operators for research, routing, follow-ups, reporting), Self-Optimizing Systems (marketing, outreach, website, and workflow loops that track outcomes and auto-tune), Business Intelligence (KPI baselines, dashboards, ROI models, priority matrices), AI Strategy Sprint (roadmap to the highest-leverage system to build first), and Role Analyzer (people-fit diagnostic for founder-led teams).
+- [Process](https://ziiro.work/process): The AI Transformation Audit, a fixed-scope two-to-three-week engagement that proves where AI pays for itself before anything gets built. Seven phases: Understand, Map, Measure, Identify, Calculate, Prioritize, Roadmap.
+- [Free Agentic Systems Audit](https://ziiro.work/audit): Rate five areas (self-optimizing systems, research and qualification, UGC ads, role clarity, control dashboards) and get an instant, conservative estimate of hours and value reclaimed.
+- [Pricing](https://ziiro.work/pricing): No fixed packages. Two scopes: Strategy Sprint (1-3 weeks: audit, process mapping, KPI baselines, ROI models, priority matrix, roadmap) and Full Build (4-12 weeks: everything in the Sprint plus agentic system design and deployment, self-optimizing loops, integration with your stack, dashboards, and ongoing measurement). Priced by the system shipped, not by the hour.
 
 ## Who it's for
-- SaaS/software startups, solo founders, founder-led agencies, consulting/professional services, and AI-first service businesses, lean teams (roughly 5–500 people) that want measurable outcomes, not AI for its own sake.
+- SaaS and software startups, solo founders, founder-led agencies, consulting and professional services, and AI-first service businesses. Lean teams, roughly 5-500 people, that want measurable outcomes rather than AI for its own sake.
 
 ## Company
-- [Who We Are](https://ziiro.work/who-we-are): A small, operator-led team. The origin story, how we work, and a short video walkthrough of what we look at and in what order.
+- [Who We Are](https://ziiro.work/who-we-are): A small, operator-led team. An eight-minute screen-share walkthrough of how Ziiro works end to end (what we do, how we work, what it costs, where your data goes), plus why we started: too many companies buying AI like a lottery ticket, with nobody doing the boring part first.
 - [Mission](https://ziiro.work/mission): We don't sell AI, we sell results. AI without business intelligence is expensive guessing.
-- [Pricing](https://ziiro.work/pricing): Scoped per engagement (Strategy Sprint and Full Build); priced by the system shipped, not by the hour.
-- [Contact](https://ziiro.work/contact): govind@ziiro.work · Haryana, India
 
 ## Optional
+- [Privacy Policy](https://ziiro.work/privacy): What we collect, how we use it, and how to have it deleted. Your numbers are never sold or passed on.
+- [Terms & Conditions](https://ziiro.work/terms): Terms governing use of the site and services, including AI outputs and liability limits.
 - [LinkedIn](https://www.linkedin.com/company/zirroai/)
 - [X / Twitter](https://x.com/ziir0ai)
 - [Instagram](https://www.instagram.com/ziiroai)

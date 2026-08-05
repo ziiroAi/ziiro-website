@@ -1,7 +1,7 @@
 {
   "redirects": [
     { "source": "/services", "destination": "/", "permanent": true },
-    { "source": "/about", "destination": "/", "permanent": true }
+    { "source": "/about", "destination": "/who-we-are", "permanent": true }
   ],
   "headers": [
     {
