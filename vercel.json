@@ -1,5 +1,13 @@
 {
+  "cleanUrls": true,
+  "trailingSlash": false,
   "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "www.ziiro.work" }],
+      "destination": "https://ziiro.work/$1",
+      "permanent": true
+    },
     { "source": "/services", "destination": "/", "permanent": true },
     { "source": "/about", "destination": "/who-we-are", "permanent": true }
   ],
