@@ -10,6 +10,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const distDir = resolve(root, "dist");
 
+// react-dom/server is left external by the SSR build rather than bundled, so
+// the React build that loads here is chosen by NODE_ENV at prerender time, not
+// by vite's build mode. Without this, the development build runs and stamps its
+// verbose Suspense diagnostics (including absolute build paths) into the static
+// HTML that ships to every visitor. Must be set before the import below.
+process.env.NODE_ENV = "production";
+
 const { render } = await import(
   pathToFileURL(resolve(root, "dist-ssr/entry-server.js")).href
 );
@@ -26,6 +33,10 @@ const STRIP = [
   /<meta property="og:url"[^>]*>\s*/i,
   /<meta name="twitter:title"[^>]*>\s*/i,
   /<meta name="twitter:description"[^>]*>\s*/i,
+  // Helmet emits the real per-route robots directive; leaving the template's
+  // static one in place ships two robots tags per page, which contradict each
+  // other outright on the noindex 404.
+  /<meta name="robots"[^>]*>\s*/i,
 ];
 
 // Shared with the sitemap generator, so a route can't be prerendered without
