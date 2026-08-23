@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Link } from "react-router-dom";
 import { Renderer, Camera, Transform, Geometry, Program, Mesh } from "ogl";
 import { dotArtVertex, dotArtFragment } from "./dotArtShaders";
 import {
@@ -374,8 +373,6 @@ export default function DotArt3D() {
     };
   }, []);
 
-  const isFinale = sceneIdx === SCENE_COUNT - 1;
-
   return (
     <section
       ref={sectionRef}
@@ -407,34 +404,6 @@ export default function DotArt3D() {
           </AnimatePresence>
         </div>
 
-        {/* Final CTA: fades in over the burst universe */}
-        <AnimatePresence>
-          {isFinale && (
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -16 }}
-              transition={{ duration: 0.9, ease: [0.25, 0.4, 0.25, 1] }}
-              className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center"
-            >
-              <span className="mb-6 font-mono text-[11px] uppercase tracking-[0.4em] text-white/40">
-                The beginning
-              </span>
-              <h2 className="max-w-3xl px-6 text-4xl font-semibold tracking-tight text-white md:text-6xl">
-                Ready to build?
-              </h2>
-              <p className="mt-4 max-w-md px-6 text-sm text-white/50">
-                Free 30-minute call. No pitch.
-              </p>
-              <Link
-                to="/contact"
-                className="pointer-events-auto mt-10 rounded-full bg-white px-8 py-3.5 text-xs font-semibold uppercase tracking-wide text-black transition-opacity hover:opacity-85"
-              >
-                Book your call
-              </Link>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </section>
   );
