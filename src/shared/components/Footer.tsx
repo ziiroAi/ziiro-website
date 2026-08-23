@@ -53,7 +53,7 @@ function NudgeLink({ to, children }: { to: string; children: ReactNode }) {
       to={to}
       onMouseEnter={() => nudge.current?.x(6)}
       onMouseLeave={() => nudge.current?.x(0)}
-      className="inline-block text-sm text-[var(--text-secondary)] transition-colors duration-300 hover:text-[var(--text-primary)]"
+      className="-my-1.5 inline-block py-1.5 text-sm text-[var(--text-secondary)] transition-colors duration-300 hover:text-[var(--text-primary)]"
     >
       {children}
     </Link>
@@ -76,7 +76,7 @@ function SocialLink({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="text-[var(--text-muted)] transition-colors duration-300 hover:text-[var(--text-primary)]"
+      className="inline-flex items-center justify-center p-2 text-[var(--text-muted)] transition-colors duration-300 hover:text-[var(--text-primary)]"
     >
       {children}
     </a>
@@ -142,7 +142,7 @@ export default function Footer() {
             &copy; 2026 Ziiro AI · All rights reserved
           </p>
 
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-1">
             <SocialLink
               href="https://www.linkedin.com/company/zirroai/"
               label="LinkedIn"

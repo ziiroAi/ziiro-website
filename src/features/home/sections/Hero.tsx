@@ -222,7 +222,7 @@ export default function Hero() {
           <Link
             key={link.label}
             to={link.href}
-            className="whitespace-nowrap text-xs md:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors tracking-wide"
+            className="-my-2 inline-block whitespace-nowrap py-2 text-xs md:text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors tracking-wide"
           >
             {link.label}
           </Link>

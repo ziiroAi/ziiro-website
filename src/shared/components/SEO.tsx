@@ -108,7 +108,9 @@ const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noin
     <Helmet>
       <title>{fullTitle}</title>
       <meta name="description" content={desc} />
-      <link rel="canonical" href={url} />
+      {/* A noindex page has no canonical worth declaring, and the 404's would
+          point at /404, which isn't a real route. */}
+      {!noindex && <link rel="canonical" href={url} />}
       {noindex && <meta name="robots" content="noindex, follow" />}
       {!noindex && (
         <meta
