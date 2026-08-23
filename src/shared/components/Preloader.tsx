@@ -20,8 +20,16 @@ interface Particle {
 }
 
 const CELL = 7; // sampling resolution (px per cell)
-const DURATION = 850; // assembly duration (ms)
-const MIN_VISIBLE = 650; // never hide before this (ms); keep short so it never gates LCP
+const DURATION = 850; // assembly duration (ms), per particle
+const MAX_DELAY = 320; // latest a particle starts moving (ms)
+const HOLD = 350; // beat to actually read the finished wordmark (ms)
+/**
+ * Never hide before the wordmark has finished assembling, plus a beat to see
+ * it. Derived rather than hardcoded: the last particle starts at MAX_DELAY and
+ * takes DURATION to land, so anything shorter fades the logo out mid-assembly
+ * and the visitor never sees it resolve.
+ */
+const MIN_VISIBLE = DURATION + MAX_DELAY + HOLD;
 const FADE = 500; // fade-out duration (ms)
 const FONT_CAP = 400; // never wait longer than this on fonts before dismissing
 
@@ -120,7 +128,7 @@ export default function Preloader() {
               tx,
               ty,
               size: 1.7 + Math.random() * 1.5,
-              delay: reduced ? 0 : Math.random() * 320,
+              delay: reduced ? 0 : Math.random() * MAX_DELAY,
             });
           }
         }
