@@ -37,6 +37,26 @@ export const routes = [
     fallback: "2026-08-01",
   },
   {
+    path: "/watch/how-ziiro-works",
+    sources: ["src/pages/Watch.tsx", "src/features/watch/videos.ts"],
+    changefreq: "monthly",
+    priority: "0.8",
+    fallback: "2026-08-06",
+    // Emits the <video:video> sitemap extension. This is how Google discovers
+    // a video independently of crawling the page, and the fields mirror the
+    // VideoObject schema on the watch page itself.
+    video: {
+      title: "I built an AI agency. Here's exactly how it works.",
+      description:
+        "A screen-share walkthrough of Ziiro, top to bottom: what we do, how we work, what it costs, and where your data goes.",
+      thumbnail: "https://i.ytimg.com/vi/_R1Z7rfoaJA/maxresdefault.jpg",
+      playerLoc:
+        "https://www.youtube-nocookie.com/embed/_R1Z7rfoaJA?rel=0&modestbranding=1&playsinline=1",
+      durationSeconds: 470,
+      publicationDate: "2026-07-26",
+    },
+  },
+  {
     path: "/process",
     sources: ["src/pages/Process.tsx"],
     changefreq: "monthly",

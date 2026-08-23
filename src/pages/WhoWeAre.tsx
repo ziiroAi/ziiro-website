@@ -5,41 +5,26 @@ import SEO from "@/shared/components/SEO";
 import SectionHeader from "@/shared/ui/section-header";
 import MotionReveal from "@/shared/motion/MotionReveal";
 import TextReveal from "@/shared/motion/TextReveal";
-import VslPlayer, {
-  videoObjectSchema,
-  type VslConfig,
-} from "@/shared/ui/vsl-player";
+import VslPlayer from "@/shared/ui/vsl-player";
+import { videos, watchPath } from "@/features/watch/videos";
 
 /**
- * ── DROP THE VSL IN HERE ──────────────────────────────────────────────
- * Set this to a VslConfig object once the video is up and the player
- * swaps from placeholder to a real click-to-play frame, and the page
- * starts emitting VideoObject schema. Leave it `null` until then.
+ * ── THE VIDEO ─────────────────────────────────────────────────────────
+ * Edit videos in `src/features/watch/videos.ts`. Each entry gets its own
+ * watch page at /watch/<slug>, which is the page that carries the
+ * VideoObject schema and the crawlable player.
  *
- *   const VSL: VslConfig | null = {
- *     source: { kind: "youtube", id: "dQw4w9WgXcQ" },
- *     // or { kind: "vimeo", id: "123456789" }
- *     // or { kind: "file", src: "/vsl.mp4" }  ← file goes in public/
- *     title: "Why we started Ziiro",
- *     description: "A three-minute look at how we find the money and hours leaking out of a business, before anyone says the word AI.",
- *     uploadDate: "2026-08-01",   // ISO date the video went live
- *     duration: "PT3M42S",        // ISO 8601 runtime
- *     runtime: "3 min",           // shown on the frame
- *   };
+ * This page embeds the same video as a click-to-play facade: fast, no
+ * third-party payload until someone presses play, and deliberately without
+ * schema. Two pages claiming the same video splits the signal, and this one
+ * would fail Google's watch-page test anyway, since the video is supporting
+ * content here rather than the subject.
  *
  * The thumbnail is pulled from the video itself, so there is nothing to export
- * or upload: change the ID (or re-cut the video) and the frame follows. Only
- * set `poster` if you want to override that with a custom still.
+ * or upload: change the ID (or re-cut the video) and the frame follows.
  */
-const VSL: VslConfig | null = {
-  source: { kind: "youtube", id: "_R1Z7rfoaJA" },
-  title: "I built an AI agency. Here's exactly how it works.",
-  description:
-    "A screen-share walkthrough of Ziiro, top to bottom: what we do, how we work, what it costs, and where your data goes. We don't sell AI for AI's sake. We start with your numbers, where the hours go and where the money leaks, and only build something when the math says it's worth it.",
-  uploadDate: "2026-07-26",
-  duration: "PT7M50S",
-  runtime: "8 min",
-};
+const FEATURED = videos[0];
+const VSL = FEATURED?.vsl ?? null;
 
 /**
  * ── TEAM ──────────────────────────────────────────────────────────────
@@ -88,7 +73,6 @@ export default function WhoWeAre() {
         title="Who We Are: The Team Behind Ziiro"
         description="Ziiro is a small, operator-led AI and business intelligence consultancy. Watch the short video, then see how we work and who we build for."
         canonical="/who-we-are"
-        schema={VSL ? videoObjectSchema(VSL) : undefined}
       />
 
       {/* ── Page hero ── */}
@@ -152,6 +136,19 @@ export default function WhoWeAre() {
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <MotionReveal>
             <VslPlayer vsl={VSL} label="Watch First" flush />
+            {FEATURED && (
+              // A real link to the watch page, so crawlers reach it and people
+              // who want the video on its own have somewhere to go.
+              <p className="mt-5 text-sm text-[var(--text-secondary)]">
+                <Link
+                  to={watchPath(FEATURED.slug)}
+                  className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+                >
+                  Open the full walkthrough
+                </Link>{" "}
+                — {FEATURED.vsl.runtime}, with what it covers written out.
+              </p>
+            )}
           </MotionReveal>
         </div>
       </section>

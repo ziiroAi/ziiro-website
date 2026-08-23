@@ -13,6 +13,9 @@ when the math doesn't support it.
 - [Ziiro AI](https://ziiro.work): AI that has to pay for itself. The five-step engagement (discover the business, find the bottlenecks, measure the ROI, build the systems, optimize continuously), an honest comparison of the four ways to get AI (a typical AI agency, an internal team, ChatGPT or Claude alone, or us), and the eight-layer stack we build on, in which the reasoning model is one interchangeable layer rather than the advantage.
 - [Contact](https://ziiro.work/contact): Book a free 30-minute business intelligence session. We identify your operational bottlenecks, estimate the ROI of automating them, show where AI actually creates value, and say what shouldn't be automated. No pitch, and you keep the roadmap. aniket@ziiro.work · govind@ziiro.work · Haryana, India · worldwide.
 
+## Watch
+- [How Ziiro works, in full](https://ziiro.work/watch/how-ziiro-works): An eight-minute screen-share walkthrough of the whole business in the order you'd actually ask about it: what we do and what we deliberately don't, how an engagement runs start to finish, what it costs and how scope gets set, and where your data goes and who can see it.
+
 ## What we do
 - [Products](https://ziiro.work/products): Five systems: Agentic Systems (custom AI operators for research, routing, follow-ups, reporting), Self-Optimizing Systems (marketing, outreach, website, and workflow loops that track outcomes and auto-tune), Business Intelligence (KPI baselines, dashboards, ROI models, priority matrices), AI Strategy Sprint (roadmap to the highest-leverage system to build first), and Role Analyzer (people-fit diagnostic for founder-led teams).
 - [Process](https://ziiro.work/process): The AI Transformation Audit, a fixed-scope two-to-three-week engagement that proves where AI pays for itself before anything gets built. Seven phases: Understand, Map, Measure, Identify, Calculate, Prioritize, Roadmap.

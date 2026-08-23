@@ -21,6 +21,7 @@ const Mission = lazy(() => import("@/pages/Mission"));
 const WhoWeAre = lazy(() => import("@/pages/WhoWeAre"));
 const Products = lazy(() => import("@/pages/Products"));
 const Process = lazy(() => import("@/pages/Process"));
+const Watch = lazy(() => import("@/pages/Watch"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 // The homepage used to render a full-bleed CinematicParticles field behind
@@ -63,6 +64,8 @@ export function AppRoutes() {
       <Route path="/who-we-are" element={<WhoWeAre />} />
       <Route path="/products" element={<Products />} />
       <Route path="/process" element={<Process />} />
+      {/* One watch page per video: Google only indexes a video that owns its URL. */}
+      <Route path="/watch/:slug" element={<Watch />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       {/* Redirects from old routes */}

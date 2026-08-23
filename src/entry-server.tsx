@@ -15,7 +15,9 @@ import Mission from "@/pages/Mission";
 import WhoWeAre from "@/pages/WhoWeAre";
 import Products from "@/pages/Products";
 import Process from "@/pages/Process";
+import Watch from "@/pages/Watch";
 import NotFound from "@/pages/NotFound";
+import { videos, watchPath } from "@/features/watch/videos";
 
 // Eager map (no lazy) so renderToString emits full content, not Suspense
 // fallbacks. Decorative WebGL (DotArtSection/particles) stays lazy inside
@@ -31,6 +33,9 @@ const routes: Record<string, ComponentType> = {
   "/who-we-are": WhoWeAre,
   "/products": Products,
   "/process": Process,
+  // Watch pages are registered by exact path so this stays a flat lookup; the
+  // page reads its slug from the router location, not from route params.
+  ...Object.fromEntries(videos.map((v) => [watchPath(v.slug), Watch])),
 };
 
 interface HelmetTag {

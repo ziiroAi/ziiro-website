@@ -7,6 +7,12 @@ interface SEOProps {
   ogImage?: string;
   /** Route-level JSON-LD (e.g. BreadcrumbList + page type). */
   schema?: object;
+  /**
+   * Explicit breadcrumb trail. Needed when a path contains a segment that
+   * isn't a real page: /watch/<slug> has no /watch index, and deriving the
+   * trail from the URL would cite a 404 as an ancestor.
+   */
+  breadcrumb?: { name: string; path: string }[];
   /** Keep the page out of the index (e.g. the 404 route). */
   noindex?: boolean;
 }
@@ -57,7 +63,22 @@ const buildBreadcrumb = (path: string, id: string) => {
   };
 };
 
-const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noindex }: SEOProps) => {
+/** BreadcrumbList from an explicit trail, for paths the URL can't describe. */
+const trailBreadcrumb = (
+  trail: { name: string; path: string }[],
+  id: string,
+) => ({
+  "@type": "BreadcrumbList",
+  "@id": id,
+  itemListElement: trail.map((crumb, index) => ({
+    "@type": "ListItem",
+    position: index + 1,
+    name: crumb.name,
+    item: crumb.path === "/" ? BASE_URL : `${BASE_URL}${crumb.path}`,
+  })),
+});
+
+const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noindex, breadcrumb }: SEOProps) => {
   const fullTitle = title ? `${title} | Ziiro AI` : "Ziiro AI: Leverage AI Anywhere | Agentic AI Systems for Startups";
   const desc = description || "Business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems and self-optimizing loops.";
   const path = canonical || "/";
@@ -77,7 +98,9 @@ const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noin
         inLanguage: "en",
         breadcrumb: { "@id": breadcrumbId },
       },
-      buildBreadcrumb(path, breadcrumbId),
+      breadcrumb
+        ? trailBreadcrumb(breadcrumb, breadcrumbId)
+        : buildBreadcrumb(path, breadcrumbId),
     ],
   };
 

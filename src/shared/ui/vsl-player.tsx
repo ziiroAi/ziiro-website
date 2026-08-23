@@ -46,13 +46,35 @@ export const resolvePoster = (vsl: VslConfig): string | undefined => {
   return undefined;
 };
 
-const embedUrl = (source: VslSource): string => {
+/**
+ * Every thumbnail we can offer, best first. Google wants a fetchable
+ * thumbnailUrl and accepts several; hqdefault always exists, so listing it
+ * behind maxresdefault means a sub-720p upload still resolves to something.
+ */
+export const resolvePosters = (vsl: VslConfig): string[] => {
+  if (vsl.poster) return [vsl.poster];
+  if (vsl.source.kind === "youtube") {
+    return [
+      youtubeThumb(vsl.source.id, "maxres"),
+      youtubeThumb(vsl.source.id, "hq"),
+    ];
+  }
+  return [];
+};
+
+/**
+ * `autoplay` belongs on the click-to-play path only: the viewer already asked
+ * for it. The watch page embeds on load, where autoplay would be hostile, and
+ * the schema's embedUrl should be the plain, shareable player URL.
+ */
+const embedUrl = (source: VslSource, autoplay = false): string => {
+  const play = autoplay ? "autoplay=1&" : "";
   switch (source.kind) {
     case "youtube":
       // -nocookie so nothing is written until the viewer actually plays.
-      return `https://www.youtube-nocookie.com/embed/${source.id}?autoplay=1&rel=0&modestbranding=1&playsinline=1`;
+      return `https://www.youtube-nocookie.com/embed/${source.id}?${play}rel=0&modestbranding=1&playsinline=1`;
     case "vimeo":
-      return `https://player.vimeo.com/video/${source.id}?autoplay=1&title=0&byline=0&portrait=0`;
+      return `https://player.vimeo.com/video/${source.id}?${play}title=0&byline=0&portrait=0`;
     case "file":
       return source.src;
   }
@@ -65,23 +87,28 @@ const absolute = (url: string) =>
  * VideoObject JSON-LD for the VSL. Only emit this once a real video exists.
  * Schema for a video that isn't there is a structured-data penalty, not a win.
  */
-export const videoObjectSchema = (vsl: VslConfig) => {
+export const videoObjectSchema = (vsl: VslConfig, watchPath?: string) => {
   const { source } = vsl;
-  // Uses the resolved thumbnail, not the raw config field, so the schema still
+  // Uses the resolved thumbnails, not the raw config field, so the schema still
   // carries a thumbnailUrl when the poster is derived rather than hardcoded.
-  const poster = resolvePoster(vsl);
+  const posters = resolvePosters(vsl);
+  const pageUrl = watchPath ? `${BASE_URL}${watchPath}` : undefined;
   return {
     "@context": "https://schema.org",
     "@type": "VideoObject",
+    ...(pageUrl && { "@id": `${pageUrl}#video`, url: pageUrl }),
     name: vsl.title,
     description: vsl.description,
     uploadDate: vsl.uploadDate,
     ...(vsl.duration && { duration: vsl.duration }),
-    ...(poster && { thumbnailUrl: [absolute(poster)] }),
+    ...(posters.length && { thumbnailUrl: posters.map(absolute) }),
     ...(source.kind === "file"
       ? { contentUrl: absolute(source.src) }
       : { embedUrl: embedUrl(source) }),
     publisher: { "@id": `${BASE_URL}/#organization` },
+    // Tells Google the video is the point of this URL rather than decoration
+    // on a page about something else.
+    ...(pageUrl && { mainEntityOfPage: { "@id": `${pageUrl}#webpage` } }),
   };
 };
 
@@ -139,11 +166,22 @@ export default function VslPlayer({
   vsl,
   label = "The video",
   flush = false,
+  mode = "facade",
 }: {
   vsl: VslConfig | null;
   label?: string;
   /** Drop the frame's own top hairline when the section above supplies one. */
   flush?: boolean;
+  /**
+   * "facade" trades indexability for speed: no iframe exists until the viewer
+   * clicks. Googlebot renders the page but never clicks, so it sees a button
+   * and an image, not a video, and the page fails Google's watch-page test.
+   *
+   * "embed" puts the real iframe in the server-rendered HTML. Use it on watch
+   * pages, where the video is the reason the page exists and the third-party
+   * payload is the point rather than a tax.
+   */
+  mode?: "facade" | "embed";
 }) {
   const [playing, setPlaying] = useState(false);
   // Starts at whatever is known synchronously so the first paint already has a
@@ -205,23 +243,27 @@ export default function VslPlayer({
 
   const { title, runtime } = vsl;
   const vslSource = vsl.source;
+  // In embed mode the player is present from the first render, including the
+  // server-rendered HTML, so a crawler finds a real <iframe>/<video> element.
+  const showPlayer = mode === "embed" || playing;
 
   return (
     <Frame label={label} meta={runtime} flush={flush}>
-      {playing ? (
+      {showPlayer ? (
         vslSource.kind === "file" ? (
           <video
             className="absolute inset-0 h-full w-full"
             src={vslSource.src}
             poster={poster}
             controls
-            autoPlay
+            autoPlay={playing}
+            preload={mode === "embed" ? "metadata" : undefined}
             playsInline
           />
         ) : (
           <iframe
             className="absolute inset-0 h-full w-full"
-            src={embedUrl(vslSource)}
+            src={embedUrl(vslSource, playing)}
             title={title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen

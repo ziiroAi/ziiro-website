@@ -8,6 +8,7 @@ const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
     head: "Explore",
     links: [
       { label: "Who We Are", to: "/who-we-are" },
+      { label: "Watch", to: "/watch/how-ziiro-works" },
       { label: "Mission", to: "/mission" },
       { label: "Products", to: "/products" },
       { label: "Process", to: "/process" },
