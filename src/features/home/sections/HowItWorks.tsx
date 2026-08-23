@@ -50,7 +50,14 @@ export default function HowItWorks() {
 
         <ol className="mt-16 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-5">
           {steps.map((step, i) => (
-            <li key={step.n} className="bg-[var(--background)]">
+            // Five steps into two columns leaves a sixth cell empty, and the
+            // gap-px/border-background technique renders that hole as a solid
+            // block. The last step spans the row instead; at lg the grid is
+            // five-wide and every cell is filled, so the span resets.
+            <li
+              key={step.n}
+              className="bg-[var(--background)] sm:last:col-span-2 lg:last:col-span-1"
+            >
               {/* Staggered by travel distance rather than by delay: with a
                   scrub-linked reveal there is no timeline to offset, so the
                   cascade comes from each step having further to come. */}
