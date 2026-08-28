@@ -69,7 +69,7 @@ export default function WhyDifferent() {
     <section ref={ref} className="relative px-6 py-24 md:px-10 md:py-32">
       <div className="mx-auto max-w-7xl">
         <SectionHeader
-          index="02"
+          index="03"
           label="Why We're Different"
           meta="the comparison"
           titleA="Four ways to get AI."
@@ -117,7 +117,11 @@ export default function WhyDifferent() {
             <div
               className="neo-inset flex h-full flex-col rounded-2xl border p-7"
               style={{
-                borderColor: `rgba(255,255,255,${(0.16 + fade * 0.24).toFixed(3)})`,
+                // color-mix against the accent rather than literal white:
+                // white read cold beside the warm ink in dark, and disappeared
+                // completely on warm paper in light, taking the whole
+                // scroll-linked strengthening beat with it.
+                borderColor: `color-mix(in srgb, var(--accent) ${(26 + fade * 40).toFixed(0)}%, var(--border-strong))`,
               }}
             >
               <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-primary)]">

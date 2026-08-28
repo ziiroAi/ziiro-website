@@ -1,6 +1,6 @@
 import SEO from "@/shared/components/SEO";
-import HeroBackdrop from "@/features/home/sections/HeroBackdrop";
-import Hero from "@/features/home/sections/Hero";
+import Hero from "@/features/home/hero/Hero";
+import SystemDirectory from "@/features/home/directory/SystemDirectory";
 import HowItWorks from "@/features/home/sections/HowItWorks";
 import WhyDifferent from "@/features/home/sections/WhyDifferent";
 import WhatPowersZiiro from "@/features/home/sections/WhatPowersZiiro";
@@ -35,15 +35,15 @@ export default function Home() {
         canonical="/"
       />
 
-      {/* Starfield, hero only: fades out across the first screen. */}
-      <HeroBackdrop />
-
       <div className="relative z-10">
         <Hero />
 
-        <div className="border-t border-[var(--border)]">
-          <HowItWorks />
-        </div>
+        {/* No border between these two: the directory runs on the same
+            near-black field as the hero, so the page opens as one dark block
+            and a hairline across it would only read as a seam. */}
+        <SystemDirectory />
+
+        <HowItWorks />
 
         <div className="border-t border-[var(--border)]">
           <WhyDifferent />

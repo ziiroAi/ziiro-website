@@ -76,7 +76,7 @@ function SocialLink({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="inline-flex items-center justify-center p-2 text-[var(--text-muted)] transition-colors duration-300 hover:text-[var(--text-primary)]"
+      className="inline-flex items-center justify-center p-2 text-[var(--text-secondary)] transition-colors duration-300 hover:text-[var(--accent)]"
     >
       {children}
     </a>

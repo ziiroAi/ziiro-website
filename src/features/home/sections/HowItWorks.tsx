@@ -40,7 +40,7 @@ export default function HowItWorks() {
     <section id="how-it-works" className="relative px-6 py-24 md:px-10 md:py-32">
       <div className="mx-auto max-w-7xl">
         <SectionHeader
-          index="01"
+          index="02"
           label="How It Works"
           meta="five steps"
           titleA="Understand first."
@@ -63,7 +63,7 @@ export default function HowItWorks() {
                   cascade comes from each step having further to come. */}
               <ScrollScene rise={14 + i * 7} exitTo={1}>
                 <div className="flex h-full flex-col p-7">
-                  <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                  <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--accent)]">
                     {step.n}
                   </p>
                   <h3

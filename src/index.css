@@ -5,20 +5,20 @@
 @layer base {
   /* ─── Light Mode (default) ─── */
   :root {
-    --background: #F0F2F5;
+    --background: #F6F2EC;
     --surface: #FFFFFF;
-    --foreground: #1a1a2e;
+    --foreground: #17131b;
 
-    --text-primary: #1a1a2e;
-    --text-secondary: rgba(0, 0, 0, 0.55);
-    --text-muted: rgba(0, 0, 0, 0.35);
+    --text-primary: #17131b;
+    --text-secondary: rgba(23, 19, 27, 0.58);
+    --text-muted: rgba(23, 19, 27, 0.36);
 
-    --accent: #2A3B5C;
-    --accent-light: #4A6CF7;
-    --accent-surface: rgba(42, 59, 92, 0.06);
+    --accent: #D2531A;
+    --accent-light: #6B45E0;
+    --accent-surface: rgba(210, 83, 26, 0.07);
 
-    --border: rgba(0, 0, 0, 0.08);
-    --border-strong: rgba(0, 0, 0, 0.14);
+    --border: rgba(23, 19, 27, 0.1);
+    --border-strong: rgba(23, 19, 27, 0.17);
 
     --glass-bg: rgba(255, 255, 255, 0.65);
     --glass-border: rgba(0, 0, 0, 0.06);
@@ -26,103 +26,115 @@
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
     --glass-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
-    --neo-shadow-dark: #D1D9E6;
+    --neo-shadow-dark: #E2DBD1;
     --neo-shadow-light: #FFFFFF;
-    --neo-bg: #F0F2F5;
+    --neo-bg: #F6F2EC;
 
-    --gradient-accent: linear-gradient(135deg, #2A3B5C 0%, #4A6CF7 50%, #2A3B5C 100%);
-    --gradient-text: linear-gradient(135deg, #1a1a2e, #4A6CF7, #2A3B5C);
-    --gradient-surface: linear-gradient(145deg, #FFFFFF, #E8ECF0);
+    --gradient-accent: linear-gradient(135deg, #D2531A 0%, #C0417A 52%, #6B45E0 100%);
+    --gradient-text: linear-gradient(135deg, #D2531A, #C0417A, #6B45E0);
+    --gradient-surface: linear-gradient(145deg, #FFFFFF, #EFE9E1);
 
     --radius: 0.875rem;
     --radius-lg: 1.5rem;
     --radius-xl: 2rem;
+
+    /* The page-wide lights are for the dark ground; on paper they read as a
+       stain rather than as light, so they run at a fraction. */
+    --page-atmosphere: 0.3;
 
     /* shadcn compatibility */
     --card: 0 0% 100%;
     --card-foreground: 240 40% 10%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 40% 10%;
-    --primary: 220 40% 25%;
+    --primary: 18 78% 46%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 20% 96%;
-    --secondary-foreground: 220 40% 25%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 40%;
+    --secondary: 34 30% 94%;
+    --secondary-foreground: 270 20% 12%;
+    --muted: 34 25% 94%;
+    --muted-foreground: 270 8% 40%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
     --input: 0 0% 0% / 0.06;
-    --ring: 220 40% 40%;
+    --ring: 18 78% 46%;
 
-    --sidebar-background: #F0F2F5;
-    --sidebar-foreground: #1a1a2e;
-    --sidebar-primary: #2A3B5C;
+    --sidebar-background: #F6F2EC;
+    --sidebar-foreground: #17131b;
+    --sidebar-primary: #D2531A;
     --sidebar-primary-foreground: #FFFFFF;
-    --sidebar-accent: rgba(42, 59, 92, 0.06);
-    --sidebar-accent-foreground: #1a1a2e;
-    --sidebar-border: rgba(0, 0, 0, 0.08);
-    --sidebar-ring: #4A6CF7;
+    --sidebar-accent: rgba(210, 83, 26, 0.07);
+    --sidebar-accent-foreground: #17131b;
+    --sidebar-border: rgba(23, 19, 27, 0.1);
+    --sidebar-ring: #D2531A;
   }
 
   /* ─── Dark Mode ─── */
+  /* The whole site runs on the hero's palette: black ground, warm ink, and
+     the orange/violet duotone. Nothing outside these variables carries colour,
+     so this block is the theme. */
   .dark {
-    --background: #060610;
-    --surface: #0d0d1a;
-    --foreground: #ffffff;
+    --background: #000000;
+    --surface: #0a0710;
+    --foreground: #f2eee9;
 
-    --text-primary: #ffffff;
-    --text-secondary: rgba(255, 255, 255, 0.55);
-    --text-muted: rgba(255, 255, 255, 0.3);
+    --text-primary: #f2eee9;
+    --text-secondary: rgba(242, 238, 233, 0.56);
+    --text-muted: rgba(242, 238, 233, 0.32);
 
-    --accent: #A8B4C8;
-    --accent-light: #c0c8d8;
-    --accent-surface: rgba(168, 180, 200, 0.06);
+    /* Warm is the light source, violet its counterpart — the same division
+       the hero and the directory use. */
+    --accent: #ff8a3d;
+    --accent-light: #8c6aff;
+    --accent-surface: rgba(255, 138, 61, 0.09);
 
-    --border: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.14);
+    --border: rgba(242, 238, 233, 0.09);
+    --border-strong: rgba(242, 238, 233, 0.17);
 
-    --glass-bg: rgba(255, 255, 255, 0.04);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    --glass-bg: rgba(242, 238, 233, 0.04);
+    --glass-border: rgba(242, 238, 233, 0.08);
     --glass-blur: 40px;
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     --glass-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
-    --neo-shadow-dark: rgba(0, 0, 0, 0.5);
-    --neo-shadow-light: rgba(255, 255, 255, 0.03);
-    --neo-bg: #0d0d1a;
+    --neo-shadow-dark: rgba(0, 0, 0, 0.6);
+    --neo-shadow-light: rgba(242, 238, 233, 0.05);
+    --neo-bg: #0a0710;
 
-    --gradient-accent: linear-gradient(135deg, #4a5060 0%, #8a92a8 40%, #d8dce8 70%, #6e7888 100%);
-    --gradient-text: linear-gradient(135deg, #8890a4, #c0c8d8, #e8ecf4);
-    --gradient-surface: linear-gradient(145deg, #0d0d1a, #060610);
+    /* Warm to cool through the bridge hue, the same ramp as the map. */
+    --gradient-accent: linear-gradient(135deg, #ff8a3d 0%, #e8598c 52%, #8c6aff 100%);
+    --gradient-text: linear-gradient(135deg, #ff8a3d, #e8598c, #8c6aff);
+    --gradient-surface: linear-gradient(145deg, #0a0710, #000000);
 
     --radius: 0.875rem;
     --radius-lg: 1.5rem;
     --radius-xl: 2rem;
 
+    --page-atmosphere: 1;
+
     /* shadcn compatibility */
-    --card: 240 30% 5%;
-    --card-foreground: 0 0% 100%;
-    --popover: 240 30% 5%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 220 18% 72%;
-    --primary-foreground: 240 40% 3%;
-    --secondary: 240 20% 10%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 240 20% 8%;
-    --muted-foreground: 0 0% 50%;
+    --card: 270 22% 5%;
+    --card-foreground: 36 25% 93%;
+    --popover: 270 22% 5%;
+    --popover-foreground: 36 25% 93%;
+    --primary: 24 100% 62%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 270 20% 9%;
+    --secondary-foreground: 36 25% 93%;
+    --muted: 270 18% 8%;
+    --muted-foreground: 36 12% 58%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --input: 0 0% 100% / 0.06;
-    --ring: 220 18% 72%;
+    --input: 36 25% 93% / 0.06;
+    --ring: 24 100% 62%;
 
-    --sidebar-background: #060610;
-    --sidebar-foreground: #ffffff;
-    --sidebar-primary: #A8B4C8;
-    --sidebar-primary-foreground: #060610;
-    --sidebar-accent: rgba(168, 180, 200, 0.06);
-    --sidebar-accent-foreground: #ffffff;
-    --sidebar-border: rgba(255, 255, 255, 0.08);
-    --sidebar-ring: #A8B4C8;
+    --sidebar-background: #000000;
+    --sidebar-foreground: #f2eee9;
+    --sidebar-primary: #ff8a3d;
+    --sidebar-primary-foreground: #000000;
+    --sidebar-accent: rgba(255, 138, 61, 0.09);
+    --sidebar-accent-foreground: #f2eee9;
+    --sidebar-border: rgba(242, 238, 233, 0.09);
+    --sidebar-ring: #ff8a3d;
   }
 }
 
@@ -144,7 +156,7 @@
 @layer components {
   /* ─── Typography ─── */
   .display-font {
-    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-family: 'Instrument Sans', 'Inter', sans-serif;
     font-weight: 700;
     letter-spacing: -0.02em;
   }
@@ -328,4 +340,291 @@
 [data-no-theme-transition],
 [data-no-theme-transition] * {
   transition: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HERO — the cinematic dark field
+   ──────────────────────────────────────────────────────────────────────────
+   The hero is deliberately theme-independent: it paints its own near-black
+   ground and its own ink so it reads identically whether the visitor is on
+   the light or the dark site theme. Its palette is scoped to the section, so
+   nothing here leaks into the rest of the design system.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+[data-hero-dark] {
+  --hero-bg: #000000;
+  --hero-ink: #f2eee9;
+  --hero-dim: rgba(242,238,233, 0.56);
+  --hero-faint: rgba(242,238,233, 0.32);
+  --hero-line: rgba(242,238,233, 0.1);
+  /* A duotone, and each half has a job. Warm is the light source: it blooms,
+     it sits behind things, it is what the eye lands on. Cool is the
+     counterpart that stops the warm reading as one flat wash — where both fall
+     on the same edge the result is iridescent rather than gradient-y. Both are
+     muted enough to survive a 60px blur without becoming highlighter stripes,
+     and both sit on true black. */
+  --hero-accent: #ff8a3d;
+  --hero-cool: #8c6aff;
+  --hero-highlight: #ffe0c4;
+}
+
+/* One grain plate, shared by every dark section. */
+:root {
+  --hero-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* The navbar sits on top of that field. Rather than teach every child about
+   a dark context, re-point the tokens it already consumes — the mark, the
+   theme toggle and the CTA pill all invert for free. */
+.nav-over-dark {
+  --text-primary: #f2eee9;
+  --text-secondary: rgba(242,238,233, 0.58);
+  --background: #000000;
+  --border: rgba(242,238,233, 0.1);
+  --border-strong: rgba(242,238,233, 0.18);
+  --neo-bg: rgba(242,238,233, 0.05);
+  --neo-shadow-dark: rgba(0, 0, 0, 0.55);
+  --neo-shadow-light: rgba(242,238,233, 0.07);
+}
+
+/* The orb's size. Phones get a tighter cap than everything else: with Safari's
+   chrome showing, the usable height is nearer 650 than 844, and a cap loose
+   enough to keep the desktop orb generous pushes the buttons under the
+   toolbar. Below md the orb yields; from md up it does not. */
+[data-orb-scope] {
+  --orb: min(clamp(205px, 46vw, 520px), 36vh);
+}
+
+@media (min-width: 768px) {
+  [data-orb-scope] {
+    --orb: min(clamp(280px, 33vw, 520px), 40vh);
+  }
+}
+
+/* ─── Atmospheric loops ───────────────────────────────────────────────────
+   All of these run on transform/opacity only, so they stay on the compositor
+   and never trigger layout. Periods are intentionally coprime-ish: the two
+   ring layers drift in and out of alignment instead of repeating on a beat,
+   which is where the "occasional brighter pass" comes from — no extra layer,
+   no timer.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* The orb's two blobs morph on cycles that don't divide into each other, so
+   the band changes shape and thickness at the same time and never repeats on
+   a beat you can count. */
+@keyframes hero-morph {
+  0%, 100% { border-radius: 41% 59% 63% 37% / 54% 42% 58% 46%; }
+  25% { border-radius: 64% 36% 38% 62% / 36% 64% 36% 64%; }
+  50% { border-radius: 37% 63% 57% 43% / 63% 45% 55% 37%; }
+  75% { border-radius: 57% 43% 36% 64% / 43% 60% 40% 57%; }
+}
+
+@keyframes hero-morph-inner {
+  0%, 100% { border-radius: 58% 42% 40% 60% / 44% 58% 42% 56%; }
+  30% { border-radius: 38% 62% 64% 36% / 61% 38% 62% 39%; }
+  60% { border-radius: 62% 38% 45% 55% / 37% 63% 37% 63%; }
+}
+
+/* The body turns and floats. Both are long enough that you never catch them
+   starting; together they're what separates a suspended object from a
+   decal. */
+/* The body wobbles too, far less than the halo. A rigid circle inside a
+   morphing ring reads as a still object with a moving frame; letting the body
+   follow makes the whole orb one moving thing. */
+@keyframes hero-morph-body {
+  0%, 100% { border-radius: 52% 48% 47% 53% / 49% 51% 49% 51%; }
+  33% { border-radius: 47% 53% 53% 47% / 53% 47% 53% 47%; }
+  66% { border-radius: 53% 47% 49% 51% / 47% 52% 48% 53%; }
+}
+
+@keyframes hero-sphere-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes hero-float {
+  0%, 100% { transform: translate3d(0, -0.6%, 0); }
+  50% { transform: translate3d(0, 0.6%, 0); }
+}
+
+@keyframes hero-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.05); }
+}
+
+@keyframes hero-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes hero-spin-rev {
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes hero-drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(3%, -2.5%, 0); }
+}
+
+@keyframes hero-drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-3.5%, 3%, 0); }
+}
+
+@keyframes hero-scroll-dot {
+  0% { transform: translateY(-140%); opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translateY(140%); opacity: 0; }
+}
+
+/* Long and coprime-ish: 19s against 23s means the pair takes minutes to
+   return to the same relative shape. */
+.hero-morph { animation: hero-morph 15s ease-in-out infinite; }
+.hero-morph-inner { animation: hero-morph-inner 18s ease-in-out infinite; }
+.hero-morph-body { animation: hero-morph-body 21s ease-in-out infinite; }
+.hero-sphere-spin { animation: hero-sphere-spin 44s linear infinite; }
+.hero-float { animation: hero-float 13s ease-in-out infinite; }
+.hero-glow-pulse { animation: hero-glow 9s ease-in-out infinite; }
+.hero-ring-fast { animation: hero-spin 17s linear infinite; }
+.hero-ring-slow { animation: hero-spin-rev 29s linear infinite; }
+.hero-drift-a { animation: hero-drift-a 27s ease-in-out infinite; }
+.hero-drift-b { animation: hero-drift-b 34s ease-in-out infinite; }
+.hero-scroll-dot { animation: hero-scroll-dot 2.8s cubic-bezier(0.5, 0, 0.5, 1) infinite; }
+
+/* Entrance staging. Hiding lives behind the `js` class set by the inline
+   script in index.html, so the prerendered HTML a non-JS crawler receives has
+   every word of the hero visible — the reveal only exists where it can run. */
+.js [data-hero-reveal] { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-morph,
+  .hero-morph-inner,
+  .hero-morph-body,
+  .hero-sphere-spin,
+  .hero-float,
+  .hero-glow-pulse,
+  .hero-ring-fast,
+  .hero-ring-slow,
+  .hero-drift-a,
+  .hero-drift-b,
+  .hero-scroll-dot {
+    animation: none;
+  }
+  /* Nothing is going to animate it in, so it must not start hidden. */
+  .js [data-hero-reveal] { opacity: 1; }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SYSTEM DIRECTORY
+   ──────────────────────────────────────────────────────────────────────────
+   The directory sits directly under the hero and runs on the same near-black
+   field, so the page opens as one continuous dark block. As well as its own
+   --dir-* tokens it re-points the shared ones, which is what lets SectionHeader
+   and the other design-system pieces drop in unchanged.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+[data-dir-dark] {
+  --dir-bg: #000000;
+  --dir-ink: #f2eee9;
+  --dir-dim: rgba(242, 238, 233, 0.56);
+  --dir-faint: rgba(242, 238, 233, 0.32);
+  --dir-line: rgba(242, 238, 233, 0.1);
+  --dir-line-strong: rgba(242, 238, 233, 0.22);
+  /* The five systems already run the full warm-to-cool ramp, so liveness gets
+     the pale end of the warm side rather than a sixth hue. A green status dot
+     would be the only colour on the page outside the duotone. */
+  --dir-live: #ffc79a;
+
+  /* Shared tokens, re-pointed for this field. */
+  --background: #000000;
+  --text-primary: #f2eee9;
+  --text-secondary: rgba(242, 238, 233, 0.56);
+  --border: rgba(242, 238, 233, 0.1);
+  --border-strong: rgba(242, 238, 233, 0.2);
+
+  background: var(--dir-bg);
+  color: var(--dir-ink);
+}
+
+/* The travelling dash on the selected spoke: the map's only claim that
+   something is running rather than drawn. */
+@keyframes directory-flow {
+  to { stroke-dashoffset: -40; }
+}
+
+@keyframes directory-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+
+@keyframes directory-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes directory-core {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* The bundle's two depth halves yaw against each other. Six tenths of a
+   degree is enough for the parallax to read as depth and small enough that the
+   strands never visibly part company with the nodes they run through. */
+@keyframes directory-yaw-a {
+  0%, 100% { transform: rotate(-0.6deg); }
+  50% { transform: rotate(0.6deg); }
+}
+
+@keyframes directory-yaw-b {
+  0%, 100% { transform: rotate(0.6deg); }
+  50% { transform: rotate(-0.6deg); }
+}
+
+/* Strands are authored with pathLength="1", so one dash covers the whole path
+   and the offset animates it on from the core outwards. */
+@keyframes directory-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+.directory-yaw-front { animation: directory-yaw-a 32s ease-in-out infinite; }
+.directory-yaw-back { animation: directory-yaw-b 32s ease-in-out infinite; }
+.directory-draw {
+  stroke-dasharray: 1;
+  animation: directory-draw 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.directory-flow { animation: directory-flow 2.4s linear infinite; }
+.directory-pulse { animation: directory-pulse 2.6s ease-in-out infinite; }
+.directory-orbit { animation: directory-orbit 24s linear infinite; }
+.directory-core { animation: directory-core 4.5s ease-in-out infinite; }
+
+/* Same staging mechanism as the hero: hidden only where JS can reveal it, so
+   the prerendered markup a crawler sees is complete. */
+.js [data-map-reveal] { opacity: 0; }
+
+/* SVG nodes are real buttons, so they need a real focus ring. The ring is a
+   drawn circle rather than an outline, because outline on an SVG <g> is
+   inconsistent across browsers. */
+[data-map-node] { outline: none; }
+/* Scoped to the class itself, not to a focusable ancestor: agent nodes only
+   carry [data-map-node] while their branch is open, and a ring that hides
+   only inside that selector paints on every closed one. */
+.map-focus { opacity: 0; transition: opacity 150ms ease; }
+[data-map-node]:focus-visible .map-focus { opacity: 0.9; }
+
+@media (prefers-reduced-motion: reduce) {
+  .directory-flow,
+  .directory-pulse,
+  .directory-orbit,
+  .directory-core,
+  .directory-yaw-front,
+  .directory-yaw-back {
+    animation: none;
+  }
+  /* The strands must end up drawn, not stuck at zero length. */
+  .directory-draw {
+    stroke-dasharray: none;
+    animation: none;
+  }
+  .js [data-map-reveal] { opacity: 1; }
 }

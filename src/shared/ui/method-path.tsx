@@ -46,6 +46,10 @@ export default function MethodPath({
     let color = getComputedStyle(canvas).color;
     const themeObserver = new MutationObserver(() => {
       color = getComputedStyle(canvas).color;
+      // Repaint, don't just re-read. Under prefers-reduced-motion there is no
+      // rAF loop to pick the new colour up, so without this the canvas keeps
+      // the previous theme's ink until it remounts — invisible after a toggle.
+      draw();
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,

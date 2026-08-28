@@ -29,11 +29,11 @@ export default function SectionHeader({
       <div className="border-t border-[var(--border)] pt-6">
         <div className="mb-10 flex items-center justify-between gap-4">
           <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
             Sec. {index} / {label}
           </p>
           {meta && (
-            <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
+            <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
               [ {meta} ]
             </p>
           )}
@@ -51,7 +51,20 @@ export default function SectionHeader({
           {titleB && (
             <>
               <br />
-              <span className="text-[var(--text-secondary)]">{titleB}</span>
+              <span
+                style={{
+                  background: "var(--gradient-text)",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  // A gradient fill clips the descenders of a tight display
+                  // face unless the box is given room to breathe.
+                  paddingBottom: "0.08em",
+                  display: "inline-block",
+                }}
+              >
+                {titleB}
+              </span>
             </>
           )}
         </h2>
