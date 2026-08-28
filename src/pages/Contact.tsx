@@ -12,7 +12,7 @@ import { sendContactMessage } from "@/features/contact/services/contactService";
 const focusSpring = createSpring({ stiffness: 340, damping: 22 });
 
 const inputClass =
-  "w-full rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--text-primary)]/40 transition-colors";
+  "w-full rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors";
 
 const labelClass =
   "mb-2 block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]";
@@ -135,7 +135,7 @@ const Contact = () => {
           </h2>
           <p
             data-rise
-            className="mt-8 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70"
+            className="mt-8 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)]"
             style={{ opacity: 0 }}
           >
             [ RESPONSE &lt; 24H ]
@@ -236,7 +236,7 @@ const Contact = () => {
                 {metas.map((m) => (
                   <p
                     key={m}
-                    className="font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70"
+                    className="font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)]"
                   >
                     {m}
                   </p>

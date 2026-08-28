@@ -189,7 +189,7 @@ export default function WhoWeAre() {
               </div>
 
               {/* Handing over your numbers is the scary part; answer it here. */}
-              <p className="mx-auto mt-7 max-w-md text-xs leading-relaxed text-[var(--text-secondary)]/70">
+              <p className="mx-auto mt-7 max-w-md text-xs leading-relaxed text-[var(--text-muted)]">
                 Your numbers stay yours. Nothing you share gets sold or passed
                 on, and you can have it deleted whenever you ask.{" "}
                 <Link

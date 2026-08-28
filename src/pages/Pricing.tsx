@@ -332,7 +332,7 @@ export default function Pricing() {
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
                 Sec. 01 / Questions
               </p>
-              <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
+              <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
                 [ {String(faqs.length).padStart(2, "0")} Answers ]
               </p>
             </div>
@@ -361,7 +361,7 @@ export default function Pricing() {
                       className={`flex-1 font-sans font-semibold tracking-tight transition-colors duration-300 ${
                         isOpen
                           ? "text-[var(--text-primary)]"
-                          : "text-[var(--text-primary)]/70 group-hover:text-[var(--text-primary)]"
+                          : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
                       }`}
                       style={{ fontSize: "clamp(1.05rem, 1.8vw, 1.3rem)" }}
                     >
@@ -369,7 +369,7 @@ export default function Pricing() {
                     </span>
                     <span
                       data-faq-plus
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] transition-colors group-hover:border-[var(--text-primary)]/40 group-hover:text-[var(--text-primary)]"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] transition-colors group-hover:border-[var(--border-strong)] group-hover:text-[var(--text-primary)]"
                     >
                       <Plus size={14} />
                     </span>

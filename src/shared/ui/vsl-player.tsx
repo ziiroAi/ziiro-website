@@ -140,7 +140,7 @@ function Frame({
           {label}
         </p>
         {meta && (
-          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70">
+          <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
             [ {meta} ]
           </p>
         )}

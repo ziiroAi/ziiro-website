@@ -11,7 +11,7 @@ const Dot = () => (
 );
 
 const emailClass =
-  "border-b border-[var(--text-primary)]/25 pb-0.5 text-[var(--text-primary)] transition-colors hover:border-[var(--text-primary)]";
+  "border-b border-[var(--border-strong)] pb-0.5 text-[var(--text-primary)] transition-colors hover:border-[var(--text-primary)]";
 
 /** Numbered editorial document section: mono index, Inter title, hairline above. */
 function LegalSection({
@@ -125,7 +125,7 @@ const Privacy = () => {
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
                 ( Ziiro / Privacy )
               </p>
-              <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
+              <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
                 [ Legal / 09 sections ]
               </p>
             </div>
