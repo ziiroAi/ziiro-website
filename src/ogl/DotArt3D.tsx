@@ -12,7 +12,7 @@ import {
   COLLAPSE_SEGMENT,
 } from "./formations";
 
-const SEGMENTS = SCENE_COUNT - 1; // 11
+const SEGMENTS = SCENE_COUNT - 1; // one: sphere -> infinity
 const FOV = 50;
 
 function isMobile(): boolean {
@@ -28,13 +28,11 @@ function smooth01(t: number): number {
   return x * x * (3 - 2 * x);
 }
 
-// Camera keys at each scene boundary (11 boundaries + a spline tail).
+// A camera key per scene boundary, plus a spline tail. Length must stay
+// SEGMENTS + 2, because camAt() treats the final key as tail rather than as a
+// boundary it can land on.
 // zf scales the fitted base distance; x/y are world offsets.
 const CAM_KEYS = [
-  { x: 0, y: 26, zf: 0.85 },  // high above the wave fabric
-  { x: -6, y: 2, zf: 0.85 },  // drifting through the network
-  { x: 0, y: 34, zf: 0.8 },   // aerial over the terrain
-  { x: -6, y: -2, zf: 0.9 },  // at the foot of the tree
   { x: 0, y: 0, zf: 0.85 },   // face to face with the sphere
   { x: 0, y: 0, zf: 1.4 },    // wide on the burst universe
   { x: 0, y: 3, zf: 1.7 },    // spline tail: drifting further out
@@ -43,7 +41,7 @@ const CAM_KEYS = [
 // Catmull-Rom through the keys: velocity stays continuous across scene
 // boundaries, so the camera never stops: one uninterrupted travel.
 function camAt(u: number): { x: number; y: number; zf: number } {
-  const last = CAM_KEYS.length - 2; // last boundary index (12 boundaries)
+  const last = CAM_KEYS.length - 2; // last boundary index
   const uu = Math.max(0, Math.min(u, last - 0.0001));
   const i = Math.floor(uu);
   const t = uu - i;
@@ -67,12 +65,8 @@ function camAt(u: number): { x: number; y: number; zf: number } {
 // Inherited momentum per transition segment: the direction dots ride
 // while travelling, so each sculpture hands its energy to the next.
 const WINDS: [number, number, number, number][] = [
-  // [x, y, z, radial], one per transition (5 segments)
-  [0, 5, 4, 6],     // the fabric lifts and weaves into the network
-  [0, -9, 8, 2],    // the network settles down into the terrain
-  [0, 13, 0, -5],   // the landscape rises into the branching tree
-  [4, 2, -4, -7],   // the tree dissolves and gathers into the sphere
-  [0, 0, 0, 26],    // the sphere explodes into the universe
+  // [x, y, z, radial], one per transition. Length must equal SEGMENTS.
+  [0, 0, 0, 26], // the sphere explodes into the universe
 ];
 
 export default function DotArt3D() {
@@ -377,7 +371,7 @@ export default function DotArt3D() {
     <section
       ref={sectionRef}
       className="relative w-full"
-      style={{ height: "600vh" }}
+      style={{ height: "300vh" }}
     >
       <div className="sticky top-0 left-0 w-full h-screen overflow-hidden">
         <div

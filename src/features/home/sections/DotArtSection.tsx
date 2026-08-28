@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 const DotArt3D = lazy(() => import("@/ogl/DotArt3D"));
 
 /** Matches the scroll height of DotArt3D's own section. */
-const JOURNEY_HEIGHT = "600vh";
+const JOURNEY_HEIGHT = "300vh";
 
 /**
  * The closing dot-art journey, and the ask that lands on the end of it.
@@ -77,8 +77,8 @@ export default function DotArtSection() {
         </Suspense>
       )}
 
-      {/* Absolutely placed on the last screen of the 600vh journey, so it
-          arrives over the final formation exactly as it did before. */}
+      {/* Absolutely placed on the last screen of the journey, so it arrives
+          over the burst universe rather than over the morph. */}
       <div
         ref={ctaRef}
         className="pointer-events-none absolute bottom-0 left-0 z-20 flex h-screen w-full flex-col items-center justify-center text-center"
