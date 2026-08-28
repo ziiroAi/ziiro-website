@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
 import { animate, createSpring, createTimeline, stagger, utils } from "animejs";
 import SEO from "@/shared/components/SEO";
 import DotGlyph from "@/shared/ui/dot-glyph";
@@ -22,9 +23,9 @@ const microLabel =
 const monoError =
   "mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-primary)]";
 const inputCls =
-  "w-full rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--text-primary)]/40 transition-colors";
+  "w-full rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors";
 const selectCls =
-  "w-full appearance-none cursor-pointer rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm focus:outline-none focus:border-[var(--text-primary)]/40 transition-colors";
+  "w-full appearance-none cursor-pointer rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm focus:outline-none focus:border-[var(--accent)] transition-colors";
 const primaryBtn =
   "rounded-full bg-[var(--text-primary)] text-[var(--background)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide transition-opacity hover:opacity-90";
 
@@ -42,6 +43,21 @@ const Audit = () => {
   const calendlyRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const reduced = useRef(false);
+
+  /**
+   * The Calendly embed used to bake the retired palette into its query string
+   * — the old blue-black ground, pure white text, and a grey-blue accent that
+   * no longer exists on the site — which left a cold slab inside a themed
+   * frame, and a black panel dropped onto warm paper in light mode.
+   *
+   * Calendly reads these parameters once, when the widget mounts, so the
+   * element is keyed on the theme to force a remount when it changes.
+   */
+  const { resolvedTheme } = useTheme();
+  const calendlyTheme =
+    resolvedTheme === "light"
+      ? { key: "light", bg: "F6F2EC", text: "17131b", accent: "D2531A" }
+      : { key: "dark", bg: "0a0710", text: "f2eee9", accent: "ff8a3d" };
 
   useEffect(() => {
     if (!submitted) return;
@@ -170,7 +186,7 @@ const Audit = () => {
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
                 ( ZIIRO / SELF-AUDIT )
               </p>
-              <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
+              <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
                 [ FREE ASSESSMENT ]
               </p>
             </div>
@@ -343,7 +359,7 @@ const Audit = () => {
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
                       02 / Rate your pain
                     </p>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
                       AREA {String(ratedCount).padStart(2, "0")} / {String(painAreas.length).padStart(2, "0")}
                     </p>
                   </div>
@@ -396,7 +412,7 @@ const Audit = () => {
                                   className={`h-9 w-9 rounded-full font-mono text-xs transition-colors ${
                                     selected
                                       ? "bg-[var(--text-primary)] font-semibold text-[var(--background)]"
-                                      : "border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]/40 hover:text-[var(--text-primary)]"
+                                      : "border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
                                   }`}
                                   style={{ cursor: submitted ? "default" : "pointer" }}
                                 >
@@ -453,7 +469,7 @@ const Audit = () => {
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
                       Your results
                     </p>
-                    <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
                       [ {form.name} ]
                     </p>
                   </div>
@@ -571,8 +587,9 @@ const Audit = () => {
                 </p>
               </div>
               <div
+                key={calendlyTheme.key}
                 className="calendly-inline-widget overflow-hidden rounded-2xl border border-[var(--border)]"
-                data-url="https://calendly.com/ziiro-work/30min?hide_gdpr_banner=1&background_color=060610&text_color=ffffff&primary_color=A8B4C8"
+                data-url={`https://calendly.com/ziiro-work/30min?hide_gdpr_banner=1&background_color=${calendlyTheme.bg}&text_color=${calendlyTheme.text}&primary_color=${calendlyTheme.accent}`}
                 style={{ minWidth: "320px", height: "700px" }}
               />
             </div>

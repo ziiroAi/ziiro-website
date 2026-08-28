@@ -8,6 +8,7 @@ import { lazy, Suspense, useEffect } from "react";
 import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
 import Preloader from "@/shared/components/Preloader";
+import PageAtmosphere from "@/shared/components/PageAtmosphere";
 import Index from "@/pages/Index";
 
 // Secondary routes are code-split so they don't ship in the homepage's
@@ -23,12 +24,6 @@ const Products = lazy(() => import("@/pages/Products"));
 const Process = lazy(() => import("@/pages/Process"));
 const Watch = lazy(() => import("@/pages/Watch"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
-
-// The homepage used to render a full-bleed CinematicParticles field behind
-// every section. It competed with the headline for attention and bled its
-// spiral trails across the content below, so the homepage now runs on a plain
-// background and the point-cloud work is concentrated in DotArtSection, where
-// it's the subject rather than the wallpaper.
 
 // Every page opens from the top, with no inherited scroll positions
 function ScrollToTop() {
@@ -79,6 +74,7 @@ export function AppRoutes() {
 const App = () => (
   <Providers>
     <Preloader />
+    <PageAtmosphere />
     <Toaster />
     <Sonner />
     <BrowserRouter>

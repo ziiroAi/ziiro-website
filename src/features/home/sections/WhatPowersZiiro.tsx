@@ -23,7 +23,7 @@ export default function WhatPowersZiiro() {
     <section className="relative px-6 py-24 md:px-10 md:py-32">
       <div className="mx-auto max-w-7xl">
         <SectionHeader
-          index="03"
+          index="04"
           label="What Powers Ziiro"
           meta="the stack"
           titleA="The model isn't"
@@ -42,14 +42,20 @@ export default function WhatPowersZiiro() {
                       aria-hidden="true"
                       className={
                         layer.terminal
-                          ? "mt-2 h-3 w-3 shrink-0 rounded-full bg-[var(--text-primary)]"
+                          ? "mt-2 h-3 w-3 shrink-0 rounded-full bg-[var(--accent)]"
                           : "mt-2 h-3 w-3 shrink-0 rounded-full border border-[var(--text-secondary)]"
                       }
                     />
                     {i < layers.length - 1 && (
                       <span
                         aria-hidden="true"
-                        className="w-px flex-1 bg-[var(--border-strong)]"
+                        className="w-px flex-1"
+                        style={{
+                          // color-mix, not a Tailwind alpha modifier: the
+                          // modifier emits nothing at all on a var() colour.
+                          background:
+                            "linear-gradient(to bottom, color-mix(in srgb, var(--accent) 45%, transparent), color-mix(in srgb, var(--accent-light) 28%, transparent))",
+                        }}
                       />
                     )}
                   </div>

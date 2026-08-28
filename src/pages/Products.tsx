@@ -277,7 +277,7 @@ export default function Products() {
                         </span>
                       ))}
                     </div>
-                    <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70">
+                    <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
                       [ {p.build} ]
                     </p>
                   </div>
@@ -305,7 +305,7 @@ export default function Products() {
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
                   Sec. 02 / Sequence
                 </p>
-                <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
+                <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
                   [ 04 steps ]
                 </p>
               </div>
@@ -335,13 +335,13 @@ export default function Products() {
             {sequence.map((s, i) => (
               <MotionReveal key={s.step} delay={i * 0.08}>
                 <div className="border-t border-[var(--border)] pt-6">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
                     {String(i + 1).padStart(2, "0")} / 04
                   </p>
                   <p className="mt-5 font-mono text-sm font-bold uppercase tracking-[0.25em] text-[var(--text-primary)]">
                     {s.step}
                     {i < sequence.length - 1 && (
-                      <span className="ml-3 text-[var(--text-secondary)]/60">→</span>
+                      <span className="ml-3 text-[var(--text-muted)]">→</span>
                     )}
                   </p>
                   <p className="mt-4 max-w-[26ch] text-sm leading-relaxed text-[var(--text-secondary)]">

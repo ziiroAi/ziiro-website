@@ -339,7 +339,7 @@ export default function Mission() {
                   <div className="col-span-10 md:col-span-6">
                     <h3
                       data-belief-title
-                      className="mb-3 font-display font-semibold text-[var(--text-primary)]/80 transition-colors duration-300 group-hover:text-[var(--text-primary)]"
+                      className="mb-3 font-display font-semibold text-[var(--text-secondary)] transition-colors duration-300 group-hover:text-[var(--text-primary)]"
                       style={{
                         fontSize: "clamp(1.35rem, 2.6vw, 2.1rem)",
                         letterSpacing: "-0.03em",
@@ -358,7 +358,7 @@ export default function Mission() {
                     >
                       <DotGlyph variant={p.glyph} energy={energy} />
                     </div>
-                    <p className="-mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-secondary)]/70">
+                    <p className="-mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
                       Fig. {p.num} / {p.figCaption}
                     </p>
                   </div>
@@ -493,7 +493,7 @@ export default function Mission() {
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
                   Sec. 07 / The Ziiro Standard
                 </p>
-                <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]/70 md:block">
+                <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
                   [ The bar ]
                 </p>
               </div>

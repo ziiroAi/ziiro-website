@@ -20,7 +20,7 @@ export default function FinalCta() {
         <ScrollScene exitTo={1}>
           <div className="rounded-3xl border border-[var(--border-strong)] px-7 py-14 md:px-16 md:py-20">
             <p className="mb-8 flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
               Free business intelligence session
             </p>
 
@@ -52,7 +52,7 @@ export default function FinalCta() {
                     >
                       <span
                         aria-hidden="true"
-                        className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--text-primary)]"
+                        className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]"
                       />
                       {d}
                     </li>

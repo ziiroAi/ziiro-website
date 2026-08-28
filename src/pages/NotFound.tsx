@@ -132,7 +132,7 @@ const NotFound = () => {
           </Link>
           <Link
             to="/contact"
-            className="border-b border-[var(--text-primary)]/25 pb-1 font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)] transition-colors hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
+            className="border-b border-[var(--border-strong)] pb-1 font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)] transition-colors hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
           >
             Book a call
           </Link>

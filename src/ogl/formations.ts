@@ -26,22 +26,15 @@ export interface Formation {
   flows: Float32Array;
 }
 
-export const FORMATION_LABELS = [
-  "THE WAVE",
-  "THE NETWORK",
-  "THE TERRAIN",
-  "THE TREE",
-  "THE SPHERE",
-  "INFINITY",
-] as const;
+export const FORMATION_LABELS = ["THE SPHERE", "INFINITY"] as const;
 
 export const SCENE_COUNT = FORMATION_LABELS.length;
 
-// Per-scene effect strengths, lerped by the component each frame
-// Index-aligned to FORMATION_LABELS: wave, network, terrain, tree, sphere, infinity
-export const SCENE_PULSE = [0, 0.55, 0.35, 0.45, 0, 0];
-export const SCENE_CLOTH = [6, 0, 0, 0, 0, 0];
-export const SCENE_BREATH = [0, 0, 0, 0, 0.07, 0];
+// Per-scene effect strengths, lerped by the component each frame.
+// Index-aligned to FORMATION_LABELS: sphere, infinity.
+export const SCENE_PULSE = [0, 0];
+export const SCENE_CLOTH = [0, 0];
+export const SCENE_BREATH = [0.07, 0];
 // The sphere -> universe explosion is driven by radial wind instead
 export const COLLAPSE_SEGMENT = -1;
 
@@ -86,202 +79,6 @@ function pack(points: Pt[], count: number): Formation {
     flows[i] = i < K ? p.f : 0;
   }
   return { positions, sizes, flows };
-}
-
-// ==================================================================
-// 1. THE WAVE: a vast fabric surface; cloth motion lives in-shader
-// ==================================================================
-function genWaveSurface(count: number): Pt[] {
-  const pts: Pt[] = [];
-  const rows = 80;
-  const cols = Math.floor(count / rows);
-  const spx = 1.6;
-  const spy = 0.9;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      pts.push({
-        x: (c - (cols - 1) / 2) * spx,
-        y: ((rows - 1) / 2 - r) * spy,
-        z: 0,
-        s: 0.45 + 0.15 * Math.sin(c * 0.25) * Math.sin(r * 0.3),
-        f: 0,
-      });
-    }
-  }
-  return pts;
-}
-
-// ==================================================================
-// 4. THE NETWORK: organic pathways, curved links, dendrite twigs
-// ==================================================================
-function genNetwork(scale: number): Pt[] {
-  const pts: Pt[] = [];
-  const rand = seededRandom(97);
-  const nodeCount = 22;
-  const nodes: [number, number, number][] = [];
-  for (let i = 0; i < nodeCount; i++) {
-    const gy = 1 - (i / (nodeCount - 1)) * 2;
-    const rad = Math.sqrt(Math.max(0, 1 - gy * gy));
-    const th = i * 2.39996;
-    nodes.push([
-      Math.cos(th) * rad * 26 + (rand() - 0.5) * 5,
-      gy * 17 + (rand() - 0.5) * 4,
-      Math.sin(th) * rad * 16 + (rand() - 0.5) * 5,
-    ]);
-  }
-
-  const clusterN = Math.floor(45 * scale);
-  for (const [nx, ny, nz] of nodes) {
-    for (let i = 0; i < clusterN; i++) {
-      const gy = 1 - (i / (clusterN - 1)) * 2;
-      const rad = Math.sqrt(Math.max(0, 1 - gy * gy));
-      const th = i * 2.39996;
-      pts.push({
-        x: nx + Math.cos(th) * rad * 2.0,
-        y: ny + gy * 2.0,
-        z: nz + Math.sin(th) * rad * 2.0,
-        s: 0.95 + 0.2 * Math.sin(i * 3.1),
-        f: 0,
-      });
-    }
-  }
-
-  // Curved links (quadratic bezier, double rail) to 2 nearest nodes
-  const linked = new Set<string>();
-  for (let a = 0; a < nodeCount; a++) {
-    const dists = nodes
-      .map((n, idx) => ({
-        idx,
-        d: Math.hypot(n[0] - nodes[a][0], n[1] - nodes[a][1], n[2] - nodes[a][2]),
-      }))
-      .filter((e) => e.idx !== a)
-      .sort((p, q) => p.d - q.d);
-    for (let k = 0; k < 2; k++) {
-      const bIdx = dists[k].idx;
-      const key = a < bIdx ? `${a}-${bIdx}` : `${bIdx}-${a}`;
-      if (linked.has(key)) continue;
-      linked.add(key);
-      const A = nodes[a];
-      const B = nodes[bIdx];
-      const mx = (A[0] + B[0]) / 2 + (rand() - 0.5) * 12;
-      const my = (A[1] + B[1]) / 2 + (rand() - 0.5) * 10;
-      const mz = (A[2] + B[2]) / 2 + (rand() - 0.5) * 12;
-      const n = Math.floor(70 * scale);
-      for (let i = 0; i < n; i++) {
-        const u = i / (n - 1);
-        const x = (1 - u) * (1 - u) * A[0] + 2 * (1 - u) * u * mx + u * u * B[0];
-        const y = (1 - u) * (1 - u) * A[1] + 2 * (1 - u) * u * my + u * u * B[1];
-        const z = (1 - u) * (1 - u) * A[2] + 2 * (1 - u) * u * mz + u * u * B[2];
-        for (const off of [-0.35, 0.35]) {
-          pts.push({ x: x + off, y: y + off * 0.6, z, s: 0.42, f: 1 + u * 24 });
-        }
-      }
-    }
-  }
-
-  // Dendrite twigs growing off each node
-  for (const [nx, ny, nz] of nodes) {
-    for (let tw = 0; tw < 3; tw++) {
-      const dx = rand() - 0.5;
-      const dy = rand() - 0.5;
-      const dz = rand() - 0.5;
-      const dl = Math.hypot(dx, dy, dz) || 1;
-      const len = 5 + rand() * 5;
-      const n = Math.floor(20 * scale);
-      for (let i = 0; i < n; i++) {
-        const u = i / (n - 1);
-        const bend = u * u * 3;
-        pts.push({
-          x: nx + (dx / dl) * len * u,
-          y: ny + (dy / dl) * len * u + bend * (rand() > 0.5 ? 0.2 : -0.2),
-          z: nz + (dz / dl) * len * u,
-          s: 0.5 - u * 0.2,
-          f: 0,
-        });
-      }
-    }
-  }
-  return pts;
-}
-
-// ==================================================================
-// 7. THE TERRAIN: topographic landscape with contour emphasis
-// ==================================================================
-function genTerrain(count: number): Pt[] {
-  const pts: Pt[] = [];
-  const rows = 88;
-  const cols = Math.floor(count / rows);
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const x = (c - (cols - 1) / 2) * 1.15;
-      const z = (r - (rows - 1) / 2) * 1.1;
-      const h =
-        7 * Math.sin(x * 0.055 + 1) * Math.cos(z * 0.075) +
-        4.5 * Math.sin(x * 0.11 + 2.4) * Math.sin(z * 0.14 + 0.7) +
-        2 * Math.sin(x * 0.23) * Math.cos(z * 0.2 + 1.9);
-      // contour lines: emphasize dots near height isolines; energy
-      // pulses sweep along the contours so the landscape stays alive
-      const iso = Math.abs(((h / 3) % 1 + 1) % 1 - 0.5);
-      const onContour = iso > 0.42;
-      pts.push({
-        x,
-        y: h - 6,
-        z,
-        s: onContour ? 0.95 : 0.4 + 0.05 * Math.sin(c * 0.5 + r * 0.3),
-        f: onContour ? 1 + (x + z + 130) * 0.25 : 0,
-      });
-    }
-  }
-  return pts;
-}
-
-// ==================================================================
-// 8. THE TREE: fractal 3D branching system, growth pulses rising
-// ==================================================================
-function genTree(count: number): Pt[] {
-  const pts: Pt[] = [];
-  const rand = seededRandom(55);
-  const GOLD = 2.39996;
-
-  const branch = (
-    px: number, py: number, pz: number,
-    dx: number, dy: number, dz: number,
-    len: number, depth: number, pathBase: number,
-  ) => {
-    if (pts.length >= count) return;
-    const steps = Math.max(2, Math.floor(len / 0.55));
-    for (let i = 0; i < steps; i++) {
-      const t = (i + 1) / steps;
-      pts.push({
-        x: px + dx * len * t,
-        y: py + dy * len * t,
-        z: pz + dz * len * t,
-        s: Math.max(0.35, 1.05 - depth * 0.11),
-        f: 1 + (pathBase + len * t) * 1.1,
-      });
-    }
-    if (depth >= 7) return;
-    const ex = px + dx * len;
-    const ey = py + dy * len;
-    const ez = pz + dz * len;
-    const children = depth < 2 ? 3 : 2;
-    for (let c = 0; c < children; c++) {
-      const th = c * GOLD + rand() * 1.2;
-      const rx = Math.cos(th) * 0.6;
-      const rz = Math.sin(th) * 0.6;
-      let ndx = dx * 0.75 + rx;
-      let ndy = dy * 0.75 + 0.35 + rand() * 0.2;
-      let ndz = dz * 0.75 + rz;
-      const nl = Math.hypot(ndx, ndy, ndz) || 1;
-      ndx /= nl;
-      ndy /= nl;
-      ndz /= nl;
-      branch(ex, ey, ez, ndx, ndy, ndz, len * 0.68, depth + 1, pathBase + len);
-    }
-  };
-
-  branch(0, -38, 0, 0, 1, 0, 21, 0, 0);
-  return pts;
 }
 
 // ==================================================================
@@ -334,14 +131,7 @@ function genUniverse(scale: number): Pt[] {
 export function buildFormations(count: number, mobile: boolean): Formation[] {
   const scale = mobile ? 0.5 : 1;
 
-  const pointSets: Pt[][] = [
-    genWaveSurface(count),
-    genNetwork(scale),
-    genTerrain(count),
-    genTree(count),
-    genSphere(scale),
-    genUniverse(scale),
-  ];
+  const pointSets: Pt[][] = [genSphere(scale), genUniverse(scale)];
 
   return pointSets.map((pts) => pack(pts, count));
 }

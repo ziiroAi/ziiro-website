@@ -457,7 +457,7 @@ export default function Process() {
               </Link>
               <Link
                 to="/audit"
-                className="border-b border-[var(--text-primary)]/25 pb-1 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--text-primary)]"
+                className="border-b border-[var(--border-strong)] pb-1 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--text-primary)]"
               >
                 Try the self-audit →
               </Link>
