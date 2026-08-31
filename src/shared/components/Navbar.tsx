@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import ThemeToggle from "@/shared/ui/theme-toggle";
 import ZiiroMark from "@/shared/ui/ziiro-mark";
 
 /**
@@ -10,10 +9,9 @@ import ZiiroMark from "@/shared/ui/ziiro-mark";
  * regardless of the site theme, which would leave a light-theme visitor with
  * dark-on-dark chrome. So the bar watches for any [data-nav-dark] section
  * underneath it and, while it is over one, swaps to `.nav-over-dark`. That class re-points the design tokens
- * this bar's children already consume — the mark draws with currentColor, the
- * theme toggle reads --text-primary, the CTA pill reads --text-primary and
- * --background — so everything inverts without a single component learning
- * about the hero.
+ * this bar's children already consume — the mark draws with currentColor and
+ * the CTA pill reads --text-primary and --background — so everything inverts
+ * without a single component learning about the hero.
  */
 
 const LINKS = [
@@ -120,7 +118,6 @@ export default function Navbar() {
 
         {/* Right: actions */}
         <div className="flex items-center gap-3">
-          <ThemeToggle />
           <Link
             to="/contact"
             className="flex items-center gap-2 rounded-full bg-[var(--text-primary)] px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-all hover:opacity-90"

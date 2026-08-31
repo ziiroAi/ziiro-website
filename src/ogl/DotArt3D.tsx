@@ -72,14 +72,12 @@ const WINDS: [number, number, number, number][] = [
 export default function DotArt3D() {
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
-  const bgRef = useRef<HTMLDivElement>(null);
   const [sceneIdx, setSceneIdx] = useState(0);
 
   useEffect(() => {
     const container = containerRef.current;
     const section = sectionRef.current;
-    const bgEl = bgRef.current;
-    if (!container || !section || !bgEl) return;
+    if (!container || !section) return;
 
     const mobile = isMobile();
     const COUNT = mobile ? 6000 : 12000;
@@ -276,7 +274,7 @@ export default function DotArt3D() {
     // --- Animation loop ---
     let time = 0;
     let raf = 0;
-    let lastBgAlpha = -1;
+    let lastInk = -1;
 
     function update() {
       time += 0.016;
@@ -335,16 +333,18 @@ export default function DotArt3D() {
       scene.rotation.y = Math.sin(time * 0.07) * 0.07;
       scene.rotation.x = Math.cos(time * 0.055) * 0.025;
 
-      // Cinematic black backdrop fades in as the story begins and the
-      // dots blend from ink to light; the canvas itself never stops.
-      const bgAlpha = smooth01(scrollProgress / 0.035);
-      if (Math.abs(bgAlpha - lastBgAlpha) > 0.005) {
-        lastBgAlpha = bgAlpha;
-        bgEl!.style.opacity = String(bgAlpha);
+      // The dots blend from ink to light as the story begins; the canvas
+      // itself never stops. Nothing here paints a ground: this section used to
+      // lay an opaque near-black over PageAtmosphere, which is fixed behind the
+      // whole site, so the journey read as a flat black hole in a page that is
+      // warm everywhere else. Transparent, the same duotone carries through.
+      const ink = smooth01(scrollProgress / 0.035);
+      if (Math.abs(ink - lastInk) > 0.005) {
+        lastInk = ink;
         const c = u.uColor.value as number[];
-        c[0] = lerp(0.075, 0.95, bgAlpha);
-        c[1] = lerp(0.085, 0.96, bgAlpha);
-        c[2] = lerp(0.12, 0.98, bgAlpha);
+        c[0] = lerp(0.075, 0.95, ink);
+        c[1] = lerp(0.085, 0.96, ink);
+        c[2] = lerp(0.12, 0.98, ink);
       }
 
       renderer.render({ scene, camera });
@@ -374,11 +374,6 @@ export default function DotArt3D() {
       style={{ height: "300vh" }}
     >
       <div className="sticky top-0 left-0 w-full h-screen overflow-hidden">
-        <div
-          ref={bgRef}
-          className="absolute inset-0"
-          style={{ background: "#040507", opacity: 0 }}
-        />
         <div ref={containerRef} className="absolute inset-0" />
 
         {/* Scene caption */}
