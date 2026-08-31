@@ -68,7 +68,7 @@ export default function DotArtSection() {
   return (
     <div
       ref={ref}
-      className="relative w-full bg-[#040507]"
+      className="relative w-full"
       style={{ minHeight: JOURNEY_HEIGHT }}
     >
       {inView && (

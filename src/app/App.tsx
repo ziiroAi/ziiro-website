@@ -39,7 +39,7 @@ const queryClient = new QueryClient();
 /** App-wide providers, shared by the client entry and the SSG server entry. */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>{children}</TooltipProvider>
       </QueryClientProvider>
