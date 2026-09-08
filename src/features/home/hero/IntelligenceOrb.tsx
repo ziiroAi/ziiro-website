@@ -114,7 +114,24 @@ export default function IntelligenceOrb() {
     <div
       data-orb-scope
       className="relative shrink-0"
-      style={{ width: "var(--orb)", height: "var(--orb)" }}
+      style={{
+        width: "var(--orb)",
+        height: "var(--orb)",
+        // The orb reserves its own glow.
+        //
+        // Every layer here is drawn OUTSIDE the box: the bloom and the flare
+        // are -inset-22% and -inset-26%, so the light starts a fifth of the
+        // orb's width above `top: 0`. Laying this out as a plain 205px block
+        // therefore under-measures it by ~45px at the top, and the glow ran up
+        // behind the fixed navbar — 117px behind it on a large screen, which is
+        // what made the composition feel crowded even with padding above.
+        //
+        // Matching the bloom's own 22% means the visible top of the light lands
+        // exactly where the box's top edge would have, so the padding above can
+        // be reasoned about in terms of what you actually see. `--orb` in
+        // index.css is solved against the 1.22x total this implies.
+        marginTop: "calc(var(--orb) * 0.22)",
+      }}
     >
       {/* Ambient bloom, outside the morphing pair so its cycle drifts against
           theirs instead of pumping with them. */}

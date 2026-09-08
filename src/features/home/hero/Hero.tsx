@@ -112,7 +112,8 @@ export default function Hero() {
     >
       <HeroAtmosphere />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1120px] flex-col items-center px-6 pb-8 pt-14 text-center md:px-10 md:pt-20">
+      <div data-hero-column
+        className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1120px] flex-col items-center justify-center px-6 pb-24 pt-20 text-center md:px-10 md:pb-28 md:pt-[104px]">
         <IntelligenceOrb />
 
         <p
@@ -189,16 +190,27 @@ export default function Hero() {
           {TRUST}
         </p>
 
-        {/* mt-auto, so on a tall viewport the cue sits at the bottom edge and
-            on a short one it simply follows the buttons.
+      </div>
 
-            Its height is part of the hero's fixed cost, and that cost is what
-            `--orb` is solved against — see index.css. Change the padding here
-            and the reserve there has to move with it, or the cue drops below
-            the fold again. */}
-        <div data-hero-scroll-slot className="mt-auto pt-6 md:pt-8">
-          <ScrollIndicator />
-        </div>
+      {/* The cue is pinned to the section rather than sitting at the end of the
+          column, and the column is `justify-center` rather than pushing it down
+          with `mt-auto`.
+
+          Both changes exist for the same reason. With mt-auto, every pixel of
+          spare height in the hero collected at the BOTTOM — 307px of it on a
+          1362px screen — while the orb stayed jammed against the navbar. The
+          composition was bottom-heavy and top-starved at exactly the sizes that
+          had room to spare. Centring the stack spends that slack on both ends.
+
+          Pinning is safe here only because the cue is already display:none
+          below 800px of viewport height (see index.css), which is the case that
+          used to make an absolutely-positioned cue land on top of the buttons.
+          The bottom padding on the column reserves its lane. */}
+      <div
+        data-hero-scroll-slot
+        className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 md:bottom-10"
+      >
+        <ScrollIndicator />
       </div>
     </section>
   );
