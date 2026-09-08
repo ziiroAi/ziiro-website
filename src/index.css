@@ -392,12 +392,152 @@
    enough to keep the desktop orb generous pushes the buttons under the
    toolbar. Below md the orb yields; from md up it does not. */
 [data-orb-scope] {
-  --orb: min(clamp(205px, 46vw, 520px), 36vh);
+  --orb: min(clamp(205px, 46vw, 520px), calc(100dvh - 430px));
 }
 
 @media (min-width: 768px) {
   [data-orb-scope] {
-    --orb: min(clamp(280px, 33vw, 520px), 40vh);
+    /* Subtracting a fixed block from the viewport beats a vh fraction: what
+       actually has to fit under the orb is the eyebrow, two headline lines,
+       the support copy, the buttons, the trust line AND the scroll cue, and
+       that stack is a fixed height, not a proportion of the screen.
+       On a short viewport the orb yields first, which is the right way round.
+
+       The subtrahend is measured, not guessed. At 1440x900 the fixed stack is:
+
+         top padding            80   (md:pt-20, clearing the ~76px navbar)
+         eyebrow  40 margin +   17
+         headline 20 margin +  149
+         support  24 margin +   24
+         buttons  32 margin +   46
+         trust    20 margin +   15
+         scroll cue block       97   (md:pt-8 + label + rail)
+         bottom padding         32
+                               ----
+                               ~596
+
+       590 was the first value that fit; 600 leaves a little slack for a font
+       that loads wider. It was 450, which is why the cue sat 192px BELOW the
+       fold on every desktop size — the reserve had simply forgotten the cue
+       and the eyebrow's own 80px gap. If you change any spacing in Hero.tsx or
+       ScrollIndicator.tsx, re-measure and move this with it. */
+    --orb: min(clamp(280px, 33vw, 520px), calc(100dvh - 600px));
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SMOOTH SCROLL
+   ──────────────────────────────────────────────────────────────────────────
+   Lenis needs the document to stop managing its own scroll height so it can
+   drive the position itself. These three rules are its required stylesheet;
+   `lenis-active` is added by the SmoothScroll component only when it actually
+   starts, so a reduced-motion visitor never gets any of it.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+html.lenis-active,
+html.lenis-active body {
+  height: auto;
+}
+
+.lenis-active.lenis:not(.lenis-autoToggle),
+.lenis-active .lenis:not(.lenis-autoToggle) {
+  scroll-behavior: auto !important;
+}
+
+.lenis-active.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* Anything with its own scroll container opts out, so a modal body or an
+   overflow panel keeps native scrolling inside it. */
+.lenis-active .lenis-scrolling [data-lenis-prevent],
+[data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+/* ── Crawler-safe reveals ──────────────────────────────────────────────────
+   framer-motion serialises `initial` into inline styles, and this site
+   prerenders — so without this rule the static HTML ships opacity:0 on every
+   revealing block and anything that does not run JavaScript sees an empty
+   page. `!important` is the only thing that outranks an inline style. The `js`
+   class is set by an inline script in index.html before first paint, so a real
+   browser never matches this and the reveals run normally. */
+html:not(.js) [data-reveal] {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* ── House micro-interaction ───────────────────────────────────────────────
+   The single value most responsible for the interface feeling attached to the
+   pointer. Measured off the reference site, where 0.15s covers the large
+   majority of every element that transitions at all. Anything interactive
+   that does not opt out gets it. */
+:where(a, button, [role="button"], summary, label, input, select, textarea) {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Press feedback on the pointer-down, not the release. Waiting for `click`
+   to show that something was pressed is what makes an interface feel dead. */
+@media (hover: hover) {
+  :where(a, button, [role="button"]):active {
+    transform: scale(0.985);
+  }
+}
+
+/* The theme-transition block below sets a 0.3s transition on background,
+   border and shadow for literally every element. That is far too slow for a
+   hover and it is why buttons used to feel sluggish — override it here for
+   things a pointer actually touches. */
+:where(a, button, [role="button"], summary, label, input, select, textarea),
+:where(a, button, [role="button"], summary) * {
+  transition-duration: 0.15s;
+}
+
+/* The activation control. It covers the visible sphere and nothing else —
+   `clip-path` clips hit-testing as well as paint, so a click in the corner of
+   the square falls through to the page. Transparent by default: the feedback
+   for pressing it is the surface deforming, not a chrome state. The focus ring
+   is drawn as a ring rather than an outline because an outline would trace the
+   clip-path's square box, not the circle. */
+.hero-core-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  /* `auto`, not `none`: a touch that turns into a page scroll must scroll the
+     page, and the browser then declines to fire the click. That is the whole
+     mechanism keeping a scroll gesture from activating the core. */
+  touch-action: auto;
+}
+
+.hero-core-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px #000000,
+    0 0 0 4px var(--hero-accent);
+}
+
+/* Short viewports: the cue is the first thing to go.
+   
+   Below ~800px of height there is genuinely not enough room for a full-height
+   hero to hold the orb, the headline, the copy, both actions, the trust line
+   AND a scroll cue. Something has to yield, and the cue is the right thing:
+   it is decorative, the page it points at is the very next thing on screen,
+   and on a viewport this short the fact that the page scrolls is not exactly a
+   secret. Dropping it returns ~97px to the orb, which otherwise collapses to
+   around 120px — small enough that the role label inside it stops being
+   readable, which is a real loss rather than a cosmetic one.
+
+   The reserve drops to 500px in step, because that is the same fixed stack
+   with the cue's block taken out of it. */
+@media (max-height: 800px) {
+  [data-hero-scroll-slot] {
+    display: none;
+  }
+
+  [data-orb-scope] {
+    --orb: min(clamp(205px, 40vw, 520px), calc(100dvh - 500px));
   }
 }
 

@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { useReducedMotion } from "framer-motion";
+
 import type { Pipeline } from "./pipelines";
 import { findAgent } from "./pipelines";
+import { CSS_EASE, MS } from "@/shared/motion/tokens";
 
 /**
  * The selected pipeline as a workflow: every step in order, on one rail.
@@ -26,6 +29,12 @@ interface FlowViewProps {
 
 export default function FlowView({ pipeline, activeAgentId }: FlowViewProps) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const shouldReduce = useReducedMotion();
+  // Only the height is real motion here, so it is the only thing the reduced
+  // motion preference removes: the step still opens, it just opens at once.
+  const expand = shouldReduce
+    ? "none"
+    : `grid-template-rows ${MS.swap}ms ${CSS_EASE.outExpo}`;
 
   return (
     <div className="max-w-[42rem]">
@@ -68,10 +77,13 @@ export default function FlowView({ pipeline, activeAgentId }: FlowViewProps) {
                 type="button"
                 onClick={() => setOpenId(open ? null : step.id)}
                 aria-expanded={open}
-                className="group w-full py-4 pl-10 pr-1 text-left"
+                className="group w-full py-4 pl-10 pr-1 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--dir-ink)]"
                 style={{
                   opacity: lit ? 1 : 0.5,
-                  transition: "opacity 400ms ease",
+                  // Dimming the steps an agent doesn't own is a change of
+                  // emphasis, not a reveal, so it moves at the swap rate the
+                  // rest of the directory changes state on.
+                  transition: `opacity ${MS.swap}ms ${CSS_EASE.out}`,
                 }}
               >
                 <span
@@ -95,10 +107,11 @@ export default function FlowView({ pipeline, activeAgentId }: FlowViewProps) {
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <span
-                    className="font-display text-[17px] font-semibold transition-colors duration-200"
+                    className="font-display text-[17px] font-semibold"
                     style={{
                       letterSpacing: "-0.02em",
                       color: open ? pipeline.accent : "var(--dir-ink)",
+                      transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
                     }}
                   >
                     {step.name}
@@ -135,8 +148,11 @@ export default function FlowView({ pipeline, activeAgentId }: FlowViewProps) {
                 </span>
 
                 <span
-                  className="grid transition-[grid-template-rows] duration-300 ease-out"
-                  style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
+                  className="grid"
+                  style={{
+                    gridTemplateRows: open ? "1fr" : "0fr",
+                    transition: expand,
+                  }}
                 >
                   <span className="overflow-hidden">
                     <span className="mt-4 flex flex-wrap gap-x-10 gap-y-3 pb-1">

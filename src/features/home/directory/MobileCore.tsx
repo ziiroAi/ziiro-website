@@ -1,4 +1,8 @@
+import { useEffect, useRef } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+
 import type { Pipeline } from "./pipelines";
+import { DURATION, EASE_OUT_EXPO } from "@/shared/motion/tokens";
 
 /**
  * The intelligence layer, for a phone.
@@ -10,6 +14,17 @@ import type { Pipeline } from "./pipelines";
  * workflow below does its explanatory one.
  */
 export default function MobileCore({ pipeline }: { pipeline: Pipeline }) {
+  const shouldReduce = useReducedMotion();
+  // The ring stays mounted through a system change so its 24-second rotation is
+  // never reset to zero; only the identity beneath it is re-keyed, and only
+  // from the second render onwards — framer writes `initial` into the
+  // prerendered markup, and a system name that ships as opacity:0 is a name
+  // nobody whose JS failed will ever read.
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+  }, []);
+
   return (
     <div className="flex flex-col items-center text-center">
       <svg
@@ -46,36 +61,44 @@ export default function MobileCore({ pipeline }: { pipeline: Pipeline }) {
         Ziiro Intelligence
       </p>
 
-      <span
-        aria-hidden="true"
-        className="my-4 block h-10 w-px"
-        style={{
-          background: `linear-gradient(to bottom, rgba(242,238,233,0.16), ${pipeline.accent})`,
-        }}
-      />
-
-      <p
-        className="font-mono text-[10px] uppercase"
-        style={{ letterSpacing: "0.26em", color: pipeline.accent }}
+      <motion.div
+        key={pipeline.id}
+        className="flex flex-col items-center"
+        initial={!shouldReduce && mounted.current ? { opacity: 0 } : false}
+        animate={{ opacity: 1 }}
+        transition={{ duration: DURATION.swap, ease: EASE_OUT_EXPO }}
       >
-        {pipeline.name}
-      </p>
+        <span
+          aria-hidden="true"
+          className="my-4 block h-10 w-px"
+          style={{
+            background: `linear-gradient(to bottom, rgba(242,238,233,0.16), ${pipeline.accent})`,
+          }}
+        />
 
-      <div aria-hidden="true" className="mt-4 flex items-center gap-1.5">
-        {pipeline.agents.map((agent) => (
-          <span
-            key={agent.id}
-            className="block h-1.5 w-1.5 rounded-full"
-            style={{ background: pipeline.accent, opacity: 0.7 }}
-          />
-        ))}
-      </div>
-      <p
-        className="mt-3 font-mono text-[9px] uppercase"
-        style={{ letterSpacing: "0.24em", color: "var(--dir-faint)" }}
-      >
-        {pipeline.agents.length} agents
-      </p>
+        <p
+          className="font-mono text-[10px] uppercase"
+          style={{ letterSpacing: "0.26em", color: pipeline.accent }}
+        >
+          {pipeline.name}
+        </p>
+
+        <div aria-hidden="true" className="mt-4 flex items-center gap-1.5">
+          {pipeline.agents.map((agent) => (
+            <span
+              key={agent.id}
+              className="block h-1.5 w-1.5 rounded-full"
+              style={{ background: pipeline.accent, opacity: 0.7 }}
+            />
+          ))}
+        </div>
+        <p
+          className="mt-3 font-mono text-[9px] uppercase"
+          style={{ letterSpacing: "0.24em", color: "var(--dir-faint)" }}
+        >
+          {pipeline.agents.length} agents
+        </p>
+      </motion.div>
     </div>
   );
 }

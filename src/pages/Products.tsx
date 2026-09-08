@@ -1,8 +1,23 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { animate, createAnimatable, createTimeline, stagger } from "animejs";
+import {
+  animate,
+  createAnimatable,
+  createTimeline,
+  cubicBezier,
+  stagger,
+} from "animejs";
 import SEO from "@/shared/components/SEO";
-import MotionReveal from "@/shared/motion/MotionReveal";
+import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
+import {
+  CSS_EASE,
+  DURATION,
+  EASE_IN_OUT,
+  EASE_OUT_EXPO,
+  MS,
+  STAGGER,
+  TRAVEL,
+} from "@/shared/motion/tokens";
 import TextReveal from "@/shared/motion/TextReveal";
 import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/shared/ui/dot-glyph";
 
@@ -85,6 +100,10 @@ const sequence = [
 
 type Animatable = ReturnType<typeof createAnimatable>;
 
+/** The motion tokens are in seconds, because framer-motion is. anime.js counts
+ *  in milliseconds, so every token that reaches it goes through this. */
+const ms = (seconds: number) => Math.round(seconds * 1000);
+
 export default function Products() {
   const heroRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -111,13 +130,32 @@ export default function Products() {
       return;
     }
 
-    const tl = createTimeline({ defaults: { duration: 700, ease: "out(3)" } });
-    tl.add(label, { opacity: [0, 1], y: [14, 0] })
-      .add(title, { opacity: [0, 1], y: [26, 0] }, "-=520")
-      .add(sub, { opacity: [0, 1], y: [18, 0] }, "-=540")
-      .add(rule, { scaleX: [0, 1], duration: 800, ease: "inOut(3)" }, "-=460");
+    // Absolute positions rather than negative offsets: each element starts one
+    // STAGGER.line after the one before it whatever its own duration is, which
+    // is what keeps the whole entrance inside DURATION.entrance instead of
+    // drifting every time a duration is retuned.
+    const step = ms(STAGGER.line);
+    const tl = createTimeline({
+      defaults: { duration: MS.reveal, ease: cubicBezier(...EASE_OUT_EXPO) },
+    });
+    tl.add(label, { opacity: [0, 1], y: [TRAVEL.reveal, 0] })
+      .add(title, { opacity: [0, 1], y: [TRAVEL.line, 0] }, step)
+      .add(sub, { opacity: [0, 1], y: [TRAVEL.reveal, 0] }, step * 2)
+      // The hairline is the only thing here that returns to where it began if
+      // it is ever reversed, so it takes the symmetric curve.
+      .add(
+        rule,
+        {
+          scaleX: [0, 1],
+          duration: MS.statement,
+          ease: cubicBezier(...EASE_IN_OUT),
+        },
+        step * 3,
+      );
 
-    return () => tl.cancel();
+    return () => {
+      tl.cancel();
+    };
   }, []);
 
   // Entrance: product blocks rise in with a stagger the first time they're seen
@@ -132,10 +170,10 @@ export default function Products() {
         io.disconnect();
         animate(rows, {
           opacity: [0, 1],
-          y: [28, 0],
-          delay: stagger(90),
-          duration: reduced ? 0 : 800,
-          ease: "out(3)",
+          y: [TRAVEL.reveal, 0],
+          delay: stagger(ms(STAGGER.card)),
+          duration: reduced ? 0 : MS.reveal,
+          ease: cubicBezier(...EASE_OUT_EXPO),
         });
       },
       { threshold: 0.08 },
@@ -149,11 +187,20 @@ export default function Products() {
     const list = listRef.current;
     if (!list) return;
     const titles = [...list.querySelectorAll<HTMLElement>("[data-prod-title]")];
+    // DURATION.micro, not the 450ms this used to run at: a hover that takes
+    // nearly half a second to start reads as the page thinking about it rather
+    // than the title being attached to the pointer.
     titleAnims.current = titles.map((el) =>
-      createAnimatable(el, { x: 450, ease: "out(4)" }),
+      createAnimatable(el, { x: MS.micro, ease: cubicBezier(...EASE_OUT_EXPO) }),
     );
+    // The glyph is a canvas warming up rather than a pointer-tracked element,
+    // so it gets the slower of the two micro durations.
     energyAnims.current = energies.current.map((e) =>
-      createAnimatable(e.current, { speed: 400, gain: 400, ease: "out(2)" }),
+      createAnimatable(e.current, {
+        speed: MS.swap,
+        gain: MS.swap,
+        ease: cubicBezier(...EASE_OUT_EXPO),
+      }),
     );
     return () => {
       titleAnims.current.forEach((a) => a.revert());
@@ -163,8 +210,11 @@ export default function Products() {
     };
   }, []);
 
+  // A nudge, not a lift: these rows are <article>s, not links, and a card that
+  // rises under the pointer is a promise that something will happen if you
+  // click it. TRAVEL.nudge is the smallest acknowledgement the token set has.
   const rowEnter = (i: number) => {
-    titleAnims.current[i]?.x(12);
+    titleAnims.current[i]?.x(TRAVEL.nudge);
     energyAnims.current[i]?.speed(2.4);
     energyAnims.current[i]?.gain(0.35);
   };
@@ -331,9 +381,16 @@ export default function Products() {
             </p>
           </MotionReveal>
 
-          <div className="mt-14 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+          {/* One viewport trigger for the whole row, not four. Four cards that
+              sit side by side each firing on their own arrive at slightly
+              different times depending on where the row happens to stop, which
+              reads as jitter; a parent stagger makes it one deliberate sweep. */}
+          <MotionReveal
+            stagger={STAGGER.card}
+            className="mt-14 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4"
+          >
             {sequence.map((s, i) => (
-              <MotionReveal key={s.step} delay={i * 0.08}>
+              <MotionRevealItem key={s.step}>
                 <div className="border-t border-[var(--border)] pt-6">
                   <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
                     {String(i + 1).padStart(2, "0")} / 04
@@ -348,9 +405,9 @@ export default function Products() {
                     {s.line}
                   </p>
                 </div>
-              </MotionReveal>
+              </MotionRevealItem>
             ))}
-          </div>
+          </MotionReveal>
         </div>
       </section>
 
@@ -377,9 +434,17 @@ export default function Products() {
               <p className="mx-auto mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
                 That's exactly what the audit answers.
               </p>
+              {/* The site's house curve, applied inline because Tailwind's
+                  `transition-opacity` ships its own timing function and, being
+                  a class, outranks the zero-specificity :where() rule in
+                  index.css that puts everything else on expo-out. */}
               <Link
                 to="/contact"
                 className="mt-10 inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
+                style={{
+                  transitionDuration: `${DURATION.micro}s`,
+                  transitionTimingFunction: CSS_EASE.outExpo,
+                }}
               >
                 Book a call
               </Link>

@@ -106,6 +106,7 @@ export default function MethodPath({
     let raf = 0;
     let running = false;
     let time = 0;
+    let last = 0;
 
     const draw = () => {
       const p = Math.max(0, Math.min(progress.p, 6));
@@ -168,8 +169,13 @@ export default function MethodPath({
       }
     };
 
-    const loop = () => {
-      time += 0.016;
+    // rAF fires at the display's refresh rate, so the old fixed 0.016 per frame
+    // made the breathing ring and the route pulse run at double speed on a
+    // 120Hz panel. Stepping by real elapsed time pins them to seconds instead;
+    // the clamp keeps a backgrounded tab from resuming with one huge jump.
+    const loop = (now: number) => {
+      time += last ? Math.min((now - last) / 1000, 0.05) : 0;
+      last = now;
       draw();
       raf = requestAnimationFrame(loop);
     };
@@ -178,6 +184,8 @@ export default function MethodPath({
       const shouldRun = entry.isIntersecting && !reduced;
       if (shouldRun && !running) {
         running = true;
+        // Restarting after a spell off-screen must not bank the elapsed time.
+        last = 0;
         raf = requestAnimationFrame(loop);
       } else if (!shouldRun && running) {
         running = false;

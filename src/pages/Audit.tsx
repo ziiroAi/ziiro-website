@@ -1,8 +1,19 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useTheme } from "next-themes";
-import { animate, createSpring, createTimeline, stagger, utils } from "animejs";
+import { animate, createTimeline, cubicBezier, stagger, utils } from "animejs";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import SEO from "@/shared/components/SEO";
 import DotGlyph from "@/shared/ui/dot-glyph";
+import MotionReveal from "@/shared/motion/MotionReveal";
+import { scrollTo } from "@/shared/motion/SmoothScroll";
+import {
+  CSS_EASE,
+  DURATION,
+  EASE_OUT_EXPO,
+  MS,
+  STAGGER,
+  TRAVEL,
+} from "@/shared/motion/tokens";
 import {
   painAreas,
   industries,
@@ -14,20 +25,129 @@ import { sendAuditEmail, domainHasMX } from "@/features/audit/services/auditServ
 
 const PROGRESS_DOTS = 30;
 
-// Tactile springs: pill release bounce + form-field focus (transform only)
-const pillSpring = createSpring({ stiffness: 420, damping: 16 });
-const focusSpring = createSpring({ stiffness: 340, damping: 22 });
+/** The house expo-out, handed to anime.js. Built from the token control points
+ *  rather than retyped, so this page cannot drift the next time the curve is
+ *  tuned. */
+const expoOut = cubicBezier(...EASE_OUT_EXPO);
+
+/** anime.js counts in milliseconds and the tokens in seconds; converting once
+ *  here keeps the arithmetic out of the timelines. */
+const RISE_STAGGER_MS = Math.round(STAGGER.card * 1000);
+
+/** Everything on this page that merely changes colour or opacity settles at the
+ *  micro duration. It is stated rather than left to Tailwind's default so the
+ *  form's timing comes from the same file as the rest of the site — and because
+ *  this is the value that decides whether a pill or a field feels attached to
+ *  the pointer or a beat behind it. */
+const microTransition = {
+  transitionDuration: `${DURATION.micro}s`,
+  transitionTimingFunction: CSS_EASE.out,
+} as const;
+
+const fieldTransition = {
+  transitionProperty: "border-color, color",
+  ...microTransition,
+} as const;
+
+const pillTransition = {
+  transitionProperty: "background-color, border-color, color",
+  ...microTransition,
+} as const;
+
+const opacityTransition = {
+  transitionProperty: "opacity",
+  ...microTransition,
+} as const;
+
+/**
+ * A validation or status line that arrives rather than appears.
+ *
+ * A message snapping into existence under a field reads as a fault in the page.
+ * Three pixels over the micro duration reads as the form answering you, and it
+ * is deliberately the shortest motion here: an error the reader has to wait for
+ * is worse than one that pops. Under reduced motion it is simply present.
+ *
+ * Falsy children render nothing, so this preserves the `errors.x && ...`
+ * semantics of the markup it replaced — what the validator decides and what the
+ * reader is told are untouched.
+ */
+function FieldMessage({
+  children,
+  className,
+}: {
+  children?: ReactNode;
+  className?: string;
+}) {
+  const shouldReduce = useReducedMotion();
+
+  return (
+    <AnimatePresence initial={false}>
+      {children ? (
+        <motion.p
+          key="message"
+          className={className}
+          initial={shouldReduce ? false : { opacity: 0, y: -TRAVEL.nudge }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: shouldReduce ? 0 : -TRAVEL.nudge }}
+          transition={{
+            duration: shouldReduce ? 0 : DURATION.micro,
+            ease: EASE_OUT_EXPO,
+          }}
+        >
+          {children}
+        </motion.p>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+/**
+ * A button label swapped without the button changing size.
+ *
+ * Both labels sit in the same grid cell so the button never renders empty
+ * mid-swap: a `mode="wait"` crossfade collapses the button's height for a
+ * frame, which is more distracting than the pop it was meant to smooth.
+ */
+function ButtonLabel({
+  swapKey,
+  children,
+}: {
+  swapKey: string;
+  children: ReactNode;
+}) {
+  const shouldReduce = useReducedMotion();
+
+  return (
+    <span className="grid">
+      <AnimatePresence initial={false}>
+        <motion.span
+          key={swapKey}
+          style={{ gridArea: "1 / 1" }}
+          initial={shouldReduce ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{
+            duration: shouldReduce ? 0 : DURATION.micro,
+            ease: EASE_OUT_EXPO,
+          }}
+        >
+          {children}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
 
 const microLabel =
   "mb-2 block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]";
 const monoError =
   "mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-primary)]";
 const inputCls =
-  "w-full rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors";
+  "w-full rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]";
 const selectCls =
-  "w-full appearance-none cursor-pointer rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm focus:outline-none focus:border-[var(--accent)] transition-colors";
+  "w-full appearance-none cursor-pointer rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm focus:outline-none focus:border-[var(--accent)]";
 const primaryBtn =
-  "rounded-full bg-[var(--text-primary)] text-[var(--background)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide transition-opacity hover:opacity-90";
+  "rounded-full bg-[var(--text-primary)] text-[var(--background)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide hover:opacity-90";
 
 const Audit = () => {
   const [form, setForm] = useState({ name: "", email: "", industry: "", size: "" });
@@ -43,6 +163,10 @@ const Audit = () => {
   const calendlyRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const reduced = useRef(false);
+  // `reduced` is a ref filled in an effect, which is too late for anything the
+  // first render has to decide. The hook is the render-time answer to the same
+  // question; both exist because the anime.js handlers cannot read a hook.
+  const shouldReduce = useReducedMotion();
 
   /**
    * The Calendly embed used to bake the retired palette into its query string
@@ -68,10 +192,17 @@ const Audit = () => {
     return () => { script.parentNode?.removeChild(script); };
   }, [submitted]);
 
+  // The results block is rendered in the same commit that flips `submitted`, so
+  // the scroll waits a beat for it to lay out — commanding the scroller against
+  // the old page height lands short. It goes through scrollTo() rather than
+  // scrollIntoView because a raw scroll call fights Lenis mid-animation and the
+  // page visibly stutters.
   useEffect(() => {
-    if (submitted && resultsRef.current) {
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
-    }
+    if (!submitted) return;
+    const t = setTimeout(() => {
+      if (resultsRef.current) scrollTo(resultsRef.current);
+    }, MS.quick);
+    return () => clearTimeout(t);
   }, [submitted]);
 
   // Entrance: hero label -> headline -> sub -> panels, sequenced on a timeline
@@ -82,10 +213,14 @@ const Audit = () => {
     const els = [...root.querySelectorAll<HTMLElement>("[data-rise]")];
     if (!els.length) return;
     const tl = createTimeline({
-      defaults: { ease: "out(3)", duration: reduced.current ? 0 : 750 },
+      defaults: { ease: expoOut, duration: reduced.current ? 0 : MS.reveal },
     });
     els.forEach((el, i) => {
-      tl.add(el, { opacity: [0, 1], y: [24, 0] }, reduced.current ? 0 : i * 90);
+      tl.add(
+        el,
+        { opacity: [0, 1], y: [TRAVEL.reveal, 0] },
+        reduced.current ? 0 : i * RISE_STAGGER_MS,
+      );
     });
     return () => tl.revert();
   }, []);
@@ -99,41 +234,48 @@ const Audit = () => {
     if (!els.length) return;
     const anim = animate(els, {
       opacity: [0, 1],
-      y: [24, 0],
-      delay: stagger(80),
-      duration: reduced.current ? 0 : 700,
-      ease: "out(3)",
+      y: [TRAVEL.reveal, 0],
+      delay: stagger(RISE_STAGGER_MS),
+      duration: reduced.current ? 0 : MS.reveal,
+      ease: expoOut,
     });
     return () => anim.revert();
   }, [submitted]);
 
-  // Spring press feedback on rating pills: quick dip on press, springy
-  // bounce back on release. utils.remove() keeps rapid taps interruption-safe.
+  // Press feedback on rating pills: a dip on press, a settle on release, both
+  // on the micro/quick pair. The release used to overshoot on a spring, which
+  // is the wrong grammar here — overshoot belongs to motion that inherited
+  // momentum from a flick or a drag, and a tap gives it none; on a five-pill
+  // row it read as the interface wobbling rather than answering.
+  // utils.remove() keeps rapid taps interruption-safe (no stuck scales).
   const pressPill = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (submitted || reduced.current) return;
     const el = e.currentTarget;
     utils.remove(el);
-    animate(el, { scale: 0.88, duration: 150, ease: "out(2)" });
+    animate(el, { scale: 0.88, duration: MS.micro, ease: expoOut });
   };
   const releasePill = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (reduced.current) return;
     const el = e.currentTarget;
     utils.remove(el);
-    animate(el, { scale: 1, ease: pillSpring });
+    animate(el, { scale: 1, duration: MS.quick, ease: expoOut });
   };
 
-  // Spring focus micro-interaction on inputs/selects: transform only, no layout shift
+  // Focus micro-interaction on inputs/selects: transform only, so nothing below
+  // the field re-lays-out. It runs on the micro duration because focus has to
+  // land with the caret — a field still moving while the first characters are
+  // typed is the failure mode this replaced.
   const fieldFocus = (e: React.FocusEvent<HTMLElement>) => {
     if (submitted || reduced.current) return;
     const el = e.currentTarget;
     utils.remove(el);
-    animate(el, { scale: 1.012, ease: focusSpring });
+    animate(el, { scale: 1.012, duration: MS.micro, ease: expoOut });
   };
   const fieldBlur = (e: React.FocusEvent<HTMLElement>) => {
     if (reduced.current) return;
     const el = e.currentTarget;
     utils.remove(el);
-    animate(el, { scale: 1, duration: 320, ease: "out(4)" });
+    animate(el, { scale: 1, duration: MS.quick, ease: expoOut });
   };
 
   const validate = () => {
@@ -230,10 +372,13 @@ const Audit = () => {
                     onFocus={fieldFocus}
                     onBlur={fieldBlur}
                     className={inputCls}
-                    style={{ borderColor: errors.name ? "var(--text-primary)" : undefined }}
+                    style={{
+                      ...fieldTransition,
+                      borderColor: errors.name ? "var(--text-primary)" : undefined,
+                    }}
                     disabled={submitted}
                   />
-                  {errors.name && <p className={monoError}>{errors.name}</p>}
+                  <FieldMessage className={monoError}>{errors.name}</FieldMessage>
                 </div>
 
                 {/* Email */}
@@ -273,6 +418,7 @@ const Audit = () => {
                       onBlur={fieldBlur}
                       className={`${inputCls} pr-10`}
                       style={{
+                        ...fieldTransition,
                         borderColor: errors.email
                           ? "var(--text-primary)"
                           : emailChecking
@@ -285,25 +431,58 @@ const Audit = () => {
                       }}
                       disabled={submitted}
                     />
-                    {emailChecking && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 animate-pulse font-mono text-xs tracking-widest text-[var(--text-muted)]">
-                        ...
-                      </span>
-                    )}
-                    {!emailChecking && emailStatus && form.email.length > 4 && (
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-primary)]">
-                        {emailStatus.valid ? "✓" : "✗"}
-                      </span>
-                    )}
+                    {/* The MX check flips this indicator between three states
+                        while the reader is still typing, so the swap is a
+                        crossfade rather than a cut. Only opacity is animated —
+                        writing a transform here would override the
+                        -translate-y-1/2 that centres it. The fade lives on the
+                        wrapper because a CSS animation (animate-pulse) outranks
+                        an inline opacity and would swallow it. */}
+                    <AnimatePresence mode="wait" initial={false}>
+                      {emailChecking ? (
+                        <motion.span
+                          key="checking"
+                          className="absolute right-3 top-1/2 -translate-y-1/2"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{
+                            duration: shouldReduce ? 0 : DURATION.micro,
+                            ease: EASE_OUT_EXPO,
+                          }}
+                        >
+                          <span className="animate-pulse font-mono text-xs tracking-widest text-[var(--text-muted)]">
+                            ...
+                          </span>
+                        </motion.span>
+                      ) : emailStatus && form.email.length > 4 ? (
+                        <motion.span
+                          key={emailStatus.valid ? "valid" : "invalid"}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[var(--text-primary)]"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{
+                            duration: shouldReduce ? 0 : DURATION.micro,
+                            ease: EASE_OUT_EXPO,
+                          }}
+                        >
+                          {emailStatus.valid ? "✓" : "✗"}
+                        </motion.span>
+                      ) : null}
+                    </AnimatePresence>
                   </div>
-                  {(errors.email || (emailStatus && !emailStatus.valid && form.email.length > 4)) && (
-                    <p className={monoError}>{errors.email || emailStatus?.message}</p>
-                  )}
-                  {emailStatus?.valid && !errors.email && (
-                    <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
-                      &#10003; {emailStatus.message}
-                    </p>
-                  )}
+                  <FieldMessage className={monoError}>
+                    {errors.email ||
+                      (emailStatus && !emailStatus.valid && form.email.length > 4
+                        ? emailStatus.message
+                        : "")}
+                  </FieldMessage>
+                  <FieldMessage className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-[var(--text-muted)]">
+                    {emailStatus?.valid && !errors.email ? (
+                      <>&#10003; {emailStatus.message}</>
+                    ) : null}
+                  </FieldMessage>
                 </div>
 
                 {/* Industry + Employees */}
@@ -317,6 +496,7 @@ const Audit = () => {
                       onBlur={fieldBlur}
                       className={selectCls}
                       style={{
+                        ...fieldTransition,
                         borderColor: errors.industry ? "var(--text-primary)" : undefined,
                         color: form.industry ? "var(--text-primary)" : "var(--text-muted)",
                       }}
@@ -327,7 +507,7 @@ const Audit = () => {
                         <option key={i} value={i} style={{ color: "var(--text-primary)", background: "var(--surface)" }}>{i}</option>
                       ))}
                     </select>
-                    {errors.industry && <p className={monoError}>{errors.industry}</p>}
+                    <FieldMessage className={monoError}>{errors.industry}</FieldMessage>
                   </div>
                   <div>
                     <label className={microLabel}>Employees</label>
@@ -338,6 +518,7 @@ const Audit = () => {
                       onBlur={fieldBlur}
                       className={selectCls}
                       style={{
+                        ...fieldTransition,
                         borderColor: errors.size ? "var(--text-primary)" : undefined,
                         color: form.size ? "var(--text-primary)" : "var(--text-muted)",
                       }}
@@ -348,12 +529,17 @@ const Audit = () => {
                         <option key={s} value={s} style={{ color: "var(--text-primary)", background: "var(--surface)" }}>{s}</option>
                       ))}
                     </select>
-                    {errors.size && <p className={monoError}>{errors.size}</p>}
+                    <FieldMessage className={monoError}>{errors.size}</FieldMessage>
                   </div>
                 </div>
 
-                {/* Pain Ratings */}
-                <div className="mb-10">
+                {/* Pain Ratings. This section starts a screen and a half below
+                    the fold, so it gets its own reveal instead of riding the
+                    page's mount timeline — that entrance would otherwise play
+                    to nobody and the block would simply be sitting there when
+                    the reader finally arrives. once:true comes from VIEWPORT,
+                    so it never re-hides on the way back up. */}
+                <MotionReveal className="mb-10">
                   <div className="flex items-center justify-between gap-4">
                     <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
@@ -369,8 +555,8 @@ const Audit = () => {
                     {Array.from({ length: PROGRESS_DOTS }).map((_, i) => (
                       <span
                         key={i}
-                        className="h-1 w-1 rounded-full bg-[var(--text-primary)] transition-opacity duration-300"
-                        style={{ opacity: i < filledDots ? 0.85 : 0.15 }}
+                        className="h-1 w-1 rounded-full bg-[var(--text-primary)]"
+                        style={{ ...opacityTransition, opacity: i < filledDots ? 0.85 : 0.15 }}
                       />
                     ))}
                   </div>
@@ -409,12 +595,12 @@ const Audit = () => {
                                   onPointerUp={releasePill}
                                   onPointerLeave={releasePill}
                                   aria-pressed={selected}
-                                  className={`h-9 w-9 rounded-full font-mono text-xs transition-colors ${
+                                  className={`h-9 w-9 rounded-full font-mono text-xs ${
                                     selected
                                       ? "bg-[var(--text-primary)] font-semibold text-[var(--background)]"
                                       : "border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
                                   }`}
-                                  style={{ cursor: submitted ? "default" : "pointer" }}
+                                  style={{ ...pillTransition, cursor: submitted ? "default" : "pointer" }}
                                 >
                                   {n}
                                 </button>
@@ -422,33 +608,49 @@ const Audit = () => {
                             })}
                           </div>
                         </div>
-                        {errors[area.key] && <p className={monoError}>{errors[area.key]}</p>}
+                        <FieldMessage className={monoError}>{errors[area.key]}</FieldMessage>
                       </div>
                     ))}
                   </div>
-                </div>
+                </MotionReveal>
 
                 {!submitted ? (
                   <button
                     type="submit"
                     disabled={loading}
+                    style={opacityTransition}
                     className={`${primaryBtn} w-full disabled:opacity-60`}
                   >
-                    {loading ? "Calculating..." : "Get your audit →"}
+                    <ButtonLabel swapKey={loading ? "calculating" : "idle"}>
+                      {loading ? "Calculating..." : "Get your audit →"}
+                    </ButtonLabel>
                   </button>
                 ) : (
-                  <div className="space-y-3">
+                  // The completed state arrives rather than replacing the button
+                  // outright. There is no exit animation on the button it
+                  // supersedes: crossfading them would leave the form's footer
+                  // empty for a frame and drop everything below it.
+                  <motion.div
+                    className="space-y-3"
+                    initial={shouldReduce ? false : { opacity: 0, y: TRAVEL.nudge }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: shouldReduce ? 0 : DURATION.swap,
+                      ease: EASE_OUT_EXPO,
+                    }}
+                  >
                     <div className="w-full rounded-full border border-[var(--border)] py-3.5 text-center font-mono text-xs uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                       &#10003; Audit complete
                     </div>
                     <button
                       type="button"
-                      onClick={() => calendlyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                      onClick={() => calendlyRef.current && scrollTo(calendlyRef.current)}
+                      style={opacityTransition}
                       className={`${primaryBtn} w-full`}
                     >
                       Book your free meeting →
                     </button>
-                  </div>
+                  </motion.div>
                 )}
               </form>
             </div>

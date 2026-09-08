@@ -1,9 +1,18 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { createTimeline, stagger } from "animejs";
+import { createTimeline, cubicBezier, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SectionHeader from "@/shared/ui/section-header";
-import MotionReveal from "@/shared/motion/MotionReveal";
+import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
+import {
+  CSS_EASE,
+  DURATION,
+  EASE_IN_OUT,
+  EASE_OUT_EXPO,
+  MS,
+  STAGGER,
+  TRAVEL,
+} from "@/shared/motion/tokens";
 import TextReveal from "@/shared/motion/TextReveal";
 import VslPlayer from "@/shared/ui/vsl-player";
 import { videos, watchPath } from "@/features/watch/videos";
@@ -34,6 +43,10 @@ const VSL = FEATURED?.vsl ?? null;
  */
 const team: { name: string; role: string; bio: string; photo?: string }[] = [];
 
+/** The motion tokens are in seconds, because framer-motion is. anime.js counts
+ *  in milliseconds, so every token that reaches it goes through this. */
+const ms = (seconds: number) => Math.round(seconds * 1000);
+
 export default function WhoWeAre() {
   const heroRef = useRef<HTMLElement>(null);
 
@@ -56,11 +69,32 @@ export default function WhoWeAre() {
       return;
     }
 
-    const tl = createTimeline({ defaults: { duration: 700, ease: "out(3)" } });
-    tl.add(label, { opacity: [0, 1], y: [14, 0] })
-      .add(title, { opacity: [0, 1], y: [26, 0] }, "-=520")
-      .add(subs, { opacity: [0, 1], y: [18, 0], delay: stagger(90) }, "-=540")
-      .add(rule, { scaleX: [0, 1], duration: 800, ease: "inOut(3)" }, "-=460");
+    // Absolute positions rather than negative offsets: each element starts one
+    // STAGGER.line after the one before it whatever its own duration is, which
+    // is what keeps the whole entrance inside DURATION.entrance instead of
+    // drifting every time a duration is retuned.
+    const step = ms(STAGGER.line);
+    const tl = createTimeline({
+      defaults: { duration: MS.reveal, ease: cubicBezier(...EASE_OUT_EXPO) },
+    });
+    tl.add(label, { opacity: [0, 1], y: [TRAVEL.reveal, 0] })
+      .add(title, { opacity: [0, 1], y: [TRAVEL.line, 0] }, step)
+      .add(
+        subs,
+        { opacity: [0, 1], y: [TRAVEL.reveal, 0], delay: stagger(step) },
+        step * 2,
+      )
+      // The hairline is the only thing here that returns to where it began if
+      // it is ever reversed, so it takes the symmetric curve.
+      .add(
+        rule,
+        {
+          scaleX: [0, 1],
+          duration: MS.statement,
+          ease: cubicBezier(...EASE_IN_OUT),
+        },
+        step * 3,
+      );
 
     return () => {
       tl.cancel();
@@ -180,9 +214,17 @@ export default function WhoWeAre() {
                 and money are going.
               </p>
               <div className="mt-10">
+                {/* The site's house curve, applied inline because Tailwind's
+                    `transition-opacity` ships its own timing function and,
+                    being a class, outranks the zero-specificity :where() rule
+                    in index.css that puts everything else on expo-out. */}
                 <Link
                   to="/contact"
                   className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
+                  style={{
+                    transitionDuration: `${DURATION.micro}s`,
+                    transitionTimingFunction: CSS_EASE.outExpo,
+                  }}
                 >
                   Book a 15-minute call
                 </Link>
@@ -215,24 +257,31 @@ export default function WhoWeAre() {
             titleA="We got tired of"
             titleB="watching money burn."
           />
-          <div className="mt-10 grid gap-10 md:grid-cols-2">
-            <MotionReveal>
+          {/* Two columns that are always in view together, so they reveal from
+              one trigger with STAGGER.card between them. Two independent
+              triggers on a single row fire at whatever moment each column
+              happens to cross the threshold, which reads as a stutter. */}
+          <MotionReveal
+            stagger={STAGGER.card}
+            className="mt-10 grid gap-10 md:grid-cols-2"
+          >
+            <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 Ziiro started from a pattern we kept seeing: companies buying
                 AI the way you'd buy a lottery ticket. A chatbot nobody needed.
                 A dashboard nobody opened. An automation that moved the
                 bottleneck instead of removing it.
               </p>
-            </MotionReveal>
-            <MotionReveal delay={0.1}>
+            </MotionRevealItem>
+            <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 The technology was never the problem. Nobody had done the
                 boring part first: mapping how the business actually runs,
                 where the hours go, what a saved hour is worth. So we built a
                 consultancy that refuses to skip it.
               </p>
-            </MotionReveal>
-          </div>
+            </MotionRevealItem>
+          </MotionReveal>
 
           <TextReveal
             text="We're the people who ask what it's worth before we ask what to build."
@@ -245,7 +294,7 @@ export default function WhoWeAre() {
             }}
           />
 
-          <MotionReveal delay={0.1}>
+          <MotionReveal delay={STAGGER.card}>
             <p className="mt-10 max-w-xl leading-relaxed text-[var(--text-secondary)]">
               The principles behind that, and what we refuse to do, live on{" "}
               <Link
@@ -285,9 +334,12 @@ export default function WhoWeAre() {
               titleA="The people who"
               titleB="do the work."
             />
-            <div className="mt-16 grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-3">
-              {team.map((m, i) => (
-                <MotionReveal key={m.name} delay={i * 0.08}>
+            <MotionReveal
+              stagger={STAGGER.card}
+              className="mt-16 grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {team.map((m) => (
+                <MotionRevealItem key={m.name}>
                   <div className="border-t border-[var(--border)] pt-8">
                     {m.photo && (
                       <img
@@ -313,9 +365,9 @@ export default function WhoWeAre() {
                       {m.bio}
                     </p>
                   </div>
-                </MotionReveal>
+                </MotionRevealItem>
               ))}
-            </div>
+            </MotionReveal>
           </div>
         </section>
       )}

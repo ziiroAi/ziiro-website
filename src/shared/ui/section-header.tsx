@@ -1,4 +1,5 @@
-import ScrollScene from "@/shared/motion/ScrollScene";
+import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
+import { STAGGER } from "@/shared/motion/tokens";
 
 /**
  * Shared editorial section header: hairline rule, dot marker, mono
@@ -22,23 +23,32 @@ export default function SectionHeader({
   sub?: string;
 }) {
   return (
-    // exitTo={1}: headers resolve on scroll but never dim on the way out.
-    // The homepage opts into overlap at the section level instead, so pages
-    // like /process and /mission keep their headings at full strength.
-    <ScrollScene exitTo={1}>
-      <div className="border-t border-[var(--border)] pt-6">
-        <div className="mb-10 flex items-center justify-between gap-4">
-          <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-            Sec. {index} / {label}
+    // One reveal, inherited by every section on the site: the mono label first,
+    // then the headline, then the description. Reading order and arrival order
+    // are the same thing, which is the whole point of staggering it rather than
+    // fading the block in as one lump.
+    //
+    // This used to be a scrub-linked ScrollScene, which meant the heading dimmed
+    // again every time the reader scrolled back up past it. A header that
+    // re-hides is the fastest way to make a smooth site an irritating one, so
+    // it now fires once (MotionReveal's default viewport) and stays put.
+    <MotionReveal
+      stagger={STAGGER.line}
+      className="border-t border-[var(--border)] pt-6"
+    >
+      <MotionRevealItem className="mb-10 flex items-center justify-between gap-4">
+        <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+          <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+          Sec. {index} / {label}
+        </p>
+        {meta && (
+          <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
+            [ {meta} ]
           </p>
-          {meta && (
-            <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
-              [ {meta} ]
-            </p>
-          )}
-        </div>
+        )}
+      </MotionRevealItem>
 
+      <MotionRevealItem>
         <h2
           className="font-display font-semibold text-[var(--text-primary)]"
           style={{
@@ -68,13 +78,15 @@ export default function SectionHeader({
             </>
           )}
         </h2>
+      </MotionRevealItem>
 
-        {sub && (
+      {sub && (
+        <MotionRevealItem>
           <p className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
             {sub}
           </p>
-        )}
-      </div>
-    </ScrollScene>
+        </MotionRevealItem>
+      )}
+    </MotionReveal>
   );
 }

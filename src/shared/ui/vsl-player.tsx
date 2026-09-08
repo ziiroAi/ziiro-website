@@ -1,4 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+
+import { CSS_EASE, DURATION } from "@/shared/motion/tokens";
 
 export type VslSource =
   | { kind: "youtube"; id: string }
@@ -111,6 +113,18 @@ export const videoObjectSchema = (vsl: VslConfig, watchPath?: string) => {
     ...(pageUrl && { mainEntityOfPage: { "@id": `${pageUrl}#webpage` } }),
   };
 };
+
+/**
+ * The poster, its scrim and the play target are one control, so they answer
+ * together and they answer at DURATION.micro. At the 300ms this used to run,
+ * the frame was still brightening after the cursor had already come to rest,
+ * which reads as the page deciding rather than responding.
+ */
+const facadeMicro = (property: string): CSSProperties => ({
+  transitionProperty: property,
+  transitionDuration: `${DURATION.micro}s`,
+  transitionTimingFunction: CSS_EASE.out,
+});
 
 /** Dot-grid fill used when no poster image is supplied. */
 const dotFill = {
@@ -299,10 +313,16 @@ export default function VslPlayer({
           )}
 
           {/* Scrim keeps the play button legible over any poster */}
-          <span className="absolute inset-0 block bg-[var(--background)] opacity-30 transition-opacity duration-300 group-hover:opacity-20" />
+          <span
+            className="absolute inset-0 block bg-[var(--background)] opacity-30 group-hover:opacity-20 group-focus-visible:opacity-20"
+            style={facadeMicro("opacity")}
+          />
 
           <span className="absolute inset-0 flex flex-col items-center justify-center gap-5">
-            <span className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--text-primary)] transition-transform duration-300 group-hover:scale-105">
+            <span
+              className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--text-primary)] group-hover:scale-105 group-focus-visible:scale-105"
+              style={facadeMicro("transform")}
+            >
               <span
                 className="ml-1.5 block h-0 w-0"
                 style={{

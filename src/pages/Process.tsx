@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { animate, createAnimatable, createTimeline, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
-import MotionReveal from "@/shared/motion/MotionReveal";
+import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import TextReveal from "@/shared/motion/TextReveal";
+import { CSS_EASE, DURATION, MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import SectionHeader from "@/shared/ui/section-header";
 import MethodPath from "@/shared/ui/method-path";
 
@@ -108,6 +109,20 @@ const metaCells = [
   "Obligation: None",
 ];
 
+/** The stagger tokens are in seconds, because framer-motion counts in seconds;
+ *  anime.js counts in milliseconds. Everything handed to anime goes through
+ *  here rather than being re-typed as a second, hand-rounded number. */
+const ms = (seconds: number) => Math.round(seconds * 1000);
+
+/** The dim-to-lit change on a phase station. Opacity and colour share one
+ *  duration and one curve so a station lights as a single event; it is a style
+ *  rather than a Tailwind class because DURATION.swap has no matching duration
+ *  utility, and rounding it to 300ms would leave this page fractionally out of
+ *  step with every other transition on the site. */
+const PHASE_LIGHT =
+  `opacity ${DURATION.swap}s ${CSS_EASE.outExpo}, ` +
+  `color ${DURATION.swap}s ${CSS_EASE.outExpo}`;
+
 export default function Process() {
   const [active, setActive] = useState(0);
   const heroRef = useRef<HTMLElement>(null);
@@ -120,8 +135,10 @@ export default function Process() {
 
   useEffect(() => {
     reduced.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // The reader can scroll back up, so this value has to reverse mid-flight:
+    // symmetric easing, not the expo-out used for one-way travel.
     progressAnim.current = createAnimatable(progress.current, {
-      p: 900,
+      p: MS.statement,
       ease: "inOut(2)",
     });
     return () => {
@@ -147,13 +164,24 @@ export default function Process() {
       return;
     }
 
-    const tl = createTimeline({ defaults: { duration: 700, ease: "out(3)" } });
-    tl.add(label, { opacity: [0, 1], y: [14, 0] })
-      .add(title, { opacity: [0, 1], y: [26, 0] }, "-=520")
-      .add(sub, { opacity: [0, 1], y: [18, 0] }, "-=540")
-      .add(rule, { scaleX: [0, 1], duration: 800, ease: "inOut(3)" }, "-=460");
+    // out(4) is anime's nearest thing to the house expo-out curve. Each part
+    // takes DURATION.statement and starts one STAGGER.line after the last, so
+    // the hairline finishes drawing at about DURATION.entrance: one gesture,
+    // rather than four overlaps tuned by hand until they looked right.
+    const step = ms(STAGGER.line);
+    const tl = createTimeline({
+      defaults: { duration: MS.statement, ease: "out(4)" },
+    });
+    tl.add(label, { opacity: [0, 1], y: [TRAVEL.reveal, 0] }, 0)
+      .add(title, { opacity: [0, 1], y: [TRAVEL.reveal, 0] }, step)
+      .add(sub, { opacity: [0, 1], y: [TRAVEL.reveal, 0] }, step * 2)
+      .add(rule, { scaleX: [0, 1] }, step * 3);
 
-    return () => tl.cancel();
+    // Braced so the cleanup returns void: `() => tl.cancel()` returns the
+    // Timeline, which is not an EffectCallback.
+    return () => {
+      tl.cancel();
+    };
   }, []);
 
   // Meta strip: cells rise in with a stagger the first time they're seen
@@ -167,10 +195,10 @@ export default function Process() {
         io.disconnect();
         animate(cells, {
           opacity: [0, 1],
-          y: [16, 0],
-          delay: stagger(110),
-          duration: reduced.current ? 0 : 700,
-          ease: "out(3)",
+          y: [TRAVEL.reveal, 0],
+          delay: stagger(ms(STAGGER.card)),
+          duration: reduced.current ? 0 : MS.reveal,
+          ease: "out(4)",
         });
       },
       { threshold: 0.4 },
@@ -199,10 +227,10 @@ export default function Process() {
             );
             animate(items, {
               opacity: [0.2, 1],
-              x: [-10, 0],
-              delay: stagger(70),
-              duration: reduced.current ? 0 : 520,
-              ease: "out(3)",
+              x: [-TRAVEL.nudge, 0],
+              delay: stagger(ms(STAGGER.tight)),
+              duration: reduced.current ? 0 : MS.swap,
+              ease: "out(4)",
             });
           }
         }
@@ -306,66 +334,89 @@ export default function Process() {
 
             {/* Phase stations */}
             <div ref={blocksRef}>
-              {phases.map((phase, i) => {
-                const isActive = active === i;
-                return (
-                  <div
-                    key={phase.num}
-                    data-phase={i}
-                    className="border-b border-[var(--border)] py-12 transition-opacity duration-500 first:pt-0"
-                    style={{ opacity: isActive ? 1 : 0.35 }}
-                  >
-                    <div className="mb-3 flex items-baseline justify-between">
-                      <span
-                        className={`font-mono text-sm transition-colors duration-500 ${
-                          isActive
-                            ? "text-[var(--text-primary)]"
-                            : "text-[var(--text-secondary)]"
+              {/* Staggered, so the stations arrive as a sequence rather than as
+                  one wall of text. `first:pt-0` becomes an index test because
+                  each station is now the only child of its own wrapper, and
+                  the first-child variant would otherwise match all seven.
+
+                  `amount={0}` is load-bearing, not a preference. An
+                  IntersectionObserver threshold is a fraction of the TARGET,
+                  so an element taller than 1/threshold viewports can never
+                  reach it, and framer-motion's whileInView then never fires.
+                  This column is seven stations (~3.6k px) tall: at the 0.2
+                  house default it stayed at opacity 0 forever on a 375x667
+                  screen — the entire page, permanently blank. Firing on first
+                  contact is the only threshold a block this tall cannot miss,
+                  and it stays correct if an eighth phase is ever added. */}
+              <MotionReveal stagger={STAGGER.card} amount={0}>
+                {phases.map((phase, i) => {
+                  const isActive = active === i;
+                  return (
+                    <MotionRevealItem key={phase.num}>
+                      <div
+                        data-phase={i}
+                        className={`border-b border-[var(--border)] pb-12 ${
+                          i === 0 ? "" : "pt-12"
                         }`}
+                        style={{
+                          opacity: isActive ? 1 : 0.35,
+                          transition: PHASE_LIGHT,
+                        }}
                       >
-                        {phase.num} / 07
-                      </span>
-                      <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                        {phase.days}
-                      </span>
-                    </div>
+                        <div className="mb-3 flex items-baseline justify-between">
+                          <span
+                            className={`font-mono text-sm ${
+                              isActive
+                                ? "text-[var(--text-primary)]"
+                                : "text-[var(--text-secondary)]"
+                            }`}
+                            style={{ transition: PHASE_LIGHT }}
+                          >
+                            {phase.num} / 07
+                          </span>
+                          <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                            {phase.days}
+                          </span>
+                        </div>
 
-                    <h3
-                      className="mb-3 font-display font-semibold text-[var(--text-primary)]"
-                      style={{
-                        fontSize: "clamp(1.5rem, 2.4vw, 2.1rem)",
-                        letterSpacing: "-0.03em",
-                      }}
-                    >
-                      {phase.name}
-                    </h3>
-
-                    <p className="mb-6 max-w-md leading-relaxed text-[var(--text-secondary)]">
-                      {phase.desc}
-                    </p>
-
-                    <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                      You get
-                    </p>
-                    <ul className="mb-7 max-w-md space-y-2.5">
-                      {phase.gets.map((g) => (
-                        <li
-                          key={g}
-                          data-get
-                          className="flex items-start gap-3 text-sm leading-relaxed text-[var(--text-secondary)]"
+                        <h3
+                          className="mb-3 font-display font-semibold text-[var(--text-primary)]"
+                          style={{
+                            fontSize: "clamp(1.5rem, 2.4vw, 2.1rem)",
+                            letterSpacing: "-0.03em",
+                          }}
                         >
-                          <span className="mt-[7px] inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--text-primary)] opacity-60" />
-                          {g}
-                        </li>
-                      ))}
-                    </ul>
+                          {phase.name}
+                        </h3>
 
-                    <span className="neo-inset inline-block rounded-full px-4 py-2 font-mono text-xs tracking-wide text-[var(--text-secondary)]">
-                      → {phase.output}
-                    </span>
-                  </div>
-                );
-              })}
+                        <p className="mb-6 max-w-md leading-relaxed text-[var(--text-secondary)]">
+                          {phase.desc}
+                        </p>
+
+                        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                          You get
+                        </p>
+                        <ul className="mb-7 max-w-md space-y-2.5">
+                          {phase.gets.map((g) => (
+                            <li
+                              key={g}
+                              data-get
+                              className="flex items-start gap-3 text-sm leading-relaxed text-[var(--text-secondary)]"
+                            >
+                              <span className="mt-[7px] inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--text-primary)] opacity-60" />
+                              {g}
+                            </li>
+                          ))}
+                        </ul>
+
+                        <span className="neo-inset inline-block rounded-full px-4 py-2 font-mono text-xs tracking-wide text-[var(--text-secondary)]">
+                          → {phase.output}
+                        </span>
+                      </div>
+                    </MotionRevealItem>
+                  );
+                })}
+              </MotionReveal>
             </div>
           </div>
         </div>
@@ -391,7 +442,7 @@ export default function Process() {
                 process maps, the baselines, and the ROI math.
               </p>
             </MotionReveal>
-            <MotionReveal delay={0.1}>
+            <MotionReveal delay={STAGGER.card}>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 More on{" "}
                 <Link
@@ -424,44 +475,58 @@ export default function Process() {
       {/* ── Final CTA ────────────────────────────────────────── */}
       <section className="py-24 md:py-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <MotionReveal className="border-t border-[var(--border)] pt-20 text-center">
-            <p className="flex items-center justify-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-              Phase 00
-            </p>
+          {/* Staggered rather than revealed as one slab: the closing lines
+              arrive in reading order, which is most of what separates a
+              statement from a block that merely faded in. */}
+          <MotionReveal
+            stagger={STAGGER.line}
+            className="border-t border-[var(--border)] pt-20 text-center"
+          >
+            <MotionRevealItem>
+              <p className="flex items-center justify-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
+                Phase 00
+              </p>
+            </MotionRevealItem>
 
-            <h2
-              className="mx-auto mt-8 font-display font-semibold text-[var(--text-primary)]"
-              style={{
-                fontSize: "clamp(2.4rem, 5vw, 4.3rem)",
-                letterSpacing: "-0.03em",
-                lineHeight: 1.04,
-              }}
-            >
-              It starts with
-              <br />
-              <span className="text-[var(--text-secondary)]">one call.</span>
-            </h2>
-
-            <p className="mx-auto mt-7 max-w-md leading-relaxed text-[var(--text-secondary)]">
-              Free 30 minutes. We'll tell you if the audit is even worth it for
-              you.
-            </p>
-
-            <div className="mt-10 flex flex-col items-center gap-6">
-              <Link
-                to="/contact"
-                className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-85 transition-opacity"
+            <MotionRevealItem>
+              <h2
+                className="mx-auto mt-8 font-display font-semibold text-[var(--text-primary)]"
+                style={{
+                  fontSize: "clamp(2.4rem, 5vw, 4.3rem)",
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1.04,
+                }}
               >
-                Book the call
-              </Link>
-              <Link
-                to="/audit"
-                className="border-b border-[var(--border-strong)] pb-1 text-sm font-semibold text-[var(--text-primary)] transition-colors hover:border-[var(--text-primary)]"
-              >
-                Try the self-audit →
-              </Link>
-            </div>
+                It starts with
+                <br />
+                <span className="text-[var(--text-secondary)]">one call.</span>
+              </h2>
+            </MotionRevealItem>
+
+            <MotionRevealItem>
+              <p className="mx-auto mt-7 max-w-md leading-relaxed text-[var(--text-secondary)]">
+                Free 30 minutes. We'll tell you if the audit is even worth it for
+                you.
+              </p>
+            </MotionRevealItem>
+
+            <MotionRevealItem>
+              <div className="mt-10 flex flex-col items-center gap-6">
+                <Link
+                  to="/contact"
+                  className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity duration-150 ease-out hover:opacity-85"
+                >
+                  Book the call
+                </Link>
+                <Link
+                  to="/audit"
+                  className="border-b border-[var(--border-strong)] pb-1 text-sm font-semibold text-[var(--text-primary)] transition-colors duration-150 ease-out hover:border-[var(--text-primary)]"
+                >
+                  Try the self-audit →
+                </Link>
+              </div>
+            </MotionRevealItem>
           </MotionReveal>
         </div>
       </section>

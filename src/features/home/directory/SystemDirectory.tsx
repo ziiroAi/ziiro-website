@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import SectionHeader from "@/shared/ui/section-header";
 import ScrollScene from "@/shared/motion/ScrollScene";
 import EcosystemMap from "./EcosystemMap";
@@ -9,6 +10,12 @@ import PipelinePanel, {
   PipelineDetail,
 } from "./PipelinePanel";
 import { DIRECTORY_STATS, PIPELINES, findPipeline } from "./pipelines";
+import {
+  CSS_EASE,
+  DURATION,
+  EASE_OUT_EXPO,
+  MS,
+} from "@/shared/motion/tokens";
 
 /**
  * The system directory — the page's proof section.
@@ -110,16 +117,21 @@ export default function SystemDirectory() {
                     type="button"
                     aria-pressed={active}
                     onClick={() => selectPipeline(p.id)}
-                    className="group flex items-center gap-2.5 font-mono text-[10px] font-bold uppercase transition-colors duration-300"
+                    className="group flex items-center gap-2.5 rounded-sm font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
                     style={{
                       letterSpacing: "0.2em",
                       color: active ? "var(--dir-ink)" : "var(--dir-faint)",
+                      transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
                     }}
                   >
                     <span
                       aria-hidden="true"
-                      className="block h-[5px] w-[5px] rounded-full transition-all duration-300"
+                      className="block h-[5px] w-[5px] rounded-full"
                       style={{
+                        // Named properties rather than `all`, which would also
+                        // ease the hairline outline below and leave a grey
+                        // frame around the marker for the length of the swap.
+                        transition: `background-color ${MS.micro}ms ${CSS_EASE.out}, box-shadow ${MS.quick}ms ${CSS_EASE.out}`,
                         // A system still in build gets a hollow marker even
                         // when it's the one selected, so the selector never
                         // implies something ships that doesn't.
@@ -142,7 +154,10 @@ export default function SystemDirectory() {
                         outlineOffset: "-1px",
                       }}
                     />
-                    <span className="transition-colors duration-300 group-hover:text-[var(--dir-ink)]">
+                    <span
+                      className="group-hover:text-[var(--dir-ink)]"
+                      style={{ transition: `color ${MS.micro}ms ${CSS_EASE.out}` }}
+                    >
                       {p.name}
                     </span>
                   </button>
@@ -162,20 +177,22 @@ export default function SystemDirectory() {
                   type="button"
                   aria-pressed={view === v}
                   onClick={() => setView(v)}
-                  className="relative font-mono text-[10px] font-bold uppercase transition-colors duration-200"
+                  className="relative rounded-sm font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
                   style={{
                     letterSpacing: "0.24em",
                     color:
                       view === v ? "var(--dir-ink)" : "var(--dir-faint)",
+                    transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
                   }}
                 >
                   {v}
                   <span
                     aria-hidden="true"
-                    className="absolute -bottom-1.5 left-0 block h-px w-full transition-opacity duration-300"
+                    className="absolute -bottom-1.5 left-0 block h-px w-full"
                     style={{
                       background: "var(--dir-ink)",
                       opacity: view === v ? 1 : 0,
+                      transition: `opacity ${MS.micro}ms ${CSS_EASE.out}`,
                     }}
                   />
                 </button>
@@ -187,52 +204,108 @@ export default function SystemDirectory() {
         {isWide ? (
           <div className="mt-14 grid grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] gap-16">
             <div className="min-w-0">
-              {view === "radial" ? (
-                <>
-                  <EcosystemMap
-                    pipelines={PIPELINES}
-                    selectedId={selectedId}
-                    onSelect={selectPipeline}
-                    activeAgentId={activeAgentId}
-                    onAgentSelect={setActiveAgentId}
-                  />
-                  <p
-                    className="mt-4 text-center font-mono text-[9px] uppercase"
-                    style={{
-                      letterSpacing: "0.24em",
-                      color: "var(--dir-faint)",
-                    }}
-                  >
-                    Select a system · click an agent to inspect it
-                  </p>
-                </>
-              ) : (
-                <FlowView pipeline={pipeline} activeAgentId={activeAgentId} />
-              )}
+              <Crossfade id={view}>
+                {view === "radial" ? (
+                  <>
+                    <EcosystemMap
+                      pipelines={PIPELINES}
+                      selectedId={selectedId}
+                      onSelect={selectPipeline}
+                      activeAgentId={activeAgentId}
+                      onAgentSelect={setActiveAgentId}
+                    />
+                    <p
+                      className="mt-4 text-center font-mono text-[9px] uppercase"
+                      style={{
+                        letterSpacing: "0.24em",
+                        color: "var(--dir-faint)",
+                      }}
+                    >
+                      Select a system · click an agent to inspect it
+                    </p>
+                  </>
+                ) : (
+                  <FlowView pipeline={pipeline} activeAgentId={activeAgentId} />
+                )}
+              </Crossfade>
             </div>
 
+            {/* Keyed on the system, not on the agent: opening an agent row
+                must not re-fade the panel that row lives in. */}
             <div className="min-w-0">
-              <PipelinePanel
-                pipeline={pipeline}
-                activeAgentId={activeAgentId}
-                onAgentSelect={setActiveAgentId}
-              />
+              <Crossfade id={selectedId}>
+                <PipelinePanel
+                  pipeline={pipeline}
+                  activeAgentId={activeAgentId}
+                  onAgentSelect={setActiveAgentId}
+                />
+              </Crossfade>
             </div>
           </div>
         ) : (
           <div className="mt-12 space-y-12">
+            {/* MobileCore sits outside the swap so its orbit ring keeps its
+                place in a 24-second rotation rather than snapping back to zero
+                every time the reader changes system. It fades its own
+                identity block instead. */}
             <MobileCore pipeline={pipeline} />
-            <PipelineIdentity pipeline={pipeline} />
-            <FlowView pipeline={pipeline} activeAgentId={activeAgentId} />
-            <PipelineDetail
-              pipeline={pipeline}
-              activeAgentId={activeAgentId}
-              onAgentSelect={setActiveAgentId}
-            />
+            <Crossfade id={selectedId} className="space-y-12">
+              <PipelineIdentity pipeline={pipeline} />
+              <FlowView pipeline={pipeline} activeAgentId={activeAgentId} />
+              <PipelineDetail
+                pipeline={pipeline}
+                activeAgentId={activeAgentId}
+                onAgentSelect={setActiveAgentId}
+              />
+            </Crossfade>
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * Swaps one block of content for another over DURATION.swap.
+ *
+ * Deliberately not <AnimatePresence>: making the outgoing content leave before
+ * the incoming arrives collapses the column to nothing for a beat, and in a
+ * two-column layout that reads as the page breaking rather than as a
+ * transition. Keying a fresh element instead lets the new content take the box
+ * immediately and animates only its opacity, which is the part a reader
+ * actually notices.
+ *
+ * The very first render carries no `initial`, because framer writes `initial`
+ * into the prerendered markup — and a panel that ships as opacity:0 is a panel
+ * nobody whose JS failed will ever read.
+ */
+function Crossfade({
+  id,
+  className,
+  children,
+}: {
+  id: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const shouldReduce = useReducedMotion();
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+  }, []);
+
+  if (shouldReduce) return <div className={className}>{children}</div>;
+
+  return (
+    <motion.div
+      key={id}
+      className={className}
+      initial={mounted.current ? { opacity: 0 } : false}
+      animate={{ opacity: 1 }}
+      transition={{ duration: DURATION.swap, ease: EASE_OUT_EXPO }}
+    >
+      {children}
+    </motion.div>
   );
 }
 

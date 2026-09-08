@@ -19,17 +19,16 @@ export const EYEBROW = "Business intelligence · Agentic AI";
  * the label changed; those stages are stated properly in the system directory
  * below, which is where they belong.
  */
+/* Five, not ten. A rotation is only readable if a visitor can hold the whole
+   set in their head, and each of these names a category the system directory
+   below actually has: Intelligence, Sales/Deals, Operations, Marketing, Back
+   Office. Ten was a list you watched rather than one you read. */
 export const IDENTITIES = [
   "Analyst",
-  "Researcher",
   "Strategist",
-  "Marketer",
   "Operator",
-  "Planner",
-  "Coordinator",
-  "Assistant",
+  "Marketer",
   "Engineer",
-  "Manager",
 ] as const;
 
 /** The second, slower rotation under the copy. Deliberately out of phase with

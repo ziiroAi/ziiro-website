@@ -151,6 +151,7 @@ export default function DotGlyph({
     let raf = 0;
     let running = false;
     let t = 3;
+    let last = 0;
 
     const draw = () => {
       const gain = energy?.current?.gain ?? 0;
@@ -170,8 +171,15 @@ export default function DotGlyph({
       }
     };
 
-    const loop = () => {
-      t += 0.016 * (energy?.current?.speed ?? 1);
+    // rAF fires at the display's refresh rate, so the old fixed 0.016 per frame
+    // ran this grid at double speed on a 120Hz panel and below speed on a
+    // throttled one. Stepping by real elapsed time makes the motion identical
+    // everywhere; the clamp keeps a tab that was backgrounded from resuming
+    // with one enormous jump.
+    const loop = (now: number) => {
+      const dt = last ? Math.min((now - last) / 1000, 0.05) : 0;
+      last = now;
+      t += dt * (energy?.current?.speed ?? 1);
       draw();
       raf = requestAnimationFrame(loop);
     };
@@ -181,6 +189,8 @@ export default function DotGlyph({
       const shouldRun = entry.isIntersecting && !reduced;
       if (shouldRun && !running) {
         running = true;
+        // Restarting after a spell off-screen must not bank the elapsed time.
+        last = 0;
         raf = requestAnimationFrame(loop);
       } else if (!shouldRun && running) {
         running = false;

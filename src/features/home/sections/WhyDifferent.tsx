@@ -1,5 +1,13 @@
+import { motion, useReducedMotion, type Variants } from "framer-motion";
+
 import SectionHeader from "@/shared/ui/section-header";
-import ScrollScene from "@/shared/motion/ScrollScene";
+import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
+import {
+  DURATION,
+  EASE_OUT_EXPO,
+  STAGGER,
+  TRAVEL,
+} from "@/shared/motion/tokens";
 import { useSectionProgress } from "../narrative/useSectionProgress";
 
 /**
@@ -55,15 +63,39 @@ const ziiro = [
   "Keeps improving the system after launch",
 ];
 
+/**
+ * The fourth card arrives on the same stagger as the three it answers, but
+ * further and slower: heading-scale travel and the statement duration instead
+ * of the standard reveal. Four identical arrivals make the reader's eye stop
+ * on whichever card is nearest the pointer; one that is still settling when
+ * the others have landed is where the eye finishes.
+ *
+ * Module scope on purpose — this component re-renders on every scroll step,
+ * and a fresh variants object each time makes framer re-resolve them.
+ */
+const ZIIRO_ARRIVAL: Variants = {
+  hidden: { opacity: 0, y: TRAVEL.line },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: DURATION.statement, ease: EASE_OUT_EXPO },
+  },
+};
+
 export default function WhyDifferent() {
   const { ref, progress } = useSectionProgress<HTMLDivElement>();
+  const shouldReduce = useReducedMotion();
 
   // The alternatives hold their ground through the first half of the section
   // (they have to be readable to make the argument) and only fall away once
-  // the visitor has passed them.
-  const fade = Math.max(0, Math.min(1, (progress - 0.52) / 0.34));
+  // the visitor has passed them. Under reduced motion the recede is skipped
+  // entirely rather than shortened: the argument is carried by the words, and
+  // this beat is pure motion.
+  const fade = shouldReduce
+    ? 0
+    : Math.max(0, Math.min(1, (progress - 0.52) / 0.34));
   const altOpacity = 1 - fade * 0.72;
-  const altShift = fade * 22;
+  const altShift = fade * TRAVEL.reveal;
 
   return (
     <section ref={ref} className="relative px-6 py-24 md:px-10 md:py-32">
@@ -77,8 +109,19 @@ export default function WhyDifferent() {
           sub="You have real alternatives to hiring us. Here is what each of them actually gets you."
         />
 
-        <div className="mt-16 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
-          {alternatives.map((alt, i) => (
+        {/* The four routes are a comparison, so they arrive as one sequence
+            left to right — independent triggers would have them appear in
+            whatever order the viewport crossed them, which reads as four
+            unrelated cards rather than one argument. */}
+        <MotionReveal
+          stagger={STAGGER.card}
+          className="mt-16 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4"
+        >
+          {alternatives.map((alt) => (
+            // The scroll-linked recede stays on its own wrapper, outside the
+            // reveal: one element scrubs with scroll position and the other
+            // runs a timed entrance, and letting a single element do both means
+            // the scrub overwrites the entrance mid-flight.
             <div
               key={alt.name}
               style={{
@@ -88,7 +131,7 @@ export default function WhyDifferent() {
                 willChange: "opacity, transform",
               }}
             >
-              <ScrollScene rise={20} exitTo={1}>
+              <MotionRevealItem>
                 <div className="flex h-full flex-col rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-7">
                   <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                     {alt.name}
@@ -108,12 +151,14 @@ export default function WhyDifferent() {
                     ))}
                   </ul>
                 </div>
-              </ScrollScene>
+              </MotionRevealItem>
             </div>
           ))}
 
-          {/* The route that keeps going. It gains presence as the others lose it. */}
-          <ScrollScene rise={20} exitTo={1}>
+          {/* The route that keeps going. It gains presence as the others lose
+              it, and with no variants to inherit under reduced motion it simply
+              renders in place. */}
+          <motion.div data-reveal variants={shouldReduce ? undefined : ZIIRO_ARRIVAL}>
             <div
               className="neo-inset flex h-full flex-col rounded-2xl border p-7"
               style={{
@@ -143,8 +188,8 @@ export default function WhyDifferent() {
                 ))}
               </ul>
             </div>
-          </ScrollScene>
-        </div>
+          </motion.div>
+        </MotionReveal>
       </div>
     </section>
   );

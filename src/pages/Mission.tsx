@@ -1,9 +1,24 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { animate, createAnimatable, createTimeline, stagger } from "animejs";
+import {
+  animate,
+  createAnimatable,
+  createTimeline,
+  cubicBezier,
+  stagger,
+} from "animejs";
 import SEO from "@/shared/components/SEO";
 import SectionHeader from "@/shared/ui/section-header";
-import MotionReveal from "@/shared/motion/MotionReveal";
+import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
+import {
+  CSS_EASE,
+  DURATION,
+  EASE_IN_OUT,
+  EASE_OUT_EXPO,
+  MS,
+  STAGGER,
+  TRAVEL,
+} from "@/shared/motion/tokens";
 import TextReveal from "@/shared/motion/TextReveal";
 import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/shared/ui/dot-glyph";
 
@@ -95,6 +110,10 @@ const steps = [
 
 type Animatable = ReturnType<typeof createAnimatable>;
 
+/** The motion tokens are in seconds, because framer-motion is. anime.js counts
+ *  in milliseconds, so every token that reaches it goes through this. */
+const ms = (seconds: number) => Math.round(seconds * 1000);
+
 export default function Mission() {
   const heroRef = useRef<HTMLElement>(null);
   const wordsRef = useRef<HTMLDivElement>(null);
@@ -120,13 +139,32 @@ export default function Mission() {
       return;
     }
 
-    const tl = createTimeline({ defaults: { duration: 700, ease: "out(3)" } });
-    tl.add(label, { opacity: [0, 1], y: [14, 0] })
-      .add(title, { opacity: [0, 1], y: [26, 0] }, "-=520")
-      .add(sub, { opacity: [0, 1], y: [18, 0] }, "-=540")
-      .add(rule, { scaleX: [0, 1], duration: 800, ease: "inOut(3)" }, "-=460");
+    // Absolute positions rather than negative offsets: each element starts one
+    // STAGGER.line after the one before it whatever its own duration is, which
+    // is what keeps the whole entrance inside DURATION.entrance instead of
+    // drifting every time a duration is retuned.
+    const step = ms(STAGGER.line);
+    const tl = createTimeline({
+      defaults: { duration: MS.reveal, ease: cubicBezier(...EASE_OUT_EXPO) },
+    });
+    tl.add(label, { opacity: [0, 1], y: [TRAVEL.reveal, 0] })
+      .add(title, { opacity: [0, 1], y: [TRAVEL.line, 0] }, step)
+      .add(sub, { opacity: [0, 1], y: [TRAVEL.reveal, 0] }, step * 2)
+      // The hairline is the only thing here that returns to where it began if
+      // it is ever reversed, so it takes the symmetric curve.
+      .add(
+        rule,
+        {
+          scaleX: [0, 1],
+          duration: MS.statement,
+          ease: cubicBezier(...EASE_IN_OUT),
+        },
+        step * 3,
+      );
 
-    return () => tl.cancel();
+    return () => {
+      tl.cancel();
+    };
   }, []);
 
   // The three tagline words rise in with a stagger the first time seen.
@@ -141,10 +179,13 @@ export default function Mission() {
         io.disconnect();
         animate(rows, {
           opacity: [0, 1],
-          y: [36, 0],
-          delay: stagger(130),
-          duration: reduced ? 0 : 800,
-          ease: "out(3)",
+          // TRAVEL.line rather than TRAVEL.reveal: these are display words at
+          // 4.4rem, and the distance a block travels reads relative to its
+          // own size.
+          y: [TRAVEL.line, 0],
+          delay: stagger(ms(STAGGER.card)),
+          duration: reduced ? 0 : MS.reveal,
+          ease: cubicBezier(...EASE_OUT_EXPO),
         });
       },
       { threshold: 0.15 },
@@ -158,13 +199,18 @@ export default function Mission() {
     const root = beliefsRef.current;
     if (!root) return;
     const titles = [...root.querySelectorAll<HTMLElement>("[data-belief-title]")];
+    // DURATION.micro, not the 450ms this used to run at: a hover that takes
+    // nearly half a second to start reads as the page thinking about it rather
+    // than the title being attached to the pointer.
     titleAnims.current = titles.map((el) =>
-      createAnimatable(el, { x: 450, ease: "out(4)" }),
+      createAnimatable(el, { x: MS.micro, ease: cubicBezier(...EASE_OUT_EXPO) }),
     );
+    // The glyph is a canvas warming up rather than a pointer-tracked element,
+    // so it gets the slower of the two micro durations.
     energyAnim.current = createAnimatable(energy.current, {
-      speed: 400,
-      gain: 400,
-      ease: "out(2)",
+      speed: MS.swap,
+      gain: MS.swap,
+      ease: cubicBezier(...EASE_OUT_EXPO),
     });
     return () => {
       titleAnims.current.forEach((a) => a.revert());
@@ -174,8 +220,11 @@ export default function Mission() {
     };
   }, []);
 
+  // A nudge, not a lift: a belief row is prose, not a link, and a block that
+  // rises under the pointer is a promise that something will happen if you
+  // click it. TRAVEL.nudge is the smallest acknowledgement the token set has.
   const rowEnter = (i: number) => {
-    titleAnims.current[i]?.x(10);
+    titleAnims.current[i]?.x(TRAVEL.nudge);
     energyAnim.current?.speed(2.4);
     energyAnim.current?.gain(0.35);
   };
@@ -246,15 +295,22 @@ export default function Mission() {
             titleA="Make AI useful."
             titleB="Nothing else."
           />
-          <div className="mt-10 grid gap-10 md:grid-cols-2">
-            <MotionReveal>
+          {/* Two columns that are always in view together, so they reveal from
+              one trigger with STAGGER.card between them. Two independent
+              triggers on a single row fire at whatever moment each column
+              happens to cross the threshold, which reads as a stutter. */}
+          <MotionReveal
+            stagger={STAGGER.card}
+            className="mt-10 grid gap-10 md:grid-cols-2"
+          >
+            <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 Not flashy. Not theoretical. Not "transformative" in a pitch
                 deck. Every business has processes bleeding money and time.
                 Most don't know which ones. Most AI consultants don't ask.
               </p>
-            </MotionReveal>
-            <MotionReveal delay={0.1}>
+            </MotionRevealItem>
+            <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 We start where others skip: the business intelligence layer. We
                 map how a company actually operates: where the hours go, where
@@ -262,9 +318,9 @@ export default function Mission() {
                 build. And we only build what the numbers prove is worth
                 building.
               </p>
-            </MotionReveal>
-          </div>
-          <MotionReveal delay={0.15}>
+            </MotionRevealItem>
+          </MotionReveal>
+          <MotionReveal delay={STAGGER.card}>
             <p className="mt-12 max-w-3xl font-display text-xl font-semibold leading-relaxed text-[var(--text-primary)] md:text-2xl">
               Help businesses leverage AI anywhere it creates real, measurable
               value, and nowhere it doesn't.
@@ -283,22 +339,25 @@ export default function Mission() {
             titleA="The AI industry"
             titleB="has a problem."
           />
-          <div className="mt-10 grid gap-10 md:grid-cols-2">
-            <MotionReveal>
+          <MotionReveal
+            stagger={STAGGER.card}
+            className="mt-10 grid gap-10 md:grid-cols-2"
+          >
+            <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 Everyone's selling "AI transformation." Nobody's asking the
                 basic question: does this actually make you money?
               </p>
-            </MotionReveal>
-            <MotionReveal delay={0.1}>
+            </MotionRevealItem>
+            <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 We watched businesses spend lakhs on chatbots they didn't need,
                 dashboards nobody opened, and automations that moved the
                 bottleneck instead of removing it. The technology wasn't the
                 problem. The understanding was.
               </p>
-            </MotionReveal>
-          </div>
+            </MotionRevealItem>
+          </MotionReveal>
 
           {/* The page's statement: scroll-scrubbed word-by-word reveal */}
           <TextReveal
@@ -326,8 +385,13 @@ export default function Mission() {
           />
 
           <div ref={beliefsRef} className="mt-16 border-t border-[var(--border)]">
+            {/* No index delay here, unlike the four-across grids below. These
+                rows are tall enough that each one crosses the viewport on its
+                own, so a growing delay would not read as a cascade — it would
+                just make the fifth row take a quarter of a second to notice it
+                had been scrolled to. */}
             {beliefs.map((p, i) => (
-              <MotionReveal key={p.num} delay={i * 0.06}>
+              <MotionReveal key={p.num}>
                 <div
                   className="group grid grid-cols-12 items-center gap-4 border-b border-[var(--border)] py-10 md:py-12"
                   onMouseEnter={() => rowEnter(i)}
@@ -339,10 +403,16 @@ export default function Mission() {
                   <div className="col-span-10 md:col-span-6">
                     <h3
                       data-belief-title
-                      className="mb-3 font-display font-semibold text-[var(--text-secondary)] transition-colors duration-300 group-hover:text-[var(--text-primary)]"
+                      className="mb-3 font-display font-semibold text-[var(--text-secondary)] transition-colors group-hover:text-[var(--text-primary)]"
                       style={{
                         fontSize: "clamp(1.35rem, 2.6vw, 2.1rem)",
                         letterSpacing: "-0.03em",
+                        // Inline rather than a duration- class: this is a hover
+                        // response and belongs at DURATION.micro, and Tailwind's
+                        // transition-colors would otherwise supply both its own
+                        // duration and its own curve.
+                        transitionDuration: `${DURATION.micro}s`,
+                        transitionTimingFunction: CSS_EASE.outExpo,
                       }}
                     >
                       {p.name}
@@ -353,8 +423,13 @@ export default function Mission() {
                   </div>
                   <div className="hidden md:col-span-4 md:col-start-9 md:flex md:flex-col md:items-center md:justify-center">
                     <div
-                      className="opacity-60 transition-opacity duration-300 group-hover:opacity-90"
-                      style={{ transform: "scale(0.6)", transformOrigin: "center" }}
+                      className="opacity-60 transition-opacity group-hover:opacity-90"
+                      style={{
+                        transform: "scale(0.6)",
+                        transformOrigin: "center",
+                        transitionDuration: `${DURATION.micro}s`,
+                        transitionTimingFunction: CSS_EASE.outExpo,
+                      }}
                     >
                       <DotGlyph variant={p.glyph} energy={energy} />
                     </div>
@@ -379,9 +454,16 @@ export default function Mission() {
             titleA="Understand. Identify."
             titleB="Build. Measure."
           />
-          <div className="mt-16 grid grid-cols-1 border-t border-[var(--border)] sm:grid-cols-2 lg:grid-cols-4">
-            {steps.map((s, i) => (
-              <MotionReveal key={s.num} delay={i * 0.08}>
+          {/* One viewport trigger for the whole row, not four. Four cards that
+              sit side by side each firing on their own arrive at slightly
+              different times depending on where the row happens to stop, which
+              reads as jitter; a parent stagger makes it one deliberate sweep. */}
+          <MotionReveal
+            stagger={STAGGER.card}
+            className="mt-16 grid grid-cols-1 border-t border-[var(--border)] sm:grid-cols-2 lg:grid-cols-4"
+          >
+            {steps.map((s) => (
+              <MotionRevealItem key={s.num}>
                 <div className="h-full border-b border-[var(--border)] px-0 py-10 sm:pr-8 lg:border-b-0 lg:py-12">
                   <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                     {s.num}
@@ -396,9 +478,9 @@ export default function Mission() {
                     {s.desc}
                   </p>
                 </div>
-              </MotionReveal>
+              </MotionRevealItem>
             ))}
-          </div>
+          </MotionReveal>
         </div>
       </section>
 
@@ -412,14 +494,17 @@ export default function Mission() {
             titleA="Industries don't limit us."
             titleB="Processes do."
           />
-          <div className="mt-10 grid gap-10 md:grid-cols-2">
-            <MotionReveal>
+          <MotionReveal
+            stagger={STAGGER.card}
+            className="mt-10 grid gap-10 md:grid-cols-2"
+          >
+            <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 Businesses with 5 to 500 people who know they should be using
                 AI but don't know where to start, or tried and got burned.
               </p>
-            </MotionReveal>
-            <MotionReveal delay={0.1}>
+            </MotionRevealItem>
+            <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 We start with SMBs (₹50L–5Cr revenue) where the impact is
                 immediate and measurable. As we grow, we scale to mid-market
@@ -427,8 +512,8 @@ export default function Mission() {
                 business runs on repeatable operations, there's something we
                 can improve.
               </p>
-            </MotionReveal>
-          </div>
+            </MotionRevealItem>
+          </MotionReveal>
         </div>
       </section>
 
@@ -547,9 +632,17 @@ export default function Mission() {
                 and money are going.
               </p>
               <div className="mt-12">
+                {/* The site's house curve, applied inline because Tailwind's
+                    `transition-opacity` ships its own timing function and,
+                    being a class, outranks the zero-specificity :where() rule
+                    in index.css that puts everything else on expo-out. */}
                 <Link
                   to="/contact"
                   className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
+                  style={{
+                    transitionDuration: `${DURATION.micro}s`,
+                    transitionTimingFunction: CSS_EASE.outExpo,
+                  }}
                 >
                   Book a 15-minute call
                 </Link>
