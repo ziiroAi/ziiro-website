@@ -67,7 +67,8 @@ export default function Hero() {
       .add(
         q("[data-hero-orb-word]"),
         { opacity: [0, 1], y: [16, 0], duration: 760 },
-        "-=480")
+        "-=480",
+      )
       .add(
         q("[data-hero-eyebrow]"),
         { opacity: [0, 1], y: [10, 0], duration: 620 },
@@ -111,13 +112,13 @@ export default function Hero() {
     >
       <HeroAtmosphere />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1120px] flex-col items-center px-6 pb-8 pt-14 text-center md:px-10 md:pt-24">
+      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[1120px] flex-col items-center px-6 pb-8 pt-14 text-center md:px-10 md:pt-20">
         <IntelligenceOrb />
 
         <p
           data-hero-reveal
           data-hero-eyebrow
-          className="mt-7 flex items-center gap-3 font-mono text-[10px] font-bold uppercase md:mt-20 md:text-[11px]"
+          className="mt-7 flex items-center gap-3 font-mono text-[10px] font-bold uppercase md:mt-10 md:text-[11px]"
           style={{ letterSpacing: "0.2em", color: "var(--hero-accent)" }}
         >
           {EYEBROW}
@@ -189,8 +190,13 @@ export default function Hero() {
         </p>
 
         {/* mt-auto, so on a tall viewport the cue sits at the bottom edge and
-            on a short one it simply follows the buttons. */}
-        <div className="mt-auto pt-8 md:pt-10">
+            on a short one it simply follows the buttons.
+
+            Its height is part of the hero's fixed cost, and that cost is what
+            `--orb` is solved against — see index.css. Change the padding here
+            and the reserve there has to move with it, or the cue drops below
+            the fold again. */}
+        <div data-hero-scroll-slot className="mt-auto pt-6 md:pt-8">
           <ScrollIndicator />
         </div>
       </div>

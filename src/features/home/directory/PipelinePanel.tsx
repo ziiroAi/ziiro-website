@@ -1,4 +1,7 @@
+import { useReducedMotion } from "framer-motion";
+
 import type { Pipeline } from "./pipelines";
+import { CSS_EASE, MS } from "@/shared/motion/tokens";
 
 /**
  * What the selected system is, and what is inside it.
@@ -89,6 +92,14 @@ export function PipelineDetail({
   activeAgentId,
   onAgentSelect,
 }: PipelinePanelProps) {
+  const shouldReduce = useReducedMotion();
+  // The row's height is the one thing here that genuinely travels, so it is
+  // also the one thing that has to disappear under a reduced-motion
+  // preference — the detail still opens, it just arrives already open.
+  const expand = shouldReduce
+    ? "none"
+    : `grid-template-rows ${MS.swap}ms ${CSS_EASE.outExpo}`;
+
   return (
     <div>
       {/* ── The shape of the system. A line of type, not a row of tiles. ── */}
@@ -152,35 +163,53 @@ export function PipelineDetail({
                   type="button"
                   aria-expanded={open}
                   onClick={() => onAgentSelect(open ? null : agent.id)}
-                  className="group relative flex w-full items-baseline gap-4 py-3.5 pl-4 pr-1 text-left"
+                  className="group relative flex w-full items-baseline gap-4 py-3.5 pl-4 pr-1 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[var(--dir-ink)]"
                 >
-                  {/* The accent rail. Grows on hover, stays on when open. */}
+                  {/* The accent rail. Lights on hover, stays on when open.
+                      Its opacity has to come from classes: an inline opacity
+                      outranks :hover, which is why the hover state here never
+                      used to fire. */}
                   <span
                     aria-hidden="true"
-                    className="absolute bottom-2 left-0 top-2 w-px transition-opacity duration-200 group-hover:opacity-100"
+                    className={`absolute bottom-2 left-0 top-2 w-px ${
+                      open
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-60 group-focus-visible:opacity-60"
+                    }`}
                     style={{
                       background: pipeline.accent,
-                      opacity: open ? 1 : 0,
+                      transition: `opacity ${MS.micro}ms ${CSS_EASE.out}`,
                     }}
                   />
                   <span
-                    className="font-mono text-[10px] tabular-nums transition-colors duration-200"
-                    style={{ color: open ? pipeline.accent : "var(--dir-faint)" }}
+                    className="font-mono text-[10px] tabular-nums"
+                    style={{
+                      color: open ? pipeline.accent : "var(--dir-faint)",
+                      transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
+                    }}
                   >
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <span
-                    className="text-[15px] transition-colors duration-200 group-hover:text-[var(--dir-ink)]"
-                    style={{ color: open ? "var(--dir-ink)" : "var(--dir-dim)" }}
+                    className={`text-[15px] group-hover:text-[var(--dir-ink)] ${
+                      open ? "text-[var(--dir-ink)]" : "text-[var(--dir-dim)]"
+                    }`}
+                    style={{ transition: `color ${MS.micro}ms ${CSS_EASE.out}` }}
                   >
                     {agent.name}
                   </span>
                   <span
                     aria-hidden="true"
-                    className="ml-auto shrink-0 font-mono text-[14px] leading-none transition-transform duration-300"
+                    className="ml-auto shrink-0 font-mono text-[14px] leading-none"
                     style={{
                       color: open ? pipeline.accent : "var(--dir-faint)",
                       transform: open ? "rotate(45deg)" : "none",
+                      // The colour still eases under reduced motion; only the
+                      // rotation is dropped, so the marker snaps to its open
+                      // state rather than turning.
+                      transition: shouldReduce
+                        ? `color ${MS.micro}ms ${CSS_EASE.out}`
+                        : `transform ${MS.quick}ms ${CSS_EASE.outExpo}, color ${MS.micro}ms ${CSS_EASE.out}`,
                     }}
                   >
                     +
@@ -188,8 +217,11 @@ export function PipelineDetail({
                 </button>
 
                 <div
-                  className="grid transition-[grid-template-rows] duration-300 ease-out"
-                  style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
+                  className="grid"
+                  style={{
+                    gridTemplateRows: open ? "1fr" : "0fr",
+                    transition: expand,
+                  }}
                 >
                   <div className="overflow-hidden">
                     <div className="pb-8 pl-9 pr-1 pt-1">

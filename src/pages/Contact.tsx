@@ -1,18 +1,139 @@
-import { useEffect, useRef, useState, type FocusEvent, type FormEvent } from "react";
-import { animate, createAnimatable, createSpring, createTimeline, utils } from "animejs";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+  type FormEvent,
+  type ReactNode,
+} from "react";
+import { animate, createAnimatable, createTimeline, cubicBezier, utils } from "animejs";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import SEO from "@/shared/components/SEO";
 import DotGlyph from "@/shared/ui/dot-glyph";
+import {
+  CSS_EASE,
+  DURATION,
+  EASE_OUT_EXPO,
+  MS,
+  STAGGER,
+  TRAVEL,
+} from "@/shared/motion/tokens";
 import {
   emptyContactForm,
   validateContactForm,
 } from "@/features/contact/entities/contactForm";
 import { sendContactMessage } from "@/features/contact/services/contactService";
 
-// Tactile spring for form-field focus (transform only, no layout shift)
-const focusSpring = createSpring({ stiffness: 340, damping: 22 });
+/** The house expo-out, handed to anime.js. Built from the token control points
+ *  rather than retyped, so this page cannot drift the next time the curve is
+ *  tuned. */
+const expoOut = cubicBezier(...EASE_OUT_EXPO);
+
+/** anime.js counts in milliseconds and the tokens in seconds; converting once
+ *  here keeps the arithmetic out of the timeline. */
+const RISE_STAGGER_MS = Math.round(STAGGER.card * 1000);
+
+/** Everything that merely changes colour or opacity on this page settles at the
+ *  micro duration. It is stated rather than left to Tailwind's default so the
+ *  form's timing comes from the same file as the rest of the site — and because
+ *  this is the value that decides whether a field feels attached to the caret
+ *  or a beat behind it. */
+const microTransition = {
+  transitionDuration: `${DURATION.micro}s`,
+  transitionTimingFunction: CSS_EASE.out,
+} as const;
+
+const fieldTransition = {
+  transitionProperty: "border-color, color",
+  ...microTransition,
+} as const;
+
+const buttonTransition = {
+  transitionProperty: "opacity",
+  ...microTransition,
+} as const;
+
+/**
+ * A validation line that arrives rather than appears.
+ *
+ * A message snapping into existence under a field reads as a fault in the page.
+ * Three pixels over the micro duration reads as the form answering you, and it
+ * is deliberately the shortest motion here: an error the reader has to wait for
+ * is worse than one that pops. Under reduced motion it is simply present.
+ *
+ * Falsy children render nothing, so this keeps the `errors.x && ...` semantics
+ * of the markup it replaced — the message is still driven entirely by the
+ * validator, and nothing about what the reader is told has changed.
+ */
+function FieldMessage({
+  children,
+  className,
+}: {
+  children?: ReactNode;
+  className?: string;
+}) {
+  const shouldReduce = useReducedMotion();
+
+  return (
+    <AnimatePresence initial={false}>
+      {children ? (
+        <motion.p
+          key="message"
+          className={className}
+          initial={shouldReduce ? false : { opacity: 0, y: -TRAVEL.nudge }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: shouldReduce ? 0 : -TRAVEL.nudge }}
+          transition={{
+            duration: shouldReduce ? 0 : DURATION.micro,
+            ease: EASE_OUT_EXPO,
+          }}
+        >
+          {children}
+        </motion.p>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+/**
+ * The submit button's label, swapped without the button changing size.
+ *
+ * Both labels sit in the same grid cell so the button never renders empty
+ * mid-swap: a `mode="wait"` crossfade collapses the button's height for a
+ * frame, which is more distracting than the pop it was meant to smooth.
+ */
+function ButtonLabel({
+  swapKey,
+  children,
+}: {
+  swapKey: string;
+  children: ReactNode;
+}) {
+  const shouldReduce = useReducedMotion();
+
+  return (
+    <span className="grid">
+      <AnimatePresence initial={false}>
+        <motion.span
+          key={swapKey}
+          style={{ gridArea: "1 / 1" }}
+          initial={shouldReduce ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{
+            duration: shouldReduce ? 0 : DURATION.micro,
+            ease: EASE_OUT_EXPO,
+          }}
+        >
+          {children}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+}
 
 const inputClass =
-  "w-full rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] transition-colors";
+  "w-full rounded-xl border border-[var(--border)] bg-transparent px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)]";
 
 const labelClass =
   "mb-2 block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]";
@@ -43,10 +164,14 @@ const Contact = () => {
     const els = [...root.querySelectorAll<HTMLElement>("[data-rise]")];
     if (els.length === 0) return;
     const tl = createTimeline({
-      defaults: { ease: "out(3)", duration: reduced.current ? 0 : 700 },
+      defaults: { ease: expoOut, duration: reduced.current ? 0 : MS.reveal },
     });
     els.forEach((el, i) => {
-      tl.add(el, { opacity: [0, 1], y: [24, 0] }, reduced.current ? 0 : i * 80);
+      tl.add(
+        el,
+        { opacity: [0, 1], y: [TRAVEL.reveal, 0] },
+        reduced.current ? 0 : i * RISE_STAGGER_MS,
+      );
     });
     return () => tl.revert();
   }, [submitted]);
@@ -58,7 +183,7 @@ const Contact = () => {
     if (!root) return;
     const links = [...root.querySelectorAll<HTMLElement>("[data-email-link]")];
     emailAnims.current = links.map((el) =>
-      createAnimatable(el, { x: 350, ease: "out(4)" }),
+      createAnimatable(el, { x: MS.micro, ease: expoOut }),
     );
     return () => {
       emailAnims.current.forEach((a) => a.revert());
@@ -66,19 +191,23 @@ const Contact = () => {
     };
   }, [submitted]);
 
-  // Spring focus micro-interaction: field lifts subtly, settles back on blur.
-  // utils.remove() keeps rapid focus/blur interruption-safe (no stuck scales).
+  // Focus micro-interaction: the field lifts subtly and settles back on blur.
+  // It runs on the micro duration because focus has to land with the caret —
+  // a spring whose settle time we cannot state left the field still moving
+  // while the first characters were being typed. Transform only, so nothing
+  // below the field re-lays-out. utils.remove() keeps rapid focus/blur
+  // interruption-safe (no stuck scales).
   const fieldFocus = (e: FocusEvent<HTMLElement>) => {
     if (reduced.current) return;
     const el = e.currentTarget;
     utils.remove(el);
-    animate(el, { scale: 1.012, ease: focusSpring });
+    animate(el, { scale: 1.012, duration: MS.micro, ease: expoOut });
   };
   const fieldBlur = (e: FocusEvent<HTMLElement>) => {
     if (reduced.current) return;
     const el = e.currentTarget;
     utils.remove(el);
-    animate(el, { scale: 1, duration: 320, ease: "out(4)" });
+    animate(el, { scale: 1, duration: MS.quick, ease: expoOut });
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -217,9 +346,10 @@ const Contact = () => {
                     key={email}
                     data-email-link
                     href={`mailto:${email}`}
-                    onMouseEnter={() => emailAnims.current[i]?.x(8)}
+                    onMouseEnter={() => emailAnims.current[i]?.x(TRAVEL.nudge)}
                     onMouseLeave={() => emailAnims.current[i]?.x(0)}
-                    className="inline-block w-fit font-mono text-sm tracking-wide text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
+                    style={fieldTransition}
+                    className="inline-block w-fit font-mono text-sm tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   >
                     {email}
                   </a>
@@ -256,13 +386,14 @@ const Contact = () => {
                   <input
                     id="contact-name"
                     className={inputClass}
+                    style={fieldTransition}
                     placeholder="Your name"
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     onFocus={fieldFocus}
                     onBlur={fieldBlur}
                   />
-                  {errors.name && <p className={errorClass}>{errors.name}</p>}
+                  <FieldMessage className={errorClass}>{errors.name}</FieldMessage>
                 </div>
                 <div data-rise style={{ opacity: 0 }}>
                   <label htmlFor="contact-email" className={labelClass}>
@@ -271,6 +402,7 @@ const Contact = () => {
                   <input
                     id="contact-email"
                     className={inputClass}
+                    style={fieldTransition}
                     type="email"
                     placeholder="you@company.com"
                     value={form.email}
@@ -278,7 +410,7 @@ const Contact = () => {
                     onFocus={fieldFocus}
                     onBlur={fieldBlur}
                   />
-                  {errors.email && <p className={errorClass}>{errors.email}</p>}
+                  <FieldMessage className={errorClass}>{errors.email}</FieldMessage>
                 </div>
               </div>
 
@@ -290,13 +422,14 @@ const Contact = () => {
                   <input
                     id="contact-company"
                     className={inputClass}
+                    style={fieldTransition}
                     placeholder="Company name"
                     value={form.company}
                     onChange={(e) => setForm({ ...form, company: e.target.value })}
                     onFocus={fieldFocus}
                     onBlur={fieldBlur}
                   />
-                  {errors.company && <p className={errorClass}>{errors.company}</p>}
+                  <FieldMessage className={errorClass}>{errors.company}</FieldMessage>
                 </div>
                 <div data-rise style={{ opacity: 0 }}>
                   <label htmlFor="contact-phone" className={labelClass}>
@@ -305,6 +438,7 @@ const Contact = () => {
                   <input
                     id="contact-phone"
                     className={inputClass}
+                    style={fieldTransition}
                     type="tel"
                     placeholder="+1 000 000 0000"
                     value={form.phone}
@@ -322,13 +456,14 @@ const Contact = () => {
                 <textarea
                   id="contact-message"
                   className={`${inputClass} min-h-[140px] resize-none`}
+                  style={fieldTransition}
                   placeholder="What agent, website, marketing loop, UGC ad system, or team bottleneck should we improve first?"
                   value={form.message}
                   onChange={(e) => setForm({ ...form, message: e.target.value })}
                   onFocus={fieldFocus}
                   onBlur={fieldBlur}
                 />
-                {errors.message && <p className={errorClass}>{errors.message}</p>}
+                <FieldMessage className={errorClass}>{errors.message}</FieldMessage>
               </div>
 
               <div data-rise style={{ opacity: 0 }}>
@@ -344,22 +479,23 @@ const Contact = () => {
                     I agree to receive communications from Ziiro regarding my enquiry.
                   </span>
                 </label>
-                {errors.consent && <p className={errorClass}>{errors.consent}</p>}
+                <FieldMessage className={errorClass}>{errors.consent}</FieldMessage>
               </div>
 
               <div data-rise style={{ opacity: 0 }}>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                  style={buttonTransition}
+                  className="w-full rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90 disabled:opacity-50"
                 >
-                  {loading ? "Sending..." : "Send Message"}
+                  <ButtonLabel swapKey={loading ? "sending" : "idle"}>
+                    {loading ? "Sending..." : "Send Message"}
+                  </ButtonLabel>
                 </button>
-                {submitError && (
-                  <p className="mt-4 text-xs leading-relaxed text-[var(--text-secondary)]">
-                    {submitError}
-                  </p>
-                )}
+                <FieldMessage className="mt-4 text-xs leading-relaxed text-[var(--text-secondary)]">
+                  {submitError}
+                </FieldMessage>
               </div>
             </form>
           </div>

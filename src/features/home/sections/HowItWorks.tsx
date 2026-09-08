@@ -1,5 +1,6 @@
 import SectionHeader from "@/shared/ui/section-header";
-import ScrollScene from "@/shared/motion/ScrollScene";
+import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
+import { STAGGER } from "@/shared/motion/tokens";
 
 /**
  * How the engagement runs, in five steps a visitor can read in under twenty
@@ -48,8 +49,17 @@ export default function HowItWorks() {
           sub="Most AI projects start by picking a tool. Ours start by finding out what a saved hour is actually worth to you."
         />
 
-        <ol className="mt-16 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-5">
-          {steps.map((step, i) => (
+        {/* One stagger group rather than five independent scroll triggers. The
+            steps are numbered because they happen in an order, so they should
+            arrive in that order too — five triggers firing on their own
+            thresholds would land them in whatever sequence the viewport
+            happened to cross. */}
+        <MotionReveal
+          as="ol"
+          stagger={STAGGER.card}
+          className="mt-16 grid grid-cols-1 gap-px overflow-hidden rounded-2xl bg-[var(--border)] sm:grid-cols-2 lg:grid-cols-5"
+        >
+          {steps.map((step) => (
             // Five steps into two columns leaves a sixth cell empty, and the
             // gap-px/border-background technique renders that hole as a solid
             // block. The last step spans the row instead; at lg the grid is
@@ -58,10 +68,11 @@ export default function HowItWorks() {
               key={step.n}
               className="bg-[var(--background)] sm:last:col-span-2 lg:last:col-span-1"
             >
-              {/* Staggered by travel distance rather than by delay: with a
-                  scrub-linked reveal there is no timeline to offset, so the
-                  cascade comes from each step having further to come. */}
-              <ScrollScene rise={14 + i * 7} exitTo={1}>
+              {/* The reveal wraps the cell's contents, never the <li> itself:
+                  the cell carries the opaque background that masks the grid's
+                  1px border colour, so fading the cell would render every step
+                  that has not arrived yet as a solid block of border. */}
+              <MotionRevealItem>
                 <div className="flex h-full flex-col p-7">
                   <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--accent)]">
                     {step.n}
@@ -76,10 +87,10 @@ export default function HowItWorks() {
                     {step.body}
                   </p>
                 </div>
-              </ScrollScene>
+              </MotionRevealItem>
             </li>
           ))}
-        </ol>
+        </MotionReveal>
       </div>
     </section>
   );

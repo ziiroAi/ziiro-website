@@ -9,6 +9,8 @@ import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
 import Preloader from "@/shared/components/Preloader";
 import PageAtmosphere from "@/shared/components/PageAtmosphere";
+import SmoothScroll, { scrollTo } from "@/shared/motion/SmoothScroll";
+import ScrollProgress from "@/shared/motion/ScrollProgress";
 import Index from "@/pages/Index";
 
 // Secondary routes are code-split so they don't ship in the homepage's
@@ -25,11 +27,19 @@ const Process = lazy(() => import("@/pages/Process"));
 const Watch = lazy(() => import("@/pages/Watch"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
-// Every page opens from the top, with no inherited scroll positions
+/**
+ * Every page opens from the top, with no inherited scroll positions.
+ *
+ * This goes through `scrollTo` rather than `window.scrollTo` because Lenis is
+ * driving the scroller: a raw `window.scrollTo` sets the document position
+ * while Lenis still believes it is somewhere else, and the next frame it eases
+ * the page back to where it thought it was. `immediate` jumps without easing,
+ * which is what a route change wants.
+ */
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    scrollTo(0, { immediate: true });
   }, [pathname]);
   return null;
 }
@@ -78,6 +88,8 @@ const App = () => (
     <Toaster />
     <Sonner />
     <BrowserRouter>
+      <SmoothScroll />
+      <ScrollProgress />
       <ScrollToTop />
       <Navbar />
       <Suspense fallback={<div className="min-h-screen" />}>

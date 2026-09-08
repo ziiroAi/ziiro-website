@@ -1,7 +1,25 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { createAnimatable } from "animejs";
+import { createAnimatable, cubicBezier } from "animejs";
 import ZiiroMark from "@/shared/ui/ziiro-mark";
+import MotionReveal from "@/shared/motion/MotionReveal";
+import {
+  CSS_EASE,
+  DURATION,
+  EASE_OUT_EXPO,
+  MS,
+  STAGGER,
+  TRAVEL,
+} from "@/shared/motion/tokens";
+
+/** Pointer feedback, everywhere in the footer. Spelled out instead of leaning
+ *  on Tailwind's `duration-*` scale so the footer moves on the same 0.15s as
+ *  the rest of the site and cannot quietly drift when someone edits a class. */
+const micro = (properties: string) => ({
+  transitionProperty: properties,
+  transitionDuration: `${DURATION.micro}s`,
+  transitionTimingFunction: CSS_EASE.out,
+});
 
 const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
   {
@@ -31,7 +49,15 @@ const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
   },
 ];
 
-/** Footer link with a tactile x-nudge on hover (anime.js Animatable). */
+/**
+ * Footer link with a tactile x-nudge on hover (anime.js Animatable).
+ *
+ * The nudge used to be 6px over 350ms, which is far enough and slow enough
+ * that the label is still sliding when the eye has already moved on — the
+ * pointer leads the link instead of the link answering the pointer. TRAVEL.nudge
+ * over DURATION.micro is the reference behaviour: a distance you register as
+ * acknowledgement rather than as travel, finished before you can call it late.
+ */
 function NudgeLink({ to, children }: { to: string; children: ReactNode }) {
   const ref = useRef<HTMLAnchorElement>(null);
   const nudge = useRef<ReturnType<typeof createAnimatable> | null>(null);
@@ -40,7 +66,10 @@ function NudgeLink({ to, children }: { to: string; children: ReactNode }) {
     const el = ref.current;
     if (!el) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    nudge.current = createAnimatable(el, { x: 350, ease: "out(4)" });
+    nudge.current = createAnimatable(el, {
+      x: MS.micro,
+      ease: cubicBezier(...EASE_OUT_EXPO),
+    });
     return () => {
       nudge.current?.revert();
       nudge.current = null;
@@ -51,9 +80,10 @@ function NudgeLink({ to, children }: { to: string; children: ReactNode }) {
     <Link
       ref={ref}
       to={to}
-      onMouseEnter={() => nudge.current?.x(6)}
+      onMouseEnter={() => nudge.current?.x(TRAVEL.nudge)}
       onMouseLeave={() => nudge.current?.x(0)}
-      className="-my-1.5 inline-block py-1.5 text-sm text-[var(--text-secondary)] transition-colors duration-300 hover:text-[var(--text-primary)]"
+      className="-my-1.5 inline-block py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+      style={micro("color")}
     >
       {children}
     </Link>
@@ -76,7 +106,8 @@ function SocialLink({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="inline-flex items-center justify-center p-2 text-[var(--text-secondary)] transition-colors duration-300 hover:text-[var(--accent)]"
+      className="inline-flex items-center justify-center p-2 text-[var(--text-secondary)] hover:text-[var(--accent)]"
+      style={micro("color")}
     >
       {children}
     </a>
@@ -87,12 +118,17 @@ export default function Footer() {
   return (
     <footer className="border-t border-[var(--border)]">
       <div className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-20">
-        <div className="grid gap-14 md:grid-cols-[minmax(0,1fr)_auto] md:gap-10">
+        {/* Two reveals, not eleven: the footer is the last thing anyone reads
+            and a staggered cascade of link columns down here would be motion
+            asking for attention it hasn't earned. The block arrives, then the
+            legal line a beat behind it, and that is the whole gesture. */}
+        <MotionReveal className="grid gap-14 md:grid-cols-[minmax(0,1fr)_auto] md:gap-10">
           {/* ─── Wordmark block ─── */}
           <div>
             <Link
               to="/"
-              className="inline-block text-[var(--text-primary)] transition-opacity duration-300 hover:opacity-80"
+              className="inline-block text-[var(--text-primary)] hover:opacity-80"
+              style={micro("opacity")}
               aria-label="Ziiro home"
             >
               <ZiiroMark className="h-10" />
@@ -134,10 +170,13 @@ export default function Footer() {
               </div>
             ))}
           </nav>
-        </div>
+        </MotionReveal>
 
         {/* ─── Bottom row ─── */}
-        <div className="mt-16 flex flex-col-reverse items-center justify-between gap-6 border-t border-[var(--border)] pt-8 sm:flex-row md:mt-20">
+        <MotionReveal
+          delay={STAGGER.card}
+          className="mt-16 flex flex-col-reverse items-center justify-between gap-6 border-t border-[var(--border)] pt-8 sm:flex-row md:mt-20"
+        >
           <p className="text-center font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)] sm:text-left">
             &copy; 2026 Ziiro AI · All rights reserved
           </p>
@@ -162,7 +201,7 @@ export default function Footer() {
               </svg>
             </SocialLink>
           </div>
-        </div>
+        </MotionReveal>
       </div>
     </footer>
   );

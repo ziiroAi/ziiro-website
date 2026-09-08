@@ -6,25 +6,41 @@ import WhyDifferent from "@/features/home/sections/WhyDifferent";
 import WhatPowersZiiro from "@/features/home/sections/WhatPowersZiiro";
 import FinalCta from "@/features/home/sections/FinalCta";
 import DotArtSection from "@/features/home/sections/DotArtSection";
+import ScrollScene, { SectionSeam } from "@/shared/motion/ScrollScene";
 
 /**
  * One continuous story, not a stack of sections.
  *
  * Continuity is carried by the content itself rather than by a background
- * effect: every block is scrub-linked to scroll via ScrollScene, so a section
- * is already receding while the next is arriving, and the comparison section
- * lets three of its four routes fall away as you pass them. There is no
- * decorative particle field behind the copy — it competed with the text and
- * earned nothing.
+ * effect: every block below the hero is scrub-linked to scroll via
+ * ScrollScene, so a section is already receding while the next is arriving and
+ * the two overlap instead of hard-cutting. There is no decorative particle
+ * field behind the copy — it competed with the text and earned nothing.
  *
  *   1. What is Ziiro?                   → Hero
- *   2. How does it work?                → HowItWorks
- *   3. Why not an agency / hire / GPT?  → WhyDifferent
- *   4. What powers it?                  → WhatPowersZiiro
- *   5. Why book today?                  → FinalCta
+ *   2. What does it actually run?       → SystemDirectory
+ *   3. How does it work?                → HowItWorks
+ *   4. Why not an agency / hire / GPT?  → WhyDifferent
+ *   5. What powers it?                  → WhatPowersZiiro
+ *   6. Why book today?                  → FinalCta
  *
- * The dot-art world runs after the ask, as the closing note. It owns its own
- * scroll and its own visual language.
+ * Three deliberate exceptions to the scrubbing:
+ *
+ * The **hero** is not wrapped. It owns its own entrance timeline, and layering
+ * a scroll scrub on top of that would fight it for the same opacity during the
+ * first second of the page.
+ *
+ * **FinalCta** is wrapped with `hold`, so it arrives but never dims. It is the
+ * booking ask and the last thing on the page — fading it out as the reader
+ * approaches the button would be actively hostile.
+ *
+ * The **dot-art world** runs after the ask, as the closing note. It owns its
+ * own scroll and its own visual language, so it is left alone entirely.
+ *
+ * The joins are SectionSeam rather than `border-t`. A hairline says these are
+ * two separate documents; the seam is a soft band of the page's own light that
+ * brightens as it crosses the middle of the screen, so a boundary reads as
+ * something you pass through.
  */
 export default function Home() {
   return (
@@ -38,24 +54,33 @@ export default function Home() {
       <div className="relative z-10">
         <Hero />
 
-        {/* No border between these two: the directory runs on the same
-            near-black field as the hero, so the page opens as one dark block
-            and a hairline across it would only read as a seam. */}
-        <SystemDirectory />
+        {/* No seam between these two: the directory runs on the same near-black
+            field as the hero, so the page opens as one dark block and a join
+            across it would only read as a break in that field. */}
+        <ScrollScene rise={20} exitTo={0.5}>
+          <SystemDirectory />
+        </ScrollScene>
 
-        <HowItWorks />
+        <SectionSeam />
+        <ScrollScene>
+          <HowItWorks />
+        </ScrollScene>
 
-        <div className="border-t border-[var(--border)]">
+        <SectionSeam />
+        <ScrollScene>
           <WhyDifferent />
-        </div>
+        </ScrollScene>
 
-        <div className="border-t border-[var(--border)]">
+        <SectionSeam />
+        <ScrollScene>
           <WhatPowersZiiro />
-        </div>
+        </ScrollScene>
 
-        {/* No border: the argument has resolved, so the ask arrives on a clean
+        {/* No seam: the argument has resolved, so the ask arrives on a clean
             field rather than behind another dividing line. */}
-        <FinalCta />
+        <ScrollScene rise={30} hold>
+          <FinalCta />
+        </ScrollScene>
       </div>
 
       <DotArtSection />

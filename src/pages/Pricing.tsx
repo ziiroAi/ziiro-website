@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { animate, createAnimatable, createTimeline, stagger } from "animejs";
-import MotionReveal from "@/shared/motion/MotionReveal";
+import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import TextReveal from "@/shared/motion/TextReveal";
+import { MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import SEO from "@/shared/components/SEO";
 
 const tiers = [
@@ -44,6 +45,11 @@ const faqs = [
 type Animatable = ReturnType<typeof createAnimatable>;
 type PanelAnimation = ReturnType<typeof animate>;
 
+/** The stagger tokens are in seconds, because framer-motion counts in seconds;
+ *  anime.js counts in milliseconds. Everything handed to anime goes through
+ *  here rather than being re-typed as a second, hand-rounded number. */
+const ms = (seconds: number) => Math.round(seconds * 1000);
+
 export default function Pricing() {
   const [openFaq, setOpenFaq] = useState<number>(-1);
 
@@ -64,13 +70,25 @@ export default function Pricing() {
     if (!hero) return;
     const els = [...hero.querySelectorAll<HTMLElement>("[data-hero-el]")];
     if (!els.length) return;
+    // out(4) is anime's nearest thing to the house expo-out curve. Four
+    // elements one STAGGER.line apart, each taking DURATION.statement, lands
+    // the last one at about DURATION.entrance, so the hero reads as a single
+    // gesture rather than four separate arrivals.
     const tl = createTimeline({
-      defaults: { ease: "out(3)", duration: reduced.current ? 0 : 750 },
+      defaults: { ease: "out(4)", duration: reduced.current ? 0 : MS.statement },
     });
     els.forEach((el, i) => {
-      tl.add(el, { opacity: [0, 1], y: [24, 0] }, reduced.current ? 0 : i * 110);
+      tl.add(
+        el,
+        { opacity: [0, 1], y: [TRAVEL.reveal, 0] },
+        reduced.current ? 0 : i * ms(STAGGER.line),
+      );
     });
-    return () => tl.revert();
+    // Braced so the cleanup returns void: `() => tl.revert()` returns the
+    // Timeline, which is not an EffectCallback.
+    return () => {
+      tl.revert();
+    };
   }, []);
 
   // Engagement rows: staggered rise when scrolled into view + hover-follow titles
@@ -84,10 +102,10 @@ export default function Pricing() {
         io.disconnect();
         animate(rows, {
           opacity: [0, 1],
-          y: [28, 0],
-          delay: stagger(100),
-          duration: reduced.current ? 0 : 800,
-          ease: "out(3)",
+          y: [TRAVEL.reveal, 0],
+          delay: stagger(ms(STAGGER.card)),
+          duration: reduced.current ? 0 : MS.reveal,
+          ease: "out(4)",
         });
       },
       { threshold: 0.1 },
@@ -95,8 +113,10 @@ export default function Pricing() {
     io.observe(list);
 
     const titles = [...list.querySelectorAll<HTMLElement>("[data-tier-title]")];
+    // At 450ms the title visibly trailed the cursor. A hover has to resolve
+    // inside DURATION.micro or it stops feeling attached to the pointer.
     titleAnims.current = titles.map((el) =>
-      createAnimatable(el, { x: 450, ease: "out(4)" }),
+      createAnimatable(el, { x: MS.micro, ease: "out(4)" }),
     );
 
     return () => {
@@ -117,10 +137,10 @@ export default function Pricing() {
         io.disconnect();
         animate(rows, {
           opacity: [0, 1],
-          y: [24, 0],
-          delay: stagger(80),
-          duration: reduced.current ? 0 : 700,
-          ease: "out(3)",
+          y: [TRAVEL.reveal, 0],
+          delay: stagger(ms(STAGGER.line)),
+          duration: reduced.current ? 0 : MS.reveal,
+          ease: "out(4)",
         });
       },
       { threshold: 0.15 },
@@ -129,7 +149,7 @@ export default function Pricing() {
 
     const pluses = [...list.querySelectorAll<HTMLElement>("[data-faq-plus]")];
     plusAnims.current = pluses.map((el) =>
-      createAnimatable(el, { rotate: 400, ease: "out(3)" }),
+      createAnimatable(el, { rotate: MS.swap, ease: "out(4)" }),
     );
 
     return () => {
@@ -154,13 +174,17 @@ export default function Pricing() {
       if (!isOpening && !isClosing) return;
 
       // Interruption-safe: cancel any in-flight animation, pin current height
+      // before measuring. Height is the one property this page animates
+      // outside transform and opacity, because an accordion has no fixed
+      // target box to scale toward; the badge below runs on the same
+      // DURATION.swap so panel and badge read as one event.
       faqPanelAnims.current[j]?.cancel();
       const from = el.getBoundingClientRect().height;
       el.style.height = `${from}px`;
       faqPanelAnims.current[j] = animate(el, {
         height: `${isOpening ? el.scrollHeight : 0}px`,
-        duration: reduced.current ? 0 : 520,
-        ease: "inOutQuart",
+        duration: reduced.current ? 0 : MS.swap,
+        ease: "out(4)",
         onComplete: () => {
           if (isOpening) el.style.height = "auto";
         },
@@ -169,7 +193,7 @@ export default function Pricing() {
     });
   };
 
-  const tierEnter = (i: number) => titleAnims.current[i]?.x(10);
+  const tierEnter = (i: number) => titleAnims.current[i]?.x(TRAVEL.nudge);
   const tierLeave = (i: number) => titleAnims.current[i]?.x(0);
 
   return (
@@ -265,7 +289,7 @@ export default function Pricing() {
                   </p>
                   <Link
                     to="/contact"
-                    className="mt-10 hidden rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-transform duration-300 hover:-translate-y-0.5 md:inline-block"
+                    className="mt-10 hidden rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-transform duration-150 ease-out hover:-translate-y-1 md:inline-block"
                   >
                     {tier.cta}
                   </Link>
@@ -305,10 +329,12 @@ export default function Pricing() {
       <section className="pb-28">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <div className="border-t border-[var(--border)] pt-6">
-            <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-              ( Framing )
-            </p>
+            <MotionReveal>
+              <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
+                ( Framing )
+              </p>
+            </MotionReveal>
             <TextReveal
               text="We price the system, not the hours. Every engagement is scoped to what it ships and what it saves."
               as="h2"
@@ -358,7 +384,7 @@ export default function Pricing() {
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <span
-                      className={`flex-1 font-sans font-semibold tracking-tight transition-colors duration-300 ${
+                      className={`flex-1 font-sans font-semibold tracking-tight transition-colors duration-150 ${
                         isOpen
                           ? "text-[var(--text-primary)]"
                           : "text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]"
@@ -396,12 +422,21 @@ export default function Pricing() {
       {/* ── CTA band ── */}
       <section className="pb-36">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <MotionReveal>
-            <div className="border-t border-[var(--border)] pt-20 text-center md:pt-28">
+          {/* Staggered rather than revealed as one slab: the closing lines
+              arrive in reading order, which is most of what separates a
+              statement from a block that merely faded in. */}
+          <MotionReveal
+            stagger={STAGGER.line}
+            className="border-t border-[var(--border)] pt-20 text-center md:pt-28"
+          >
+            <MotionRevealItem>
               <p className="flex items-center justify-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
                 ( Next Step )
               </p>
+            </MotionRevealItem>
+
+            <MotionRevealItem>
               <h2
                 className="mx-auto mt-8 font-display font-semibold text-[var(--text-primary)]"
                 style={{
@@ -416,18 +451,24 @@ export default function Pricing() {
                   Start with a free call.
                 </span>
               </h2>
+            </MotionRevealItem>
+
+            <MotionRevealItem>
               <div className="mt-12">
                 <Link
                   to="/contact"
-                  className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-transform duration-300 hover:-translate-y-0.5"
+                  className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-transform duration-150 ease-out hover:-translate-y-1"
                 >
                   Book a Free Call
                 </Link>
               </div>
+            </MotionRevealItem>
+
+            <MotionRevealItem>
               <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
                 [ No pitch / just a clear read ]
               </p>
-            </div>
+            </MotionRevealItem>
           </MotionReveal>
         </div>
       </section>
