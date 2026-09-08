@@ -304,10 +304,16 @@ export default function IntelligenceOrb() {
               index={index}
               variant="scale"
               srLabel={`Your AI: ${IDENTITIES.join(", ")}`}
-              blur={8}
-              gap={90}
-              duration={720}
-              scaleFrom={0.9}
+              // gap >= durationOut, so the outgoing word has fully cleared
+              // before the next one starts arriving. The previous 90ms against
+              // a 720ms swap left both words legible on top of each other for
+              // most of the transition — the ghosted double-image that showed
+              // up on a real handset.
+              blur={6}
+              durationOut={220}
+              gap={240}
+              duration={560}
+              scaleFrom={0.92}
               className="justify-items-center font-display font-bold"
               style={{
                 fontSize: "calc(var(--orb) * 0.115)",

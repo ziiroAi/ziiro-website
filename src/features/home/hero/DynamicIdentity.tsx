@@ -72,8 +72,14 @@ interface DynamicIdentityProps {
   duration?: number;
   /** Dead air between one item leaving and the next arriving. Without it the
    *  two cross over and you read a ghost of the outgoing word through the
-   *  incoming one. */
+   *  incoming one. Keep it at or above `durationOut`, or the ghost is back. */
   gap?: number;
+  /** How long the outgoing item takes to clear. Deliberately much shorter than
+   *  `duration`: the word you are leaving has already been read, so it can go
+   *  quickly, while the one arriving deserves the time to settle. Making both
+   *  the same length is what forces `gap` to be long enough to feel like a
+   *  stall. */
+  durationOut?: number;
   /** What a screen reader hears in place of the animation. */
   srLabel?: string;
   /** "slide" moves the column in one direction; "scale" shrinks the outgoing
@@ -93,7 +99,8 @@ export default function DynamicIdentity({
   travel = 8,
   blur = 6,
   duration = 560,
-  gap = 200,
+  durationOut = 240,
+  gap = 240,
   srLabel,
   variant = "slide",
   scaleFrom = 0.88,
@@ -114,6 +121,7 @@ export default function DynamicIdentity({
         const position = i === index ? 0 : i === previous ? -1 : 1;
         const active = position === 0;
         const wait = active ? gap : 0;
+        const dur = active ? duration : durationOut;
 
         return (
           <span
@@ -122,7 +130,22 @@ export default function DynamicIdentity({
             style={{
               gridArea: "1 / 1",
               opacity: active ? 1 : 0,
-              filter: active ? "blur(0px)" : `blur(${blur}px)`,
+              // `undefined`, NOT "blur(0px)" — and the difference is the whole
+              // bug this once had on device.
+              //
+              // An element carrying ANY filter value stays on the filtered
+              // rendering path: it is rasterised into a texture rather than
+              // drawn as text. On a DPR-3 phone that texture is routinely
+              // rasterised below native resolution and scaled back up, so the
+              // resting word rendered permanently soft — crisp in every desktop
+              // browser and visibly fuzzy on a real handset. blur(0px) is not a
+              // no-op; only removing the property is.
+              //
+              // Omitting it here computes to `filter: none`, and CSS still
+              // animates none <-> blur() because the spec substitutes the
+              // identity value for the missing function. The transition is
+              // unchanged; only the resting state leaves the texture path.
+              filter: active ? undefined : `blur(${blur}px)`,
               transform:
                 variant === "scale"
                   ? `scale(${active ? 1 : scaleFrom})`
@@ -132,11 +155,17 @@ export default function DynamicIdentity({
               // longhand beside it — React warns about mixing the two, and it
               // can genuinely drop one of them on a re-render.
               transition: [
-                `opacity ${duration}ms ${ease} ${wait}ms`,
-                `filter ${duration}ms ${ease} ${wait}ms`,
-                `transform ${duration}ms ${ease} ${wait}ms`,
+                `opacity ${dur}ms ${ease} ${wait}ms`,
+                `filter ${dur}ms ${ease} ${wait}ms`,
+                `transform ${dur}ms ${ease} ${wait}ms`,
               ].join(", "),
-              willChange: "opacity, transform, filter",
+              // `filter` is deliberately NOT hinted here. It is not a
+              // compositor property, so the hint pins the element to the
+              // filtered texture path for its whole life — the same class of
+              // mistake as `will-change: border-radius` on the orb's blobs,
+              // which the component next door already documents. Both are
+              // invisible on desktop and obvious on a phone.
+              willChange: "opacity, transform",
             }}
           >
             {item}
