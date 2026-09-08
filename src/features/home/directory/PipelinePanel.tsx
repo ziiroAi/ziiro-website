@@ -336,10 +336,24 @@ function Link({
 }) {
   return (
     <div className="relative pb-4 last:pb-0">
+      {/* The dot has to sit ON the rail, not beside it.
+      
+          The rail is `left-0 w-px` on the container, so its centre is at
+          container x = 0.5px. This dot lives inside a link whose content box
+          starts at the container's `pl-5`, so a plain `-left-5` put its LEFT
+          EDGE at container x = 0 and its centre — it is 6px wide — at x = 3.
+          Every dot therefore hung 2.5px to the right of the line it was
+          supposed to be threaded onto, which reads as a wonky seam down the
+          whole chain.
+      
+          Positioning by centre instead: `left` is the rail's centre expressed
+          from the link's box (-1.25rem + 0.5px), and the translate does the
+          rest. Now it stays centred whatever size the dot becomes. */}
       <span
         aria-hidden="true"
-        className="absolute -left-5 top-[7px] block h-1.5 w-1.5 rounded-full"
+        className="absolute top-[7px] block h-1.5 w-1.5 -translate-x-1/2 rounded-full"
         style={{
+          left: "calc(-1.25rem + 0.5px)",
           background: terminal ? accent : "var(--dir-bg)",
           border: `1px solid ${accent}`,
         }}

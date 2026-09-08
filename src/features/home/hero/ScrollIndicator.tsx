@@ -1,6 +1,10 @@
 import type { MouseEvent } from "react";
 
-import { scrollTo } from "@/shared/motion/SmoothScroll";
+import {
+  scrollTo,
+  easeInOutCubic,
+  headerOffset,
+} from "@/shared/motion/SmoothScroll";
 import { CSS_EASE, DURATION } from "@/shared/motion/tokens";
 
 /**
@@ -29,7 +33,30 @@ export default function ScrollIndicator() {
     // hash jump, which is exactly what this link did before.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     e.preventDefault();
-    scrollTo("#how-it-works");
+
+    // Two corrections over a bare scrollTo, both of which were visible.
+    //
+    // The offset: without it Lenis parks the section's top edge at scrollY
+    // exactly, which puts its heading UNDER the fixed navbar — you accept the
+    // invitation and arrive at a section whose title you cannot read.
+    //
+    // The easing: the instance runs expo-out, which is right for a wheel notch
+    // and wrong here. This travel is most of a page — measured at 2402px on a
+    // 900px viewport — and expo-out covers 255px of it in the first frame, so
+    // the page lurches and then crawls to a stop. Ease-in-out accelerates,
+    // cruises and decelerates, which is what a long deliberate travel should
+    // feel like. The duration scales with the distance for the same reason: a
+    // fixed duration makes a short hop sluggish and a long one frantic.
+    const target = document.querySelector("#how-it-works");
+    const distance = target
+      ? Math.abs(target.getBoundingClientRect().top)
+      : window.innerHeight;
+
+    scrollTo("#how-it-works", {
+      offset: headerOffset(),
+      duration: Math.min(1.7, 0.7 + distance / 2600),
+      easing: easeInOutCubic,
+    });
   };
 
   return (

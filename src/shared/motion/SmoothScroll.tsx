@@ -84,6 +84,28 @@ export default function SmoothScroll() {
 }
 
 /**
+ * Cubic ease-in-out: accelerate, cruise, decelerate.
+ *
+ * For a travel of more than a screen this is what "smooth" means. The
+ * instance's expo-out is deliberately front-loaded so a wheel notch feels
+ * immediate, but applied to a 2400px anchor jump the same curve covers 10% of
+ * the distance in the first frame — a lurch, then a long crawl.
+ */
+export const easeInOutCubic = (t: number) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+/**
+ * How far above a scroll target to stop, so a fixed header does not cover the
+ * thing you just asked to see. Measured rather than hard-coded, because the
+ * navbar changes height between breakpoints and when it condenses on scroll.
+ */
+export function headerOffset(gap = 24): number {
+  const nav = document.querySelector("nav");
+  const h = nav ? nav.getBoundingClientRect().height : 0;
+  return -(h + gap);
+}
+
+/**
  * Scroll to a target, through Lenis when it is running and natively when it
  * is not. Use this instead of `window.scrollTo` or `scrollIntoView` anywhere
  * on the site — a raw scroll call fights the smooth scroller mid-animation and
@@ -91,12 +113,23 @@ export default function SmoothScroll() {
  */
 export function scrollTo(
   target: string | number | HTMLElement,
-  opts: { offset?: number; immediate?: boolean } = {},
+  opts: {
+    offset?: number;
+    immediate?: boolean;
+    /** Seconds. Omit to use the instance default. */
+    duration?: number;
+    /** Per-call easing. The instance runs expo-out, which is right for a wheel
+     *  notch — a short travel that should feel like it obeys you instantly —
+     *  and wrong for a long anchor jump, where it spends a tenth of the
+     *  distance in the FIRST FRAME and then crawls. Pass an ease-in-out for
+     *  anything travelling more than a screen. */
+    easing?: (t: number) => number;
+  } = {},
 ) {
-  const { offset = 0, immediate = false } = opts;
+  const { offset = 0, immediate = false, duration, easing } = opts;
 
   if (window.__lenis) {
-    window.__lenis.scrollTo(target, { offset, immediate });
+    window.__lenis.scrollTo(target, { offset, immediate, duration, easing });
     return;
   }
 
