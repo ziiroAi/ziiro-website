@@ -392,7 +392,10 @@
    enough to keep the desktop orb generous pushes the buttons under the
    toolbar. Below md the orb yields; from md up it does not. */
 [data-orb-scope] {
-  --orb: min(clamp(205px, 46vw, 520px), calc(100dvh - 430px));
+  /* Divided by 1.22 because the orb also carries a margin-top of 22% of its
+     own width, reserving the bloom that is drawn outside its box — so a given
+     orb consumes 1.22x its size in the column. */
+  --orb: min(clamp(205px, 46vw, 520px), calc((100dvh - 400px) / 1.22));
 }
 
 @media (min-width: 768px) {
@@ -416,12 +419,23 @@
                                ----
                                ~596
 
-       590 was the first value that fit; 600 leaves a little slack for a font
-       that loads wider. It was 450, which is why the cue sat 192px BELOW the
-       fold on every desktop size — the reserve had simply forgotten the cue
-       and the eyebrow's own 80px gap. If you change any spacing in Hero.tsx or
-       ScrollIndicator.tsx, re-measure and move this with it. */
-    --orb: min(clamp(280px, 33vw, 520px), calc(100dvh - 600px));
+       It was 450, which is why the cue sat 192px BELOW the fold on every
+       desktop size — the reserve had simply forgotten the cue and the eyebrow's
+       own gap.
+
+       Two things have moved since: the cue is now pinned to the section rather
+       than sitting in the column (so its ~97px leaves this sum, and the
+       column's bottom padding reserves its lane instead), and the top padding
+       grew to 104px to clear the navbar with a real gap rather than 3px.
+
+       The /1.22 is the orb's own margin-top, which reserves the bloom drawn
+       outside its box — see IntelligenceOrb. An orb therefore costs 1.22x its
+       width in the column, and solving for it is what keeps the glow clear of
+       the navbar at every size instead of only the small ones.
+
+       If you change any spacing in Hero.tsx or ScrollIndicator.tsx, re-measure
+       and move these with it. */
+    --orb: min(clamp(280px, 33vw, 520px), calc((100dvh - 600px) / 1.22));
   }
 }
 
@@ -536,8 +550,23 @@ html:not(.js) [data-reveal] {
     display: none;
   }
 
+  /* And the hero stops insisting on a full screen.
+     
+     Forcing 100svh here is what was crushing the orb: solving a full-height
+     hero for orb + nav clearance + the whole copy stack at 720px of height
+     drove the orb down to under 100px, which is worse than the problem it was
+     avoiding. Below 800px the section is simply allowed to be its natural
+     height and the page scrolls a little, which is what the art direction asks
+     for on constrained screens anyway. The cue's lane comes back too, since the
+     cue is not drawn here. */
+  [data-hero-column] {
+    min-height: 0;
+    padding-top: 88px;
+    padding-bottom: 2.5rem;
+  }
+
   [data-orb-scope] {
-    --orb: min(clamp(205px, 40vw, 520px), calc(100dvh - 500px));
+    --orb: min(clamp(205px, 40vw, 420px), calc((100dvh - 470px) / 1.22));
   }
 }
 

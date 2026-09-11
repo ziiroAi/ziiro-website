@@ -114,10 +114,38 @@ export default function IntelligenceOrb() {
     <div
       data-orb-scope
       className="relative shrink-0"
-      style={{ width: "var(--orb)", height: "var(--orb)" }}
+      style={{
+        width: "var(--orb)",
+        height: "var(--orb)",
+        // The orb reserves its own glow.
+        //
+        // Every layer here is drawn OUTSIDE the box: the bloom and the flare
+        // are -inset-22% and -inset-26%, so the light starts a fifth of the
+        // orb's width above `top: 0`. Laying this out as a plain 205px block
+        // therefore under-measures it by ~45px at the top, and the glow ran up
+        // behind the fixed navbar — 117px behind it on a large screen, which is
+        // what made the composition feel crowded even with padding above.
+        //
+        // Matching the bloom's own 22% means the visible top of the light lands
+        // exactly where the box's top edge would have, so the padding above can
+        // be reasoned about in terms of what you actually see. `--orb` in
+        // index.css is solved against the 1.22x total this implies.
+        marginTop: "calc(var(--orb) * 0.22)",
+      }}
     >
       {/* Ambient bloom, outside the morphing pair so its cycle drifts against
           theirs instead of pumping with them. */}
+      {/* Ambient bloom, outside the morphing pair so its cycle drifts against
+          theirs instead of pumping with them.
+
+          No `filter: blur()` here, deliberately. This element animates scale
+          and opacity forever, so a blur on it is a large CSS filter re-run
+          every frame of a continuous scene — the thing the art direction
+          explicitly rules out, and a second candidate for the same clipped-
+          rectangle artefact as the halo below. A radial gradient is already
+          perfectly smooth; the blur was belt-and-braces on top of something
+          that did not need it. The stops are spread a little wider to make up
+          the softness it was contributing. */}
       <div
         data-hero-reveal
         data-hero-glow
@@ -125,8 +153,7 @@ export default function IntelligenceOrb() {
         className="hero-glow-pulse absolute -inset-[22%] rounded-full"
         style={{
           background:
-            "radial-gradient(circle closest-side at 50% 62%, rgba(255,138,61,0.26) 0%, rgba(232,89,140,0.12) 42%, rgba(140,106,255,0.05) 66%, transparent 80%)",
-          filter: "blur(30px)",
+            "radial-gradient(circle closest-side at 50% 62%, rgba(255,138,61,0.26) 0%, rgba(255,138,61,0.17) 26%, rgba(232,89,140,0.10) 48%, rgba(140,106,255,0.04) 70%, transparent 86%)",
         }}
       />
 
@@ -140,20 +167,40 @@ export default function IntelligenceOrb() {
         style={{
           opacity: 0,
           background:
-            "radial-gradient(circle closest-side at 50% 60%, rgba(255,170,110,0.34) 0%, rgba(232,89,140,0.16) 38%, rgba(140,106,255,0.08) 62%, transparent 78%)",
-          filter: "blur(36px)",
+            "radial-gradient(circle closest-side at 50% 60%, rgba(255,170,110,0.34) 0%, rgba(255,170,110,0.22) 24%, rgba(232,89,140,0.13) 46%, rgba(140,106,255,0.06) 68%, transparent 86%)",
         }}
       />
 
-      {/* ── The halo ── */}
+      {/* ── The halo ──────────────────────────────────────────────────────
+           The container is -inset-22% and the blobs are inset back INSIDE it,
+           which lands them at exactly the same place on screen as a plain
+           `inset-0` would. The 45px of empty box that buys is the entire point.
+
+           A blurred element is rasterised into a layer, and on some mobile
+           GPUs that layer is sized to the element's own box rather than to the
+           box plus the filter's outset. `hero-morph` used to fill `inset-0`
+           edge to edge with a 14.8px blur that needs ~45px of spread, so on
+           device the spread was cut off square and the orb sat inside a visible
+           rectangle — reported from a real handset, invisible in every desktop
+           browser.
+
+           Margin is the fix rather than a smaller blur, because the blur is
+           what smears the morphing border-radius into a halo in the first
+           place. 45px is 3x the blur radius, which is where a gaussian has
+           effectively reached zero — so it no longer matters whether the layer
+           is clipped to the box or not.
+
+           This is the same failure the note at the top of this file describes
+           for `will-change: border-radius`. It does not need will-change to
+           happen: a filter plus a running animation is enough. ── */}
       <div
         data-hero-reveal
         data-hero-orb
         aria-hidden="true"
-        className="absolute inset-0"
+        className="absolute -inset-[22%]"
       >
         <div
-          className="hero-morph absolute inset-0"
+          className="hero-morph absolute inset-[15.28%]"
           style={{
             background:
               "linear-gradient(to top, rgba(255,242,226,1) 0%, rgba(255,150,78,0.86) 18%, rgba(232,89,140,0.56) 44%, rgba(150,116,255,0.62) 72%, rgba(150,116,255,0.44) 100%)",
@@ -164,7 +211,7 @@ export default function IntelligenceOrb() {
           }}
         />
         <div
-          className="hero-morph-inner absolute inset-[8%]"
+          className="hero-morph-inner absolute inset-[20.83%]"
           style={{
             background: "#000000",
             filter: "blur(calc(var(--orb) * 0.05))",
@@ -304,10 +351,16 @@ export default function IntelligenceOrb() {
               index={index}
               variant="scale"
               srLabel={`Your AI: ${IDENTITIES.join(", ")}`}
-              blur={8}
-              gap={90}
-              duration={720}
-              scaleFrom={0.9}
+              // gap >= durationOut, so the outgoing word has fully cleared
+              // before the next one starts arriving. The previous 90ms against
+              // a 720ms swap left both words legible on top of each other for
+              // most of the transition — the ghosted double-image that showed
+              // up on a real handset.
+              blur={6}
+              durationOut={220}
+              gap={240}
+              duration={560}
+              scaleFrom={0.92}
               className="justify-items-center font-display font-bold"
               style={{
                 fontSize: "calc(var(--orb) * 0.115)",
