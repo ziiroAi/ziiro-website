@@ -103,7 +103,7 @@ export default function Watch() {
                   to="/contact"
                   className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
                 >
-                  Book a 15-minute call
+                  Book a consultation
                 </Link>
                 , read{" "}
                 <Link
@@ -114,7 +114,7 @@ export default function Watch() {
                 </Link>
                 , or see{" "}
                 <Link
-                  to="/process"
+                  to="/who-we-are#process"
                   className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
                 >
                   the process

@@ -3,138 +3,133 @@
 @tailwind utilities;
 
 @layer base {
-  /* ─── Light Mode (default) ─── */
-  :root {
-    --background: #F6F2EC;
+  /* ═══════════════════════════════════════════════════════════════════════
+     THE PALETTE — one ground, and it is white
+     ───────────────────────────────────────────────────────────────────────
+     The site is white everywhere. There is no dark theme and there are no
+     dark sections, so `:root` and `.dark` carry identical values: the app
+     still mounts next-themes with forcedTheme="dark", and grouping the two
+     selectors is what guarantees that class can never invert anything.
+
+     The ground is #FFFFFF because that is the ground of the logo mark —
+     pure white paper, pure black ink. Never an off-white, never a cream.
+
+     Every text pairing on that ground clears WCAG AA:
+       --text-primary   #0A0A0A  19.80:1   body and headlines
+       --text-secondary #6B6B6B   5.33:1   support copy, secondary labels
+       --text-muted     #9A9A9A   2.81:1   hairlines and micro-labels ONLY,
+                                           never body copy
+     ═══════════════════════════════════════════════════════════════════════ */
+  :root,
+  .dark {
+    --background: #FFFFFF;
     --surface: #FFFFFF;
-    --foreground: #17131b;
+    --foreground: #0A0A0A;
 
-    --text-primary: #17131b;
-    --text-secondary: rgba(23, 19, 27, 0.58);
-    --text-muted: rgba(23, 19, 27, 0.36);
+    --text-primary: #0A0A0A;
+    --text-secondary: #6B6B6B;
+    --text-muted: #9A9A9A;
 
-    --accent: #D2531A;
-    --accent-light: #6B45E0;
-    --accent-surface: rgba(210, 83, 26, 0.07);
+    /* The duotone is gone. The site is black ink on white paper and nothing
+       carries a hue.
 
-    --border: rgba(23, 19, 27, 0.1);
-    --border-strong: rgba(23, 19, 27, 0.17);
+       These three are kept as tokens rather than deleted because roughly
+       thirty places across the feature slices still consume them; re-pointing
+       them at ink turns every one of those monochrome without reaching into
+       another slice's files, and a deleted var() would have silently resolved
+       to nothing. --accent is now simply emphasis, and the weight of the ink
+       is the only thing it varies. */
+    --accent: #0A0A0A;
+    --accent-light: #6B6B6B;
+    --accent-surface: rgba(10, 10, 10, 0.05);
 
-    --glass-bg: rgba(255, 255, 255, 0.65);
-    --glass-border: rgba(0, 0, 0, 0.06);
+    --border: rgba(10, 10, 10, 0.10);
+    --border-strong: rgba(10, 10, 10, 0.16);
+
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-border: rgba(10, 10, 10, 0.08);
     --glass-blur: 40px;
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-    --glass-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    --glass-shadow: 0 8px 32px rgba(10, 10, 10, 0.06);
+    --glass-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 
-    --neo-shadow-dark: #E2DBD1;
+    /* Neomorphism on white has nowhere to go darker than a light grey before
+       it starts looking like a bruise, so the pair is kept very close
+       together and the effect stays a suggestion rather than a shape. */
+    --neo-shadow-dark: #ECECEC;
     --neo-shadow-light: #FFFFFF;
-    --neo-bg: #F6F2EC;
+    --neo-bg: #FFFFFF;
 
-    --gradient-accent: linear-gradient(135deg, #D2531A 0%, #C0417A 52%, #6B45E0 100%);
-    --gradient-text: linear-gradient(135deg, #D2531A, #C0417A, #6B45E0);
-    --gradient-surface: linear-gradient(145deg, #FFFFFF, #EFE9E1);
+    /* --gradient-accent, --gradient-text and --gradient-surface used to sit
+       here. All three are deleted rather than neutralised: a gradient token is
+       an invitation to paint something with a ramp, and the only ramps left on
+       this site are structural fades to transparent, which belong to the
+       element doing the fading and not to a shared token. */
 
     --radius: 0.875rem;
     --radius-lg: 1.5rem;
     --radius-xl: 2rem;
 
-    /* The page-wide lights are for the dark ground; on paper they read as a
-       stain rather than as light, so they run at a fraction. */
-    --page-atmosphere: 0.3;
+    /* The page-wide lights existed to give a black ground something to do.
+       On white they can only tint the paper, and the paper is the point, so
+       they are off. Raise this if an atmosphere is ever drawn that reads as
+       light rather than as a stain. */
+    --page-atmosphere: 0;
 
     /* shadcn compatibility */
     --card: 0 0% 100%;
-    --card-foreground: 240 40% 10%;
+    --card-foreground: 0 0% 4%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 40% 10%;
-    --primary: 18 78% 46%;
+    --popover-foreground: 0 0% 4%;
+    --primary: 0 0% 4%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 34 30% 94%;
-    --secondary-foreground: 270 20% 12%;
-    --muted: 34 25% 94%;
-    --muted-foreground: 270 8% 40%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 4%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 42%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --input: 0 0% 0% / 0.06;
-    --ring: 18 78% 46%;
+    --input: 0 0% 4% / 0.10;
+    --ring: 0 0% 4%;
 
-    --sidebar-background: #F6F2EC;
-    --sidebar-foreground: #17131b;
-    --sidebar-primary: #D2531A;
+    --sidebar-background: #FFFFFF;
+    --sidebar-foreground: #0A0A0A;
+    --sidebar-primary: #0A0A0A;
     --sidebar-primary-foreground: #FFFFFF;
-    --sidebar-accent: rgba(210, 83, 26, 0.07);
-    --sidebar-accent-foreground: #17131b;
-    --sidebar-border: rgba(23, 19, 27, 0.1);
-    --sidebar-ring: #D2531A;
-  }
+    --sidebar-accent: rgba(10, 10, 10, 0.05);
+    --sidebar-accent-foreground: #0A0A0A;
+    --sidebar-border: rgba(10, 10, 10, 0.10);
+    --sidebar-ring: #0A0A0A;
 
-  /* ─── Dark Mode ─── */
-  /* The whole site runs on the hero's palette: black ground, warm ink, and
-     the orange/violet duotone. Nothing outside these variables carries colour,
-     so this block is the theme. */
-  .dark {
-    --background: #000000;
-    --surface: #0a0710;
-    --foreground: #f2eee9;
+    /* ── Hero tokens ──────────────────────────────────────────────────────
+       These used to live only inside [data-hero-dark]. The hero is no longer
+       its own dark island, so they are ordinary site tokens now and resolve
+       to the shared palette. The warm/cool pair that used to be a duotone is
+       now just two steps of grey, so the orb and the rails are modelled in
+       value instead of in hue. */
+    --hero-bg: #FFFFFF;
+    --hero-ink: #0A0A0A;
+    --hero-dim: #6B6B6B;
+    --hero-faint: #9A9A9A;
+    --hero-line: rgba(10, 10, 10, 0.10);
+    --hero-accent: #0A0A0A;
+    --hero-cool: #6B6B6B;
+    --hero-highlight: #9A9A9A;
 
-    --text-primary: #f2eee9;
-    --text-secondary: rgba(242, 238, 233, 0.56);
-    --text-muted: rgba(242, 238, 233, 0.32);
-
-    /* Warm is the light source, violet its counterpart — the same division
-       the hero and the directory use. */
-    --accent: #ff8a3d;
-    --accent-light: #8c6aff;
-    --accent-surface: rgba(255, 138, 61, 0.09);
-
-    --border: rgba(242, 238, 233, 0.09);
-    --border-strong: rgba(242, 238, 233, 0.17);
-
-    --glass-bg: rgba(242, 238, 233, 0.04);
-    --glass-border: rgba(242, 238, 233, 0.08);
-    --glass-blur: 40px;
-    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    --glass-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-
-    --neo-shadow-dark: rgba(0, 0, 0, 0.6);
-    --neo-shadow-light: rgba(242, 238, 233, 0.05);
-    --neo-bg: #0a0710;
-
-    /* Warm to cool through the bridge hue, the same ramp as the map. */
-    --gradient-accent: linear-gradient(135deg, #ff8a3d 0%, #e8598c 52%, #8c6aff 100%);
-    --gradient-text: linear-gradient(135deg, #ff8a3d, #e8598c, #8c6aff);
-    --gradient-surface: linear-gradient(145deg, #0a0710, #000000);
-
-    --radius: 0.875rem;
-    --radius-lg: 1.5rem;
-    --radius-xl: 2rem;
-
-    --page-atmosphere: 1;
-
-    /* shadcn compatibility */
-    --card: 270 22% 5%;
-    --card-foreground: 36 25% 93%;
-    --popover: 270 22% 5%;
-    --popover-foreground: 36 25% 93%;
-    --primary: 24 100% 62%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 270 20% 9%;
-    --secondary-foreground: 36 25% 93%;
-    --muted: 270 18% 8%;
-    --muted-foreground: 36 12% 58%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --input: 36 25% 93% / 0.06;
-    --ring: 24 100% 62%;
-
-    --sidebar-background: #000000;
-    --sidebar-foreground: #f2eee9;
-    --sidebar-primary: #ff8a3d;
-    --sidebar-primary-foreground: #000000;
-    --sidebar-accent: rgba(255, 138, 61, 0.09);
-    --sidebar-accent-foreground: #f2eee9;
-    --sidebar-border: rgba(242, 238, 233, 0.09);
-    --sidebar-ring: #ff8a3d;
+    /* ── Directory tokens ─────────────────────────────────────────────────
+       Same move: hoisted out of [data-dir-dark] and re-pointed at the light
+       palette, so the directory is simply part of the white page.
+       --dir-live was the last surviving hue. It is ink now: the status still
+       reads, because liveness is carried by the pulse animation and the mono
+       LIVE label, and in FlowView the automated steps stay legible against
+       the unautomated ones as ink against --dir-faint rather than as orange
+       against grey. */
+    --dir-bg: #FFFFFF;
+    --dir-ink: #0A0A0A;
+    --dir-dim: #6B6B6B;
+    --dir-faint: #9A9A9A;
+    --dir-line: rgba(10, 10, 10, 0.10);
+    --dir-line-strong: rgba(10, 10, 10, 0.16);
+    --dir-live: #0A0A0A;
   }
 }
 
@@ -144,21 +139,39 @@
   }
 
   body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
     background: var(--background);
     color: var(--text-primary);
     min-height: 100vh;
     overflow-x: hidden;
+    /* Near-black on white renders heavy under subpixel antialiasing, and
+       Helvetica has enough presence already. Greyscale smoothing is what gives
+       the reference its airiness, and it is the one lever that reaches every
+       word on the site at once. */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.4s ease, color 0.3s ease;
+  }
+
+  /* Headings inherit the same family as everything else now, so all this has
+     to do is set the weight and fit Helvetica wants at display sizes. It sits
+     in the base layer on purpose: any component that states a weight or a
+     tracking of its own still wins, because utilities outrank base. */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 500;
+    letter-spacing: -0.015em;
   }
 }
 
 @layer components {
   /* ─── Typography ─── */
+  /* Kept for parity with the `font-display` utility, which now resolves to the
+     same stack as `font-sans`. Bold at -0.02em was an Instrument Sans setting;
+     Helvetica at those values reads as a heavy, closed-up block. */
   .display-font {
-    font-family: 'Instrument Sans', 'Inter', sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-weight: 500;
+    letter-spacing: -0.015em;
   }
 
   .section-label {
@@ -170,12 +183,11 @@
     color: var(--accent);
   }
 
-  .gradient-text {
-    background: var(--gradient-text);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
+  /* `.gradient-text` used to live here, painting type through
+     background-clip. Type is never painted with a fill on this site any more:
+     it clipped descenders, and a rainbow headline is the exact thing the
+     monochrome pass exists to remove. Two-tone headlines are two spans in two
+     ink tokens. */
 
   /* ─── Liquid Glass ─── */
   .liquid-glass {
@@ -245,13 +257,13 @@
   .mini-morph {
     background: var(--surface);
     border: 0.5px solid var(--border);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 8px rgba(10, 10, 10, 0.05);
     border-radius: var(--radius);
     transition: all 0.3s ease;
   }
 
   .mini-morph:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 4px 16px rgba(10, 10, 10, 0.08);
     transform: translateY(-1px);
   }
 
@@ -263,22 +275,23 @@
     border-bottom: 1px solid var(--glass-border);
   }
 
-  /* ─── Buttons ─── */
+  /* ─── Buttons ───
+     The filled pill of the reference: solid ink, page white knocked out of it.
+     It was the accent gradient, which is the surface the monochrome pass names
+     explicitly. */
   .btn-primary {
-    background: var(--gradient-accent);
+    background: var(--text-primary);
     border: none;
     border-radius: 50px;
     @apply px-8 py-3 font-semibold transition-all duration-300;
-    color: white;
+    color: var(--background);
   }
 
   .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 40px rgba(74, 108, 247, 0.3);
-  }
-
-  .dark .btn-primary {
-    color: #0a0c12;
+    /* Was a blue glow that belonged to no token and to no ground. On white a
+       lift reads better as a shadow of the ink than as a coloured halo. */
+    box-shadow: 0 12px 32px rgba(10, 10, 10, 0.12);
   }
 
   .btn-glass {
@@ -343,48 +356,49 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
-   HERO — the cinematic dark field
+   HERO
    ──────────────────────────────────────────────────────────────────────────
-   The hero is deliberately theme-independent: it paints its own near-black
-   ground and its own ink so it reads identically whether the visitor is on
-   the light or the dark site theme. Its palette is scoped to the section, so
-   nothing here leaks into the rest of the design system.
+   This block used to paint the hero as its own near-black island. The site is
+   white now, so the --hero-* tokens have moved up to the palette above and
+   this scope inverts nothing. It is kept, rather than deleted, because the
+   markup still carries [data-hero-dark] and because re-asserting the values
+   here is a cheaper guarantee than trusting that nothing ever re-introduces a
+   dark rule for this selector.
    ══════════════════════════════════════════════════════════════════════════ */
 
 [data-hero-dark] {
-  --hero-bg: #000000;
-  --hero-ink: #f2eee9;
-  --hero-dim: rgba(242,238,233, 0.56);
-  --hero-faint: rgba(242,238,233, 0.32);
-  --hero-line: rgba(242,238,233, 0.1);
-  /* A duotone, and each half has a job. Warm is the light source: it blooms,
-     it sits behind things, it is what the eye lands on. Cool is the
-     counterpart that stops the warm reading as one flat wash — where both fall
-     on the same edge the result is iridescent rather than gradient-y. Both are
-     muted enough to survive a 60px blur without becoming highlighter stripes,
-     and both sit on true black. */
-  --hero-accent: #ff8a3d;
-  --hero-cool: #8c6aff;
-  --hero-highlight: #ffe0c4;
+  --hero-bg: #FFFFFF;
+  --hero-ink: #0A0A0A;
+  --hero-dim: #6B6B6B;
+  --hero-faint: #9A9A9A;
+  --hero-line: rgba(10, 10, 10, 0.10);
+  /* There is no duotone left to re-assert. What were the warm and cool halves
+     are three steps of grey, so anything that modelled depth with hue now
+     models it with value. */
+  --hero-accent: #0A0A0A;
+  --hero-cool: #6B6B6B;
+  --hero-highlight: #9A9A9A;
 }
 
-/* One grain plate, shared by every dark section. */
+/* One grain plate. Neutral turbulence, so it works as a tooth on paper the
+   same way it worked as a grain on black; only the opacity it is drawn at
+   needs to change, and that lives with the component. */
 :root {
   --hero-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* The navbar sits on top of that field. Rather than teach every child about
-   a dark context, re-point the tokens it already consumes — the mark, the
-   theme toggle and the CTA pill all invert for free. */
+/* The navbar used to invert when it was over a dark section. There are no
+   dark sections, so this class re-asserts the palette and is a no-op. Navbar
+   still toggles it; it simply has nothing left to change. */
 .nav-over-dark {
-  --text-primary: #f2eee9;
-  --text-secondary: rgba(242,238,233, 0.58);
-  --background: #000000;
-  --border: rgba(242,238,233, 0.1);
-  --border-strong: rgba(242,238,233, 0.18);
-  --neo-bg: rgba(242,238,233, 0.05);
-  --neo-shadow-dark: rgba(0, 0, 0, 0.55);
-  --neo-shadow-light: rgba(242,238,233, 0.07);
+  --text-primary: #0A0A0A;
+  --text-secondary: #6B6B6B;
+  --background: #FFFFFF;
+  --border: rgba(10, 10, 10, 0.10);
+  --border-strong: rgba(10, 10, 10, 0.16);
+  --neo-bg: #FFFFFF;
+  --neo-shadow-dark: #ECECEC;
+  --neo-shadow-light: #FFFFFF;
 }
 
 /* The orb's size. Phones get a tighter cap than everything else: with Safari's
@@ -507,30 +521,10 @@ html:not(.js) [data-reveal] {
   transition-duration: 0.15s;
 }
 
-/* The activation control. It covers the visible sphere and nothing else —
-   `clip-path` clips hit-testing as well as paint, so a click in the corner of
-   the square falls through to the page. Transparent by default: the feedback
-   for pressing it is the surface deforming, not a chrome state. The focus ring
-   is drawn as a ring rather than an outline because an outline would trace the
-   clip-path's square box, not the circle. */
-.hero-core-button {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  /* `auto`, not `none`: a touch that turns into a page scroll must scroll the
-     page, and the browser then declines to fire the click. That is the whole
-     mechanism keeping a scroll gesture from activating the core. */
-  touch-action: auto;
-}
-
-.hero-core-button:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px #000000,
-    0 0 0 4px var(--hero-accent);
-}
+/* `.hero-core-button` and its focus ring used to sit here. IntelligenceOrb
+   stopped applying the class when the page went white, and draws the ring on
+   its own sibling element instead, so both rules were dead. See the comment at
+   IntelligenceOrb.tsx around line 449 for why. */
 
 /* Short viewports: the cue is the first thing to go.
    
@@ -686,30 +680,32 @@ html:not(.js) [data-reveal] {
 /* ══════════════════════════════════════════════════════════════════════════
    SYSTEM DIRECTORY
    ──────────────────────────────────────────────────────────────────────────
-   The directory sits directly under the hero and runs on the same near-black
-   field, so the page opens as one continuous dark block. As well as its own
-   --dir-* tokens it re-points the shared ones, which is what lets SectionHeader
-   and the other design-system pieces drop in unchanged.
+   The directory used to run the same near-black field as the hero so the page
+   opened as one continuous dark block. It now runs the same white field, for
+   the same reason: the page should read as one continuous sheet. The --dir-*
+   tokens have moved up to the palette; this scope re-asserts them and the
+   shared ones so the section can never drift dark again, and still paints its
+   own ground so the section is explicit about what it sits on.
    ══════════════════════════════════════════════════════════════════════════ */
 
 [data-dir-dark] {
-  --dir-bg: #000000;
-  --dir-ink: #f2eee9;
-  --dir-dim: rgba(242, 238, 233, 0.56);
-  --dir-faint: rgba(242, 238, 233, 0.32);
-  --dir-line: rgba(242, 238, 233, 0.1);
-  --dir-line-strong: rgba(242, 238, 233, 0.22);
-  /* The five systems already run the full warm-to-cool ramp, so liveness gets
-     the pale end of the warm side rather than a sixth hue. A green status dot
-     would be the only colour on the page outside the duotone. */
-  --dir-live: #ffc79a;
+  --dir-bg: #FFFFFF;
+  --dir-ink: #0A0A0A;
+  --dir-dim: #6B6B6B;
+  --dir-faint: #9A9A9A;
+  --dir-line: rgba(10, 10, 10, 0.10);
+  --dir-line-strong: rgba(10, 10, 10, 0.16);
+  /* No longer an accent at all. Ink, like everything else: the status dot
+     reads from its pulse and its mono label rather than from a hue, and
+     FlowView's automated steps read as ink against --dir-faint. */
+  --dir-live: #0A0A0A;
 
-  /* Shared tokens, re-pointed for this field. */
-  --background: #000000;
-  --text-primary: #f2eee9;
-  --text-secondary: rgba(242, 238, 233, 0.56);
-  --border: rgba(242, 238, 233, 0.1);
-  --border-strong: rgba(242, 238, 233, 0.2);
+  /* Shared tokens, re-asserted rather than re-pointed. */
+  --background: #FFFFFF;
+  --text-primary: #0A0A0A;
+  --text-secondary: #6B6B6B;
+  --border: rgba(10, 10, 10, 0.10);
+  --border-strong: rgba(10, 10, 10, 0.16);
 
   background: var(--dir-bg);
   color: var(--dir-ink);

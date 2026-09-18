@@ -23,15 +23,8 @@ export const routes = [
     fallback: "2026-07-27",
   },
   {
-    path: "/audit",
-    sources: ["src/pages/Audit.tsx", "src/features/audit"],
-    changefreq: "monthly",
-    priority: "0.9",
-    fallback: "2026-07-27",
-  },
-  {
     path: "/who-we-are",
-    sources: ["src/pages/WhoWeAre.tsx", "src/shared/ui/vsl-player.tsx"],
+    sources: ["src/pages/WhoWeAre.tsx", "src/features/who-we-are", "src/shared/ui/vsl-player.tsx"],
     changefreq: "monthly",
     priority: "0.8",
     fallback: "2026-08-01",
@@ -48,20 +41,13 @@ export const routes = [
     video: {
       title: "I built an AI agency. Here's exactly how it works.",
       description:
-        "A screen-share walkthrough of Ziiro, top to bottom: what we do, how we work, what it costs, and where your data goes.",
+        "A screen-share walkthrough of Ziiro, top to bottom: what we do, how we work, what you invest, and where your data goes.",
       thumbnail: "https://i.ytimg.com/vi/_R1Z7rfoaJA/maxresdefault.jpg",
       playerLoc:
         "https://www.youtube-nocookie.com/embed/_R1Z7rfoaJA?rel=0&modestbranding=1&playsinline=1",
       durationSeconds: 470,
       publicationDate: "2026-07-26",
     },
-  },
-  {
-    path: "/process",
-    sources: ["src/pages/Process.tsx"],
-    changefreq: "monthly",
-    priority: "0.8",
-    fallback: "2026-07-30",
   },
   {
     path: "/mission",
@@ -83,6 +69,20 @@ export const routes = [
     changefreq: "monthly",
     priority: "0.7",
     fallback: "2026-07-27",
+  },
+  {
+    path: "/docs",
+    // Docs renders the shared FAQ, the audit phases, and the walkthrough entry,
+    // so a change to any of those is a change to this page.
+    sources: [
+      "src/pages/Docs.tsx",
+      "src/features/pricing/entities/faqs.ts",
+      "src/features/who-we-are/entities",
+      "src/features/watch/videos.ts",
+    ],
+    changefreq: "monthly",
+    priority: "0.6",
+    fallback: "2026-09-16",
   },
   {
     path: "/privacy",

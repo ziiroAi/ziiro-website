@@ -18,7 +18,8 @@ export default function SectionHeader({
   index: string;
   label: string;
   meta?: string;
-  titleA: string;
+  /** Optional: omit both title lines and the header is just its eyebrow row. */
+  titleA?: string;
   titleB?: string;
   sub?: string;
 }) {
@@ -48,6 +49,10 @@ export default function SectionHeader({
         )}
       </MotionRevealItem>
 
+      {/* A section can run without a headline: the directory does, where the
+          eyebrow and the counted sentence carry it and a display title was one
+          voice too many. No empty <h2> is left behind when it does. */}
+      {titleA && (
       <MotionRevealItem>
         <h2
           className="font-display font-semibold text-[var(--text-primary)]"
@@ -61,24 +66,18 @@ export default function SectionHeader({
           {titleB && (
             <>
               <br />
-              <span
-                style={{
-                  background: "var(--gradient-text)",
-                  WebkitBackgroundClip: "text",
-                  backgroundClip: "text",
-                  color: "transparent",
-                  // A gradient fill clips the descenders of a tight display
-                  // face unless the box is given room to breathe.
-                  paddingBottom: "0.08em",
-                  display: "inline-block",
-                }}
-              >
-                {titleB}
-              </span>
+              {/* The second line is the quieter half of the pairing, and it
+                  says so in ink rather than in hue. This used to be painted
+                  with the duotone through background-clip: text, which is why
+                  every section title on the site read orange-to-violet, and
+                  why the line needed padding underneath to stop the clip
+                  eating its descenders. A plain colour needs neither. */}
+              <span className="text-[var(--text-secondary)]">{titleB}</span>
             </>
           )}
         </h2>
       </MotionRevealItem>
+      )}
 
       {sub && (
         <MotionRevealItem>

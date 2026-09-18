@@ -43,11 +43,33 @@ import { IDENTITIES } from "./heroContent";
  * its own box and the blur — which spreads far past that box — is clipped to
  * it. The result is a hard rectangle around the orb, visible on device.
  */
+/** How far the orb shrinks while hovered. This is the animation that used to
+ *  fire on click; it fires on hover now, and on nothing else.
+ *
+ *  It briefly also turned the orb on its Y axis. The human did not want the
+ *  tilt, so the engaged state is the shrink alone and the silhouette stays a
+ *  circle. The perspective that made the turn readable went with it — the
+ *  rotateY was the only 3D transform in this component, and every CSS
+ *  animation the orb uses is either flat or a translate3d with a zero Z, which
+ *  a perspective cannot affect. */
+const HOVER_SHRINK = 0.06;
+
 export default function IntelligenceOrb() {
   const coreRef = useRef<CoreOrbHandle>(null);
   const [live, setLive] = useState(false);
   const [failed, setFailed] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+
+  /** Hovered or keyboard-focused. One boolean with a transition between its two
+   *  ends, which is all the gesture is. */
+  const [engaged, setEngaged] = useState(false);
+  const engage = useCallback(() => setEngaged(true), []);
+  const release = useCallback(() => setEngaged(false), []);
+  // Only when the focus ring is actually showing: a click also focuses the
+  // button, and that must not latch the gesture open after the pointer leaves.
+  const onFocus = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).matches(":focus-visible")) setEngaged(true);
+  }, []);
 
   // The role rotation. Clicking the word advances it; DynamicIdentity's scale
   // variant owns what that looks like.
@@ -115,6 +137,15 @@ export default function IntelligenceOrb() {
       data-orb-scope
       className="relative shrink-0"
       style={{
+        // index.css solves `--orb` for the composition this used to sit in: one
+        // centred column with the eyebrow, headline, copy, buttons, trust line
+        // and scroll cue stacked UNDER the orb, so it subtracts a fixed ~600px
+        // of them from the viewport height. Those sit beside it now, and that
+        // subtraction was costing the orb most of its size for nothing —
+        // measured at 246px in a right column better than twice that wide.
+        // One expression rather than a media-query ladder, since an inline
+        // style cannot carry breakpoints.
+        ["--orb" as string]: "min(clamp(240px, 34vw, 440px), calc(100svh - 300px))",
         width: "var(--orb)",
         height: "var(--orb)",
         // The orb reserves its own glow.
@@ -132,7 +163,34 @@ export default function IntelligenceOrb() {
         // index.css is solved against the 1.22x total this implies.
         marginTop: "calc(var(--orb) * 0.22)",
       }}
+      // The gesture is bound here, on the box, rather than on the element that
+      // moves. The orb shrinks when engaged, so listening on the moving element
+      // would pull its own edge out from under a pointer resting near the rim:
+      // leave fires, it grows back, enter fires, and it flickers. This box never
+      // transforms. Focus events bubble in React, so both buttons inside are
+      // covered by the same pair and a keyboard reader gets what hover gets.
+      onPointerEnter={engage}
+      onPointerLeave={release}
+      onPointerCancel={release}
+      onFocus={onFocus}
+      onBlur={release}
     >
+      {/* The one element the hover gesture moves, and all it does is shrink —
+          the animation that used to fire on click. A CSS transition between two
+          states is also what makes it reverse smoothly and stay interruptible
+          — leaving mid-arrival retargets the same transform from wherever it
+          is rather than queueing a separate exit. */}
+      <div
+        data-orb-turn
+        className="absolute inset-0"
+        style={{
+          transform:
+            reducedMotion || !engaged ? "none" : `scale(${1 - HOVER_SHRINK})`,
+          transition: reducedMotion
+            ? "none"
+            : "transform 620ms cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
       {/* Ambient bloom, outside the morphing pair so its cycle drifts against
           theirs instead of pumping with them. */}
       {/* Ambient bloom, outside the morphing pair so its cycle drifts against
@@ -153,7 +211,7 @@ export default function IntelligenceOrb() {
         className="hero-glow-pulse absolute -inset-[22%] rounded-full"
         style={{
           background:
-            "radial-gradient(circle closest-side at 50% 62%, rgba(255,138,61,0.26) 0%, rgba(255,138,61,0.17) 26%, rgba(232,89,140,0.10) 48%, rgba(140,106,255,0.04) 70%, transparent 86%)",
+            "radial-gradient(circle closest-side at 50% 64%, rgba(10,10,10,0.05) 0%, rgba(10,10,10,0.03) 30%, rgba(10,10,10,0.012) 52%, transparent 78%)",
         }}
       />
 
@@ -167,7 +225,7 @@ export default function IntelligenceOrb() {
         style={{
           opacity: 0,
           background:
-            "radial-gradient(circle closest-side at 50% 60%, rgba(255,170,110,0.34) 0%, rgba(255,170,110,0.22) 24%, rgba(232,89,140,0.13) 46%, rgba(140,106,255,0.06) 68%, transparent 86%)",
+            "radial-gradient(circle closest-side at 50% 58%, rgba(10,10,10,0.14) 0%, rgba(10,10,10,0.09) 26%, rgba(10,10,10,0.04) 50%, transparent 78%)",
         }}
       />
 
@@ -202,8 +260,14 @@ export default function IntelligenceOrb() {
         <div
           className="hero-morph absolute inset-[15.28%]"
           style={{
+            // Ink, and only its density varies. The ramp that used to run from
+            // a near-white hot spot at the base up through orange and pink to
+            // violet is now the same ramp in one tone: heavier at the bottom,
+            // lighter over the top. That gradient is tonal rather than
+            // chromatic, which is what still makes a blurred blob read as a
+            // form lit from above once the hues are gone.
             background:
-              "linear-gradient(to top, rgba(255,242,226,1) 0%, rgba(255,150,78,0.86) 18%, rgba(232,89,140,0.56) 44%, rgba(150,116,255,0.62) 72%, rgba(150,116,255,0.44) 100%)",
+              "linear-gradient(to top, rgba(10,10,10,0.15) 0%, rgba(10,10,10,0.13) 18%, rgba(10,10,10,0.10) 44%, rgba(10,10,10,0.085) 72%, rgba(10,10,10,0.06) 100%)",
             filter: "blur(calc(var(--orb) * 0.072))",
             // The resting shape. Without it, reduced motion stops the morph
             // and the radius falls back to zero — a blurred square.
@@ -213,7 +277,11 @@ export default function IntelligenceOrb() {
         <div
           className="hero-morph-inner absolute inset-[20.83%]"
           style={{
-            background: "#000000",
+            // The ground, not a colour. This blob only exists to erase the
+            // middle of the one above so their difference is a band, so it has
+            // to be whatever the page is standing on — black when the hero
+            // painted its own black field, the page's white now.
+            background: "var(--hero-bg)",
             filter: "blur(calc(var(--orb) * 0.05))",
             borderRadius: "58% 42% 40% 60% / 44% 58% 42% 56%",
           }}
@@ -241,25 +309,30 @@ export default function IntelligenceOrb() {
               opacity: live ? 0 : 1,
               transition: "opacity 620ms cubic-bezier(0.22, 1, 0.36, 1)",
               background: [
-                // A small, weak specular. Anything larger lifts the middle of
-                // the ball and the type inside stops having a black to sit on.
-                "radial-gradient(circle at 33% 25%, rgba(242,238,233,0.055) 0%, transparent 34%)",
-                // Body: near-black almost all the way out, lifting only in the
-                // last tenth. A dark sphere is dark — what makes it read as
-                // round is the limb, not a grey fill.
-                "radial-gradient(circle at 50% 50%, #030206 0%, #030206 58%, #0a0711 86%, #171122 100%)",
+                // Body: the page's own white almost all the way out, taking ink
+                // only in the last tenth. Exactly the logic the near-black
+                // version used, run the other way up — a pale disc is pale, and
+                // what makes it read as an object is the rim, not a fill. The
+                // specular that used to sit on top of this is gone rather than
+                // inverted: on a pale body a lighter spot is invisible, so it
+                // only ever read as a warm one, and warm is a hue.
+                "radial-gradient(circle at 50% 50%, var(--hero-bg) 0%, var(--hero-bg) 58%, rgba(10,10,10,0.04) 86%, rgba(10,10,10,0.09) 100%)",
               ].join(", "),
               borderRadius: "52% 48% 47% 53% / 49% 51% 49% 51%",
               boxShadow: [
-                // The limb. Tight negative spreads keep both of these on the
-                // edge instead of bleeding into the middle, which is what
-                // marries the body to the halo — the glow now looks like it
-                // comes off the ball rather than sitting behind it.
-                "inset 0 -20px 44px -24px rgba(255,150,78,0.95)",
-                "inset 0 18px 44px -26px rgba(150,116,255,0.8)",
-                "inset 26px -18px 50px -40px rgba(232,89,140,0.6)",
-                "inset 0 0 0 1px rgba(242,238,233,0.05)",
-                "0 40px 90px -40px rgba(0,0,0,0.9)",
+                // The rim. Tight negative spreads keep these on the edge instead
+                // of bleeding into the middle, which is what marries the body to
+                // the halo. The two that used to carry the duotone's cast are
+                // kept as ink at the same strengths, because what they actually
+                // do is thicken the rim off-axis — which is what stops a ring of
+                // even weight reading as a drawn circle.
+                "inset 0 -20px 44px -24px rgba(10,10,10,0.62)",
+                "inset 0 18px 44px -26px rgba(10,10,10,0.42)",
+                "inset 26px -18px 50px -40px rgba(10,10,10,0.26)",
+                "inset 0 0 0 1px var(--hero-line)",
+                // 0.9 alpha at 90px was a black field's shadow; over white it
+                // would be a grey plate the size of the orb.
+                "0 34px 64px -38px rgba(10,10,10,0.30)",
               ].join(", "),
             }}
           >
@@ -269,7 +342,7 @@ export default function IntelligenceOrb() {
               className="hero-sphere-spin absolute inset-[-20%]"
               style={{
                 background:
-                  "conic-gradient(from 0deg, transparent 0deg, rgba(255,138,61,0.07) 55deg, transparent 130deg, transparent 190deg, rgba(150,116,255,0.06) 250deg, transparent 330deg)",
+                  "conic-gradient(from 0deg, transparent 0deg, rgba(10,10,10,0.04) 55deg, transparent 130deg, transparent 190deg, rgba(10,10,10,0.035) 250deg, transparent 330deg)",
               }}
             />
             {/* Grain, so the shading never bands on a wide-gamut panel. */}
@@ -319,7 +392,7 @@ export default function IntelligenceOrb() {
             className="pointer-events-none absolute inset-0"
             style={{
               background:
-                "radial-gradient(ellipse 58% 30% at 50% 50%, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.5) 55%, transparent 78%)",
+                "radial-gradient(ellipse 58% 30% at 50% 50%, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.62) 55%, transparent 78%)",
             }}
           />
 
@@ -380,13 +453,35 @@ export default function IntelligenceOrb() {
            `clip-path` clips hit-testing as well as paint, so this is the hit
            region, not just its picture. It sits under the interior copy in the
            stack, which is what lets the role button keep its own clicks. */}
+      {/* The `.hero-core-button` class this used to carry has been deleted from
+          index.css, so its reset is inlined here — without it the element takes
+          the UA button styling and paints a grey box over the orb. Its focus
+          ring went too, and it cannot simply come back: a ring on this element
+          would be clipped away by the very `clip-path` that makes the hit region
+          correct, so it is drawn on the sibling below instead. */}
       <button
         type="button"
         onClick={onActivate}
         aria-label="Animate AI core"
-        className="hero-core-button absolute inset-[7%] z-[2] rounded-full"
-        style={{ clipPath: "circle(50%)" }}
+        className="peer absolute inset-[7%] z-[2] cursor-pointer rounded-full border-0 bg-transparent p-0 outline-none"
+        style={{
+          clipPath: "circle(50%)",
+          // `auto`, not `none`: a touch that turns into a page scroll must
+          // scroll the page, and the browser then declines to fire the click.
+          // That is the whole mechanism keeping a scroll gesture from
+          // activating the core.
+          touchAction: "auto",
+          WebkitTapHighlightColor: "transparent",
+        }}
       />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-[7%] z-[2] rounded-full opacity-0 peer-focus-visible:opacity-100"
+        style={{
+          boxShadow: "0 0 0 2px var(--hero-bg), 0 0 0 4px var(--hero-ink)",
+        }}
+      />
+      </div>
     </div>
   );
 }

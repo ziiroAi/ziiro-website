@@ -432,7 +432,7 @@ export default function Products() {
                 <span className="text-[var(--text-secondary)]">you need?</span>
               </h2>
               <p className="mx-auto mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
-                That's exactly what the audit answers.
+                That's exactly what a consultation answers.
               </p>
               {/* The site's house curve, applied inline because Tailwind's
                   `transition-opacity` ships its own timing function and, being

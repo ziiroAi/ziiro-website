@@ -41,3 +41,7 @@ dist-ssr/
 
 # auto-research scorer venv
 .auto-research/.venv/
+
+# Agent fleet scratch (cmux workers)
+.team/
+.agents/

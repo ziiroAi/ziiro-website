@@ -9,7 +9,9 @@
       "permanent": true
     },
     { "source": "/services", "destination": "/", "permanent": true },
-    { "source": "/about", "destination": "/who-we-are", "permanent": true }
+    { "source": "/about", "destination": "/who-we-are", "permanent": true },
+    { "source": "/audit", "destination": "/contact", "permanent": true },
+    { "source": "/process", "destination": "/who-we-are", "permanent": true }
   ],
   "headers": [
     {

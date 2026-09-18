@@ -69,10 +69,12 @@ export interface Pipeline {
   /** Which glyph sits in this system's hub on the map. Resolved to a
    *  component in EcosystemMap so the data stays free of React imports. */
   icon: "search" | "pen" | "film" | "brain" | "ruler" | "compass" | "chart";
-  /** The branch's hue on the map. The seven are a ramp from the warm end of
-   *  the palette to the cool end, in ring order, so hue rotates as you go
-   *  round the map and the ecosystem reads as one spectrum with seven limbs
-   *  rather than as seven products with seven brand colours. */
+  /** The branch's ink on the map. This was a seven-step ramp from the warm end
+   *  of the palette to the cool end, so hue rotated as you went round the ring.
+   *  The site is monochrome now, so every branch carries the same ink and the
+   *  map separates its limbs by position and weight instead. The field is kept
+   *  rather than deleted because removing it changes a shared type while other
+   *  workers are mid-flight; it can go once the fleet is idle. */
   accent: string;
 }
 
@@ -97,7 +99,7 @@ export const PIPELINES: Pipeline[] = [
     ],
     tags: ["transcribe", "cut", "caption"],
     icon: "film",
-    accent: "#FF8A3D",
+    accent: "#0A0A0A",
     agents: [
       {
         id: "ingest-agent",
@@ -251,7 +253,7 @@ export const PIPELINES: Pipeline[] = [
     ],
     tags: ["capture", "retrieve", "answer"],
     icon: "brain",
-    accent: "#FF6A55",
+    accent: "#0A0A0A",
     agents: [
       {
         id: "ingest-brain",
@@ -394,7 +396,7 @@ export const PIPELINES: Pipeline[] = [
     ],
     tags: ["analyse", "concept", "render"],
     icon: "ruler",
-    accent: "#E8598C",
+    accent: "#0A0A0A",
     agents: [
       {
         id: "space-agent",
@@ -544,7 +546,7 @@ export const PIPELINES: Pipeline[] = [
     integrations: ["Business data", "Metric store", "LLM reasoning"],
     tags: ["collect", "compute", "narrate"],
     icon: "chart",
-    accent: "#C96BC0",
+    accent: "#0A0A0A",
     agents: [
       {
         id: "collect",
@@ -602,7 +604,7 @@ export const PIPELINES: Pipeline[] = [
     ],
     tags: ["discover", "qualify", "outreach"],
     icon: "search",
-    accent: "#B061D8",
+    accent: "#0A0A0A",
     agents: [
       {
         id: "research",
@@ -784,7 +786,7 @@ export const PIPELINES: Pipeline[] = [
     integrations: ["Email / messaging", "Call transcription", "CRM"],
     tags: ["replies", "calls", "closing"],
     icon: "compass",
-    accent: "#9A63E8",
+    accent: "#0A0A0A",
     agents: [
       {
         id: "sweep",
@@ -844,7 +846,7 @@ export const PIPELINES: Pipeline[] = [
     ],
     tags: ["research", "write", "publish"],
     icon: "pen",
-    accent: "#8C6AFF",
+    accent: "#0A0A0A",
     agents: [
       {
         id: "researcher",

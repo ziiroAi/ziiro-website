@@ -1,21 +1,23 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import { createTimeline, cubicBezier, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SectionHeader from "@/shared/ui/section-header";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
-import {
-  CSS_EASE,
-  DURATION,
-  EASE_IN_OUT,
-  EASE_OUT_EXPO,
-  MS,
-  STAGGER,
-  TRAVEL,
-} from "@/shared/motion/tokens";
+import { EASE_IN_OUT, EASE_OUT_EXPO, MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import TextReveal from "@/shared/motion/TextReveal";
+import { easeInOutCubic, headerOffset, scrollTo } from "@/shared/motion/SmoothScroll";
 import VslPlayer from "@/shared/ui/vsl-player";
 import { videos, watchPath } from "@/features/watch/videos";
+// Testimonials are switched off on this page for now: restore this import
+// together with the commented-out mount near the end of the file.
+// import TestimonialsSection from "@/features/testimonials/TestimonialsSection";
+import AtAGlance from "@/features/who-we-are/sections/AtAGlance";
+import BookConsultation from "@/features/who-we-are/sections/BookConsultation";
+import OurProcess, { PROCESS_ID } from "@/features/who-we-are/sections/OurProcess";
+import WhatPowersZiiro from "@/features/who-we-are/sections/WhatPowersZiiro";
+import WhatWeHelpWith from "@/features/who-we-are/sections/WhatWeHelpWith";
+import WhyWorkWithUs from "@/features/who-we-are/sections/WhyWorkWithUs";
 
 /**
  * ── THE VIDEO ─────────────────────────────────────────────────────────
@@ -37,9 +39,9 @@ const VSL = FEATURED?.vsl ?? null;
 
 /**
  * ── TEAM ──────────────────────────────────────────────────────────────
- * Deliberately empty: the section below only renders once there are real
- * people in it. Add entries as `{ name, role, bio, photo? }`. Photos go
- * in public/team/ and should be square (600×600 is plenty).
+ * Deliberately empty: the team block in Who We Are only renders once there
+ * are real people in it. Add entries as `{ name, role, bio, photo? }`. Photos
+ * go in public/team/ and should be square (600×600 is plenty).
  */
 const team: { name: string; role: string; bio: string; photo?: string }[] = [];
 
@@ -100,6 +102,13 @@ export default function WhoWeAre() {
       tl.cancel();
     };
   }, []);
+
+  // Through the smooth scroller and clear of the fixed navbar: a native anchor
+  // jump fights Lenis and lands the section's heading under the bar.
+  const jumpToProcess = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    scrollTo(`#${PROCESS_ID}`, { offset: headerOffset(), easing: easeInOutCubic });
+  };
 
   return (
     <div className="relative">
@@ -187,72 +196,18 @@ export default function WhoWeAre() {
         </div>
       </section>
 
-      {/* ── The ask, straight off the back of the video ── */}
-      <section className="pb-24 md:pb-32">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <MotionReveal>
-            <div className="border-t border-[var(--border)] pt-16 text-center">
-              <p className="mb-8 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                ( That's the whole pitch )
-              </p>
-              <h2
-                className="font-display font-semibold text-[var(--text-primary)]"
-                style={{
-                  fontSize: "clamp(2.4rem, 5vw, 4.3rem)",
-                  letterSpacing: "-0.03em",
-                  lineHeight: 1.04,
-                }}
-              >
-                Let's look at
-                <br />
-                <span className="text-[var(--text-secondary)]">
-                  your numbers.
-                </span>
-              </h2>
-              <p className="mx-auto mt-6 max-w-md text-sm text-[var(--text-secondary)]">
-                Fifteen minutes. Real numbers. We'll show you where the hours
-                and money are going.
-              </p>
-              <div className="mt-10">
-                {/* The site's house curve, applied inline because Tailwind's
-                    `transition-opacity` ships its own timing function and,
-                    being a class, outranks the zero-specificity :where() rule
-                    in index.css that puts everything else on expo-out. */}
-                <Link
-                  to="/contact"
-                  className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
-                  style={{
-                    transitionDuration: `${DURATION.micro}s`,
-                    transitionTimingFunction: CSS_EASE.outExpo,
-                  }}
-                >
-                  Book a 15-minute call
-                </Link>
-              </div>
-
-              {/* Handing over your numbers is the scary part; answer it here. */}
-              <p className="mx-auto mt-7 max-w-md text-xs leading-relaxed text-[var(--text-muted)]">
-                Your numbers stay yours. Nothing you share gets sold or passed
-                on, and you can have it deleted whenever you ask.{" "}
-                <Link
-                  to="/privacy"
-                  className="underline underline-offset-4 transition-opacity hover:opacity-70"
-                >
-                  How we handle your data
-                </Link>
-                .
-              </p>
-            </div>
-          </MotionReveal>
-        </div>
-      </section>
-
-      {/* ── 01 · Why we exist ── */}
+      {/* ── 01 · Who we are: the story, the positioning, the facts ──
+          The page runs in six sections, in this order: Who We Are, What We
+          Help With, Our Process (#process), Why Work With Us, What Powers
+          Ziiro, and the closing CTA. Testimonials (#testimonials) belong
+          between What Powers Ziiro and the CTA, but are commented out for now;
+          they carry no index, so the numbering stays 01-05 either way. The hero
+          and the video above open the first section. */}
       <section className="pb-24 md:pb-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <SectionHeader
             index="01"
-            label="Why We Started"
+            label="Who We Are"
             meta="The origin"
             titleA="We got tired of"
             titleB="watching money burn."
@@ -303,75 +258,108 @@ export default function WhoWeAre() {
               >
                 our mission page
               </Link>
-              . The step-by-step version is on{" "}
-              <Link
-                to="/process"
+              . The step-by-step version is in{" "}
+              <a
+                href={`#${PROCESS_ID}`}
+                onClick={jumpToProcess}
                 className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
               >
-                the process page
-              </Link>
-              . Or skip the reading and{" "}
+                our process
+              </a>
+              , further down. Or skip the reading and{" "}
               <Link
                 to="/contact"
                 className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
               >
-                book the call
+                book a consultation
               </Link>
               .
             </p>
           </MotionReveal>
+
+          <AtAGlance />
+
+          {/* The team, once `team` has real people in it. A block of Who We
+              Are rather than a section of its own, so the page keeps its six
+              sections in order whether or not it renders. */}
+          {team.length > 0 && (
+            <div className="mt-20">
+              <h3 className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+                ( The team )
+              </h3>
+              <MotionReveal
+                stagger={STAGGER.card}
+                className="mt-10 grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-3"
+              >
+                {team.map((m) => (
+                  <MotionRevealItem key={m.name}>
+                    <div className="border-t border-[var(--border)] pt-8">
+                      {m.photo && (
+                        <img
+                          src={m.photo}
+                          alt={m.name}
+                          width={600}
+                          height={600}
+                          loading="lazy"
+                          decoding="async"
+                          className="mb-6 aspect-square w-full rounded-lg object-cover grayscale"
+                        />
+                      )}
+                      <h4
+                        className="font-display font-semibold text-[var(--text-primary)]"
+                        style={{ fontSize: "1.35rem", letterSpacing: "-0.02em" }}
+                      >
+                        {m.name}
+                      </h4>
+                      <p className="mt-2 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                        {m.role}
+                      </p>
+                      <p className="mt-4 text-sm leading-relaxed text-[var(--text-secondary)]">
+                        {m.bio}
+                      </p>
+                    </div>
+                  </MotionRevealItem>
+                ))}
+              </MotionReveal>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ── 02 · The team (renders only once `team` has real people in it) ── */}
-      {team.length > 0 && (
-        <section className="pb-24 md:pb-32">
-          <div className="mx-auto max-w-7xl px-6 md:px-10">
-            <SectionHeader
-              index="02"
-              label="The Team"
-              meta={`0${team.length} people`}
-              titleA="The people who"
-              titleB="do the work."
-            />
-            <MotionReveal
-              stagger={STAGGER.card}
-              className="mt-16 grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              {team.map((m) => (
-                <MotionRevealItem key={m.name}>
-                  <div className="border-t border-[var(--border)] pt-8">
-                    {m.photo && (
-                      <img
-                        src={m.photo}
-                        alt={m.name}
-                        width={600}
-                        height={600}
-                        loading="lazy"
-                        decoding="async"
-                        className="mb-6 aspect-square w-full rounded-lg object-cover grayscale"
-                      />
-                    )}
-                    <h3
-                      className="font-display font-semibold text-[var(--text-primary)]"
-                      style={{ fontSize: "1.35rem", letterSpacing: "-0.02em" }}
-                    >
-                      {m.name}
-                    </h3>
-                    <p className="mt-2 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                      {m.role}
-                    </p>
-                    <p className="mt-4 text-sm leading-relaxed text-[var(--text-secondary)]">
-                      {m.bio}
-                    </p>
-                  </div>
-                </MotionRevealItem>
-              ))}
-            </MotionReveal>
-          </div>
-        </section>
-      )}
+      {/* ── 02 · What we help with ── */}
+      <WhatWeHelpWith index="02" />
 
+      {/* ── 03 · Our process, phase by phase (#process) ── */}
+      <OurProcess index="03" />
+
+      {/* ── 04 · Why work with us ── */}
+      <WhyWorkWithUs index="04" />
+
+      {/* ── 05 · What powers Ziiro, the stack ──
+          Moved here from the home page. It lands directly after Why Work With
+          Us because that section closes on "Model-agnostic", and this is the
+          diagram that earns the claim. */}
+      <WhatPowersZiiro index="05" />
+
+      {/* ── Testimonials: switched off for now, nothing renders here ──
+          Kept so it can come back: restore the TestimonialsSection import at
+          the top of this file and uncomment the block below. Data lives in
+          src/features/testimonials/entities/testimonials.ts, and the section
+          renders nothing until a real entry exists (samples show in dev). The
+          wrapper carries the #testimonials anchor so /who-we-are#testimonials
+          lands even when the section renders null; when re-enabling, also drop
+          the section's own id="testimonials" in TestimonialsSection.tsx, or the
+          page carries that id twice. No CTA on the section: the closing ask
+          follows straight after.
+
+      <div id="testimonials">
+        <TestimonialsSection />
+      </div>
+      */}
+
+      {/* ── Book a consultation, or write to the team ── */}
+      <BookConsultation />
     </div>
   );
 }

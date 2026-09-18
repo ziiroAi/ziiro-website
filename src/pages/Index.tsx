@@ -1,9 +1,9 @@
 import SEO from "@/shared/components/SEO";
 import Hero from "@/features/home/hero/Hero";
+import BrandFilm from "@/features/home/sections/BrandFilm";
 import SystemDirectory from "@/features/home/directory/SystemDirectory";
 import HowItWorks from "@/features/home/sections/HowItWorks";
 import WhyDifferent from "@/features/home/sections/WhyDifferent";
-import WhatPowersZiiro from "@/features/home/sections/WhatPowersZiiro";
 import FinalCta from "@/features/home/sections/FinalCta";
 import DotArtSection from "@/features/home/sections/DotArtSection";
 import ScrollScene, { SectionSeam } from "@/shared/motion/ScrollScene";
@@ -17,12 +17,24 @@ import ScrollScene, { SectionSeam } from "@/shared/motion/ScrollScene";
  * the two overlap instead of hard-cutting. There is no decorative particle
  * field behind the copy — it competed with the text and earned nothing.
  *
+ * The handover is deliberately decisive: a block is gone, not dimmed, by the
+ * time its neighbour is seated, so the reader is on one section at a time.
+ * Nothing here takes the scroller hostage to do it — no wheel interception, no
+ * scroll-snap, no paging. The page still scrolls exactly as fast as the reader
+ * scrolls it, PageDown still pages, and #how-it-works still lands; the effect
+ * is opacity read off where the blocks happen to be. Under reduced motion each
+ * scene renders at full strength with no scrub at all.
+ *
  *   1. What is Ziiro?                   → Hero
  *   2. What does it actually run?       → SystemDirectory
  *   3. How does it work?                → HowItWorks
  *   4. Why not an agency / hire / GPT?  → WhyDifferent
- *   5. What powers it?                  → WhatPowersZiiro
- *   6. Why book today?                  → FinalCta
+ *   5. Why book today?                  → FinalCta
+ *
+ * "What powers it?" used to sit between the last two as the stack diagram.
+ * It moved to /who-we-are, where it now runs as section 05 directly after Why
+ * Work With Us, whose "Model-agnostic" line it exists to prove. Numbered
+ * section headers on this page therefore run 01-03 with nothing skipped.
  *
  * Three deliberate exceptions to the scrubbing:
  *
@@ -54,10 +66,22 @@ export default function Home() {
       <div className="relative z-10">
         <Hero />
 
+        {/* The film, straight after the hero and its scroll cue. `hold` so it
+            arrives on the house curve but never dims: a video that fades out
+            while the reader is watching it is the same hostility FinalCta
+            avoids for the same reason. */}
+        <ScrollScene rise={20} hold>
+          <BrandFilm />
+        </ScrollScene>
+
         {/* No seam between these two: the directory runs on the same near-black
             field as the hero, so the page opens as one dark block and a join
             across it would only read as a break in that field. */}
-        <ScrollScene rise={20} exitTo={0.5}>
+        {/* A shorter rise than the copy sections: the directory is a drawn
+            object, and travel that reads as arrival on a paragraph reads as
+            the diagram sliding. It leaves on the same decisive curve as
+            everything else, so the hero's dark field hands over cleanly. */}
+        <ScrollScene rise={20}>
           <SystemDirectory />
         </ScrollScene>
 
@@ -69,11 +93,6 @@ export default function Home() {
         <SectionSeam />
         <ScrollScene>
           <WhyDifferent />
-        </ScrollScene>
-
-        <SectionSeam />
-        <ScrollScene>
-          <WhatPowersZiiro />
         </ScrollScene>
 
         {/* No seam: the argument has resolved, so the ask arrives on a clean

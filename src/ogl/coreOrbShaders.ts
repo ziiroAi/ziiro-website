@@ -59,9 +59,13 @@ uniform float uInnerRadius;   // higher = thinner ring
 uniform float uOpacity;       // scroll handoff fade
 uniform float uScroll;        // 0..1, recedes the ring as the hero leaves
 
-uniform vec3 uColorA;         // violet — the cool half of the duotone
-uniform vec3 uColorB;         // amber — the warm half
-uniform vec3 uCore;           // the near-black the ring sits on
+/* Not colours, despite the names. Only max(r, g, b) of what these build is ever
+   read (see the return of draw), so they supply the ring's density around its
+   circumference rather than its hue. They are greys; keep them that way. */
+uniform vec3 uColorA;         // the denser end of the density cycle
+uniform vec3 uColorB;         // the lighter end
+uniform vec3 uCore;           // the near-zero the ring sits on
+uniform vec3 uInk;            // what the ring is actually drawn in, on paper
 
 varying vec2 vUv;
 
@@ -143,7 +147,10 @@ vec4 draw(vec2 uv) {
   float cl = cos(ang + iTime * 1.4) * 0.5 + 0.5;
   vec3 col = mix(uColorA, uColorB, cl * 0.55);
   col = mix(uCore, col, v0);
-  col = (col + v1 * vec3(1.0, 0.95, 0.75)) * v2 * v3;
+  // The travelling highlight. Its tint used to be vec3(1.0, 0.95, 0.75), a warm
+  // white; since only the max channel is read and red already carried 1.0, the
+  // neutral version reads identically and leaves no hue in the source.
+  col = (col + v1) * v2 * v3;
 
   col *= (1.0 + uPulse * 0.15) * uGlow;
   col = clamp(col, 0.0, 1.0);
@@ -151,7 +158,23 @@ vec4 draw(vec2 uv) {
   float luma = dot(col, vec3(0.299, 0.587, 0.114));
   col = clamp(mix(vec3(luma), col, uColorStrength), 0.0, 1.0);
 
-  return extractAlpha(col);
+  /* Ink, not light.
+
+     Everything above computes how much energy the ring carries here. That
+     energy used to leave the canvas AS light, via extractAlpha: the brighter a
+     fragment the more of it you saw, and the dark centre stayed transparent
+     because it was dark. That describes a lamp, and a lamp on white paper is a
+     blank rectangle — which is exactly what the ring became when the page went
+     white, in the duotone it was lit in.
+
+     The same field is read as coverage instead. Energy becomes how much ink
+     lands, and what lands is the page's ink, so the ring is a mark drawn on the
+     sheet. Nothing about its motion changes: the wandering radius, the
+     travelling highlight, the pulse and the ripple all still move the energy
+     field, and denser ink is what you now see them as. The duotone uniforms
+     still shape that field and simply never reach the screen, which is also how
+     the canvas became monochrome without touching them. */
+  return vec4(uInk, max(max(col.r, col.g), col.b));
 }
 
 void main() {

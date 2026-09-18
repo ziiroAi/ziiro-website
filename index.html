@@ -18,15 +18,25 @@
     <script>document.documentElement.classList.add("js");</script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Load font CSS async so it doesn't block first paint -->
+    <!-- Load font CSS async so it doesn't block first paint.
+
+         Two families are downloaded, and only two. The text face is Helvetica,
+         which every target platform already has, so headlines and body cost no
+         request at all: macOS and iOS resolve Helvetica Neue, Windows falls
+         back to Arial, which is metrically identical. Instrument Sans and Inter
+         used to be fetched here and are gone with the faces they served.
+
+         What is left has to be fetched because nothing local can stand in:
+         Space Mono for the tracked uppercase micro-labels, and Instrument
+         Serif, upright and italic, for the pull-quote figures. -->
     <link
       rel="preload"
       as="style"
-      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&family=Instrument+Serif:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
       onload="this.onload=null;this.rel='stylesheet'"
     />
     <noscript>
-      <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400..700&family=Instrument+Serif:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,900&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
     </noscript>
 
     <!-- Open Graph -->
@@ -48,8 +58,11 @@
     <meta name="twitter:description" content="Business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems and self-optimizing loops." />
     <meta name="twitter:image" content="https://ziiro.work/og-image.jpeg" />
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <!-- Favicon: the Z mark on the brand's white ground. SVG where it is
+         supported, PNG and ICO behind it for everything else. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="128x128" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- JSON-LD Structured Data (static so non-JS crawlers ingest it) -->
@@ -65,9 +78,9 @@
           "url": "https://ziiro.work",
           "logo": {
             "@type": "ImageObject",
-            "url": "https://ziiro.work/logo/ziiro-logo-small.webp",
-            "width": 192,
-            "height": 128
+            "url": "https://ziiro.work/logo/ziiro-logo-square.png",
+            "width": 512,
+            "height": 512
           },
           "image": "https://ziiro.work/og-image.jpeg",
           "description": "Ziiro AI is a business-intelligence-first AI consultancy that builds agentic AI systems, self-optimizing loops, and BI dashboards for startups and founder-led teams.",
@@ -110,10 +123,8 @@
           ],
           "makesOffer": {
             "@type": "Offer",
-            "name": "Free 30-minute agentic systems strategy call",
-            "description": "A free 30-minute strategy call to map where agentic AI creates leverage in your business.",
-            "price": "0",
-            "priceCurrency": "USD",
+            "name": "Agentic systems strategy consultation",
+            "description": "A paid strategy consultation, billed hourly with a 60-minute minimum, to map where agentic AI creates leverage in your business. Rates are set by region.",
             "availability": "https://schema.org/InStock",
             "url": "https://ziiro.work/contact",
             "itemOffered": {

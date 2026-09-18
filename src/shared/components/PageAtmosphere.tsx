@@ -1,16 +1,22 @@
 import { useEffect, useRef } from "react";
 
 /**
- * The duotone, behind the whole site — and now travelling with the reader.
+ * The field behind the whole site, travelling with the reader.
  *
- * The hero and the directory paint their own field; everything past them was
- * flat black, which made the theme look like it stopped after two sections.
- * This is the same two lights — warm on one side, violet on the other — fixed
- * behind the page so the ground is never dead, and so a visitor who scrolls
- * past the map is still inside the same room.
+ * It was born to rescue a black ground: the hero and the directory painted
+ * their own field and everything past them was flat black, so two warm and
+ * violet lights were floated behind the page to stop it going dead. The ground
+ * is paper now, and paper does not need rescuing. A saturated pool that reads
+ * as light on black reads as a stain on white, so both hues are gone and what
+ * is left is a neutral unevenness in the sheet.
  *
- * Fixed rather than per-section on purpose: the lights stay put while content
- * moves over them, which reads as depth rather than as decoration attached to
+ * It is also off by default: `--page-atmosphere` is 0 in the palette, and this
+ * component does no scroll work at all while it is. The layer stays because a
+ * white page can still want its paper lit, and it is now drawn so that raising
+ * that token gives light rather than a colour cast.
+ *
+ * Fixed rather than per-section on purpose: the shading stays put while content
+ * moves over it, which reads as depth rather than as decoration attached to
  * a particular block.
  *
  * What changed, and why it matters more than it sounds:
@@ -55,6 +61,14 @@ export default function PageAtmosphere() {
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    // Nothing is visible while the palette keeps the field at zero, and a
+    // scroll listener that moves an invisible layer is pure cost on every page
+    // of the site. Read once, in an effect, so SSR never touches the DOM.
+    const level = getComputedStyle(document.documentElement)
+      .getPropertyValue("--page-atmosphere")
+      .trim();
+    if (level !== "" && Number(level) === 0) return;
 
     let raf = 0;
     let last = -1;
@@ -117,38 +131,35 @@ export default function PageAtmosphere() {
       style={{ opacity: "var(--page-atmosphere, 1)" }}
     >
       <div ref={fieldRef} className="absolute inset-0" style={{ willChange: "transform" }}>
-        {/* Warm, and it leads: this is the light the hero is lit by, so it is
-            brightest at the top of the document and hands over from there. */}
+        {/* Each pool is the page's own ink at a few percent, not a hue. On
+            paper that is the difference between a sheet that is lit unevenly
+            and a sheet someone has spilled something on. */}
         <div
           ref={pool(0)}
           className="hero-drift-a absolute left-[-14%] top-[-6%] h-[78vh] w-[78vh] rounded-full"
           style={{
             background:
-              "radial-gradient(circle at 50% 50%, rgba(255,138,61,0.13) 0%, rgba(232,89,140,0.05) 45%, transparent 72%)",
+              "radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--text-primary) 4%, transparent) 0%, transparent 70%)",
             filter: "blur(70px)",
             willChange: "transform, opacity",
           }}
         />
-        {/* Violet, and it owns the middle — the explanatory sections, where the
-            warm light would compete with the type. */}
         <div
           ref={pool(1)}
           className="hero-drift-b absolute right-[-16%] top-[30%] h-[80vh] w-[80vh] rounded-full"
           style={{
             background:
-              "radial-gradient(circle at 50% 50%, rgba(140,106,255,0.14) 0%, rgba(140,106,255,0.05) 45%, transparent 72%)",
+              "radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--text-primary) 4%, transparent) 0%, transparent 70%)",
             filter: "blur(70px)",
             willChange: "transform, opacity",
           }}
         />
-        {/* The bridge hue, brought up for the closing ask so the end of the page
-            answers its beginning instead of just stopping. */}
         <div
           ref={pool(2)}
           className="hero-drift-a absolute bottom-[-14%] left-1/3 h-[60vh] w-[60vh] rounded-full"
           style={{
             background:
-              "radial-gradient(circle at 50% 50%, rgba(232,89,140,0.09) 0%, transparent 68%)",
+              "radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--text-primary) 3%, transparent) 0%, transparent 68%)",
             filter: "blur(80px)",
             willChange: "transform, opacity",
           }}

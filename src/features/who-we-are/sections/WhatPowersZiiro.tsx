@@ -7,6 +7,12 @@ import { STAGGER } from "@/shared/motion/tokens";
  * outcome. The argument is the shape itself: the model sits in the middle as
  * one swappable layer, so the value lives in everything wrapped around it
  * rather than in whichever frontier model is ahead this quarter.
+ *
+ * This ran on the home page as its section 04 until it moved here. It belongs
+ * on this page: Why Work With Us closes on "Model-agnostic", and the stack is
+ * the diagram of why that is true, so the claim and its evidence now sit next
+ * to each other instead of on two different pages. It takes its index from the
+ * page like every other section here, rather than hardcoding one.
  */
 const layers = [
   { name: "Business data", body: "Your systems connected at the source: CRM, billing, ops, support, spreadsheets." },
@@ -19,12 +25,12 @@ const layers = [
   { name: "Business outcomes", body: "Hours returned, costs reduced, decisions made faster, revenue found.", terminal: true },
 ];
 
-export default function WhatPowersZiiro() {
+export default function WhatPowersZiiro({ index }: { index: string }) {
   return (
-    <section className="relative px-6 py-24 md:px-10 md:py-32">
-      <div className="mx-auto max-w-7xl">
+    <section className="pb-24 md:pb-32">
+      <div className="mx-auto max-w-7xl px-6 md:px-10">
         <SectionHeader
-          index="04"
+          index={index}
           label="What Powers Ziiro"
           meta="the stack"
           titleA="The model isn't"

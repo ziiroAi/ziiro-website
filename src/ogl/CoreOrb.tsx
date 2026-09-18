@@ -175,10 +175,28 @@ const CoreOrb = forwardRef<CoreOrbHandle, CoreOrbProps>(function CoreOrb(
           uInnerRadius: { value: TUNING.innerRadius },
           uOpacity: { value: 1 },
           uScroll: { value: 0 },
-          // Ziiro's duotone, not the reference's green and gold.
-          uColorA: { value: hexToRgb("#8c6aff") },
-          uColorB: { value: hexToRgb("#ff8a3d") },
-          uCore: { value: hexToRgb("#0a0711") },
+          // These three are no longer colours. The shader returns uInk and uses
+          // this trio only through `max(r, g, b)`, so what they actually supply
+          // is the ring's DENSITY around its circumference — how the ink
+          // thickens and thins as the contour travels. They held Ziiro's violet
+          // and amber duotone until the site went monochrome; nothing coloured
+          // could reach the screen through them any more, but leaving hues in
+          // the source is how they get reintroduced by the next person who
+          // reads them as colours.
+          //
+          // The greys are fitted to the max-channel curve the duotone produced,
+          // not picked for looks, so the ring's density variation survives the
+          // substitution. uCore is exact: #0a0711's max channel is 0x11, and
+          // #111111 is the grey with the same max.
+          uColorA: { value: hexToRgb("#ffffff") },
+          uColorB: { value: hexToRgb("#808080") },
+          uCore: { value: hexToRgb("#111111") },
+          // The duotone above still shapes the ring's energy field, so the
+          // contour still thickens and thins unevenly the way it always did.
+          // It is no longer what you see. What you see is uInk, matching the
+          // page's --text-primary, because the ring is a mark on paper now
+          // rather than a light on a black field.
+          uInk: { value: hexToRgb("#0a0a0a") },
         },
       });
     } catch {

@@ -6,6 +6,7 @@ import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import TextReveal from "@/shared/motion/TextReveal";
 import { MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import SEO from "@/shared/components/SEO";
+import { PRICING_FAQS as faqs } from "@/features/pricing/entities/faqs";
 
 const tiers = [
   {
@@ -18,7 +19,7 @@ const tiers = [
       "Priority matrix & architecture blueprint",
       "Implementation roadmap",
     ],
-    cta: "Talk to us",
+    cta: "Start with a consultation",
   },
   {
     name: "Full Build",
@@ -31,15 +32,8 @@ const tiers = [
       "Dashboard & control panel setup",
       "Ongoing measurement & tuning",
     ],
-    cta: "Talk to us",
+    cta: "Start with a consultation",
   },
-];
-
-const faqs = [
-  { q: "How do you scope a project?", a: "We start with a free 30-minute call to understand your business, then propose a focused scope based on where agents create the most leverage. No generic packages." },
-  { q: "Can I start small?", a: "Absolutely. Most clients start with a Strategy Sprint to identify the highest-leverage system, then move to a Full Build once they see the roadmap." },
-  { q: "What's the typical timeline?", a: "Strategy Sprints take 1-3 weeks. Full Builds range from 4-12 weeks depending on complexity. We work in focused sprints, not endless retainers." },
-  { q: "Do you offer ongoing support?", a: "Yes. After the build, we offer measurement and optimization cycles to ensure your systems keep improving over time." },
 ];
 
 type Animatable = ReturnType<typeof createAnimatable>;
@@ -200,7 +194,7 @@ export default function Pricing() {
     <div className="relative">
       <SEO
         title="Investment: Ziiro AI Systems"
-        description="No fixed pricing. Ziiro scopes each project to your needs: a Strategy Sprint (1-3 weeks) or a Full Build (4-12 weeks). Book a free call to start."
+        description="No fixed project pricing. After an hourly consultation, Ziiro scopes a Strategy Sprint (1-3 weeks) or a Full Build (4-12 weeks) to your needs."
         canonical="/pricing"
       />
 
@@ -236,8 +230,8 @@ export default function Pricing() {
             style={{ opacity: 0 }}
             className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]"
           >
-            Every project is different. We scope systems to your exact needs, with
-            custom pricing based on scope, complexity, and timeline.
+            Every project is different. We scope systems to your exact needs, and
+            the investment follows scope, complexity, and timeline.
           </p>
 
           <div
@@ -249,7 +243,7 @@ export default function Pricing() {
               [ 02 Engagements ]
             </p>
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-              [ Free 30-min call ]
+              [ Hourly consultation ]
             </p>
           </div>
         </div>
@@ -336,7 +330,7 @@ export default function Pricing() {
               </p>
             </MotionReveal>
             <TextReveal
-              text="We price the system, not the hours. Every engagement is scoped to what it ships and what it saves."
+              text="Consultations run by the hour. Engagements are scoped to what they ship and what they save."
               as="h2"
               className="mt-10 max-w-4xl font-display font-semibold text-[var(--text-primary)]"
               style={{
@@ -448,7 +442,7 @@ export default function Pricing() {
                 Not sure which path fits?
                 <br />
                 <span className="text-[var(--text-secondary)]">
-                  Start with a free call.
+                  Start with an hour.
                 </span>
               </h2>
             </MotionRevealItem>
@@ -459,7 +453,7 @@ export default function Pricing() {
                   to="/contact"
                   className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-transform duration-150 ease-out hover:-translate-y-1"
                 >
-                  Book a Free Call
+                  Book a consultation
                 </Link>
               </div>
             </MotionRevealItem>

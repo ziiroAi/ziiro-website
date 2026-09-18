@@ -9,6 +9,13 @@ import { CSS_EASE, DURATION, TRAVEL } from "@/shared/motion/tokens";
  * site — the strategy session is the standing offer, and "how it works" is the
  * section directly below — so neither button promises anything new.
  *
+ * A filled near-black pill and an outlined one, side by side, wrapping to two
+ * rows only when the line genuinely runs out. They used to be soft-cornered
+ * rectangles carrying a warm inner glow and a 40px orange drop shadow, which
+ * is what a control has to do to separate itself from a black field; on white
+ * the ground does that work and the glow would just be haze, so both are flat
+ * and the only difference between them is fill against outline.
+ *
  * The arrow moves, the button doesn't slide around under the cursor, and the
  * press response fires on pointer-down rather than on click, so the control
  * acknowledges you at the moment you touch it.
@@ -48,7 +55,7 @@ function Arrow({
  */
 const micro: CSSProperties = {
   transitionProperty:
-    "transform, background-color, border-color, box-shadow, color",
+    "transform, background-color, border-color, box-shadow, color, opacity",
   transitionDuration: `${DURATION.micro}s`,
   transitionTimingFunction: CSS_EASE.out,
 };
@@ -70,7 +77,7 @@ const nudge: CSSProperties = {
 // it engages on pointer-down and releases on pointer-up, which is the moment
 // the visitor is asking to be acknowledged.
 const base =
-  "group inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[10px] px-6 text-[14px] font-medium tracking-[-0.005em] active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+  "group inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-6 text-[14px] font-medium tracking-[-0.005em] active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
 
 export default function HeroActions() {
   /**
@@ -96,21 +103,22 @@ export default function HeroActions() {
     <div
       data-hero-reveal
       data-hero-actions
-      className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row sm:items-center"
+      className="flex flex-wrap items-center gap-3"
     >
+      {/* The filled pill. Hover is a step of opacity rather than a second
+          colour: the fill is --text-primary, and the only honest lighter
+          version of it on this page is itself over the white ground. */}
       <Link
         to="/contact"
-        className={base}
+        className={`${base} hover:opacity-[0.86] focus-visible:opacity-[0.86]`}
         style={{
           ...micro,
-          background: "var(--hero-ink)",
-          color: "#0b0714",
-          boxShadow:
-            "0 1px 0 rgba(255,255,255,0.6) inset, 0 12px 40px -14px rgba(255,224,196,0.5)",
-          // Tailwind can't alpha-modify a var() colour, so the focus ring
-          // offset is painted against the hero ground explicitly.
-          ["--tw-ring-offset-color" as string]: "#000000",
-          ["--tw-ring-color" as string]: "rgba(255,224,196,0.9)",
+          background: "var(--text-primary)",
+          color: "var(--background)",
+          // Tailwind can't alpha-modify a var() colour, so the focus ring and
+          // its offset are painted from real tokens explicitly.
+          ["--tw-ring-offset-color" as string]: "var(--background)",
+          ["--tw-ring-color" as string]: "var(--text-primary)",
         }}
       >
         Book a strategy session
@@ -120,27 +128,20 @@ export default function HeroActions() {
         />
       </Link>
 
+      {/* The outlined pill. The border darkens to the ink on hover, which is
+          the whole response — no fill change, no shadow, nothing that moves
+          the edge the cursor is aiming at. */}
       <a
         href="#how-it-works"
         onClick={goToHowItWorks}
-        className={`${base} border`}
+        className={`${base} border hover:border-[var(--text-primary)] focus-visible:border-[var(--text-primary)]`}
         style={{
           ...micro,
-          borderColor: "var(--hero-line)",
-          color: "var(--hero-ink)",
-          background:
-            "linear-gradient(180deg, rgba(242,238,233,0.045), rgba(242,238,233,0.015))",
-          ["--tw-ring-offset-color" as string]: "#000000",
-          ["--tw-ring-color" as string]: "rgba(255,138,61,0.85)",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = "rgba(255,138,61,0.5)";
-          e.currentTarget.style.boxShadow =
-            "0 0 30px -8px rgba(255,138,61,0.4), inset 0 0 24px -14px rgba(255,138,61,0.7)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = "var(--hero-line)";
-          e.currentTarget.style.boxShadow = "none";
+          borderColor: "var(--border-strong)",
+          color: "var(--text-primary)",
+          background: "var(--background)",
+          ["--tw-ring-offset-color" as string]: "var(--background)",
+          ["--tw-ring-color" as string]: "var(--text-primary)",
         }}
       >
         See how it works

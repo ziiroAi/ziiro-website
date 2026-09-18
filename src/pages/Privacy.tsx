@@ -162,7 +162,7 @@ const Privacy = () => {
               style={{ opacity: 0 }}
               className="mt-10 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)]"
             >
-              Effective date: January 2026
+              Effective date: September 2026
             </p>
           </header>
 
@@ -250,6 +250,20 @@ const Privacy = () => {
                     email services, CRM platforms, analytics tools, hosting providers,
                     scheduling tools, SMS and voice providers, and AI or automation
                     tools, all of which process data on our behalf.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Dot />
+                  <span>
+                    <strong className="font-semibold text-[var(--text-primary)]">
+                      IP geolocation:
+                    </strong>{" "}
+                    to show the hourly consultation rate for your region, we derive your
+                    approximate country from your IP address through our hosting provider
+                    or, as a fallback, the geolocation service ipwho.is, which receives
+                    your IP address to perform that lookup. We use the country solely to
+                    show regional pricing and do not store your IP address for this
+                    purpose.
                   </span>
                 </li>
                 <li className="flex items-start gap-3">
