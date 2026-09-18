@@ -628,7 +628,7 @@ export default function Mission() {
                 <span className="text-[var(--text-secondary)]">biggest leak.</span>
               </h2>
               <p className="mx-auto mt-6 max-w-md text-sm text-[var(--text-secondary)]">
-                Fifteen minutes. Real numbers. We'll show you where the hours
+                An hourly strategy consultation. We'll show you where the hours
                 and money are going.
               </p>
               <div className="mt-12">
@@ -644,7 +644,7 @@ export default function Mission() {
                     transitionTimingFunction: CSS_EASE.outExpo,
                   }}
                 >
-                  Book a 15-minute call
+                  Book a consultation
                 </Link>
               </div>
             </div>

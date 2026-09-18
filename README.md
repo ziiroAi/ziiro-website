@@ -65,7 +65,7 @@ cp .env.example .env
 npm run dev
 ```
 
-The app runs at `http://localhost:8080` by default.
+The app runs at `http://localhost:8081` by default.
 
 ---
 
@@ -87,7 +87,6 @@ VITE_SUPABASE_PROJECT_ID=your_project_id
 |---|---|
 | `/` | Home: agentic systems positioning, how it works, strategic focus, CTA |
 | `/services` | All 5 agentic offers with orbital diagram |
-| `/audit` | Free Agentic Systems Audit with instant results + Calendly booking |
 | `/contact` | Contact form (sends email notification via Resend) |
 | `/privacy` | Privacy Policy |
 | `/terms` | Terms & Conditions |

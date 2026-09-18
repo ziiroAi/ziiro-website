@@ -15,6 +15,10 @@ import {
 const SEGMENTS = SCENE_COUNT - 1; // one: sphere -> infinity
 const FOV = 50;
 
+/** The dots' ink, linear-ish 0..1 RGB. #0A0A0A, the page's own --text-primary:
+ *  the sculpture is drawn on paper, so a dot is a mark and not a light. */
+const INK = [0.04, 0.04, 0.04];
+
 function isMobile(): boolean {
   return window.innerWidth < 768;
 }
@@ -163,7 +167,7 @@ export default function DotArt3D() {
         uCollapse: { value: 0 },
         uWind: { value: [0, 0, 0] },
         uWindRadial: { value: 0 },
-        uColor: { value: [0.95, 0.96, 0.98] },
+        uColor: { value: INK },
       },
       transparent: true,
       depthTest: false,
@@ -274,7 +278,6 @@ export default function DotArt3D() {
     // --- Animation loop ---
     let time = 0;
     let raf = 0;
-    let lastInk = -1;
 
     function update() {
       time += 0.016;
@@ -333,20 +336,12 @@ export default function DotArt3D() {
       scene.rotation.y = Math.sin(time * 0.07) * 0.07;
       scene.rotation.x = Math.cos(time * 0.055) * 0.025;
 
-      // The dots blend from ink to light as the story begins; the canvas
-      // itself never stops. Nothing here paints a ground: this section used to
-      // lay an opaque near-black over PageAtmosphere, which is fixed behind the
-      // whole site, so the journey read as a flat black hole in a page that is
-      // warm everywhere else. Transparent, the same duotone carries through.
-      const ink = smooth01(scrollProgress / 0.035);
-      if (Math.abs(ink - lastInk) > 0.005) {
-        lastInk = ink;
-        const c = u.uColor.value as number[];
-        c[0] = lerp(0.075, 0.95, ink);
-        c[1] = lerp(0.085, 0.96, ink);
-        c[2] = lerp(0.12, 0.98, ink);
-      }
-
+      // The dots are one colour for the whole journey now: ink on paper. They
+      // used to open dark and turn to light over the first 3% of the scroll,
+      // because the section faded up a black ground underneath them and a dark
+      // dot would have vanished into it. There is no ground any more, so the
+      // handover has nothing to hand over to — and a near-white dot on white
+      // paper is simply not there. uColor is set once, at build.
       renderer.render({ scene, camera });
       raf = requestAnimationFrame(update);
     }
@@ -386,7 +381,7 @@ export default function DotArt3D() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.35, ease: "easeOut" }}
               className="font-mono text-[11px] uppercase tracking-[0.35em]"
-              style={{ color: "rgba(235, 238, 245, 0.5)" }}
+              style={{ color: "var(--text-muted)" }}
             >
               {String(sceneIdx + 1).padStart(2, "0")} / {FORMATION_LABELS[sceneIdx]}
             </motion.div>

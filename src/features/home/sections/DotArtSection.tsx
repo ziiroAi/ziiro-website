@@ -90,18 +90,22 @@ export default function DotArtSection() {
             transform: ctaVisible ? "translateY(0)" : "translateY(24px)",
           }}
         >
-          <span className="mb-6 font-mono text-[11px] uppercase tracking-[0.4em] text-white/40">
+          {/* Ink, not white. This copy used to sit over a black canvas; the
+              canvas is paper now and the dots are the dark marks on it, so the
+              closing ask is set the way the rest of the page is set and the
+              button is the same filled black pill as the other CTAs. */}
+          <span className="mb-6 font-mono text-[11px] uppercase tracking-[0.4em] text-[var(--text-muted)]">
             The beginning
           </span>
-          <h2 className="max-w-3xl px-6 text-4xl font-semibold tracking-tight text-white md:text-6xl">
+          <h2 className="max-w-3xl px-6 text-4xl font-semibold tracking-tight text-[var(--text-primary)] md:text-6xl">
             Ready to build?
           </h2>
-          <p className="mt-4 max-w-md px-6 text-sm text-white/50">
-            Free 30-minute call. No pitch.
+          <p className="mt-4 max-w-md px-6 text-sm text-[var(--text-secondary)]">
+            An hourly consultation. No pitch.
           </p>
           <Link
             to="/contact"
-            className="pointer-events-auto mt-10 rounded-full bg-white px-8 py-3.5 text-xs font-semibold uppercase tracking-wide text-black transition-opacity hover:opacity-85"
+            className="pointer-events-auto mt-10 rounded-full bg-[var(--text-primary)] px-8 py-3.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
           >
             Book your call
           </Link>

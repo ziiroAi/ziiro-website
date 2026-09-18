@@ -29,8 +29,7 @@ const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
       { label: "Watch", to: "/watch/how-ziiro-works" },
       { label: "Mission", to: "/mission" },
       { label: "Products", to: "/products" },
-      { label: "Process", to: "/process" },
-      { label: "Audit", to: "/audit" },
+      { label: "Docs", to: "/docs" },
     ],
   },
   {
@@ -131,7 +130,7 @@ export default function Footer() {
               style={micro("opacity")}
               aria-label="Ziiro home"
             >
-              <ZiiroMark className="h-10" />
+              <ZiiroMark className="h-9" />
             </Link>
 
             <p

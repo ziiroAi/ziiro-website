@@ -1,80 +1,164 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
+} from "react";
 import { createTimeline, stagger } from "animejs";
-import { Brain, ChartLine, Compass, Film, PenLine, Ruler, Search } from "lucide-react";
+import { useReducedMotion } from "framer-motion";
+
 import type { Pipeline } from "./pipelines";
 import { buildLayout, CENTRE, VIEW, type MapNode } from "./layout";
 
 /**
- * The ecosystem map.
+ * The ecosystem map: the section's fixed anchor.
  *
- * Five systems around a shared core, each grown as a real tree: agents, then
+ * Seven systems around a shared core, each grown as a real tree: agents, then
  * what each agent can do and which steps it runs, then that step's input and
- * output. Branches end at different depths because the data does — a
- * capability stops, a step carries on — and that unevenness is what stops it
- * looking like a diagram of itself. Every dot is a string that also appears in
- * the panel or the workflow; none of it is filler.
+ * output. Branches end at different depths because the data does, and that
+ * unevenness is what stops it looking like a diagram of itself. Every dot is a
+ * string that also appears in the right column; none of it is filler, and no
+ * number here is invented: counts are read off the pipeline objects.
  *
- * Under the trees, every node in the fourth rank also puts down a root into
- * the core. Those roots are what make the centre dense: the whole inventory
- * converging on one point, drawn, rather than a particle effect.
+ * Under the trees, every node in the fourth rank also puts down a root into the
+ * core. Those roots are what make the centre dense: the whole inventory
+ * converging on one point, drawn, rather than a particle effect. The bundle is
+ * split into a far and a near half so the core sits inside the tangle, and the
+ * halves yaw six tenths of a degree against each other. That parallax is the
+ * whole 3D cue and it costs two composited transforms.
  *
- * Depth is a hashed value per node. The root bundle is split into a far and a
- * near half drawn either side of the core — so the core sits inside the tangle
- * rather than on top of it — and the two halves yaw six tenths of a degree
- * against each other. That parallax is the whole 3D cue, and it costs two
- * composited transforms.
+ * ── What this map is made of ──────────────────────────────────────────────
+ * Hairlines and type, in the section's monochrome tokens, with one live hue
+ * (--dir-live) spent only on what is selected. No gradient fills, no blurred
+ * halos, no per-system rainbow: a whole branch in its own colour reads as one
+ * big coloured object rather than as a structure, and seven of them read as
+ * seven brands. Hue here means "this is the one you are looking at".
  *
- * Selection is bidirectional and lives above this component: clicking an agent
- * here opens it in the panel, and opening it there lights it here. Switching
- * system remounts the newly selected edges, which replays their draw-on, so
- * the tree visibly grows on every switch without a timer.
+ * Two rules keep it sharp at any column width:
+ *   1. Every stroke is a non-scaling hairline, so a 1px line is 1px on screen
+ *      whatever the viewBox is scaled to, on any devicePixelRatio.
+ *   2. Type and hit targets are authored in real pixels and converted into
+ *      viewBox units from the measured width, so labels stay legible and
+ *      targets stay thumb-sized when the column narrows.
+ *
+ * Selection lives above this component. Clicking a hub selects that system,
+ * clicking the core selects "all", and clicking an agent opens it in the right
+ * column. Switching system remounts the newly selected edges, which replays
+ * their draw-on, so the tree visibly grows on every switch without a timer.
  */
+
+/** A system id, or every system at once. */
+export type Selection = string | "all";
+
+export const ALL = "all";
 
 interface EcosystemMapProps {
   pipelines: Pipeline[];
-  selectedId: string;
-  onSelect: (id: string) => void;
-  activeAgentId: string | null;
-  onAgentSelect: (agentId: string | null) => void;
+  /** A system id, or "all" (the default) for the equal-weight view. */
+  selectedId?: Selection;
+  onSelect?: (id: Selection) => void;
+  activeAgentId?: string | null;
+  onAgentSelect?: (agentId: string | null) => void;
 }
 
-// This is a bare triple, not an rgba() literal, so keep it in step with
-// --dir-ink by hand.
-const INK = "242,238,233";
+/* ── Tokens ───────────────────────────────────────────────────────────────
+   The section's own palette, used as CSS variables so retoning the field
+   retones the map. Each already carries its own alpha, so opacity is only
+   ever used for state, never to fake a colour. */
+const INK = "var(--dir-ink)";
+const DIM = "var(--dir-dim)";
+const FAINT = "var(--dir-faint)";
+const LINE = "var(--dir-line)";
+const LINE_STRONG = "var(--dir-line-strong)";
+const LIVE = "var(--dir-live)";
+const BG = "var(--dir-bg)";
 
-/** The tree is drawn in bone, not in colour. Hue is spent only on the hub ring
- *  and on the agent dots hanging off it — a whole branch in its accent reads
- *  as one big coloured object rather than as a structure. */
-const BONE = "#EDE8E0";
+/** Type and targets, in rendered pixels. Converted to viewBox units below. */
+const PX = {
+  /** The rim label: the system's name. */
+  name: 19,
+  /** Its three-word caption, drawn from the system's own step names. */
+  caption: 9.5,
+  /** The numeral inside a hub. */
+  hub: 11,
+  /** The core's name and the hover readout. */
+  core: 9.5,
+  readout: 10.5,
+  /** Hit radius for a hub and for the core. WCAG target size with room over. */
+  hubHit: 26,
+  coreHit: 30,
+  agentHit: 13,
+} as const;
 
-const ICONS = {
-  search: Search,
-  pen: PenLine,
-  film: Film,
-  brain: Brain,
-  ruler: Ruler,
-  compass: Compass,
-  chart: ChartLine,
-};
+/** Below this column width the three-word captions come off: at that size they
+ *  are more texture than information, and the names have to win. */
+const CAPTION_MIN_WIDTH = 380;
+
+/** What the map assumes until it has measured itself. Matches the desktop
+ *  column, so the server render and the first paint agree. */
+const ASSUMED_WIDTH = 560;
+
+/**
+ * viewBox units per rendered CSS pixel.
+ *
+ * The svg scales to its column, so everything authored in viewBox units shrinks
+ * with it. Measuring the rendered width lets type and hit targets be authored
+ * in pixels instead, which is the only way a 9px caption stays a 9px caption in
+ * a 430px column as well as a 620px one.
+ */
+function useUnitsPerPixel(ref: RefObject<HTMLElement>) {
+  const [width, setWidth] = useState(ASSUMED_WIDTH);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const measured = entries[0]?.contentRect.width ?? 0;
+      if (measured <= 0) return;
+      // Snapped to 8px: a drag-resize would otherwise re-render nine hundred
+      // nodes on every frame of the drag.
+      setWidth((prev) => (Math.abs(prev - measured) < 8 ? prev : Math.round(measured)));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return { unitsPerPx: VIEW / width, width };
+}
 
 export default function EcosystemMap({
   pipelines,
-  selectedId,
+  selectedId = ALL,
   onSelect,
-  activeAgentId,
+  activeAgentId = null,
   onAgentSelect,
 }: EcosystemMapProps) {
   const layout = useMemo(() => buildLayout(pipelines), [pipelines]);
-  const [hovered, setHovered] = useState<string | null>(null);
-  const rootRef = useRef<SVGSVGElement>(null);
-
   const byId = useMemo(
     () => new Map(pipelines.map((p) => [p.id, p])),
     [pipelines],
   );
 
+  const [hovered, setHovered] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const reduce = useReducedMotion();
+  const { unitsPerPx, width } = useUnitsPerPixel(wrapRef);
+
+  /** px -> viewBox units. */
+  const u = (px: number) => +(px * unitsPerPx).toFixed(2);
+  /** State changes travel on the house curve, and instantly under reduced
+   *  motion: the preference exists to remove the movement, not shorten it. */
+  const ease = (properties: string, ms = 420) =>
+    reduce ? undefined : `${properties} ${ms}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+
+  const isAll = selectedId === ALL;
+  const showCaptions = width >= CAPTION_MIN_WIDTH;
+
   // Split the root bundle once across all systems, not per system: the halves
-  // have to interleave or the parallax reads as five separate discs.
+  // have to interleave or the parallax reads as seven separate discs.
   const { back, front } = useMemo(() => {
     const all = layout.flatMap((s) => s.roots);
     return {
@@ -85,25 +169,26 @@ export default function EcosystemMap({
 
   const hoveredNode = hovered
     ? layout
-        .flatMap((s) => [
-          {
-            ...s.node,
-            // The bare step count in a system node needs to say what it counts
-            // the first time someone points at it.
-            label: `${byId.get(s.pipelineId)!.name} · ${
-              byId.get(s.pipelineId)!.steps.length
-            } steps`,
-          },
-          ...s.agents,
-          ...s.nodes,
-        ])
+        .flatMap((s) => {
+          const pipeline = byId.get(s.pipelineId)!;
+          return [
+            {
+              ...s.node,
+              // A hub's readout says what the system is and what it is made of,
+              // counted off the data rather than asserted.
+              label: `${pipeline.name} · ${pipeline.steps.length} steps · ${pipeline.agents.length} agents`,
+            },
+            ...s.agents,
+            ...s.nodes,
+          ] as MapNode[];
+        })
         .find((node) => node.key === hovered)
     : undefined;
 
   // Entrance, once, when the map first comes into view: the core arrives, the
   // roots grow out of it, then the systems and their names.
   useEffect(() => {
-    const svg = rootRef.current;
+    const svg = svgRef.current;
     if (!svg) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
@@ -159,38 +244,31 @@ export default function EcosystemMap({
 
   const origin = `${CENTRE.x}px ${CENTRE.y}px`;
 
-  /** How lit anything belonging to a system should be right now. */
-  const weight = (pipelineId: string, agentId?: string) => {
-    const open = pipelineId === selectedId;
-    if (!open) return { open, muted: false, opacity: 0.5 };
-    const muted = !!activeAgentId && activeAgentId !== agentId;
-    return { open, muted, opacity: muted ? 0.28 : 1 };
+  /** How lit a system is: every system equally in "all", otherwise the chosen
+   *  one at full strength and the rest receded rather than hidden. */
+  const systemOpacity = (pipelineId: string) =>
+    isAll || pipelineId === selectedId ? 1 : 0.26;
+
+  const select = (id: Selection) => onSelect?.(id);
+  /** Space and Enter both activate, and neither scrolls the page. */
+  const activate = (run: () => void) => (e: ReactKeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      run();
+    }
   };
 
   return (
-    <div className="relative w-full">
+    <div ref={wrapRef} className="relative w-full">
       <svg
-        ref={rootRef}
+        ref={svgRef}
         viewBox={`0 0 ${VIEW} ${VIEW}`}
         className="h-auto w-full overflow-visible"
         role="group"
-        aria-label="Ziiro system ecosystem map"
+        aria-label={`Ziiro system map. ${pipelines.length} systems around a shared core. Select a system, or the core for all of them.`}
       >
-        {/* Halo, squashed to match the tilt of the disc. */}
-        <ellipse
-          data-map-reveal
-          data-map-centre
-          aria-hidden="true"
-          cx={CENTRE.x}
-          cy={CENTRE.y}
-          rx={168}
-          ry={142}
-          fill="rgba(255,138,61,0.12)"
-          style={{ filter: "blur(28px)" }}
-        />
-
-        {/* ── Root bundle, far half. Painted before the core so the core sits
-               inside the tangle rather than on top of it. ── */}
+        {/* ── Root bundle. The far half is painted before the core so the core
+               sits inside the tangle rather than on top of it. ── */}
         {(
           [
             ["back", back, "directory-yaw-back"],
@@ -203,44 +281,40 @@ export default function EcosystemMap({
             data-map-bundle
             aria-hidden="true"
             className={cls}
-            style={{ transformOrigin: origin, willChange: "transform" }}
+            style={{
+              transformOrigin: origin,
+              willChange: "transform",
+              pointerEvents: "none",
+            }}
           >
-            {/* The core knot is drawn between the two halves. */}
-            {layerIndex === 1 && <Core />}
+            {layerIndex === 1 && <CoreMark />}
             {strands.map((strand) => {
-              const pipeline = byId.get(strand.pipelineId)!;
-              const { open, muted } = weight(
-                strand.pipelineId,
-                strand.agentId,
-              );
               const near = strand.z >= 0.5;
-              const opacity = open
-                ? muted
-                  ? 0.24
-                  : near
-                    ? 0.95
-                    : 0.55
-                : near
-                  ? 0.62
-                  : 0.36;
+              // The knot stays monochrome whatever is selected. The core is the
+              // one thing every system shares, and lighting one system's roots
+              // inside it only ever read as a bright smudge off to one side.
+              const stroke = near ? LINE_STRONG : LINE;
               return (
                 <g
                   key={strand.key}
-                  style={{ opacity, transition: "opacity 520ms ease" }}
+                  style={{
+                    opacity: systemOpacity(strand.pipelineId) * (near ? 1 : 0.7),
+                    transition: ease("opacity", 520),
+                  }}
                 >
                   <path
                     d={strand.d}
                     fill="none"
-                    stroke={pipeline.accent}
-                    strokeWidth={near ? 0.6 : 0.35}
+                    stroke={stroke}
+                    strokeWidth={near ? 0.9 : 0.6}
+                    vectorEffect="non-scaling-stroke"
                     strokeLinecap="round"
-                    opacity={0.45}
                   />
                   <circle
                     cx={strand.x}
                     cy={strand.y}
                     r={strand.r}
-                    fill={pipeline.accent}
+                    fill={near ? DIM : FAINT}
                   />
                 </g>
               );
@@ -248,326 +322,402 @@ export default function EcosystemMap({
           </g>
         ))}
 
-        {/* The core's name, above the bundle and haloed so it stays legible
-            wherever the roots happen to cross it. */}
-        <g data-map-reveal data-map-centre aria-hidden="true">
+        {/* ── The core: the "all systems" control, and the one mark that says
+               something is running rather than drawn. ── */}
+        <g
+          data-map-node
+          data-map-reveal
+          data-map-centre
+          role="button"
+          tabIndex={0}
+          aria-pressed={isAll}
+          aria-label={`All systems. ${pipelines.length} systems.`}
+          className="cursor-pointer"
+          onClick={() => select(ALL)}
+          onKeyDown={activate(() => select(ALL))}
+          onMouseEnter={() => setHovered("core")}
+          onMouseLeave={() => setHovered(null)}
+          onFocus={() => setHovered("core")}
+          onBlur={() => setHovered(null)}
+        >
+          <circle
+            cx={CENTRE.x}
+            cy={CENTRE.y}
+            r={Math.max(34, u(PX.coreHit))}
+            fill="transparent"
+          />
+          <circle
+            className="map-focus"
+            cx={CENTRE.x}
+            cy={CENTRE.y}
+            r={Math.max(30, u(PX.coreHit) - 4)}
+            fill="none"
+            stroke={INK}
+            strokeWidth={1.25}
+            vectorEffect="non-scaling-stroke"
+          />
+          {/* The ring reads the selection: lit when every system is in view. */}
+          <circle
+            cx={CENTRE.x}
+            cy={CENTRE.y}
+            r={26}
+            fill="none"
+            stroke={isAll ? LIVE : hovered === "core" ? INK : LINE_STRONG}
+            strokeWidth={isAll ? 1.5 : 1}
+            vectorEffect="non-scaling-stroke"
+            style={{ transition: ease("stroke, stroke-width") }}
+          />
           <text
             x={CENTRE.x}
             y={CENTRE.y + 84}
             textAnchor="middle"
             className="font-mono"
-            fontSize={10}
-            letterSpacing="2.6"
-            fill={`rgba(${INK},0.82)`}
-            stroke="#000000"
-            strokeWidth={4}
+            fontSize={u(PX.core)}
+            letterSpacing={u(2)}
+            fill={isAll || hovered === "core" ? INK : DIM}
+            stroke={BG}
+            strokeWidth={u(2.5)}
             paintOrder="stroke"
+            style={{ transition: ease("fill") }}
           >
             SECOND BRAIN
           </text>
         </g>
 
         {/* ── The trees ──────────────────────────────────────────────────── */}
-        {layout.map((system) => {
+        {layout.map((system, index) => {
           const pipeline = byId.get(system.pipelineId)!;
-          const open = system.pipelineId === selectedId;
+          const open = !isAll && system.pipelineId === selectedId;
+          /** Systems being read carry their full detail: all seven in "all",
+           *  and only the selected one once a system is chosen. */
+          const detail = isAll || open;
+          const hub = system.node;
+          const hot = hovered === hub.key;
+          const nameSize = u(PX.name);
 
           return (
             <g key={system.pipelineId} data-map-reveal data-map-tree>
-              {/* Core → system. Dotted, and only the live one travels. */}
-              <line
-                aria-hidden="true"
-                x1={CENTRE.x}
-                y1={CENTRE.y}
-                x2={system.node.x}
-                y2={system.node.y}
-                stroke={open ? pipeline.accent : `rgba(${INK},0.16)`}
-                strokeWidth={1}
-                strokeDasharray="2 8"
-                opacity={open ? 0.5 : 0.3}
-                className={open ? "directory-flow" : undefined}
-                style={{ transition: "stroke 500ms ease, opacity 500ms ease" }}
-              />
-
-              {/* Edges first, so nodes sit on top of their own connections. */}
-              <g aria-hidden="true">
-                {[...system.agents, ...system.nodes].map((n, i) => {
-                  if (n.kind === "io" && !open) return null;
-                  const { opacity } = weight(n.pipelineId, n.agentId);
-                  return (
-                    <line
-                      // Remounting on select replays the draw-on, so the tree
-                      // visibly grows every time the system changes.
-                      key={open ? `${n.key}:e:on` : `${n.key}:e`}
-                      x1={n.px}
-                      y1={n.py}
-                      x2={n.x}
-                      y2={n.y}
-                      stroke={`rgba(${INK},${open ? 0.5 : 0.42})`}
-                      strokeWidth={n.kind === "io" ? 0.6 : 0.85}
-                      strokeLinecap="round"
-                      pathLength={1}
-                      opacity={opacity * (open ? 0.9 : 0.62)}
-                      className={open ? "directory-draw" : undefined}
-                      style={
-                        open
-                          ? {
-                              animationDelay: `${(i % 26) * 24}ms`,
-                              transition: "opacity 520ms ease",
-                            }
-                          : { transition: "opacity 520ms ease" }
-                      }
-                    />
-                  );
-                })}
-              </g>
-
-              {/* Leaves and steps. A mix of marks: hollow rings for what an
-                  agent can do, solid dots for the steps it runs, fine points
-                  for a step's two ends. */}
-              {system.nodes.map((n) => {
-                if (n.kind === "io" && !open) return null;
-                const { open: on, muted, opacity } = weight(
-                  n.pipelineId,
-                  n.agentId,
-                );
-                // Two marks, and the difference carries meaning: a solid bone
-                // circle is something the system does, a hollow ring is one
-                // end of it — an input or an output.
-                const tip = n.kind === "io";
-                const r = (tip ? 4 : on ? 6.2 : 5.2) + n.z * (on ? 1 : 0.8);
-                return (
-                  <g
-                    key={n.key}
-                    opacity={opacity * (tip ? 0.72 : on ? 1 : 0.82)}
-                    onMouseEnter={() => setHovered(n.key)}
-                    onMouseLeave={() => setHovered(null)}
-                    style={{
-                      pointerEvents: on && !muted ? "auto" : "none",
-                      transition: "opacity 520ms ease",
-                    }}
-                  >
-                    {!tip && on && (
-                      <circle cx={n.x} cy={n.y} r={r * 2.1} fill={BONE} opacity={0.07} />
-                    )}
-                    <circle
-                      cx={n.x}
-                      cy={n.y}
-                      r={r}
-                      fill={tip ? "#000000" : BONE}
-                      stroke={tip ? `rgba(${INK},0.45)` : "rgba(0,0,0,0.8)"}
-                      strokeWidth={tip ? 1.1 : 0.7}
-                    />
-                    {/* The small tick inside a hollow ring, as in the
-                        reference — it marks an end of a step rather than a
-                        thing the step does. */}
-                    {tip && (
-                      <line
-                        x1={n.x}
-                        y1={n.y}
-                        x2={n.x}
-                        y2={n.y - r * 0.55}
-                        stroke={`rgba(${INK},0.45)`}
-                        strokeWidth={0.9}
-                        strokeLinecap="round"
-                      />
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* Agents: the only things inside a tree you can aim at. */}
-              {system.agents.map((agent) => {
-                const active = open && activeAgentId === agent.agentId;
-                const dimmed = open && activeAgentId && !active;
-                return (
-                  <g
-                    key={agent.key}
-                    data-map-node={open ? "" : undefined}
-                    role={open ? "button" : undefined}
-                    tabIndex={open ? 0 : undefined}
-                    aria-pressed={open ? active : undefined}
-                    aria-label={
-                      open ? `${agent.label}, in ${pipeline.name}` : undefined
-                    }
-                    className={open ? "cursor-pointer" : undefined}
-                    onClick={
-                      open
-                        ? () =>
-                            onAgentSelect(active ? null : agent.agentId ?? null)
-                        : undefined
-                    }
-                    onKeyDown={
-                      open
-                        ? (e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              onAgentSelect(
-                                active ? null : agent.agentId ?? null,
-                              );
-                            }
-                          }
-                        : undefined
-                    }
-                    onMouseEnter={() => setHovered(agent.key)}
-                    onMouseLeave={() => setHovered(null)}
-                  >
-                    <circle
-                      cx={agent.x}
-                      cy={agent.y}
-                      r={18}
-                      fill="transparent"
-                      style={{ pointerEvents: open ? "auto" : "none" }}
-                    />
-                    <circle
-                      className="map-focus"
-                      cx={agent.x}
-                      cy={agent.y}
-                      r={15}
-                      fill="none"
-                      stroke="#f2eee9"
-                      strokeWidth={1.2}
-                    />
-                    <circle
-                      cx={agent.x}
-                      cy={agent.y}
-                      r={active ? 14 : 0}
-                      fill="none"
-                      stroke={pipeline.accent}
-                      strokeWidth={1}
-                      opacity={active ? 0.6 : 0}
-                      style={{
-                        transition:
-                          "r 500ms cubic-bezier(0.22,1,0.36,1), opacity 400ms ease",
-                      }}
-                    />
-                    <circle
-                      cx={agent.x}
-                      cy={agent.y}
-                      r={open ? 5 : 4.2}
-                      fill={pipeline.accent}
-                      stroke="none"
-                      opacity={open ? (dimmed ? 0.4 : 1) : 0.8}
-                      style={{
-                        transition:
-                          "opacity 460ms ease, fill 500ms ease, r 500ms cubic-bezier(0.22,1,0.36,1)",
-                      }}
-                    />
-                  </g>
-                );
-              })}
-
               <g
-                data-map-node
-                data-map-reveal
-                data-map-system
-                role="button"
-                tabIndex={0}
-                aria-pressed={open}
-                aria-label={`${pipeline.name}. ${pipeline.steps.length} steps, ${pipeline.agents.length} agents.`}
-                className="cursor-pointer"
-                onClick={() => onSelect(system.pipelineId)}
-                onMouseEnter={() => setHovered(system.node.key)}
-                onMouseLeave={() => setHovered(null)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onSelect(system.pipelineId);
-                  }
+                style={{
+                  opacity: systemOpacity(system.pipelineId),
+                  transition: ease("opacity", 520),
                 }}
               >
-                <circle
-                  cx={system.node.x}
-                  cy={system.node.y}
-                  r={40}
-                  fill="transparent"
+                {/* Core to hub. Dotted, and only the selected one travels. */}
+                <line
+                  aria-hidden="true"
+                  x1={CENTRE.x}
+                  y1={CENTRE.y}
+                  x2={hub.x}
+                  y2={hub.y}
+                  stroke={open ? LIVE : LINE_STRONG}
+                  strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
+                  strokeDasharray="2 8"
+                  className={open ? "directory-flow" : undefined}
+                  style={{ pointerEvents: "none", transition: ease("stroke") }}
                 />
-                <circle
-                  className="map-focus"
-                  cx={system.node.x}
-                  cy={system.node.y}
-                  r={34}
-                  fill="none"
-                  stroke="#f2eee9"
-                  strokeWidth={1.4}
-                />
-                <circle
-                  cx={system.node.x}
-                  cy={system.node.y}
-                  r={open ? 38 : 27}
-                  fill={pipeline.accent}
-                  opacity={open ? 0.11 : 0}
-                  style={{
-                    transition:
-                      "opacity 500ms ease, r 600ms cubic-bezier(0.22,1,0.36,1)",
-                  }}
-                />
-                <circle
-                  cx={system.node.x}
-                  cy={system.node.y}
-                  r={system.node.r}
-                  fill="#0a0810"
-                  stroke={
-                    open || hovered === system.node.key
-                      ? pipeline.accent
-                      : `rgba(${INK},0.34)`
-                  }
-                  strokeWidth={open ? 1.5 : 1}
-                  style={{
-                    transition: "stroke 400ms ease, stroke-width 400ms ease",
-                  }}
-                />
-                {(() => {
-                  // A glyph rather than a number: the hub is the one mark on
-                  // the map that has to be identifiable at a glance, and a
-                  // two-digit count never was.
-                  const Glyph = ICONS[pipeline.icon];
-                  return (
-                    <Glyph
-                      x={system.node.x - 11}
-                      y={system.node.y - 11}
-                      width={22}
-                      height={22}
-                      fill="none"
-                      strokeWidth={1.4}
-                      stroke={open ? pipeline.accent : `rgba(${INK},0.55)`}
-                      style={{ transition: "stroke 400ms ease" }}
-                    />
-                  );
-                })()}
-              </g>
 
-              <g data-map-reveal data-map-label aria-hidden="true">
-                <text
-                  x={labelX(system.label.x, pipeline.shortName, 34)}
-                  y={system.label.y}
-                  textAnchor="middle"
-                  className="font-serif"
-                  fontSize={34}
-                  letterSpacing="4.5"
-                  fill={open ? "#F6F2EC" : `rgba(${INK},0.68)`}
-                  stroke="#000000"
-                  strokeWidth={5}
-                  paintOrder="stroke"
-                  style={{ transition: "fill 400ms ease" }}
+                {/* Hub to agent: the system's skeleton, drawn whether or not
+                    the system is the one being read. */}
+                <g aria-hidden="true" style={{ pointerEvents: "none" }}>
+                  {system.agents.map((n, i) => {
+                    const dimmed =
+                      open && !!activeAgentId && activeAgentId !== n.agentId;
+                    return (
+                      <line
+                        // Remounting on select replays the draw-on, so the tree
+                        // visibly grows every time the system changes.
+                        key={open ? `${n.key}:e:on` : `${n.key}:e`}
+                        x1={n.px}
+                        y1={n.py}
+                        x2={n.x}
+                        y2={n.y}
+                        stroke={open ? DIM : LINE_STRONG}
+                        strokeWidth={1}
+                        vectorEffect="non-scaling-stroke"
+                        strokeLinecap="round"
+                        pathLength={1}
+                        opacity={dimmed ? 0.3 : 1}
+                        className={open ? "directory-draw" : undefined}
+                        style={{
+                          animationDelay: open ? `${(i % 26) * 24}ms` : undefined,
+                          transition: ease("opacity", 520),
+                        }}
+                      />
+                    );
+                  })}
+                </g>
+
+                {/* Everything below the agents: what each one can do, the steps
+                    it runs, and a step's two ends.
+
+                    This is the detail, and it is only drawn for systems being
+                    read: all seven in the "all" view, one when one is selected.
+                    A receding system keeps its hub, its spoke and its agents, so
+                    it recedes to a structure rather than to a cloud of dots. */}
+                <g
+                  data-map-detail
+                  aria-hidden={detail ? undefined : "true"}
+                  style={{
+                    opacity: detail ? 1 : 0,
+                    pointerEvents: detail ? undefined : "none",
+                    transition: ease("opacity", 520),
+                  }}
                 >
-                  {pipeline.shortName.toUpperCase()}
-                </text>
-                <text
-                  x={labelX(system.label.x, pipeline.shortName, 34)}
-                  y={system.label.y + 22}
-                  textAnchor="middle"
-                  className="font-sans"
-                  fontSize={11}
-                  letterSpacing="0.4"
-                  fill={`rgba(${INK},${open ? 0.5 : 0.32})`}
-                  stroke="#000000"
-                  strokeWidth={3.5}
-                  paintOrder="stroke"
-                  style={{ transition: "fill 400ms ease" }}
+                  <g aria-hidden="true" style={{ pointerEvents: "none" }}>
+                    {system.nodes.map((n, i) => {
+                      if (n.kind === "io" && !open) return null;
+                      const dimmed =
+                        open && !!activeAgentId && activeAgentId !== n.agentId;
+                      return (
+                        <line
+                          key={open ? `${n.key}:e:on` : `${n.key}:e`}
+                          x1={n.px}
+                          y1={n.py}
+                          x2={n.x}
+                          y2={n.y}
+                          stroke={open ? DIM : LINE_STRONG}
+                          strokeWidth={n.kind === "io" ? 0.7 : 1}
+                          vectorEffect="non-scaling-stroke"
+                          strokeLinecap="round"
+                          pathLength={1}
+                          opacity={dimmed ? 0.3 : 1}
+                          className={open ? "directory-draw" : undefined}
+                          style={{
+                            animationDelay: open
+                              ? `${(i % 26) * 24}ms`
+                              : undefined,
+                            transition: ease("opacity", 520),
+                          }}
+                        />
+                      );
+                    })}
+                  </g>
+
+                  {/* Two marks, and the difference carries meaning: a solid dot
+                      is something the system does, a hollow ring is one end of
+                      it, an input or an output. */}
+                  {system.nodes.map((n) => {
+                    if (n.kind === "io" && !open) return null;
+                    const tip = n.kind === "io";
+                    const dimmed =
+                      open && !!activeAgentId && activeAgentId !== n.agentId;
+                    const r = (tip ? 3.6 : open ? 5.6 : 4.8) + n.z * 1.1;
+                    return (
+                      <g
+                        key={n.key}
+                        opacity={dimmed ? 0.3 : 1}
+                        onMouseEnter={() => setHovered(n.key)}
+                        onMouseLeave={() => setHovered(null)}
+                        style={{
+                          pointerEvents: open && !dimmed ? "auto" : "none",
+                          transition: ease("opacity", 520),
+                        }}
+                      >
+                        <circle
+                          cx={n.x}
+                          cy={n.y}
+                          r={r}
+                          fill={tip ? BG : open ? INK : DIM}
+                          stroke={tip ? FAINT : BG}
+                          strokeWidth={tip ? 1 : 0.75}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+
+                {/* Agents: the only things inside a tree you can aim at. */}
+                {system.agents.map((agent) => {
+                  const active = open && activeAgentId === agent.agentId;
+                  const dimmed = open && !!activeAgentId && !active;
+                  return (
+                    <g
+                      key={agent.key}
+                      data-map-node={open ? "" : undefined}
+                      role={open ? "button" : undefined}
+                      tabIndex={open ? 0 : undefined}
+                      aria-pressed={open ? active : undefined}
+                      aria-label={
+                        open ? `${agent.label}, in ${pipeline.name}` : undefined
+                      }
+                      className={open ? "cursor-pointer" : undefined}
+                      onClick={
+                        open
+                          ? () =>
+                              onAgentSelect?.(active ? null : agent.agentId ?? null)
+                          : undefined
+                      }
+                      onKeyDown={
+                        open
+                          ? activate(() =>
+                              onAgentSelect?.(active ? null : agent.agentId ?? null),
+                            )
+                          : undefined
+                      }
+                      onMouseEnter={() => setHovered(agent.key)}
+                      onMouseLeave={() => setHovered(null)}
+                      onFocus={() => setHovered(agent.key)}
+                      onBlur={() => setHovered(null)}
+                      style={{ pointerEvents: open ? "auto" : "none" }}
+                    >
+                      <circle
+                        cx={agent.x}
+                        cy={agent.y}
+                        r={Math.max(16, u(PX.agentHit))}
+                        fill="transparent"
+                      />
+                      <circle
+                        className="map-focus"
+                        cx={agent.x}
+                        cy={agent.y}
+                        r={14}
+                        fill="none"
+                        stroke={INK}
+                        strokeWidth={1.25}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      {/* The open agent wears a ring rather than a glow. */}
+                      <circle
+                        cx={agent.x}
+                        cy={agent.y}
+                        r={active ? 12 : 0}
+                        fill="none"
+                        stroke={LIVE}
+                        strokeWidth={1}
+                        vectorEffect="non-scaling-stroke"
+                        opacity={active ? 1 : 0}
+                        style={{ transition: ease("r, opacity", 500) }}
+                      />
+                      <circle
+                        cx={agent.x}
+                        cy={agent.y}
+                        r={open ? 5.4 : 4.4}
+                        fill={open ? LIVE : DIM}
+                        opacity={dimmed ? 0.35 : 1}
+                        style={{ transition: ease("opacity, fill, r", 460) }}
+                      />
+                    </g>
+                  );
+                })}
+
+                {/* The hub: the system's control. A hairline ring with its
+                    ring-order numeral, and the name out on the rim. */}
+                <g
+                  data-map-node
+                  data-map-reveal
+                  data-map-system
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={open}
+                  aria-label={`${pipeline.name}. ${pipeline.steps.length} steps, ${pipeline.agents.length} agents.`}
+                  className="cursor-pointer"
+                  onClick={() => select(system.pipelineId)}
+                  onKeyDown={activate(() => select(system.pipelineId))}
+                  onMouseEnter={() => setHovered(hub.key)}
+                  onMouseLeave={() => setHovered(null)}
+                  onFocus={() => setHovered(hub.key)}
+                  onBlur={() => setHovered(null)}
                 >
-                  {pipeline.tags.join("  ·  ")}
-                </text>
+                  <circle
+                    cx={hub.x}
+                    cy={hub.y}
+                    r={Math.max(34, u(PX.hubHit))}
+                    fill="transparent"
+                  />
+                  <circle
+                    className="map-focus"
+                    cx={hub.x}
+                    cy={hub.y}
+                    r={hub.r + 11}
+                    fill="none"
+                    stroke={INK}
+                    strokeWidth={1.25}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  {/* Hover and selection both answer with a second hairline,
+                      so pointing at a hub says "this one is aimable" before
+                      you click it. */}
+                  <circle
+                    cx={hub.x}
+                    cy={hub.y}
+                    r={hub.r + 7}
+                    fill="none"
+                    stroke={open ? LIVE : INK}
+                    strokeWidth={1}
+                    vectorEffect="non-scaling-stroke"
+                    opacity={open ? 0.55 : hot ? 0.5 : 0}
+                    style={{ transition: ease("opacity") }}
+                  />
+                  <circle
+                    cx={hub.x}
+                    cy={hub.y}
+                    r={hub.r}
+                    fill={BG}
+                    stroke={open ? LIVE : hot ? INK : LINE_STRONG}
+                    strokeWidth={open ? 1.5 : 1}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ transition: ease("stroke, stroke-width") }}
+                  />
+                  <text
+                    x={hub.x}
+                    y={hub.y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="font-mono"
+                    fontSize={u(PX.hub)}
+                    letterSpacing={u(0.5)}
+                    fill={open ? LIVE : hot ? INK : DIM}
+                    style={{
+                      pointerEvents: "none",
+                      transition: ease("fill"),
+                    }}
+                  >
+                    {String(index + 1).padStart(2, "0")}
+                  </text>
+                </g>
+
+                <g
+                  data-map-reveal
+                  data-map-label
+                  aria-hidden="true"
+                  style={{ pointerEvents: "none" }}
+                >
+                  <text
+                    x={clampLabel(system.label.x, pipeline.shortName, nameSize)}
+                    y={system.label.y}
+                    textAnchor="middle"
+                    className="font-serif"
+                    fontSize={nameSize}
+                    letterSpacing={u(2.4)}
+                    fill={open ? INK : isAll ? DIM : FAINT}
+                    stroke={BG}
+                    strokeWidth={u(2.5)}
+                    paintOrder="stroke"
+                    style={{ transition: ease("fill") }}
+                  >
+                    {pipeline.shortName.toUpperCase()}
+                  </text>
+                  {showCaptions && (
+                    <text
+                      x={clampLabel(system.label.x, pipeline.shortName, nameSize)}
+                      y={system.label.y + u(15)}
+                      textAnchor="middle"
+                      className="font-mono"
+                      fontSize={u(PX.caption)}
+                      letterSpacing={u(1.4)}
+                      fill={open ? DIM : FAINT}
+                      stroke={BG}
+                      strokeWidth={u(2)}
+                      paintOrder="stroke"
+                      style={{ transition: ease("fill") }}
+                    >
+                      {pipeline.tags.join("  ·  ").toUpperCase()}
+                    </text>
+                  )}
+                </g>
               </g>
             </g>
           );
@@ -581,18 +731,19 @@ export default function EcosystemMap({
               y1={hoveredNode.y - hoveredNode.r * 0.7}
               x2={hoveredNode.x + hoveredNode.r + 10}
               y2={hoveredNode.y - hoveredNode.r - 10}
-              stroke={`rgba(${INK},0.34)`}
-              strokeWidth={0.8}
+              stroke={FAINT}
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
             />
             <text
               x={hoveredNode.x + hoveredNode.r + 14}
               y={hoveredNode.y - hoveredNode.r - 12}
               className="font-mono"
-              fontSize={11}
-              letterSpacing="0.4"
-              fill="#f2eee9"
-              stroke="#000000"
-              strokeWidth={3.5}
+              fontSize={u(PX.readout)}
+              letterSpacing={u(0.2)}
+              fill={INK}
+              stroke={BG}
+              strokeWidth={u(2.5)}
               paintOrder="stroke"
             >
               {hoveredNode.label}
@@ -606,33 +757,33 @@ export default function EcosystemMap({
 
 /**
  * Keep a rim label inside the viewBox. Width is estimated from the string
- * rather than measured — an SVG text measurement would cost a layout pass per
- * label per render, and an estimate is plenty for a clamp.
+ * rather than measured, because an SVG text measurement would cost a layout
+ * pass per label per render and an estimate is plenty for a clamp.
  */
-function labelX(x: number, label: string, fontSize: number) {
+function clampLabel(x: number, label: string, fontSize: number) {
   const half = (label.length * fontSize * 0.66) / 2;
   return Math.min(Math.max(x, half + 6), VIEW - half - 6);
 }
 
-/** The intelligence layer: a dark well the roots run into, and a hot point. */
-function Core() {
+/**
+ * The core mark: a hairline well the roots run into, and one live point.
+ *
+ * Drawn between the two halves of the bundle so the strands pass in front of
+ * it as well as behind. Its hit area, focus ring and name are a separate
+ * group above the trees, so a spoke can never steal the click.
+ */
+function CoreMark() {
   return (
     <g data-map-centre aria-hidden="true">
-      <circle cx={CENTRE.x} cy={CENTRE.y} r={30} fill="rgba(0,0,0,0.6)" />
-      <circle
-        cx={CENTRE.x}
-        cy={CENTRE.y}
-        r={20}
-        fill="rgba(255,138,61,0.26)"
-        style={{ filter: "blur(8px)" }}
-      />
+      <circle cx={CENTRE.x} cy={CENTRE.y} r={30} fill={BG} opacity={0.72} />
       <circle
         cx={CENTRE.x}
         cy={CENTRE.y}
         r={13}
         fill="none"
-        stroke="rgba(140,106,255,0.42)"
+        stroke={LINE_STRONG}
         strokeWidth={1}
+        vectorEffect="non-scaling-stroke"
         strokeDasharray="2 5"
         className="directory-orbit"
         style={{ transformOrigin: `${CENTRE.x}px ${CENTRE.y}px` }}
@@ -640,8 +791,8 @@ function Core() {
       <circle
         cx={CENTRE.x}
         cy={CENTRE.y}
-        r={5}
-        fill="#FFFFFF"
+        r={4.5}
+        fill={LIVE}
         className="directory-core"
         style={{ transformOrigin: `${CENTRE.x}px ${CENTRE.y}px` }}
       />

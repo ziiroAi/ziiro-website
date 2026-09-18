@@ -31,22 +31,29 @@ export const IDENTITIES = [
   "Engineer",
 ] as const;
 
-/** The second, slower rotation under the copy. Deliberately out of phase with
- *  the orb so the two never pulse in lockstep. */
-export const CAPABILITIES = [
-  "Research agents",
-  "AI workflows",
-  "Automation",
-  "Intelligence systems",
-  "Agentic operations",
-  "Continuous optimization",
-  "Measurable outcomes",
-] as const;
-
-export const HEADLINE_SANS = "AI that";
-export const HEADLINE_SERIF = "pays for itself.";
+/**
+ * The headline, in two tones of one sans family.
+ *
+ * The lead sits in --text-primary and the tail drops to --text-secondary, so
+ * the sentence reads as one thought that resolves rather than as two competing
+ * lines. The previous treatment set the second line in an italic display serif
+ * with a violet glow behind it; that worked on the old near-black field and
+ * had nothing to sit on once the page went white, where a glow is a smudge and
+ * a serif italic is simply a different voice arriving mid-sentence.
+ *
+ * The claim also changed. "AI that pays for itself" promised a return; this
+ * promises the condition the return shows up as, which is the thing the rest
+ * of the page can actually evidence.
+ *
+ * The tail is "just run better." and that is deliberate. It was briefly set as
+ * "just runs better." on the assumption that the original was a typo; the
+ * human corrected it back and asked for their wording verbatim, full stop
+ * included. Do not re-agree it with "business" — this line is theirs.
+ */
+export const HEADLINE_LEAD = "Your business";
+export const HEADLINE_TAIL = "just run better.";
 
 export const SUPPORT =
   "Business intelligence first. AI second. We build only the systems the numbers justify.";
 
-export const TRUST = "Free 30 minutes · No pitch · You keep the roadmap";
+export const TRUST = "Hourly consultation · No pitch · You keep the roadmap";

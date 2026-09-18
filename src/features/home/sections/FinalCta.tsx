@@ -6,9 +6,9 @@ import MotionReveal from "@/shared/motion/MotionReveal";
 import { CSS_EASE, DURATION, TRAVEL } from "@/shared/motion/tokens";
 
 /**
- * Closing CTA. "Book a call" asks the visitor to give up thirty minutes for an
- * unspecified return, so this spells out exactly what those thirty minutes
- * produce and what they explicitly won't be. The deliverables are the offer.
+ * Closing CTA. "Book a call" asks the visitor to pay for an hour against an
+ * unspecified return, so this spells out exactly what that hour produces and
+ * what it explicitly won't be. The deliverables are the offer.
  */
 const deliverables = [
   "Identify your operational bottlenecks",
@@ -86,7 +86,7 @@ export default function FinalCta() {
         >
           <p className="mb-8 flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-            Free business intelligence session
+            Hourly business intelligence session
           </p>
 
           <h2
@@ -97,7 +97,7 @@ export default function FinalCta() {
               lineHeight: 1.04,
             }}
           >
-            Thirty minutes.
+            One focused hour.
             <br />
             <span className="text-[var(--text-secondary)]">
               Then you'll know the number.
@@ -107,7 +107,7 @@ export default function FinalCta() {
           <div className="mt-12 grid gap-12 md:grid-cols-2">
             <div>
               <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                In that call we will
+                In that hour we will
               </p>
               <ul className="mt-6 space-y-4">
                 {deliverables.map((d) => (
@@ -145,7 +145,8 @@ export default function FinalCta() {
                   <Arrow nudge={!shouldReduce} />
                 </Link>
                 <p className="mt-5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                  You leave with the roadmap whether or not you hire us.{" "}
+                  You leave with the roadmap whether or not you hire us to
+                  build it.{" "}
                   <Link
                     to="/privacy"
                     className="underline underline-offset-4 hover:opacity-70"

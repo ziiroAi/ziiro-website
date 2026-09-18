@@ -1,9 +1,9 @@
 /**
- * Shared helpers for the Vercel Edge email endpoints (send-contact, send-audit).
+ * Shared helpers for the Vercel Edge email endpoint (send-contact).
  * Files prefixed with "_" are bundled into functions but never routed themselves.
  *
- * These endpoints replace the former Supabase Edge Functions. They deliver mail
- * through Resend and intentionally do NOT persist to a database. The previous
+ * This endpoint replaces the former Supabase Edge Functions. It delivers mail
+ * through Resend and intentionally does NOT persist to a database. The previous
  * Supabase insert was the single point of failure whenever the free project
  * auto-paused, silently swallowing every submission. Email delivery is the goal.
  */
@@ -12,7 +12,7 @@ const allowedOrigins = new Set([
   "https://ziiro.work",
   "https://www.ziiro.work",
   "http://localhost:4173",
-  "http://localhost:8080",
+  "http://localhost:8081",
   "http://localhost:3000",
 ]);
 

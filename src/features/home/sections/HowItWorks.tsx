@@ -5,44 +5,46 @@ import MotionReveal from "@/shared/motion/MotionReveal";
  * How the engagement runs, in five steps a visitor can read in under twenty
  * seconds. This replaces the seven-phase orbital diagram, which needed its own
  * scroll interaction and a spiral background to explain the same idea. The
- * long-form version still lives on /process.
+ * long-form version lives in the process section of /who-we-are.
  *
- * Each step carries an accent, and the five of them walk the site's duotone
- * from warm to cool in the same order the system directory's departments do.
- * That is not decoration: the section is a *sequence*, and a ramp is the
- * cheapest way to say so without drawing arrows. Reading the colour tells you
- * roughly where in the process you are before you have read a word.
+ * The five steps used to each carry their own hue, walking the duotone from
+ * warm to cool so the colour told you where in the sequence you were. That
+ * ramp was built for a dark card: every one of those five hues was chosen to
+ * glow on black, and on paper the warm end runs at 2.4:1, which is not a
+ * colour a number can be set in. Five accessible hues in a row would also be
+ * five hues in a row, which is the icon soup the design bar rules out one step
+ * removed.
+ *
+ * So the sequence is carried by what always actually carried it: the numbers,
+ * the order they are read in, and a rule across the top of each card that
+ * fades to the right, so five of them read as one line being handed along.
+ * Colour is spent on state elsewhere on this site, and these steps have none.
  */
 const steps = [
   {
     n: "01",
     title: "Discover the business",
     body: "Sessions on revenue, operations, and cost structure. How the company actually runs, not how the org chart says it does.",
-    accent: "#FF8A3D",
   },
   {
     n: "02",
     title: "Find the bottlenecks",
     body: "Every process step mapped, with the manual work, repeated tasks, and handoffs flagged where the hours disappear.",
-    accent: "#FF6A55",
   },
   {
     n: "03",
     title: "Measure the ROI",
     body: "Monthly savings, build cost, and break-even for each opportunity. The numbers decide what gets built, and what doesn't.",
-    accent: "#E8598C",
   },
   {
     n: "04",
     title: "Build the systems",
     body: "Agents, loops, and dashboards shipped into your stack. Working systems, not slide decks.",
-    accent: "#B061D8",
   },
   {
     n: "05",
     title: "Optimize continuously",
     body: "Each system tracks its own outcomes and gets tuned against them, so performance compounds after launch.",
-    accent: "#8C6AFF",
   },
 ];
 
@@ -96,16 +98,10 @@ export default function HowItWorks() {
                   boxShadow: "var(--glass-inset-highlight)",
                 }}
               >
-                {/* The step's own light, pooled behind its number. Low enough
-                    to read as the card being lit rather than as a coloured
-                    panel — the copy still has to be the loudest thing here. */}
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -left-8 -top-10 h-32 w-32 rounded-full"
-                  style={{
-                    background: `radial-gradient(circle, ${step.accent}26 0%, transparent 70%)`,
-                  }}
-                />
+                {/* The pooled light behind the number is gone with the hues.
+                    It was a 15% radial of the step's accent, which on black
+                    read as the card being lit from its corner and on paper can
+                    only read as a stain in the corner of the card. */}
 
                 {/* The rule across the top. It fades out to the right, so five
                     of them in a row read as one line being handed along rather
@@ -114,13 +110,14 @@ export default function HowItWorks() {
                   aria-hidden="true"
                   className="absolute inset-x-0 top-0 h-px"
                   style={{
-                    background: `linear-gradient(90deg, ${step.accent} 0%, ${step.accent}40 55%, transparent 100%)`,
+                    background:
+                      "linear-gradient(90deg, color-mix(in srgb, var(--text-primary) 30%, transparent) 0%, color-mix(in srgb, var(--text-primary) 12%, transparent) 55%, transparent 100%)",
                   }}
                 />
 
                 <p
-                  className="relative font-mono text-[11px] font-bold uppercase"
-                  style={{ letterSpacing: "0.25em", color: step.accent }}
+                  className="relative font-mono text-[11px] font-bold uppercase text-[var(--text-primary)]"
+                  style={{ letterSpacing: "0.25em" }}
                 >
                   {step.n}
                 </p>
@@ -148,7 +145,8 @@ export default function HowItWorks() {
                   aria-hidden="true"
                   className="relative mt-auto block h-px w-8"
                   style={{
-                    background: `linear-gradient(90deg, ${step.accent}66, transparent)`,
+                    background:
+                      "linear-gradient(90deg, color-mix(in srgb, var(--text-primary) 34%, transparent), transparent)",
                   }}
                 />
               </article>

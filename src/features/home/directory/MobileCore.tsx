@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import type { Pipeline } from "./pipelines";
+import { DIRECTORY_STATS, PIPELINES } from "./pipelines";
 import { DURATION, EASE_OUT_EXPO } from "@/shared/motion/tokens";
 
 /**
@@ -12,8 +13,20 @@ import { DURATION, EASE_OUT_EXPO } from "@/shared/motion/tokens";
  * system hangs off a shared intelligence layer, and it has this many agents
  * inside it. The selector above does the map's navigation job, and the
  * workflow below does its explanatory one.
+ *
+ * With nothing narrowed to — the "all" selection the section opens on — it
+ * says what the whole directory holds instead, every system at equal weight,
+ * which is the same thing the radial says on a wide screen. Both figures are
+ * counted off the pipeline data.
+ *
+ * The seven per-system hues are gone from here for the same reason they are
+ * gone from the radial: they were seven lights chosen for a black field, and
+ * on paper the warm end of that ramp is 2.4:1, which is not a colour a system
+ * name can be set in. The phone's version says the same thing in ink, and
+ * spends the accent where the rest of the directory spends it, on the one
+ * system you have narrowed to.
  */
-export default function MobileCore({ pipeline }: { pipeline: Pipeline }) {
+export default function MobileCore({ pipeline }: { pipeline: Pipeline | null }) {
   const shouldReduce = useReducedMotion();
   // The ring stays mounted through a system change so its 24-second rotation is
   // never reset to zero; only the identity beneath it is re-keyed, and only
@@ -25,6 +38,11 @@ export default function MobileCore({ pipeline }: { pipeline: Pipeline }) {
     mounted.current = true;
   }, []);
 
+  // A narrowed system is the thing you are reading, so it takes the accent;
+  // "all" is a scope rather than a system, so it takes the ink, the way the
+  // selector chip does, and never reads as one more system.
+  const accent = pipeline ? "var(--dir-live)" : "var(--dir-ink)";
+
   return (
     <div className="flex flex-col items-center text-center">
       <svg
@@ -34,24 +52,18 @@ export default function MobileCore({ pipeline }: { pipeline: Pipeline }) {
         aria-hidden="true"
         className="overflow-visible"
       >
-        <circle
-          cx="17"
-          cy="17"
-          r="16"
-          fill="none"
-          stroke="rgba(242,238,233,0.12)"
-        />
+        <circle cx="17" cy="17" r="16" fill="none" stroke="var(--dir-line)" />
         <circle
           cx="17"
           cy="17"
           r="9"
           fill="none"
-          stroke="rgba(140,106,255,0.34)"
+          stroke="var(--dir-line-strong)"
           strokeDasharray="2 5"
           className="directory-orbit"
           style={{ transformOrigin: "17px 17px" }}
         />
-        <circle cx="17" cy="17" r="3" fill="#f2eee9" />
+        <circle cx="17" cy="17" r="3" fill="var(--dir-ink)" />
       </svg>
 
       <p
@@ -62,7 +74,7 @@ export default function MobileCore({ pipeline }: { pipeline: Pipeline }) {
       </p>
 
       <motion.div
-        key={pipeline.id}
+        key={pipeline ? pipeline.id : "all"}
         className="flex flex-col items-center"
         initial={!shouldReduce && mounted.current ? { opacity: 0 } : false}
         animate={{ opacity: 1 }}
@@ -72,32 +84,56 @@ export default function MobileCore({ pipeline }: { pipeline: Pipeline }) {
           aria-hidden="true"
           className="my-4 block h-10 w-px"
           style={{
-            background: `linear-gradient(to bottom, rgba(242,238,233,0.16), ${pipeline.accent})`,
+            background: `linear-gradient(to bottom, var(--dir-line), ${accent})`,
           }}
         />
 
         <p
           className="font-mono text-[10px] uppercase"
-          style={{ letterSpacing: "0.26em", color: pipeline.accent }}
+          style={{ letterSpacing: "0.26em", color: accent }}
         >
-          {pipeline.name}
+          {pipeline ? pipeline.name : "All systems"}
         </p>
 
-        <div aria-hidden="true" className="mt-4 flex items-center gap-1.5">
-          {pipeline.agents.map((agent) => (
-            <span
-              key={agent.id}
-              className="block h-1.5 w-1.5 rounded-full"
-              style={{ background: pipeline.accent, opacity: 0.7 }}
-            />
-          ))}
-        </div>
-        <p
-          className="mt-3 font-mono text-[9px] uppercase"
-          style={{ letterSpacing: "0.24em", color: "var(--dir-faint)" }}
-        >
-          {pipeline.agents.length} agents
-        </p>
+        {pipeline ? (
+          <>
+            <div aria-hidden="true" className="mt-4 flex items-center gap-1.5">
+              {pipeline.agents.map((agent) => (
+                <span
+                  key={agent.id}
+                  className="block h-1.5 w-1.5 rounded-full"
+                  style={{ background: "var(--dir-live)", opacity: 0.7 }}
+                />
+              ))}
+            </div>
+            <p
+              className="mt-3 font-mono text-[9px] uppercase"
+              style={{ letterSpacing: "0.24em", color: "var(--dir-faint)" }}
+            >
+              {pipeline.agents.length} agents
+            </p>
+          </>
+        ) : (
+          <>
+            {/* One dot per system, all at equal weight and none dimmed: the
+                phone's version of the radial with nothing narrowed to. */}
+            <div aria-hidden="true" className="mt-4 flex items-center gap-1.5">
+              {PIPELINES.map((system) => (
+                <span
+                  key={system.id}
+                  className="block h-1.5 w-1.5 rounded-full"
+                  style={{ background: "var(--dir-ink)", opacity: 0.7 }}
+                />
+              ))}
+            </div>
+            <p
+              className="mt-3 font-mono text-[9px] uppercase"
+              style={{ letterSpacing: "0.24em", color: "var(--dir-faint)" }}
+            >
+              {PIPELINES.length} systems · {DIRECTORY_STATS.agents} agents
+            </p>
+          </>
+        )}
       </motion.div>
     </div>
   );

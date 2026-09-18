@@ -29,20 +29,20 @@ export const videos: VideoEntry[] = [
       source: { kind: "youtube", id: "_R1Z7rfoaJA" },
       title: "I built an AI agency. Here's exactly how it works.",
       description:
-        "A screen-share walkthrough of Ziiro, top to bottom: what we do, how we work, what it costs, and where your data goes. We don't sell AI for AI's sake. We start with your numbers, where the hours go and where the money leaks, and only build something when the math says it's worth it.",
+        "A screen-share walkthrough of Ziiro, top to bottom: what we do, how we work, what you invest, and where your data goes. We don't sell AI for AI's sake. We start with your numbers, where the hours go and where the money leaks, and only build something when the math says it's worth it.",
       uploadDate: "2026-07-26",
       duration: "PT7M50S",
       runtime: "8 min",
     },
     seoTitle: "How Ziiro Works: A Full Walkthrough",
     seoDescription:
-      "An eight-minute screen-share walkthrough of how Ziiro works end to end: what we build, how an engagement runs, what it costs, and where your data goes.",
+      "An eight-minute screen-share walkthrough of how Ziiro works end to end: what we build, how an engagement runs, what you invest, and where your data goes.",
     summary:
       "Eight minutes, one screen share, no slides. The whole business explained in the order you'd actually ask about it.",
     covers: [
       "What we do, and what we deliberately don't",
       "How an engagement runs, start to finish",
-      "What it costs and how scope gets set",
+      "What you invest and how scope gets set",
       "Where your data goes and who can see it",
     ],
   },

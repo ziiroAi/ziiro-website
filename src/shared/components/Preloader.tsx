@@ -86,7 +86,7 @@ export default function Preloader() {
     // ---- Sample "ZIIRO" into target points on an offscreen canvas ----
     const off = document.createElement("canvas");
     const octx = off.getContext("2d", { willReadFrequently: true });
-    let particles: Particle[] = [];
+    const particles: Particle[] = [];
 
     if (octx) {
       const targetW = Math.min(W * 0.62, 560);
@@ -96,7 +96,11 @@ export default function Preloader() {
       octx.fillStyle = "#000";
       octx.textAlign = "center";
       octx.textBaseline = "middle";
-      octx.font = `700 ${fontPx}px "Instrument Sans", Inter, sans-serif`;
+      // The page's own stack. Canvas takes no Tailwind class, so this is the
+      // one place the family has to be written out by hand; it named Instrument
+      // Sans and Inter, neither of which is downloaded any more, so the
+      // wordmark was falling back to whatever generic sans the OS picked.
+      octx.font = `700 ${fontPx}px "Helvetica Neue", Helvetica, Arial, sans-serif`;
       try {
         (octx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
           `${Math.floor(fontPx * 0.02)}px`;

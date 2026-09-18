@@ -35,9 +35,15 @@ dist-ssr
 # Session/tooling artifacts
 .playwright-mcp/
 *.mp4
+# Self-hosted brand film ships with the repo (decision: 2026-09-19).
+!public/media/*.mp4
 dist-ssr/
 .vercel
 .env*
 
 # auto-research scorer venv
 .auto-research/.venv/
+
+# Agent fleet scratch (cmux workers)
+.team/
+.agents/

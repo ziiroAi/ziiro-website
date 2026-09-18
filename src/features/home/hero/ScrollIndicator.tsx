@@ -8,13 +8,15 @@ import {
 import { CSS_EASE, DURATION } from "@/shared/motion/tokens";
 
 /**
- * Scroll cue. A label and a hairline rail with a single point of light falling
+ * Scroll cue. A label and a hairline rail with a single dark point falling
  * down it — the movement is the invitation, so the rail itself stays at the
  * edge of visibility and nothing bounces.
  *
- * It sits in normal flow at the end of the hero column (pushed down with
- * mt-auto) rather than being absolutely pinned, so on a short viewport it
- * follows the content instead of landing on top of the buttons.
+ * On the old black field the point was a lit one: an orange dot with an 8px
+ * glow around it. A glow is light added to a ground, and there is no light to
+ * add to white — it would have rendered as a smudge travelling down a hairline.
+ * So the point is now the ink itself and the glow is gone; the rail is a
+ * border-token hairline, and the contrast between them is what the eye tracks.
  */
 export default function ScrollIndicator() {
   /**
@@ -66,10 +68,10 @@ export default function ScrollIndicator() {
       href="#how-it-works"
       onClick={onActivate}
       className="group inline-flex flex-col items-center gap-3 rounded-[10px] px-3 py-2 focus-visible:outline-none focus-visible:ring-1"
-      style={{ ["--tw-ring-color" as string]: "rgba(255,138,61,0.75)" }}
+      style={{ ["--tw-ring-color" as string]: "var(--text-primary)" }}
     >
       <span
-        className="font-mono text-[10px] font-bold uppercase text-[var(--hero-faint)] group-hover:text-[var(--hero-ink)] group-focus-visible:text-[var(--hero-ink)]"
+        className="font-mono text-[10px] font-bold uppercase text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] group-focus-visible:text-[var(--text-primary)]"
         style={{
           letterSpacing: "0.34em",
           // The label brightening is a pointer response, not an entrance, so it
@@ -87,15 +89,14 @@ export default function ScrollIndicator() {
         className="relative block h-7 w-px overflow-hidden"
         style={{
           background:
-            "linear-gradient(to bottom, transparent, rgba(242,238,233,0.16) 30%, rgba(242,238,233,0.16) 70%, transparent)",
+            "linear-gradient(to bottom, transparent, var(--border-strong) 30%, var(--border-strong) 70%, transparent)",
         }}
       >
         <span
           className="hero-scroll-dot absolute left-1/2 top-0 block h-3 w-px -translate-x-1/2"
           style={{
             background:
-              "linear-gradient(to bottom, transparent, var(--hero-accent), transparent)",
-            boxShadow: "0 0 8px rgba(255,138,61,0.9)",
+              "linear-gradient(to bottom, transparent, var(--text-primary), transparent)",
           }}
         />
       </span>

@@ -63,8 +63,11 @@ export default function ScrollProgress() {
         style={{
           transform: "scaleX(0)",
           opacity: 0,
-          background:
-            "linear-gradient(90deg, var(--accent) 0%, #e8598c 55%, var(--accent-light) 100%)",
+          // Solid ink. This was a three-stop duotone ramp, and when the accent
+          // tokens at either end went monochrome the hardcoded pink in the
+          // middle was left stranded, so the bar read black to pink to grey.
+          // A progress bar is a measurement, not a decoration: one colour.
+          background: "var(--text-primary)",
           transition: "opacity 240ms ease",
         }}
       />

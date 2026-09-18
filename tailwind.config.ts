@@ -14,11 +14,35 @@ export default {
       },
     },
     extend: {
+      // One family for everything that is words. `sans` and `display` are
+      // deliberately the same stack: the reference runs a single face at every
+      // size and lets scale and weight do the work that a second family used to
+      // do. Helvetica Neue on macOS and iOS, Arial on Windows, which is
+      // metrically identical, so the line breaks do not move across platforms.
+      // Neither needs downloading, which is two render-blocking requests gone.
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['Instrument Sans', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
+        display: ['"Helvetica Neue"', 'Helvetica', 'Arial', 'sans-serif'],
+        // Space Mono stays. The uppercase tracked micro-labels are a signature
+        // of this site and Helvetica cannot do that job.
         mono: ['Space Mono', 'monospace'],
         serif: ['Instrument Serif', 'Georgia', 'Times New Roman', 'serif'],
+      },
+      // Helvetica Neue ships Thin/UltraLight/Light/Regular/Medium/Bold — there
+      // is no 600. CSS font matching resolves a 600 request upwards, so every
+      // `font-semibold` on the site would have rendered as Bold, which is the
+      // "too heavy" the brief warns about, and Arial would do the same with
+      // only 400 and 700 to choose from. Pointing `semibold` at 500 lands it on
+      // real Helvetica Neue Medium instead of a synthesised weight, which is
+      // the lighter, airier setting the reference uses. `bold` is left alone:
+      // 700 is a genuine Helvetica weight.
+      fontWeight: {
+        semibold: "500",
+      },
+      // -0.025em was tuned for Instrument Sans. Helvetica is already tightly
+      // fitted, so the same value closes the counters up at display sizes.
+      letterSpacing: {
+        tight: "-0.015em",
       },
       colors: {
         border: "hsl(var(--border))",

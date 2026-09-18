@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import SectionHeader from "@/shared/ui/section-header";
+import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import ScrollScene from "@/shared/motion/ScrollScene";
-import EcosystemMap from "./EcosystemMap";
+import EcosystemMap, { ALL, type Selection } from "./EcosystemMap";
 import FlowView from "./FlowView";
 import MobileCore from "./MobileCore";
 import PipelinePanel, {
@@ -15,21 +16,30 @@ import {
   DURATION,
   EASE_OUT_EXPO,
   MS,
+  STAGGER,
 } from "@/shared/motion/tokens";
 
 /**
  * The system directory — the page's proof section.
  *
  * The hero makes a claim; this is where a visitor goes and looks at what the
- * claim is made of. Two views of one dataset: the map answers "what has been
- * built and how does it connect", the workflow answers "how does this one
- * actually run". Neither is a summary of the other.
+ * claim is made of.
  *
- * Selection lives here, and there are two parts to it — which system, and
- * which agent inside it. Both are passed down to every view, which is what
- * makes the map and the panel one interface rather than two: clicking an agent
- * node opens its row, opening its row lights its node, and the workflow dims
- * the steps that agent doesn't own.
+ * The map is the section's fixed point. It is always mounted, it is never
+ * swapped for anything else, and it is sticky, so it holds its place on the
+ * left while the right column scrolls past it. Everything else answers to it:
+ * the right column says what the current selection is made of, and the toggle
+ * chooses how — "detail" for what a system is, "flow" for how it runs.
+ *
+ * Selection lives here and has three parts: which system (or "all"), which
+ * agent inside it, and what the right column shows. Passing all three down is
+ * what makes the map and the panel one interface rather than two: clicking a
+ * hub selects that system, clicking the core selects them all, clicking an
+ * agent node opens its row, and opening a row lights its node.
+ *
+ * The section opens on "all" — every system at equal weight, with the right
+ * column listing all seven — because that is the honest first answer to "what
+ * has been built". A visitor narrows from there.
  *
  * Desktop and mobile render different trees on purpose. A radial graph at
  * 360px wide is unreadable, so the phone gets the intelligence mark, then the
@@ -37,7 +47,13 @@ import {
  * order a small screen can actually read it.
  */
 
-type View = "radial" | "flow";
+/** What the right column shows. The left column never changes. */
+type RightView = "detail" | "flow";
+
+const RIGHT_VIEWS: { id: RightView; label: string }[] = [
+  { id: "detail", label: "Detail" },
+  { id: "flow", label: "Flow" },
+];
 
 /** Matches the lg breakpoint the layout switches at. Starts false so the
  *  server render is the mobile one, which is the safe default. */
@@ -54,16 +70,18 @@ function useIsWide() {
 }
 
 export default function SystemDirectory() {
-  const [selectedId, setSelectedId] = useState(PIPELINES[0].id);
+  const [selectedId, setSelectedId] = useState<Selection>(ALL);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
-  const [view, setView] = useState<View>("radial");
+  const [view, setView] = useState<RightView>("detail");
   const isWide = useIsWide();
 
-  const pipeline = findPipeline(selectedId);
+  // findPipeline answers an unknown id with the first system, so "all" has to
+  // be answered here rather than asked of it. null is the whole directory.
+  const pipeline = selectedId === ALL ? null : findPipeline(selectedId);
 
   // A different system is a different set of agents, so a selection can't
   // survive the switch — it would open an unrelated agent in the same slot.
-  const selectPipeline = (id: string) => {
+  const select = (id: Selection) => {
     setSelectedId(id);
     setActiveAgentId(null);
   };
@@ -71,24 +89,37 @@ export default function SystemDirectory() {
   return (
     <section
       id="systems"
+      // `data-dir-dark` stays: the palette re-asserts the light values through
+      // it now, so it flips nothing and the attribute costs nothing.
+      //
+      // `data-nav-dark` is gone. It is not inert the way that one is: the
+      // navbar paints an explicit rgba(0,0,0,0.72) bar while it is over a
+      // section carrying it, hardcoded inline rather than through a token, so
+      // it survived the palette going white. This was the last section in the
+      // app still declaring itself dark, and it is white, so the bar spent
+      // every scroll through the directory as a black strip across the top of
+      // a white page. The hero dropped the same attribute for the same reason.
       data-dir-dark
-      data-nav-dark
-      className="relative isolate overflow-hidden"
+      // `overflow-x-clip`, not `overflow-hidden`: hidden makes this a scroll
+      // container, which silently kills the sticky map inside it. Clip keeps
+      // anything the section overhangs with off the horizontal scrollbar
+      // without that.
+      className="relative isolate overflow-x-clip"
     >
       <Atmosphere />
 
       <div className="relative z-10 mx-auto max-w-[1400px] px-6 py-24 md:px-10 md:py-32">
+        {/* No headline. The eyebrow names the section and the counted sentence
+            below says what it is; a display title on top of both was a third
+            voice saying the same thing. */}
         <SectionHeader
           index="01"
           label="The Ziiro System"
           meta={`${DIRECTORY_STATS.departments} departments`}
-          titleA="Systems,"
-          titleB="not demos."
         />
 
         {/* Every number here is counted off the pipeline data, not typed into
-            a sentence — so it cannot drift as systems are added, and the
-            "run today" figure drops anything still in build on its own. */}
+            a sentence, so it cannot drift as systems are added. */}
         <ScrollScene exitTo={1}>
           <p
             className="mt-8 max-w-[46ch] text-[17px] leading-relaxed md:text-[19px]"
@@ -96,102 +127,69 @@ export default function SystemDirectory() {
           >
             <Figure>{DIRECTORY_STATS.jobs}</Figure> jobs of work, mapped across{" "}
             <Figure>{DIRECTORY_STATS.agents}</Figure> agents in{" "}
-            <Figure>{DIRECTORY_STATS.departments}</Figure> departments.{" "}
-            <Figure>{DIRECTORY_STATS.liveJobs}</Figure> of them run today.
+            <Figure>{DIRECTORY_STATS.departments}</Figure> departments.
           </p>
         </ScrollScene>
 
         {/* ── Controls ── */}
         <ScrollScene exitTo={1}>
           <div className="mt-14 flex flex-col gap-6 border-t border-[var(--dir-line)] pt-6 lg:flex-row lg:items-center lg:justify-between">
-            <div
-              role="group"
-              aria-label="Choose a system"
-              className="flex flex-wrap gap-x-7 gap-y-3"
-            >
-              {PIPELINES.map((p) => {
-                const active = p.id === selectedId;
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => selectPipeline(p.id)}
-                    className="group flex items-center gap-2.5 rounded-sm font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
-                    style={{
-                      letterSpacing: "0.2em",
-                      color: active ? "var(--dir-ink)" : "var(--dir-faint)",
-                      transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
-                    }}
-                  >
-                    <span
-                      aria-hidden="true"
-                      className="block h-[5px] w-[5px] rounded-full"
-                      style={{
-                        // Named properties rather than `all`, which would also
-                        // ease the hairline outline below and leave a grey
-                        // frame around the marker for the length of the swap.
-                        transition: `background-color ${MS.micro}ms ${CSS_EASE.out}, box-shadow ${MS.quick}ms ${CSS_EASE.out}`,
-                        // A system still in build gets a hollow marker even
-                        // when it's the one selected, so the selector never
-                        // implies something ships that doesn't.
-                        background:
-                          active && p.status === "active"
-                            ? "var(--dir-live)"
-                            : "transparent",
-                        border:
-                          p.status === "active"
-                            ? "none"
-                            : "1px solid var(--dir-line-strong)",
-                        boxShadow:
-                          active && p.status === "active"
-                            ? "0 0 10px var(--dir-live)"
-                            : "none",
-                        outline:
-                          active || p.status !== "active"
-                            ? "none"
-                            : "1px solid var(--dir-line-strong)",
-                        outlineOffset: "-1px",
-                      }}
+            {/* The chips arrive one after another rather than as a block, on
+                the tight step, so the row reads as a list resolving. */}
+            <div role="group" aria-label="Choose a system">
+              <MotionReveal
+                stagger={STAGGER.tight}
+                className="flex flex-wrap gap-x-7 gap-y-3"
+              >
+                <MotionRevealItem as="span">
+                  <SystemChip
+                    label="All systems"
+                    marker="all"
+                    active={selectedId === ALL}
+                    onClick={() => select(ALL)}
+                  />
+                </MotionRevealItem>
+                {PIPELINES.map((p) => (
+                  <MotionRevealItem as="span" key={p.id}>
+                    <SystemChip
+                      label={p.name}
+                      marker={p.status === "active" ? "live" : "build"}
+                      active={p.id === selectedId}
+                      onClick={() => select(p.id)}
                     />
-                    <span
-                      className="group-hover:text-[var(--dir-ink)]"
-                      style={{ transition: `color ${MS.micro}ms ${CSS_EASE.out}` }}
-                    >
-                      {p.name}
-                    </span>
-                  </button>
-                );
-              })}
+                  </MotionRevealItem>
+                ))}
+              </MotionReveal>
             </div>
 
-            {/* View toggle. Hidden where there is only one view to pick. */}
+            {/* Chooses what the right column shows. The map is not one of the
+                options: it is always there. Hidden on a phone, where the
+                stacked layout shows both. */}
             <div
               role="group"
-              aria-label="Choose a view"
+              aria-label="Choose what the right column shows"
               className="hidden shrink-0 items-center gap-5 lg:flex"
             >
-              {(["radial", "flow"] as const).map((v) => (
+              {RIGHT_VIEWS.map((v) => (
                 <button
-                  key={v}
+                  key={v.id}
                   type="button"
-                  aria-pressed={view === v}
-                  onClick={() => setView(v)}
+                  aria-pressed={view === v.id}
+                  onClick={() => setView(v.id)}
                   className="relative rounded-sm font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
                   style={{
                     letterSpacing: "0.24em",
-                    color:
-                      view === v ? "var(--dir-ink)" : "var(--dir-faint)",
+                    color: view === v.id ? "var(--dir-ink)" : "var(--dir-faint)",
                     transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
                   }}
                 >
-                  {v}
+                  {v.label}
                   <span
                     aria-hidden="true"
                     className="absolute -bottom-1.5 left-0 block h-px w-full"
                     style={{
                       background: "var(--dir-ink)",
-                      opacity: view === v ? 1 : 0,
+                      opacity: view === v.id ? 1 : 0,
                       transition: `opacity ${MS.micro}ms ${CSS_EASE.out}`,
                     }}
                   />
@@ -202,43 +200,47 @@ export default function SystemDirectory() {
         </ScrollScene>
 
         {isWide ? (
-          <div className="mt-14 grid grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] gap-16">
-            <div className="min-w-0">
-              <Crossfade id={view}>
-                {view === "radial" ? (
-                  <>
-                    <EcosystemMap
-                      pipelines={PIPELINES}
-                      selectedId={selectedId}
-                      onSelect={selectPipeline}
-                      activeAgentId={activeAgentId}
-                      onAgentSelect={setActiveAgentId}
-                    />
-                    <p
-                      className="mt-4 text-center font-mono text-[9px] uppercase"
-                      style={{
-                        letterSpacing: "0.24em",
-                        color: "var(--dir-faint)",
-                      }}
-                    >
-                      Select a system · click an agent to inspect it
-                    </p>
-                  </>
-                ) : (
-                  <FlowView pipeline={pipeline} activeAgentId={activeAgentId} />
-                )}
-              </Crossfade>
+          <div className="mt-14 grid grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] items-start gap-16">
+            {/* `self-start` keeps this column its own height rather than the
+                row's, which is what lets it stick instead of stretching. */}
+            <div className="sticky top-24 min-w-0 self-start">
+              <EcosystemMap
+                pipelines={PIPELINES}
+                selectedId={selectedId}
+                onSelect={select}
+                activeAgentId={activeAgentId}
+                onAgentSelect={setActiveAgentId}
+              />
+              <p
+                className="mt-4 text-center font-mono text-[9px] uppercase"
+                style={{
+                  letterSpacing: "0.24em",
+                  color: "var(--dir-faint)",
+                }}
+              >
+                Click a system · the core selects all
+              </p>
             </div>
 
-            {/* Keyed on the system, not on the agent: opening an agent row
-                must not re-fade the panel that row lives in. */}
+            {/* Keyed on the view and the system together, so changing either
+                arrives. The agent is deliberately not in the key: opening an
+                agent row must not re-fade the panel that row lives in. */}
             <div className="min-w-0">
-              <Crossfade id={selectedId}>
-                <PipelinePanel
-                  pipeline={pipeline}
-                  activeAgentId={activeAgentId}
-                  onAgentSelect={setActiveAgentId}
-                />
+              <Crossfade id={`${view}:${selectedId}`}>
+                {view === "detail" ? (
+                  <PipelinePanel
+                    pipeline={pipeline}
+                    activeAgentId={activeAgentId}
+                    onAgentSelect={setActiveAgentId}
+                    onSelect={select}
+                  />
+                ) : (
+                  <FlowView
+                    pipeline={pipeline}
+                    activeAgentId={activeAgentId}
+                    onSelect={select}
+                  />
+                )}
               </Crossfade>
             </div>
           </div>
@@ -250,18 +252,95 @@ export default function SystemDirectory() {
                 identity block instead. */}
             <MobileCore pipeline={pipeline} />
             <Crossfade id={selectedId} className="space-y-12">
-              <PipelineIdentity pipeline={pipeline} />
-              <FlowView pipeline={pipeline} activeAgentId={activeAgentId} />
-              <PipelineDetail
-                pipeline={pipeline}
-                activeAgentId={activeAgentId}
-                onAgentSelect={setActiveAgentId}
-              />
+              {pipeline ? (
+                <>
+                  <PipelineIdentity pipeline={pipeline} />
+                  <FlowView
+                    pipeline={pipeline}
+                    activeAgentId={activeAgentId}
+                    onSelect={select}
+                  />
+                  <PipelineDetail
+                    pipeline={pipeline}
+                    activeAgentId={activeAgentId}
+                    onAgentSelect={setActiveAgentId}
+                  />
+                </>
+              ) : (
+                <PipelinePanel pipeline={null} onSelect={select} />
+              )}
             </Crossfade>
           </div>
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * One selector chip: a status marker and a label.
+ *
+ * The marker never implies a system ships when it doesn't — an in-build system
+ * stays hollow even while it is the one selected. "All systems" carries the
+ * ink marker rather than the live one, because it is a scope, not a status.
+ */
+function SystemChip({
+  label,
+  marker,
+  active,
+  onClick,
+}: {
+  label: string;
+  marker: "all" | "live" | "build";
+  active: boolean;
+  onClick: () => void;
+}) {
+  const filled = active && marker !== "build";
+
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className="group flex items-center gap-2.5 rounded-sm font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
+      style={{
+        letterSpacing: "0.2em",
+        color: active ? "var(--dir-ink)" : "var(--dir-faint)",
+        transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="block h-[5px] w-[5px] rounded-full"
+        style={{
+          // Named property rather than `all`, which would also ease the
+          // hairline outline below and leave a grey frame around the marker
+          // for the length of the swap.
+          transition: `background-color ${MS.micro}ms ${CSS_EASE.out}`,
+          background: filled
+            ? marker === "live"
+              ? "var(--dir-live)"
+              : "var(--dir-ink)"
+            : "transparent",
+          border: marker === "build" ? "1px solid var(--dir-line-strong)" : "none",
+          // The live marker used to carry a 10px bloom of its own colour. A
+          // bloom is light spilling past an edge, which needs a dark ground to
+          // spill onto; on paper it is a 5px dot inside a smudge. The dot is
+          // the accent, and that is enough to say live on white.
+          outline:
+            filled || marker === "build"
+              ? "none"
+              : "1px solid var(--dir-line-strong)",
+          outlineOffset: "-1px",
+        }}
+      />
+      <span
+        className="group-hover:text-[var(--dir-ink)]"
+        style={{ transition: `color ${MS.micro}ms ${CSS_EASE.out}` }}
+      >
+        {label}
+      </span>
+    </button>
   );
 }
 
@@ -321,29 +400,24 @@ function Figure({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The same field as the hero, quieter. The two sections sit against each
- *  other, so the page opens as one dark block rather than two panels. */
+/** The section's field.
+ *
+ *  It was the hero's field repeated a little quieter: a wide warm blob and a
+ *  plate of grain, there so that the hero and the map read as one dark block
+ *  rather than two panels. Both halves of that only worked on black. The blob
+ *  is a 13% warm radial, which on paper is a bruise in the middle of the page
+ *  and sits directly behind the map's own hairlines; the grain is black noise,
+ *  which on paper is dirt rather than depth.
+ *
+ *  What makes the section continuous now is that it has no ground of its own
+ *  at all: it is the same sheet as the sections above and below it, which is
+ *  the whole point of one white page. The component stays as the single place
+ *  that would own a field if the section is ever given one. */
 function Atmosphere() {
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 overflow-hidden"
-    >
-      <div
-        className="hero-drift-b absolute left-1/2 top-1/4 h-[min(900px,80vw)] w-[min(900px,80vw)] -translate-x-1/2 rounded-full"
-        style={{
-          background:
-            "radial-gradient(circle at 50% 50%, rgba(255,138,61,0.13) 0%, rgba(232,89,140,0.04) 40%, transparent 70%)",
-          filter: "blur(24px)",
-        }}
-      />
-      <div
-        className="absolute inset-0 opacity-[0.05]"
-        style={{
-          backgroundImage: "var(--hero-noise)",
-          backgroundSize: "160px 160px",
-        }}
-      />
-    </div>
+    />
   );
 }
