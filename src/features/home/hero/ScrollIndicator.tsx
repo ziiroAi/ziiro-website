@@ -25,6 +25,14 @@ export default function ScrollIndicator() {
    * document while the smooth scroller still believes the page is where it left
    * it, and the frame after that it eases back: the reader sees a stutter at
    * exactly the moment they accepted the invitation.
+   *
+   * The target was #how-it-works until that section was cut from the homepage.
+   * It is #systems now — the directory, which is the next anchored block down.
+   * Deliberately NOT repointed to /who-we-are#process the way the hero's
+   * "See how it works" button was: this is a scroll cue, and a cue that says
+   * the page continues below has to continue below. Sending it to another page
+   * would make the one control whose entire meaning is "keep scrolling" the
+   * one that leaves.
    */
   const onActivate = (e: MouseEvent<HTMLAnchorElement>) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
@@ -49,12 +57,12 @@ export default function ScrollIndicator() {
     // cruises and decelerates, which is what a long deliberate travel should
     // feel like. The duration scales with the distance for the same reason: a
     // fixed duration makes a short hop sluggish and a long one frantic.
-    const target = document.querySelector("#how-it-works");
+    const target = document.querySelector("#systems");
     const distance = target
       ? Math.abs(target.getBoundingClientRect().top)
       : window.innerHeight;
 
-    scrollTo("#how-it-works", {
+    scrollTo("#systems", {
       offset: headerOffset(),
       duration: Math.min(1.7, 0.7 + distance / 2600),
       easing: easeInOutCubic,
@@ -65,7 +73,7 @@ export default function ScrollIndicator() {
     <a
       data-hero-reveal
       data-hero-scroll
-      href="#how-it-works"
+      href="#systems"
       onClick={onActivate}
       className="group inline-flex flex-col items-center gap-3 rounded-[10px] px-3 py-2 focus-visible:outline-none focus-visible:ring-1"
       style={{ ["--tw-ring-color" as string]: "var(--text-primary)" }}

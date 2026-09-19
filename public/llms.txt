@@ -10,7 +10,7 @@ quantify the ROI, then build only what the numbers justify. We turn down work
 when the math doesn't support it.
 
 ## Start here
-- [Ziiro AI](https://ziiro.work): AI that has to pay for itself. The five-step engagement (discover the business, find the bottlenecks, measure the ROI, build the systems, optimize continuously), and an honest comparison of the four ways to get AI (a typical AI agency, an internal team, ChatGPT or Claude alone, or us).
+- [Ziiro AI](https://ziiro.work): AI that has to pay for itself. The agent directory behind the work — the jobs, agents and departments we actually run — and the ask: an hourly business intelligence session.
 - [Contact](https://ziiro.work/contact): Book a paid business intelligence consultation, billed hourly with a 60-minute minimum, at rates set by region (India, United States, and a global rate). We identify your operational bottlenecks, estimate the ROI of automating them, show where AI actually creates value, and say what shouldn't be automated. No pitch, and you keep the roadmap. aniket@ziiro.work · govind@ziiro.work · Haryana, India · worldwide.
 
 ## Watch
