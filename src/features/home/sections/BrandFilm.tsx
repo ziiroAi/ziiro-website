@@ -3,13 +3,21 @@ import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
 /**
  * The brand film, sitting between the hero and the system directory.
  *
- * Nothing about this section is heavy until the reader asks for it. VslPlayer
- * runs in its default "facade" mode, which means no <video> element exists in
- * the DOM at all until the play button is pressed — the only thing that loads
- * on approach is a 37 KB poster, and it is lazy. So the 4.8 MB file costs the
- * page nothing unless someone actually wants to watch, and because playback
- * only ever starts from that press, the film can never begin talking at a
- * reader who did not ask it to.
+ * It runs in "autoplay" mode: muted, it starts itself once the frame is
+ * properly on screen and stops the moment the reader scrolls off it. The
+ * section stays cheap anyway, because none of the video is fetched until the
+ * reader is one screen away — `preload="none"` until an observer says
+ * otherwise — and the poster underneath is a lazy <img> rather than the
+ * eagerly-fetched `poster` attribute. A reader who never scrolls this far
+ * downloads nothing but the markup.
+ *
+ * Phones get the 2.7 MB 720p encode instead of the 5.0 MB master. At this
+ * frame's width on a phone the two are indistinguishable, and the master is
+ * 2.3 MB of someone's data plan spent on pixels their screen cannot show.
+ *
+ * It starts muted and it can always be stopped: WCAG 2.2.2 for the moving
+ * picture, and plain manners for the sound. See scroll-autoplay-video.tsx for
+ * the rules it holds to.
  *
  * No VideoObject schema here, deliberately. videos.ts records what happened
  * last time a video was marked up as structured data on a page that was about
@@ -19,7 +27,11 @@ import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
 
 /** Runtime is 40.2s; the encode is 1920x1080 H.264 with faststart. */
 const BRAND_FILM: VslConfig = {
-  source: { kind: "file", src: "/media/ziiro-brand-anthem.mp4" },
+  source: {
+    kind: "file",
+    src: "/media/ziiro-brand-anthem.mp4",
+    narrowSrc: "/media/ziiro-brand-anthem-720.mp4",
+  },
   // The film's own opening line, not a claim written for it.
   title: "Running a business shouldn't mean drowning in it.",
   description:
@@ -34,7 +46,7 @@ export default function BrandFilm() {
   return (
     <section className="relative">
       <div className="mx-auto max-w-[1400px] px-6 py-24 md:px-10 md:py-32">
-        <VslPlayer vsl={BRAND_FILM} label="The film" />
+        <VslPlayer vsl={BRAND_FILM} label="The film" mode="autoplay" />
       </div>
     </section>
   );
