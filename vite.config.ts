@@ -35,4 +35,29 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Give the three heaviest dependencies their own chunks. This is a
+        // caching change, not a payload change: they only move on a dependency
+        // upgrade, so an ordinary app deploy no longer invalidates them, and
+        // 236 kB stays in the browser under the year-long immutable /assets
+        // rule in vercel.json. The entry chunk drops 544 kB -> 320 kB; total
+        // JS rises ~12 kB from the extra chunk boundaries, which is the trade.
+        //
+        // What this does NOT do is take WebGL off the critical path. ogl is
+        // still modulepreloaded on the homepage because the hero imports it
+        // statically (IntelligenceOrb.tsx -> CoreOrb -> ogl). Only a lazy()
+        // there can defer it; the chunk boundary is already in place for when
+        // that happens.
+        codeSplitting: {
+          groups: [
+            { name: "webgl", test: /node_modules[\\/]ogl[\\/]/ },
+            { name: "scroll", test: /node_modules[\\/]lenis[\\/]/ },
+            { name: "toast", test: /node_modules[\\/]sonner[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
 });
