@@ -2,8 +2,6 @@ import SEO from "@/shared/components/SEO";
 import Hero from "@/features/home/hero/Hero";
 import BrandFilm from "@/features/home/sections/BrandFilm";
 import SystemDirectory from "@/features/home/directory/SystemDirectory";
-import HowItWorks from "@/features/home/sections/HowItWorks";
-import WhyDifferent from "@/features/home/sections/WhyDifferent";
 import FinalCta from "@/features/home/sections/FinalCta";
 import DotArtSection from "@/features/home/sections/DotArtSection";
 import ScrollScene, { SectionSeam } from "@/shared/motion/ScrollScene";
@@ -21,20 +19,26 @@ import ScrollScene, { SectionSeam } from "@/shared/motion/ScrollScene";
  * time its neighbour is seated, so the reader is on one section at a time.
  * Nothing here takes the scroller hostage to do it — no wheel interception, no
  * scroll-snap, no paging. The page still scrolls exactly as fast as the reader
- * scrolls it, PageDown still pages, and #how-it-works still lands; the effect
+ * scrolls it, PageDown still pages, and #systems still lands; the effect
  * is opacity read off where the blocks happen to be. Under reduced motion each
  * scene renders at full strength with no scrub at all.
  *
  *   1. What is Ziiro?                   → Hero
  *   2. What does it actually run?       → SystemDirectory
- *   3. How does it work?                → HowItWorks
- *   4. Why not an agency / hire / GPT?  → WhyDifferent
- *   5. Why book today?                  → FinalCta
+ *   3. Why book today?                  → FinalCta
  *
- * "What powers it?" used to sit between the last two as the stack diagram.
- * It moved to /who-we-are, where it now runs as section 05 directly after Why
- * Work With Us, whose "Model-agnostic" line it exists to prove. Numbered
- * section headers on this page therefore run 01-03 with nothing skipped.
+ * "What powers it?" used to sit before the ask as the stack diagram. It moved
+ * to /who-we-are, where it now runs as section 05 directly after Why Work With
+ * Us, whose "Model-agnostic" line it exists to prove.
+ *
+ * "How does it work?" (HowItWorks) and "Why not an agency / hire / GPT?"
+ * (WhyDifferent) were cut from this page on the owner's instruction. The
+ * five-step engagement they carried is still written out at /who-we-are#process
+ * and in /docs; the four-ways comparison is not on the site any more. Both
+ * components are left in the tree unused, at
+ * src/features/home/sections/HowItWorks.tsx and .../WhyDifferent.tsx.
+ * SystemDirectory is now the only numbered section header on the page, so its
+ * "Sec. 01" is the whole sequence rather than the start of one.
  *
  * Three deliberate exceptions to the scrubbing:
  *
@@ -85,18 +89,15 @@ export default function Home() {
           <SystemDirectory />
         </ScrollScene>
 
+        {/* The page's only seam. It used to open HowItWorks, with a second one
+            opening WhyDifferent and none before the ask — the ask arrived on a
+            clean field because the argument had already resolved across those
+            two. With both gone the directory hands straight to the ask, and
+            that is the one join left on the page, so it takes the seam. Two
+            seams here would be the doubled spacing the removal was meant to
+            avoid; none would run the diagram into the ask with no boundary at
+            all. */}
         <SectionSeam />
-        <ScrollScene>
-          <HowItWorks />
-        </ScrollScene>
-
-        <SectionSeam />
-        <ScrollScene>
-          <WhyDifferent />
-        </ScrollScene>
-
-        {/* No seam: the argument has resolved, so the ask arrives on a clean
-            field rather than behind another dividing line. */}
         <ScrollScene rise={30} hold>
           <FinalCta />
         </ScrollScene>
