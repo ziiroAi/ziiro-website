@@ -12,31 +12,70 @@ import {
 } from "@/shared/components/seo-schema";
 import { PRICING_FAQS as faqs } from "@/features/pricing/entities/faqs";
 
-const tiers = [
+/** How you engage, in order. The two-part model this page exists to explain:
+ *  one published rate for the hour, then a scope. Without these three steps
+ *  the hourly rate and the absence of project prices read as two unrelated
+ *  pricing models rather than one sequence. */
+const howItRuns = [
   {
-    name: "Strategy Sprint",
-    desc: "Understand where AI creates leverage",
-    includes: [
-      "Full AI Transformation Audit",
-      "Process mapping & KPI baselines",
-      "Opportunity identification & ROI models",
-      "Priority matrix & architecture blueprint",
-      "Implementation roadmap",
-    ],
-    cta: "Start with a consultation",
+    step: "The hour",
+    line: "A paid consultation with a one hour minimum, at the rate shown on Contact. You bring the work that eats your week. You leave with a direction whether or not you go further.",
   },
   {
-    name: "Full Build",
-    desc: "Ship systems that compound",
-    includes: [
-      "Everything in Strategy Sprint",
-      "Agentic system design & deployment",
-      "Self-optimizing loop configuration",
-      "Integration with your existing stack",
-      "Dashboard & control panel setup",
-      "Ongoing measurement & tuning",
+    step: "The scope",
+    line: "We write down which stage you need and what it has to cover, and set the price for that stage. You see the number before any of it starts.",
+  },
+  {
+    step: "The stage",
+    line: "Work runs against that scope. If the scope has to change, it is re-quoted before the work happens rather than invoiced after it.",
+  },
+];
+
+/** The same three stages Products.tsx sets out, read here as units of scope
+ *  rather than as a catalogue of what gets built. Nothing else on this page is
+ *  presented as a separate thing to buy. Spans are the ranges the site has
+ *  always published, re-mapped onto the stage that absorbed them. */
+const stages = [
+  {
+    name: "Diagnose",
+    desc: "Find out what is worth building",
+    covers: [
+      "Process and role mapping",
+      "KPI baselines taken before anything changes",
+      "ROI models for each candidate system",
+      "Priority matrix and build roadmap",
+      "A written spec for the first system",
     ],
-    cta: "Start with a consultation",
+    scopedBy:
+      "How many processes are in scope, and how much of the operation is already written down.",
+    span: "Typical span: 1 to 3 weeks",
+  },
+  {
+    name: "Build",
+    desc: "Ship it into the operation",
+    covers: [
+      "Agent design and deployment",
+      "Integration with the stack you already run",
+      "Dashboard and control panel",
+      "Access, handover and documentation",
+      "An agreed acceptance check before it is called done",
+    ],
+    scopedBy:
+      "How many workflows the system touches, and how reachable your existing tools are.",
+    span: "Typical span: 4 to 12 weeks",
+  },
+  {
+    name: "Optimize",
+    desc: "Keep it earning after launch",
+    covers: [
+      "Outcome tracking against the Diagnose baselines",
+      "Test loops and auto-tuning",
+      "Learning reports on an agreed cadence",
+      "Adjustments as the operation changes",
+    ],
+    scopedBy:
+      "The cadence you want, and how many live systems are under measurement.",
+    span: "Runs in cycles, not to a finish date",
   },
 ];
 
@@ -52,7 +91,7 @@ export default function Pricing() {
   const [openFaq, setOpenFaq] = useState<number>(-1);
 
   const heroRef = useRef<HTMLDivElement>(null);
-  const tiersRef = useRef<HTMLDivElement>(null);
+  const stagesRef = useRef<HTMLDivElement>(null);
   const faqListRef = useRef<HTMLDivElement>(null);
   const faqPanelRefs = useRef<(HTMLDivElement | null)[]>([]);
   const faqPanelAnims = useRef<(PanelAnimation | null)[]>([]);
@@ -89,11 +128,11 @@ export default function Pricing() {
     };
   }, []);
 
-  // Engagement rows: staggered rise when scrolled into view + hover-follow titles
+  // Stage rows: staggered rise when scrolled into view + hover-follow titles
   useEffect(() => {
-    const list = tiersRef.current;
+    const list = stagesRef.current;
     if (!list) return;
-    const rows = list.querySelectorAll<HTMLElement>("[data-tier-row]");
+    const rows = list.querySelectorAll<HTMLElement>("[data-stage-row]");
     const io = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
@@ -110,7 +149,7 @@ export default function Pricing() {
     );
     io.observe(list);
 
-    const titles = [...list.querySelectorAll<HTMLElement>("[data-tier-title]")];
+    const titles = [...list.querySelectorAll<HTMLElement>("[data-stage-title]")];
     // At 450ms the title visibly trailed the cursor. A hover has to resolve
     // inside DURATION.micro or it stops feeling attached to the pointer.
     titleAnims.current = titles.map((el) =>
@@ -191,28 +230,28 @@ export default function Pricing() {
     });
   };
 
-  const tierEnter = (i: number) => titleAnims.current[i]?.x(TRAVEL.nudge);
-  const tierLeave = (i: number) => titleAnims.current[i]?.x(0);
+  const stageEnter = (i: number) => titleAnims.current[i]?.x(TRAVEL.nudge);
+  const stageLeave = (i: number) => titleAnims.current[i]?.x(0);
 
   return (
     <div className="relative">
       <SEO
-        title="AI Systems Pricing: Scoped, Not Menu Priced"
-        description="No fixed project pricing. After an hourly consultation, Ziiro scopes a Strategy Sprint (1-3 weeks) or a Full Build (4-12 weeks) to your needs."
+        title="Pricing: One Hourly Rate, Then a Scope"
+        description="The consultation is billed by the hour with a one hour minimum. Project work is quoted after it, stage by stage: Diagnose, Build, Optimize."
         canonical="/pricing"
-        // Both nodes are read off what the page renders: the engagement
-        // rows and the FAQ accordion. The rows carry no figure, so
-        // neither does the catalog.
+        // Both nodes are read off what the page renders: the stage rows and
+        // the FAQ accordion. The rows carry no figure, so neither does the
+        // catalog; the one published rate lives on /contact.
         schema={[
           serviceCatalogSchema({
             path: "/pricing",
-            name: "Ziiro AI engagements",
+            name: "Ziiro engagement stages",
             description:
-              "Scoped AI engagements: a Strategy Sprint to find the highest-leverage system, or a Full Build to ship it. Consultations run by the hour.",
-            catalogName: "Engagements",
-            offerings: tiers.map((tier) => ({
-              name: tier.name,
-              description: tier.desc,
+              "Three stages, scoped one at a time: Diagnose to find what is worth building, Build to ship it, Optimize to keep it measured. Consultations are billed by the hour.",
+            catalogName: "Stages",
+            offerings: stages.map((stage) => ({
+              name: stage.name,
+              description: stage.desc,
             })),
           }),
           faqPageSchema(faqs, "/pricing"),
@@ -228,7 +267,7 @@ export default function Pricing() {
             className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]"
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-            ( Ziiro / Investment )
+            ( Ziiro / Pricing )
           </p>
 
           <h1
@@ -241,9 +280,11 @@ export default function Pricing() {
               lineHeight: 1.04,
             }}
           >
-            Scoped to you.
+            One rate is published.
             <br />
-            <span className="text-[var(--text-secondary)]">No menu prices.</span>
+            <span className="text-[var(--text-secondary)]">
+              The rest is scoped.
+            </span>
           </h1>
 
           <p
@@ -251,8 +292,18 @@ export default function Pricing() {
             style={{ opacity: 0 }}
             className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]"
           >
-            Every project is different. We scope systems to your exact needs, and
-            the investment follows scope, complexity, and timeline.
+            The consultation is billed by the hour with a one hour minimum, at
+            the rate on{" "}
+            <Link
+              to="/contact"
+              className="text-[var(--text-primary)] underline underline-offset-4"
+            >
+              Contact
+            </Link>
+            . Project work is quoted after that hour, one stage at a time, once
+            we know what the stage has to cover. That is the entire model: a
+            published rate, then a scope. There is no price list, because there
+            is no standard project.
           </p>
 
           <div
@@ -261,27 +312,80 @@ export default function Pricing() {
             className="mt-14 flex items-center justify-between border-t border-[var(--border)] pt-4"
           >
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-              [ 02 Engagements ]
+              [ 03 Stages ]
             </p>
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-              [ Hourly consultation ]
+              [ 01 Hour minimum ]
             </p>
           </div>
         </div>
       </header>
 
-      {/* ── Engagements: numbered editorial rows ── */}
+      {/* ── How engaging works: the hour, then the scope ──
+          This runs before the stage rows on purpose. A reader who meets the
+          stages first asks what they cost; a reader who meets this first
+          already knows the answer is "after the hour". */}
+      <section className="pb-24">
+        <div className="mx-auto max-w-7xl px-6 md:px-10">
+          <MotionReveal>
+            <div className="flex items-center justify-between border-t border-[var(--border)] pt-6">
+              <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
+                Sec. 01 / How engaging works
+              </p>
+              <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
+                [ 03 Steps ]
+              </p>
+            </div>
+          </MotionReveal>
+
+          <MotionReveal
+            stagger={STAGGER.card}
+            className="mt-12 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-3"
+          >
+            {howItRuns.map((s, i) => (
+              <MotionRevealItem key={s.step}>
+                <div className="border-t border-[var(--border)] pt-6">
+                  <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
+                    {String(i + 1).padStart(2, "0")} / 03
+                  </p>
+                  <p className="mt-5 font-mono text-sm font-bold uppercase tracking-[0.25em] text-[var(--text-primary)]">
+                    {s.step}
+                  </p>
+                  <p className="mt-4 text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {s.line}
+                  </p>
+                </div>
+              </MotionRevealItem>
+            ))}
+          </MotionReveal>
+        </div>
+      </section>
+
+      {/* ── The three stages, read as units of scope ── */}
       <section className="pb-28">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <div ref={tiersRef}>
-            {tiers.map((tier, i) => (
+          <MotionReveal>
+            <div className="flex items-center justify-between border-t border-[var(--border)] pt-6">
+              <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
+                Sec. 02 / What a stage covers
+              </p>
+              <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
+                [ 03 Stages ]
+              </p>
+            </div>
+          </MotionReveal>
+
+          <div ref={stagesRef} className="mt-4">
+            {stages.map((stage, i) => (
               <article
-                key={tier.name}
-                data-tier-row
+                key={stage.name}
+                data-stage-row
                 style={{ opacity: 0 }}
                 className="grid grid-cols-12 gap-x-4 gap-y-8 border-b border-[var(--border)] py-14 md:py-20"
-                onMouseEnter={() => tierEnter(i)}
-                onMouseLeave={() => tierLeave(i)}
+                onMouseEnter={() => stageEnter(i)}
+                onMouseLeave={() => stageLeave(i)}
               >
                 <span className="col-span-2 font-mono text-sm text-[var(--text-secondary)] md:col-span-1">
                   {String(i + 1).padStart(2, "0")}
@@ -289,7 +393,7 @@ export default function Pricing() {
 
                 <div className="col-span-10 md:col-span-5">
                   <h2
-                    data-tier-title
+                    data-stage-title
                     className="font-display font-semibold text-[var(--text-primary)]"
                     style={{
                       fontSize: "clamp(1.7rem, 3.2vw, 2.6rem)",
@@ -297,25 +401,31 @@ export default function Pricing() {
                       lineHeight: 1.04,
                     }}
                   >
-                    {tier.name}
+                    {stage.name}
                   </h2>
                   <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                    {tier.desc}
+                    {stage.desc}
                   </p>
-                  <Link
-                    to="/contact"
-                    className="mt-10 hidden rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-transform duration-150 ease-out hover:-translate-y-1 md:inline-block"
-                  >
-                    {tier.cta}
-                  </Link>
+
+                  {/* The page's actual job: not a figure, but what moves the
+                      figure. Every stage says out loud what makes it bigger. */}
+                  <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                    [ Scoped by ]
+                  </p>
+                  <p className="mt-3 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {stage.scopedBy}
+                  </p>
+                  <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
+                    [ {stage.span} ]
+                  </p>
                 </div>
 
                 <div className="col-span-12 md:col-span-5 md:col-start-8">
                   <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                    [ Includes ]
+                    [ Covers ]
                   </p>
                   <ul>
-                    {tier.includes.map((item, j) => (
+                    {stage.covers.map((item, j) => (
                       <li
                         key={item}
                         className="flex items-baseline gap-5 border-b border-[var(--border)] py-3.5 text-sm text-[var(--text-secondary)] last:border-b-0"
@@ -327,12 +437,6 @@ export default function Pricing() {
                       </li>
                     ))}
                   </ul>
-                  <Link
-                    to="/contact"
-                    className="mt-8 inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] md:hidden"
-                  >
-                    {tier.cta}
-                  </Link>
                 </div>
               </article>
             ))}
@@ -351,7 +455,7 @@ export default function Pricing() {
               </p>
             </MotionReveal>
             <TextReveal
-              text="Consultations run by the hour. Engagements are scoped to what they ship and what they save."
+              text="One published rate for the hour. One agreed scope for the stage. No packages in between."
               as="h2"
               className="mt-10 max-w-4xl font-display font-semibold text-[var(--text-primary)]"
               style={{
@@ -371,7 +475,7 @@ export default function Pricing() {
             <div className="flex items-center justify-between border-t border-[var(--border)] pt-6">
               <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                Sec. 01 / Questions
+                Sec. 03 / Questions
               </p>
               <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
                 [ {String(faqs.length).padStart(2, "0")} Answers ]
@@ -460,10 +564,10 @@ export default function Pricing() {
                   lineHeight: 1.04,
                 }}
               >
-                Not sure which path fits?
+                Still not sure which stage?
                 <br />
                 <span className="text-[var(--text-secondary)]">
-                  Start with an hour.
+                  That is what the hour is for.
                 </span>
               </h2>
             </MotionRevealItem>
@@ -481,7 +585,7 @@ export default function Pricing() {
 
             <MotionRevealItem>
               <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                [ No pitch / just a clear read ]
+                [ Paid / one hour minimum ]
               </p>
             </MotionRevealItem>
           </MotionReveal>

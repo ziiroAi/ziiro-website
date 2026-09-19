@@ -2,14 +2,21 @@ import { Link } from "react-router-dom";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import { CSS_EASE, DURATION, STAGGER } from "@/shared/motion/tokens";
 import SectionHeader from "@/shared/ui/section-header";
-import { CAPABILITIES } from "@/features/who-we-are/entities/capabilities";
+import { STAGES } from "@/features/who-we-are/entities/stages";
 
-const COUNT = String(CAPABILITIES.length).padStart(2, "0");
+const COUNT = String(STAGES.length).padStart(2, "0");
 
 /**
- * What we help with: the capabilities in one line each, with the products page
- * one click away for the detail. The header and sub are the products page's
- * own hero copy.
+ * The three stages in one line each, with the products page one click away for
+ * what each one contains.
+ *
+ * The header used to be the products page's own hero copy ("Five ways we build
+ * leverage"), which is how this section was still counting five retired
+ * services. It now states the count from the data, so the heading cannot drift
+ * from the list again, and deliberately avoids both reserved openings: the
+ * products h1 is "Diagnose. Build. Optimize." and the home hero leads on the
+ * same sequence, so a third page opening that way would be the repetition this
+ * job is closing.
  */
 export default function WhatWeHelpWith({ index }: { index: string }) {
   return (
@@ -18,14 +25,14 @@ export default function WhatWeHelpWith({ index }: { index: string }) {
         <SectionHeader
           index={index}
           label="What We Help With"
-          meta={`${COUNT} capabilities`}
-          titleA="Five ways"
-          titleB="we build leverage."
-          sub="Every engagement ships a working system: something running inside your business, doing real work. Not a license, not a slide deck."
+          meta={`${COUNT} stages`}
+          titleA="Three stages,"
+          titleB="and what each is for."
+          sub="Not every engagement ends in a build. The ones that do ship something running inside your business, doing real work: not a license, and not a slide deck."
         />
 
         <MotionReveal as="ol" stagger={STAGGER.card} className="mt-16 border-t border-[var(--border)]">
-          {CAPABILITIES.map((c, i) => (
+          {STAGES.map((c, i) => (
             <MotionRevealItem
               key={c.name}
               as="li"
@@ -54,7 +61,11 @@ export default function WhatWeHelpWith({ index }: { index: string }) {
 
         <MotionReveal>
           <p className="mt-10 max-w-xl leading-relaxed text-[var(--text-secondary)]">
-            What each one delivers, and how long it takes to build, is on{" "}
+            {/* Was "what each one delivers, and how long it takes to build".
+                The build durations went with the five retired services, so
+                /products no longer answers the second half; it lists the
+                capabilities inside each stage and what the stage hands over. */}
+            What each stage contains, and what it hands you at the end, is on{" "}
             <Link
               to="/products"
               className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"

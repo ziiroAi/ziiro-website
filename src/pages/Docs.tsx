@@ -7,6 +7,7 @@ import { CSS_EASE, DURATION, STAGGER } from "@/shared/motion/tokens";
 import { PRICING_FAQS } from "@/features/pricing/entities/faqs";
 import { MIN_SESSION_MINUTES } from "@/features/pricing/entities/rates";
 import { PHASES, PROCESS_TERMS } from "@/features/who-we-are/entities/phases";
+import { STAGES } from "@/features/who-we-are/entities/stages";
 import { videos, watchPath } from "@/features/watch/videos";
 
 /**
@@ -14,58 +15,27 @@ import { videos, watchPath } from "@/features/watch/videos";
  *
  * Every sentence here already exists somewhere on the site, or on the retired
  * Process page, and each copied block names its source so edits stay in step.
- * Where the business hasn't confirmed anything yet, a section says so with a
- * "Documentation in progress" note instead of filling the gap. Don't invent
- * content to make a section look complete.
+ *
+ * A section ships only once it has confirmed content. There is no placeholder
+ * state: a visible "in progress" note reads as an unfinished site, and
+ * inventing content to fill the gap would be worse. When the business confirms
+ * material, add the entry to SECTIONS and write the section. Until then it does
+ * not appear at all, and the contents rail stays sequential because both the
+ * rail and each section number are derived from SECTIONS.
  */
 
 const SECTIONS = [
   { id: "getting-started", title: "Getting started" },
-  { id: "services", title: "Service documentation" },
-  { id: "audit-methodology", title: "AI audit methodology" },
+  { id: "stages", title: "The three stages" },
+  { id: "diagnose", title: "Diagnose, phase by phase" },
   { id: "process", title: "Process" },
   { id: "faqs", title: "FAQs" },
   { id: "guides", title: "Guides" },
-  { id: "use-cases", title: "Use cases" },
   { id: "implementation", title: "Implementation" },
   { id: "technical", title: "Technical documentation" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
-
-/** Copied from src/pages/Products.tsx (products). */
-const SERVICES = [
-  {
-    name: "Agentic Systems",
-    sub: "Custom AI operators",
-    desc: "We build agents that handle real business workflows: research, routing, follow-ups, reporting, and the repetitive decisions that shouldn't live in a founder's head.",
-    build: "Typical build: 2-6 weeks",
-  },
-  {
-    name: "Self-Optimizing Systems",
-    sub: "Feedback loops that learn",
-    desc: "Marketing, outreach, website, and workflow loops that track their own outcomes and improve automatically, instead of guessing forever.",
-    build: "Typical build: 2-4 weeks",
-  },
-  {
-    name: "Business Intelligence",
-    sub: "Data that drives decisions",
-    desc: "KPI baselines, analytics dashboards, ROI calculations, and priority matrices that show exactly where to invest next.",
-    build: "Typical build: 1-3 weeks",
-  },
-  {
-    name: "AI Strategy Sprint",
-    sub: "Know what to build",
-    desc: "We map your team, stack, and constraints into a focused roadmap. No random tools, just the highest-leverage system to ship first.",
-    build: "Typical build: 1-2 weeks",
-  },
-  {
-    name: "Role Analyzer",
-    sub: "People in the right seats",
-    desc: "A people-fit diagnostic for founder-led teams: understand what each person should own and how to redesign roles for throughput.",
-    build: "Typical build: 1 week",
-  },
-];
 
 /** Copied from src/features/home/sections/HowItWorks.tsx (step titles). */
 const ENGAGEMENT_STEPS = [
@@ -76,14 +46,15 @@ const ENGAGEMENT_STEPS = [
   "Optimize continuously",
 ];
 
-/** Copied from src/pages/Pricing.tsx (the Full Build tier's includes). */
-const FULL_BUILD = [
-  "Everything in Strategy Sprint",
-  "Agentic system design & deployment",
-  "Self-optimizing loop configuration",
-  "Integration with your existing stack",
-  "Dashboard & control panel setup",
-  "Ongoing measurement & tuning",
+/** Copied from src/pages/Pricing.tsx (the Build stage's covers). The two items
+ *  that used to sit here, loop configuration and ongoing tuning, belong to
+ *  Optimize now and are not repeated in this list. */
+const BUILD_COVERS = [
+  "Agent design and deployment",
+  "Integration with the stack you already run",
+  "Dashboard and control panel",
+  "Access, handover and documentation",
+  "An agreed acceptance check before it is called done",
 ];
 
 /** Copied from src/features/who-we-are/sections/WhatPowersZiiro.tsx (layers). */
@@ -151,18 +122,6 @@ function DocLink({
   );
 }
 
-/** For a section, or part of one, the business hasn't confirmed yet. */
-function InProgress({ children }: { children: ReactNode }) {
-  return (
-    <div role="note" className="rounded-xl border border-dashed border-[var(--border-strong)] px-5 py-4">
-      <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-        [ Documentation in progress ]
-      </p>
-      <p className="mt-2">{children}</p>
-    </div>
-  );
-}
-
 /** A numbered document section: accent index, display title, hairline above. */
 function DocSection({ id, children }: { id: SectionId; children: ReactNode }) {
   const i = SECTIONS.findIndex((s) => s.id === id);
@@ -201,8 +160,8 @@ export default function Docs() {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Docs: Getting Started, Our Process & FAQs"
-        description="Ziiro AI documentation: getting started, the five systems we build, the AI Transformation Audit methodology, pricing FAQs, and the stack behind it."
+        title="Docs: How the Work Runs, in Detail"
+        description="The long version, for someone already interested: how each stage runs, what we need from you, how data is handled, and the questions pricing usually raises."
         canonical="/docs"
         // The FAQ section renders these same answers in full.
         schema={[faqPageSchema(PRICING_FAQS, "/docs")]}
@@ -231,11 +190,16 @@ export default function Docs() {
                 </h1>
               </MotionRevealItem>
 
-              {/* Copied from src/pages/Index.tsx (SEO description). */}
+              {/* Docs' own line. It used to repeat Index.tsx's positioning
+                  sentence word for word, which is what made four pages open by
+                  saying the same thing. This page's job is not to state the
+                  position again but to be the place the detail is written out,
+                  so the opening says what is in the document. */}
               <MotionRevealItem>
                 <p className="mt-8 max-w-xl leading-relaxed text-[var(--text-secondary)]">
-                  Ziiro is a business-intelligence-first AI consultancy for founder-led teams. We find where
-                  your hours and money go, quantify the ROI, then build only the systems the numbers justify.
+                  The rest of the site summarises. This page does not: the three stages in full, the
+                  diagnosis phase by phase with what each one leaves behind, the questions pricing raises,
+                  and the stack underneath it all.
                 </p>
               </MotionRevealItem>
             </MotionReveal>
@@ -298,12 +262,19 @@ export default function Docs() {
                 </ul>
               </DocSection>
 
-              <DocSection id="services">
+              <DocSection id="stages">
+                {/* Rendered from src/features/who-we-are/entities/stages.ts
+                    rather than copied. This page used to keep its own list of
+                    five separately-named services, which is how the retired
+                    names outlived the pages that dropped them. One import, one
+                    source of truth. */}
                 <p>
-                  Five systems. Full details are on <DocLink to="/products">Products</DocLink>.
+                  Three stages, and an engagement is scoped one stage at a time. What gets built inside
+                  each is catalogued on <DocLink to="/products">Products</DocLink>; what each costs and
+                  how the scope is set is on <DocLink to="/pricing">Pricing</DocLink>.
                 </p>
                 <dl>
-                  {SERVICES.map((s) => (
+                  {STAGES.map((s) => (
                     <div
                       key={s.name}
                       className="grid gap-2 border-t border-[var(--border)] py-5 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-6"
@@ -314,20 +285,19 @@ export default function Docs() {
                       </dt>
                       <dd>
                         <p>{s.desc}</p>
-                        <p className={`mt-2 ${monoMeta}`}>{s.build}</p>
                       </dd>
                     </div>
                   ))}
                 </dl>
               </DocSection>
 
-              <DocSection id="audit-methodology">
+              <DocSection id="diagnose">
                 {/* The retired Process page (hero and closing copy); phases and
                     terms come from Who We Are's entity. */}
                 <p>
-                  The AI Transformation Audit is a fixed-scope engagement that maps how your business actually
-                  runs and proves where AI pays for itself, before anything gets built. It is part of the
-                  Strategy Sprint on <DocLink to="/pricing">Pricing</DocLink>.
+                  Diagnose is fixed in scope. It maps how the business actually runs and proves where AI
+                  pays for itself before anything gets built, and it is the first stage priced on{" "}
+                  <DocLink to="/pricing">Pricing</DocLink>.
                 </p>
                 <ul className="flex flex-wrap gap-x-6 gap-y-2 font-mono text-[11px] uppercase tracking-[0.2em] text-[var(--text-secondary)]">
                   {PROCESS_TERMS.map((term) => (
@@ -357,8 +327,8 @@ export default function Docs() {
                   ))}
                 </ol>
                 <p>
-                  Even if the audit ends with us telling you not to build anything, you keep the process maps, the
-                  baselines, and the ROI math.
+                  Even if the diagnosis ends with us telling you not to build anything, you keep the process
+                  maps, the baselines, and the ROI math.
                 </p>
               </DocSection>
 
@@ -415,22 +385,14 @@ export default function Docs() {
                     ))}
                   </ul>
                 </div>
-                <InProgress>Written guides.</InProgress>
-              </DocSection>
-
-              <DocSection id="use-cases">
-                <InProgress>Use cases.</InProgress>
-                <p>
-                  The work each system takes on is described on <DocLink to="/products">Products</DocLink>.
-                </p>
               </DocSection>
 
               <DocSection id="implementation">
                 {/* src/features/home/sections/HowItWorks.tsx (steps 04-05) + src/pages/Pricing.tsx. */}
                 <p>Agents, loops, and dashboards shipped into your stack. Working systems, not slide decks.</p>
-                <p>A Full Build includes:</p>
+                <p>The Build stage covers:</p>
                 <ul className="space-y-2">
-                  {FULL_BUILD.map((item) => (
+                  {BUILD_COVERS.map((item) => (
                     <li key={item} className="flex items-baseline gap-3">
                       <span aria-hidden className="h-1 w-1 shrink-0 translate-y-[-0.2em] rounded-full bg-[var(--accent)]" />
                       {item}
@@ -438,8 +400,8 @@ export default function Docs() {
                   ))}
                 </ul>
                 <p>
-                  Each system tracks its own outcomes and gets tuned against them, so performance compounds after
-                  launch.
+                  Handover ends the Build stage. Anything done to the system after that is scoped under
+                  Optimize on <DocLink to="/pricing">Pricing</DocLink>.
                 </p>
               </DocSection>
 
@@ -466,7 +428,6 @@ export default function Docs() {
                     </li>
                   ))}
                 </ol>
-                <InProgress>Integration, data-handling and security documentation.</InProgress>
                 <p>
                   How AI outputs and third-party services are treated is set out in the{" "}
                   <DocLink to="/terms">Terms</DocLink>, and how data is handled in the{" "}

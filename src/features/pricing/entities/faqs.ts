@@ -10,8 +10,8 @@ export interface Faq {
 }
 
 export const PRICING_FAQS: Faq[] = [
-  { q: "How do you scope a project?", a: "We start with an hourly consultation to understand your business, then propose a focused scope based on where agents create the most leverage. No generic packages." },
-  { q: "Can I start small?", a: "Absolutely. Most clients start with a Strategy Sprint to identify the highest-leverage system, then move to a Full Build once they see the roadmap." },
-  { q: "What's the typical timeline?", a: "Strategy Sprints take 1-3 weeks. Full Builds range from 4-12 weeks depending on complexity. We work in focused sprints, not endless retainers." },
-  { q: "Do you offer ongoing support?", a: "Yes. After the build, we offer measurement and optimization cycles to ensure your systems keep improving over time." },
+  { q: "How do you scope a project?", a: "It starts with the paid consultation, billed by the hour with a one hour minimum. That hour tells us which stage you need, Diagnose, Build or Optimize, and what the stage has to cover. The price for that stage is set from there and shown before any of it starts." },
+  { q: "Can I start small?", a: "Yes. Most teams start at Diagnose, which ends with a roadmap and a spec you keep whether or not we build it. Build and Optimize are separate decisions taken after that, one stage at a time." },
+  { q: "What's the typical timeline?", a: "Diagnose usually runs 1-3 weeks and Build 4-12, depending on how much of the operation the system touches. Optimize runs in cycles on an agreed cadence rather than toward a finish date." },
+  { q: "Do you offer ongoing support?", a: "That is what Optimize is: outcome tracking, tuning, and a report on an agreed cadence. It is scoped and priced as its own stage rather than bundled into an open-ended retainer." },
 ];

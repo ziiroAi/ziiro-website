@@ -7,7 +7,21 @@
  * the site can't back up.
  */
 
-export const EYEBROW = "Business intelligence · Agentic AI";
+/**
+ * The three stages an engagement actually runs in, which is the whole offer
+ * taxonomy. It replaced "Business intelligence · Agentic AI", a noun stack that
+ * named two capabilities and said nothing about sequence — and that three other
+ * pages were opening with their own version of.
+ *
+ * Home names the sequence and stops there. What each stage contains is
+ * /products' job, and what it costs is /pricing's; this page only has to
+ * establish that there are three of them and that they run in this order.
+ *
+ * Shorter than the line it replaced (27 characters against 34), which matters:
+ * this renders in a fixed pill at 0.2em tracking, where length is the thing
+ * that overflows it on a narrow phone.
+ */
+export const EYEBROW = "Diagnose · Build · Optimize";
 
 /**
  * The orb's rotation: the roles an AI can hold in a business.
@@ -53,7 +67,16 @@ export const IDENTITIES = [
 export const HEADLINE_LEAD = "Your business";
 export const HEADLINE_TAIL = "just run better.";
 
+/**
+ * Home's one job is what Ziiro does and why the numbers come first, so this
+ * line states the order of operations rather than the category Ziiro belongs
+ * to. "Business intelligence first. AI second." was the latter, and /mission
+ * and /who-we-are were both opening with a paraphrase of it.
+ *
+ * It stays on the measuring, not on the declining. Refusal is /mission's, and
+ * saying it here too is what made the pages interchangeable in the first place.
+ */
 export const SUPPORT =
-  "Business intelligence first. AI second. We build only the systems the numbers justify.";
+  "We put a number on what your operations lose before we build anything, then build only what that number justifies.";
 
 export const TRUST = "Hourly consultation · No pitch · You keep the roadmap";

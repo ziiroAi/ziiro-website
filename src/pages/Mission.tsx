@@ -65,7 +65,9 @@ const beliefs: {
   {
     num: "03",
     name: "Show, don't tell.",
-    desc: "A before/after with real data beats any paragraph of promises. Every case study has ROI. Every recommendation has math behind it.",
+    // "Every case study has ROI" was here and had to go: there are no case
+    // studies on this site, so it was a client claim nothing could back.
+    desc: "A before and after with real data beats any paragraph of promises. Every recommendation carries the arithmetic that produced it.",
     glyph: "path",
     figCaption: "Proof over promises",
   },
@@ -85,26 +87,39 @@ const beliefs: {
   },
 ];
 
-const steps = [
+/**
+ * What we decline, and why.
+ *
+ * This replaced a four-card "What We Do" (Understand, Identify, Build,
+ * Measure). That was capability, and capability is the one thing this page is
+ * not for: it restated /who-we-are's process and pre-empted the three stages
+ * /products sells, which is a large part of why four pages read the same.
+ *
+ * Refusal is the thing only this page can carry, and nothing on the site said
+ * it out loud before. Each of these is a decline the rest of the site already
+ * commits to somewhere, written here as the situation rather than the
+ * principle, so it does not simply re-say the five beliefs above it.
+ */
+const refusals = [
   {
     num: "01",
-    name: "Understand",
-    desc: "We audit your operations: processes, costs, time allocation, pain points. We find where the leaks are and put numbers on them.",
+    name: "A build with no baseline",
+    desc: "If nobody can say what the process costs today, nobody can prove what it saved later. We map it and price it first, or we don't quote it.",
   },
   {
     num: "02",
-    name: "Identify",
-    desc: "Not every problem needs AI. We separate what's worth automating from what needs a simpler fix. Every recommendation comes with an ROI calculation.",
+    name: "Automation that moves a bottleneck",
+    desc: "Speeding up a step that was never the constraint relocates the queue and bills you for the privilege. We look for the constraint before we touch anything.",
   },
   {
     num: "03",
-    name: "Build",
-    desc: "We design and deploy AI-powered systems tailored to your actual workflows, not off-the-shelf tools forced into your operations.",
+    name: "AI where arithmetic would do",
+    desc: "When a changed rule or a spreadsheet recovers more hours than a system would, that is the recommendation. It is cheaper than us, and we say so.",
   },
   {
     num: "04",
-    name: "Measure",
-    desc: "Every system we build has clear metrics. You know exactly what it's saving, what it's producing, and whether it's worth keeping.",
+    name: "Work the numbers don't support",
+    desc: "Sometimes the diagnosis says the return isn't there. Then we stop and tell you, which is the entire reason for diagnosing first.",
   },
 ];
 
@@ -238,8 +253,8 @@ export default function Mission() {
   return (
     <div className="relative">
       <SEO
-        title="Our Mission: We Don't Sell AI. We Sell Results."
-        description="Ziiro is a Business Intelligence and AI consultancy that starts with understanding your operations, then builds systems that deliver measurable returns."
+        title="Our Mission: What We Believe and What We Turn Down"
+        description="Why Ziiro exists: the AI industry sells transformation and rarely checks whether it paid. The five principles we work by, and the four kinds of work we decline."
         canonical="/mission"
       />
 
@@ -268,14 +283,18 @@ export default function Mission() {
             <br />
             <span className="text-[var(--text-secondary)]">We sell results.</span>
           </h1>
+          {/* Belief, not capability. This page used to open by naming the
+              category Ziiro belongs to, which is the same sentence /, /who-we-are
+              and /products were each opening with. What only this page can say
+              is why the company exists and what it will not take money for. */}
           <p
             data-hero-sub
             className="mt-8 max-w-xl leading-relaxed text-[var(--text-secondary)]"
             style={{ opacity: 0 }}
           >
-            Ziiro is a Business Intelligence and AI consultancy that starts with
-            understanding your operations, then builds systems that deliver
-            measurable returns.
+            The AI industry sells transformation and almost never goes back to
+            check whether it paid. We exist to run that check first, and to turn
+            the work down when the answer is no.
           </p>
           <div
             data-hero-rule
@@ -444,15 +463,15 @@ export default function Mission() {
         </div>
       </section>
 
-      {/* ── 04 · What we do ── */}
+      {/* ── 04 · What we turn down ── */}
       <section className="pb-24 md:pb-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <SectionHeader
             index="04"
-            label="What We Do"
-            meta="04 steps"
-            titleA="Understand. Identify."
-            titleB="Build. Measure."
+            label="What We Turn Down"
+            meta="04 declines"
+            titleA="The work we"
+            titleB="say no to."
           />
           {/* One viewport trigger for the whole row, not four. Four cards that
               sit side by side each firing on their own arrive at slightly
@@ -462,7 +481,7 @@ export default function Mission() {
             stagger={STAGGER.card}
             className="mt-16 grid grid-cols-1 border-t border-[var(--border)] sm:grid-cols-2 lg:grid-cols-4"
           >
-            {steps.map((s) => (
+            {refusals.map((s) => (
               <MotionRevealItem key={s.num}>
                 <div className="h-full border-b border-[var(--border)] px-0 py-10 sm:pr-8 lg:border-b-0 lg:py-12">
                   <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">

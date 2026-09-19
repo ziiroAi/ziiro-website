@@ -57,13 +57,22 @@ export const MARKETS: Record<MarketCode, Market> = {
 export const MIN_SESSION_MINUTES = 60;
 
 /**
+ * !!! INTERIM LINK: IT CONTRADICTS THE PRICING THIS FILE SETS. !!!
+ *
  * Where every "book a session" CTA points. Keep it free of query params:
  * embeds append their own.
  *
- * TODO(before launch): this is still the old free 30-minute Calendly event.
- * Create a paid 60-minute event in Calendly (Stripe payments) and replace it.
+ * This still points at the old FREE 30-MINUTE event, while the site sells a
+ * paid consultation with a MIN_SESSION_MINUTES minimum and shows a regional
+ * hourly rate beside the button. A visitor reads "one hour, paid", clicks
+ * Book, and lands on a free half-hour page. Only a human can close that gap.
+ *
+ * TO FIX: create a paid 60-minute event in Calendly (Stripe payments), point
+ * this at it, then rename this constant back to BOOKING_URL. The name is
+ * deliberately awkward so that nobody ships the contradiction without reading
+ * this comment first.
  */
-export const BOOKING_URL = "https://calendly.com/ziiro-work/30min";
+export const INTERIM_BOOKING_URL = "https://calendly.com/ziiro-work/30min";
 
 /**
  * Maps an ISO 3166-1 alpha-2 country code to the market whose rate the visitor

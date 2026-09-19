@@ -7,9 +7,9 @@
     <!-- Primary Meta (homepage defaults; react-helmet-async sets per-route
          title/description/canonical/OG at runtime; no static canonical here
          so Helmet is the single canonical source and never conflicts). -->
-    <title>Ziiro AI: Leverage AI Anywhere | Agentic AI Systems for Startups</title>
-    <meta name="description" content="Ziiro AI is a business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems, self-optimizing loops, and BI dashboards that pay for themselves." />
-    <meta name="keywords" content="AI consultancy, agentic AI systems, AI agents for startups, AI automation agency, business intelligence consultancy, self-optimizing systems, AI ROI audit, role analyzer, AI consultancy India, founder automation" />
+    <title>Ziiro AI: Diagnose, Build, Optimize | AI That Earns Its Cost</title>
+    <meta name="description" content="Ziiro AI is an AI consultancy that works in three stages. Diagnose maps how the operation runs and prices the opportunity, Build ships agents into it, and Optimize keeps them measured and tuned." />
+    <meta name="keywords" content="AI consultancy, AI agents for startups, AI automation agency, operations mapping, ROI modelling, workflow agents, AI roadmap, AI consultancy India, founder automation" />
     <meta name="author" content="Ziiro AI" />
     <meta name="robots" content="index, follow" />
     <!-- The hero's entrance hides its own elements until anime.js reveals
@@ -42,8 +42,8 @@
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://ziiro.work" />
-    <meta property="og:title" content="Ziiro AI: Leverage AI Anywhere" />
-    <meta property="og:description" content="Business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems and self-optimizing loops." />
+    <meta property="og:title" content="Ziiro AI: Diagnose, Build, Optimize" />
+    <meta property="og:description" content="An AI consultancy that works in three stages: Diagnose maps the operation and prices the opportunity, Build ships agents into it, Optimize keeps them tuned." />
     <meta property="og:image" content="https://ziiro.work/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -54,8 +54,8 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@ziir0ai" />
     <meta name="twitter:creator" content="@ziir0ai" />
-    <meta name="twitter:title" content="Ziiro AI: Leverage AI Anywhere" />
-    <meta name="twitter:description" content="Business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems and self-optimizing loops." />
+    <meta name="twitter:title" content="Ziiro AI: Diagnose, Build, Optimize" />
+    <meta name="twitter:description" content="An AI consultancy that works in three stages: Diagnose maps the operation and prices the opportunity, Build ships agents into it, Optimize keeps them tuned." />
     <meta name="twitter:image" content="https://ziiro.work/og-image.png" />
 
     <!-- Favicon: the Z mark on the brand's white ground. SVG where it is
@@ -83,17 +83,17 @@
             "height": 512
           },
           "image": "https://ziiro.work/og-image.png",
-          "description": "Ziiro AI is a business-intelligence-first AI consultancy that builds agentic AI systems, self-optimizing loops, and BI dashboards for startups and founder-led teams.",
+          "description": "Ziiro AI is an AI consultancy that works in three stages: Diagnose maps how an operation actually runs and prices the opportunity, Build ships agents into it, and Optimize keeps them measured and tuned.",
           "slogan": "We don't sell AI. We sell results.",
           "email": "govind@ziiro.work",
           "areaServed": "Worldwide",
           "knowsAbout": [
-            "Agentic AI systems",
+            "Operations mapping",
+            "ROI modelling",
+            "Workflow agents",
             "AI automation",
-            "Self-optimizing marketing loops",
-            "Business intelligence",
-            "AI strategy",
-            "Workflow automation"
+            "Outcome tracking",
+            "AI strategy"
           ],
           "address": {
             "@type": "PostalAddress",
@@ -123,25 +123,29 @@
           ],
           "makesOffer": {
             "@type": "Offer",
-            "name": "Agentic systems strategy consultation",
-            "description": "A paid strategy consultation, billed hourly with a 60-minute minimum, to map where agentic AI creates leverage in your business. Rates are set by region.",
+            "name": "AI strategy consultation",
+            "description": "A paid strategy consultation, billed hourly with a 60-minute minimum, to find where AI is worth building in your business. Rates are set by region.",
             "availability": "https://schema.org/InStock",
             "url": "https://ziiro.work/contact",
             "itemOffered": {
               "@type": "Service",
-              "name": "Agentic AI systems strategy consultation",
+              "@id": "https://ziiro.work/#consultation",
+              "name": "AI strategy consultation",
+              "serviceType": "AI consultancy",
               "provider": { "@id": "https://ziiro.work/#organization" }
             }
           },
           "hasOfferCatalog": {
             "@type": "OfferCatalog",
-            "name": "Ziiro AI Services",
+            "@id": "https://ziiro.work/#stages",
+            "name": "Ziiro engagement stages",
+            "description": "The three stages Ziiro works in. Everything Ziiro builds sits inside one of them; there is nothing else to choose between.",
+            "itemListOrder": "https://schema.org/ItemListOrderAscending",
+            "numberOfItems": 3,
             "itemListElement": [
-              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Agentic Systems", "description": "Custom AI operators that handle research, routing, follow-ups, and reporting.", "provider": { "@id": "https://ziiro.work/#organization" } } },
-              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Self-Optimizing Systems", "description": "Marketing, outreach, website, and workflow loops that track outcomes and improve automatically.", "provider": { "@id": "https://ziiro.work/#organization" } } },
-              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Business Intelligence", "description": "KPI baselines, dashboards, ROI models, and priority matrices.", "provider": { "@id": "https://ziiro.work/#organization" } } },
-              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "AI Strategy Sprint", "description": "A focused roadmap to the highest-leverage system to build first.", "provider": { "@id": "https://ziiro.work/#organization" } } },
-              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Role Analyzer", "description": "A people-fit diagnostic for founder-led teams: ownership mapping and throughput redesign.", "provider": { "@id": "https://ziiro.work/#organization" } } }
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "@id": "https://ziiro.work/#stage-diagnose", "name": "Diagnose", "serviceType": "AI consultancy", "description": "We map how the business actually runs: where the hours go, which decisions repeat, and what a system would have to be worth to justify building it. You leave with a roadmap and a spec, whether or not we build it.", "provider": { "@id": "https://ziiro.work/#organization" } } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "@id": "https://ziiro.work/#stage-build", "name": "Build", "serviceType": "AI consultancy", "description": "Agents that do real work inside the tools you already run: research, routing, follow-up, reporting. You leave with a running system, the access to it, and the documentation for it.", "provider": { "@id": "https://ziiro.work/#organization" } } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "@id": "https://ziiro.work/#stage-optimize", "name": "Optimize", "serviceType": "AI consultancy", "description": "Loops that watch their own outcomes and tune against them, then report what moved. You leave with a measurement cycle, running on a cadence you agreed to.", "provider": { "@id": "https://ziiro.work/#organization" } } }
             ]
           }
         },
@@ -151,7 +155,7 @@
           "url": "https://ziiro.work",
           "name": "Ziiro AI",
           "alternateName": "Ziiro",
-          "description": "Business-intelligence-first AI consultancy building agentic systems and self-optimizing loops for startups and founder-led teams.",
+          "description": "An AI consultancy working in three stages for startups and founder-led teams: Diagnose, Build, Optimize.",
           "inLanguage": "en",
           "publisher": { "@id": "https://ziiro.work/#organization" }
         }
