@@ -8,6 +8,7 @@ import {
   stagger,
 } from "animejs";
 import SEO from "@/shared/components/SEO";
+import { serviceCatalogSchema } from "@/shared/components/seo-schema";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import {
   CSS_EASE,
@@ -228,9 +229,24 @@ export default function Products() {
   return (
     <div className="relative">
       <SEO
-        title="Products: Systems, Not Software"
+        title="Products: Agentic Systems, BI and AI Sprints"
         description="Ziiro builds leverage: agentic systems, self-optimizing loops, business intelligence, strategy sprints, and role diagnostics, each a working system."
         canonical="/products"
+        // The catalog is the products list itself, so the markup cannot
+        // drift from the rows below it.
+        schema={[
+          serviceCatalogSchema({
+            path: "/products",
+            name: "Ziiro AI systems",
+            description:
+              "The systems Ziiro builds: agentic operators, self-optimizing loops, business intelligence, strategy sprints, and role diagnostics.",
+            catalogName: "Systems",
+            offerings: products.map((product) => ({
+              name: product.name,
+              description: product.desc,
+            })),
+          }),
+        ]}
       />
 
       {/* ---- Page hero ---- */}
@@ -334,7 +350,16 @@ export default function Products() {
                 </div>
 
                 <div className="hidden md:col-span-4 md:col-start-9 md:flex md:flex-col md:items-center md:justify-center">
-                  <DotGlyph variant={p.glyph} energy={energies.current[i]} />
+                  {/* The glyph's canvas is a fixed 320px. This column is four
+                      of twelve, which at exactly 768px is ~307px, so at the md
+                      breakpoint the canvas hung 13px past the viewport and put
+                      a horizontal scrollbar on the whole page. max-w-full caps
+                      it to the column and scales the drawing down instead. */}
+                  <DotGlyph
+                    variant={p.glyph}
+                    energy={energies.current[i]}
+                    className="max-w-full text-[var(--text-primary)]"
+                  />
                   <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-secondary)]">
                     Fig. {String(i + 1).padStart(2, "0")} / {p.figCaption}
                   </p>

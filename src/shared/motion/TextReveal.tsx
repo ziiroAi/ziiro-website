@@ -54,7 +54,11 @@ export default function TextReveal({
       }),
     });
 
-    return () => anim.cancel();
+    // Braced so the cleanup returns void: `() => anim.cancel()` returns the
+    // JSAnimation, which is not an EffectCallback.
+    return () => {
+      anim.cancel();
+    };
   }, [text]);
 
   const parts = text.split(" ");

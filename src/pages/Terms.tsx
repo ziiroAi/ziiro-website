@@ -13,6 +13,17 @@ const Dot = () => (
 const emailClass =
   "border-b border-[var(--border-strong)] pb-0.5 text-[var(--text-primary)] transition-colors hover:border-[var(--text-primary)]";
 
+/**
+ * The Contact section lists addresses as actions on their own line rather than
+ * as links inside a sentence, so each anchor owns a 44px target. The rule has
+ * to stay tight under the address, so the height is on the anchor and the
+ * border on the label inside it. Addresses set mid-sentence keep `emailClass`:
+ * WCAG exempts inline links, and padding one would open up the line it sits in.
+ */
+const emailTargetClass = "group inline-flex min-h-[44px] items-center";
+const emailLabelClass =
+  "border-b border-[var(--border-strong)] pb-0.5 text-[var(--text-primary)] transition-colors group-hover:border-[var(--text-primary)]";
+
 /** Numbered editorial document section: mono index, Inter title, hairline above. */
 function LegalSection({
   index,
@@ -108,8 +119,8 @@ const Terms = () => {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Terms & Conditions of Service"
-        description="The Terms & Conditions governing your use of the Ziiro AI website and services, including AI outputs, SMS messages, and liability limits."
+        title="Terms & Conditions for Ziiro AI Services"
+        description="The Terms & Conditions governing your use of the Ziiro AI website and services, including AI outputs, SMS messages, liability limits, and governing law."
         canonical="/terms"
       />
       <div className="min-h-screen pb-28">
@@ -290,13 +301,13 @@ const Terms = () => {
               <p className="font-semibold text-[var(--text-primary)]">Ziiro AI</p>
               <div className="space-y-2">
                 <p>
-                  <a href="mailto:govind@ziiro.work" className={emailClass}>
-                    govind@ziiro.work
+                  <a href="mailto:govind@ziiro.work" className={emailTargetClass}>
+                    <span className={emailLabelClass}>govind@ziiro.work</span>
                   </a>
                 </p>
                 <p>
-                  <a href="mailto:aniket@ziiro.work" className={emailClass}>
-                    aniket@ziiro.work
+                  <a href="mailto:aniket@ziiro.work" className={emailTargetClass}>
+                    <span className={emailLabelClass}>aniket@ziiro.work</span>
                   </a>
                 </p>
               </div>

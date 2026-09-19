@@ -56,6 +56,10 @@ const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
  * pointer leads the link instead of the link answering the pointer. TRAVEL.nudge
  * over DURATION.micro is the reference behaviour: a distance you register as
  * acknowledgement rather than as travel, finished before you can call it late.
+ *
+ * `min-h-[44px]` rather than padding around the ink: the label has to stay
+ * vertically centred in the row for the nudge to read as horizontal, and a
+ * flex box that owns its height does that without the ink moving.
  */
 function NudgeLink({ to, children }: { to: string; children: ReactNode }) {
   const ref = useRef<HTMLAnchorElement>(null);
@@ -81,7 +85,7 @@ function NudgeLink({ to, children }: { to: string; children: ReactNode }) {
       to={to}
       onMouseEnter={() => nudge.current?.x(TRAVEL.nudge)}
       onMouseLeave={() => nudge.current?.x(0)}
-      className="-my-1.5 inline-block py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+      className="flex min-h-[44px] items-center text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
       style={micro("color")}
     >
       {children}
@@ -105,7 +109,9 @@ function SocialLink({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="inline-flex items-center justify-center p-2 text-[var(--text-secondary)] hover:text-[var(--accent)]"
+      // A 18px glyph in p-2 is a 34px target. The box owns 44px instead and
+      // keeps the icon centred in it, so only the reachable area changes.
+      className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-[var(--text-secondary)] hover:text-[var(--accent)]"
       style={micro("color")}
     >
       {children}
@@ -126,7 +132,10 @@ export default function Footer() {
           <div>
             <Link
               to="/"
-              className="inline-block text-[var(--text-primary)] hover:opacity-80"
+              // min-h/min-w give the 36px mark a 44px target. The box is
+              // left-aligned, so the extra reach is transparent space to the
+              // right of the mark and the wordmark does not move.
+              className="inline-flex min-h-[44px] min-w-[44px] items-center text-[var(--text-primary)] hover:opacity-80"
               style={micro("opacity")}
               aria-label="Ziiro home"
             >
@@ -159,7 +168,12 @@ export default function Footer() {
                 <p className="font-mono text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--text-muted)]">
                   {col.head}
                 </p>
-                <ul className="mt-5 space-y-3">
+                {/* No space-y: each link is its own 44px tap target (see
+                    NudgeLink) and stacking them flush is what keeps two
+                    adjacent targets from overlapping. The rows read further
+                    apart than they did because they genuinely are — 32px of
+                    pitch was never a thumb-sized row. */}
+                <ul className="mt-4">
                   {col.links.map((link) => (
                     <li key={link.to}>
                       <NudgeLink to={link.to}>{link.label}</NudgeLink>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import SEO from "@/shared/components/SEO";
+import { faqPageSchema } from "@/shared/components/seo-schema";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import { CSS_EASE, DURATION, STAGGER } from "@/shared/motion/tokens";
 import { PRICING_FAQS } from "@/features/pricing/entities/faqs";
@@ -114,7 +115,35 @@ const inlineLink =
 
 const monoMeta = "font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]";
 
-function DocLink({ to, children }: { to: string; children: ReactNode }) {
+/**
+ * `standalone` is for a link that is the whole paragraph rather than a phrase
+ * inside one. Those are navigation, not prose, so they need a thumb-sized
+ * target — but the rule has to stay tight under the words, so the height goes
+ * on the anchor and the border stays on a span inside it. A link set in a
+ * sentence keeps the plain treatment: WCAG exempts inline links from the
+ * target size, and padding one would space the line it sits in.
+ */
+function DocLink({
+  to,
+  children,
+  standalone,
+}: {
+  to: string;
+  children: ReactNode;
+  standalone?: boolean;
+}) {
+  if (standalone) {
+    return (
+      <Link to={to} className="group inline-flex min-h-[44px] items-center" style={micro}>
+        <span
+          className="border-b border-[var(--border-strong)] pb-0.5 text-[var(--text-primary)] group-hover:border-[var(--text-primary)]"
+          style={micro}
+        >
+          {children}
+        </span>
+      </Link>
+    );
+  }
   return (
     <Link to={to} className={inlineLink} style={micro}>
       {children}
@@ -172,9 +201,11 @@ export default function Docs() {
   return (
     <div className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Docs: Getting Started, Process & FAQs"
+        title="Docs: Getting Started, Our Process & FAQs"
         description="Ziiro AI documentation: getting started, the five systems we build, the AI Transformation Audit methodology, pricing FAQs, and the stack behind it."
         canonical="/docs"
+        // The FAQ section renders these same answers in full.
+        schema={[faqPageSchema(PRICING_FAQS, "/docs")]}
       />
       <div className="min-h-screen pb-28">
         <div className="mx-auto max-w-6xl px-6 md:px-10">
@@ -221,7 +252,11 @@ export default function Docs() {
                   <li key={s.id}>
                     <Link
                       to={{ hash: `#${s.id}` }}
-                      className="-ml-px flex items-baseline gap-3 border-l border-transparent py-1.5 pl-4 text-sm text-[var(--text-secondary)] hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
+                      // py-3 below lg, where this index is a stacked list of
+                      // thumb targets and 34px rows were too shallow to hit.
+                      // From lg it is the sticky sidebar again, read with a
+                      // pointer, and gets its compact rhythm back.
+                      className="-ml-px flex items-baseline gap-3 border-l border-transparent py-3 pl-4 text-sm text-[var(--text-secondary)] hover:border-[var(--text-primary)] hover:text-[var(--text-primary)] lg:py-1.5"
                       style={micro}
                     >
                       <span className="font-mono text-[10px] tracking-[0.2em] text-[var(--text-muted)]">{pad(i + 1)}</span>
@@ -346,7 +381,7 @@ export default function Docs() {
                   something concrete you keep, whether or not we build anything together.
                 </p>
                 <p>
-                  <DocLink to="/who-we-are#process">See the process, phase by phase, on Who We Are →</DocLink>
+                  <DocLink to="/who-we-are#process" standalone>See the process, phase by phase, on Who We Are →</DocLink>
                 </p>
               </DocSection>
 
@@ -368,7 +403,7 @@ export default function Docs() {
                 {/* src/features/watch/videos.ts. */}
                 <div>
                   <p className="font-semibold text-[var(--text-primary)]">
-                    <DocLink to={watchPath(walkthrough.slug)}>{walkthrough.seoTitle}</DocLink>
+                    <DocLink to={watchPath(walkthrough.slug)} standalone>{walkthrough.seoTitle}</DocLink>
                   </p>
                   <p className="mt-2">{walkthrough.summary}</p>
                   <ul className="mt-4 space-y-2">

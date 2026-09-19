@@ -232,7 +232,7 @@ const Contact = () => {
   return (
     <div ref={rootRef} className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Book a 1-Hour AI Strategy Consultation"
+        title="Book a Paid 1-Hour AI Strategy Consultation"
         description="Book a paid one-hour AI strategy consultation with Ziiro AI. Leave with a prioritised plan of the automations worth building and a recommended next step."
         canonical="/contact"
       />
@@ -408,7 +408,11 @@ const Contact = () => {
             <p className="mb-6 max-w-md leading-relaxed text-[var(--text-secondary)]">
               Questions before you book? Email us directly.
             </p>
-            <div className="flex flex-col gap-3">
+            {/* No gap: each address is its own 44px row, and two 44px targets
+                need to sit flush rather than overlap into the space between
+                them. These are the page's contact actions, not links inside a
+                sentence, so they get a thumb-sized row. */}
+            <div className="flex flex-col">
               {emails.map((email, i) => (
                 <a
                   key={email}
@@ -417,7 +421,7 @@ const Contact = () => {
                   onMouseEnter={() => emailAnims.current[i]?.x(TRAVEL.nudge)}
                   onMouseLeave={() => emailAnims.current[i]?.x(0)}
                   style={colorTransition}
-                  className="inline-block w-fit font-mono text-sm tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className="flex min-h-[44px] w-fit items-center font-mono text-sm tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
                   {email}
                 </a>

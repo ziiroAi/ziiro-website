@@ -1,6 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
-import CoreOrb, { type CoreOrbHandle } from "@/ogl/CoreOrb";
+import type { CoreOrbHandle } from "@/ogl/CoreOrb";
+
+/**
+ * The WebGL body is code-split, as DotArt3D is at the other end of the page.
+ * It was a static import, which put ogl (~48K) in the homepage's entry chunk
+ * and on the critical path for a layer that is decorative: the poster below is
+ * the real first paint, and the canvas only ever crossfades in over it.
+ *
+ * `import type` for the handle — a type-only import is erased at compile time,
+ * so the ref's type costs nothing at runtime. Importing the value here would
+ * put the module straight back in the entry chunk and undo the split.
+ *
+ * No IntersectionObserver gate, unlike DotArtSection: that section is below the
+ * fold, so waiting for the viewport genuinely saves the work. The orb is in the
+ * hero and already on screen at load, so an observer would fire on the first
+ * frame and buy nothing while adding a way for the orb never to appear.
+ */
+const CoreOrb = lazy(() => import("@/ogl/CoreOrb"));
 import DynamicIdentity, { useCycle } from "./DynamicIdentity";
 import { IDENTITIES } from "./heroContent";
 
@@ -369,12 +386,29 @@ export default function IntelligenceOrb() {
               transition: "opacity 620ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}
           >
-            <CoreOrb
-              ref={coreRef}
-              onReady={onReady}
-              onFail={onFail}
-              reducedMotion={reducedMotion}
-            />
+            {/* The box is reserved by this layer, not by the fallback: it is
+                `absolute inset-0` inside a parent sized `var(--orb)` square,
+                so the canvas contributes nothing to layout and there is no
+                shift to have whether the chunk has landed or not. That is also
+                why the boundary sits inside this div rather than around it —
+                the opacity transition that crossfades poster to canvas stays
+                mounted across the swap instead of being torn down with it.
+
+                `fallback={null}` because the poster underneath already IS the
+                fallback, at `opacity: 1` until `onReady` flips `live`. Drawing
+                anything here would just stack a second placeholder on it.
+                `renderToString` cannot flush Suspense, so nothing inside this
+                boundary reaches the prerendered HTML — which is the same
+                bargain DotArtSection documents, and fine for the identical
+                reason: the crawler gets the poster. */}
+            <Suspense fallback={null}>
+              <CoreOrb
+                ref={coreRef}
+                onReady={onReady}
+                onFail={onFail}
+                reducedMotion={reducedMotion}
+              />
+            </Suspense>
           </div>
         )}
 
@@ -416,8 +450,11 @@ export default function IntelligenceOrb() {
             data-hero-orb-word
             onClick={nextIdentity}
             aria-label="Show the next role"
-            className="pointer-events-auto relative z-[2] block cursor-pointer rounded-lg"
-            style={{ marginTop: "calc(var(--orb) * 0.045)" }}
+            // 7px of padding takes the role-cycling button past 44px; the
+            // margin gives the same 7px back above it so the word stays on
+            // the line the orb's proportions put it on.
+            className="pointer-events-auto relative z-[2] block cursor-pointer rounded-lg py-[7px]"
+            style={{ marginTop: "calc(var(--orb) * 0.045 - 7px)" }}
           >
             <DynamicIdentity
               items={IDENTITIES}

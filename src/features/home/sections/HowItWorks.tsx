@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import SectionHeader from "@/shared/ui/section-header";
 import MotionReveal from "@/shared/motion/MotionReveal";
 
@@ -153,6 +155,31 @@ export default function HowItWorks() {
             </MotionReveal>
           ))}
         </ol>
+
+        {/* The long-form version this section summarises, as a link rather
+            than only as a note in the source. The homepage otherwise reaches
+            /who-we-are and /products through the nav and the footer alone,
+            which is the weakest way to link two pages that are about the
+            same thing. */}
+        <MotionReveal>
+          <p className="mt-14 max-w-[52ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+            The same five steps, written out phase by phase, are in{" "}
+            <Link
+              to="/who-we-are#process"
+              className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+            >
+              our process
+            </Link>
+            . What they end up building is on the{" "}
+            <Link
+              to="/products"
+              className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+            >
+              products page
+            </Link>
+            .
+          </p>
+        </MotionReveal>
       </div>
     </section>
   );

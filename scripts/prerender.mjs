@@ -33,6 +33,17 @@ const STRIP = [
   /<meta property="og:url"[^>]*>\s*/i,
   /<meta name="twitter:title"[^>]*>\s*/i,
   /<meta name="twitter:description"[^>]*>\s*/i,
+  // Also emitted by SEO.tsx. These match the template today, but og:image
+  // and twitter:image are per-route settable (SEO's `ogImage` prop) and the
+  // template's copy sits earlier in the head, so a scraper that takes the
+  // first match would silently ignore a page's own image.
+  /<meta property="og:type"[^>]*>\s*/i,
+  /<meta property="og:site_name"[^>]*>\s*/i,
+  /<meta property="og:image"[^>]*>\s*/i,
+  /<meta property="og:image:width"[^>]*>\s*/i,
+  /<meta property="og:image:height"[^>]*>\s*/i,
+  /<meta name="twitter:card"[^>]*>\s*/i,
+  /<meta name="twitter:image"[^>]*>\s*/i,
   // Helmet emits the real per-route robots directive; leaving the template's
   // static one in place ships two robots tags per page, which contradict each
   // other outright on the noindex 404.

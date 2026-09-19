@@ -1,12 +1,24 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
 import { CSS_EASE, DURATION } from "@/shared/motion/tokens";
+import ScrollAutoplayVideo from "@/shared/ui/scroll-autoplay-video";
 
 export type VslSource =
   | { kind: "youtube"; id: string }
   | { kind: "vimeo"; id: string }
   /** Self-hosted file: root-relative ("/vsl.mp4") or absolute URL. */
-  | { kind: "file"; src: string };
+  | {
+      kind: "file";
+      src: string;
+      /**
+       * Lighter encode for narrow viewports. A phone renders this frame at a
+       * third of its desktop width and pays for the bytes on a metered plan,
+       * so shipping the 1080p master to it is a tax with nothing bought.
+       * Only consulted in "autoplay" mode, where the file downloads on
+       * approach rather than on a press.
+       */
+      narrowSrc?: string;
+    };
 
 export interface VslConfig {
   source: VslSource;
@@ -194,8 +206,14 @@ export default function VslPlayer({
    * "embed" puts the real iframe in the server-rendered HTML. Use it on watch
    * pages, where the video is the reason the page exists and the third-party
    * payload is the point rather than a tax.
+   *
+   * "autoplay" plays a self-hosted file muted when it scrolls into view and
+   * pauses it on the way out. It is ignored for YouTube and Vimeo sources,
+   * deliberately: starting a third-party embed on approach means loading
+   * their player and their cookies on approach too, which is the entire cost
+   * the facade exists to avoid. Those fall back to the facade.
    */
-  mode?: "facade" | "embed";
+  mode?: "facade" | "embed" | "autoplay";
 }) {
   const [playing, setPlaying] = useState(false);
   // Starts at whatever is known synchronously so the first paint already has a
@@ -257,6 +275,19 @@ export default function VslPlayer({
 
   const { title, runtime } = vsl;
   const vslSource = vsl.source;
+
+  if (mode === "autoplay" && vslSource.kind === "file") {
+    return (
+      <Frame label={label} meta={runtime} flush={flush}>
+        <ScrollAutoplayVideo
+          src={vslSource.src}
+          narrowSrc={vslSource.narrowSrc}
+          poster={poster}
+          title={title}
+        />
+      </Frame>
+    );
+  }
   // In embed mode the player is present from the first render, including the
   // server-rendered HTML, so a crawler finds a real <iframe>/<video> element.
   const showPlayer = mode === "embed" || playing;

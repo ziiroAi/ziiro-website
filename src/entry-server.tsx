@@ -1,7 +1,7 @@
 import type { ComponentType } from "react";
 import { renderToString } from "react-dom/server";
 import { StaticRouter } from "react-router-dom/server";
-import { HelmetProvider } from "react-helmet-async";
+import { HelmetProvider, type HelmetServerState } from "react-helmet-async";
 import { Providers } from "@/app/App";
 import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
@@ -36,19 +36,11 @@ const routes: Record<string, ComponentType> = {
   ...Object.fromEntries(videos.map((v) => [watchPath(v.slug), Watch])),
 };
 
-interface HelmetTag {
-  toString(): string;
-}
-interface HelmetData {
-  title?: HelmetTag;
-  meta?: HelmetTag;
-  link?: HelmetTag;
-  script?: HelmetTag;
-}
-
 export function render(url: string): { appHtml: string; head: string } {
   const Page = routes[url] ?? NotFound;
-  const helmetContext: { helmet?: HelmetData } = {};
+  // The shape HelmetProvider fills in, straight from the library: it writes
+  // the whole server state, not just the four data this file reads back.
+  const helmetContext: { helmet?: HelmetServerState | null } = {};
 
   const appHtml = renderToString(
     <HelmetProvider context={helmetContext}>

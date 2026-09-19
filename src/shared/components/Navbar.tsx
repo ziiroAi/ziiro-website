@@ -288,14 +288,20 @@ export default function Navbar() {
             Below sm there is no room for all three on the pill's line, so they
             wrap to their own centred row underneath. One element either way:
             rendering a second copy for small screens would put every link in
-            the document twice. */}
+            the document twice.
+
+            `-my-3 py-3` takes each link from 36px to a 44px tap target and
+            hands the padding straight back to the layout, so the row's
+            occupied height is the 20px of ink it always was. `leading-5` is
+            the last half-pixel: 13px text rides a 19.5px line by default,
+            which lands the padded box on 43.5 and just under the target. */}
         <div className="order-3 mt-3 flex w-full items-center justify-center gap-6 sm:absolute sm:left-1/2 sm:top-1/2 sm:mt-0 sm:w-auto sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-7 xl:gap-9">
           {LINKS.map((link) => (
             <Link
               key={link.to}
               to={link.to}
               aria-current={pathname === link.to ? "page" : undefined}
-              className={`-my-2 whitespace-nowrap py-2 text-[13px] tracking-wide hover:text-[var(--text-primary)] ${
+              className={`-my-3 whitespace-nowrap py-3 text-[13px] leading-5 tracking-wide hover:text-[var(--text-primary)] ${
                 pathname === link.to
                   ? "text-[var(--text-primary)]"
                   : "text-[var(--text-secondary)]"

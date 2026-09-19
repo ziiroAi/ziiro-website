@@ -211,7 +211,19 @@ export default function DotGlyph({
     <canvas
       ref={canvasRef}
       className={className}
-      style={{ width: W, height: H }}
+      // W and H are the bitmap's size, not a promise about the layout box. As
+      // a hard `width: 320` it was neither: in a container narrower than that
+      // the canvas simply hung out of it, which is how /products came to push
+      // the page 13px sideways at exactly 768px, where its 4-of-12 column is
+      // ~307px. /mission uses the same column and only escaped it because a
+      // scale(0.6) wrapper shrinks the painted box below the overflow line.
+      //
+      // `aspectRatio` rather than keeping `height: H`: capping the width alone
+      // would hold the height at 220 and squash the drawing horizontally on
+      // the way down. The ratio scales both, so a constrained glyph is the
+      // same picture, smaller. At any container 320px or wider this still
+      // resolves to exactly 320x220, so nothing moves where there was room.
+      style={{ width: "100%", maxWidth: W, aspectRatio: `${W} / ${H}` }}
       aria-hidden
     />
   );
