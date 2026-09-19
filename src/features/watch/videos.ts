@@ -34,7 +34,11 @@ export const videos: VideoEntry[] = [
       duration: "PT7M50S",
       runtime: "8 min",
     },
-    seoTitle: "How Ziiro Works: A Full Walkthrough",
+    // 44 chars, so the rendered title is 55 with " | Ziiro AI" — inside the
+    // ~50-60 Google shows without truncating, where the old 46 left value on
+    // the table. "8-Minute" is not a new claim: it is `runtime` above, the
+    // PT7M50S duration, and the wording seoDescription and summary already use.
+    seoTitle: "How Ziiro Works: A Full 8-Minute Walkthrough",
     seoDescription:
       "An eight-minute screen-share walkthrough of how Ziiro works end to end: what we build, how an engagement runs, what you invest, and where your data goes.",
     summary:

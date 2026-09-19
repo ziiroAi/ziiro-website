@@ -111,7 +111,15 @@ export default function SystemDirectory() {
       <div className="relative z-10 mx-auto max-w-[1400px] px-6 py-24 md:px-10 md:py-32">
         {/* No headline. The eyebrow names the section and the counted sentence
             below says what it is; a display title on top of both was a third
-            voice saying the same thing. */}
+            voice saying the same thing.
+
+            The section still needs a heading in the document, though: the
+            panels below are h3s, so with nothing between them and the page's
+            h1 the outline jumps two levels the moment a system is selected.
+            An sr-only h2 names the section for crawlers and screen readers
+            without putting the third voice back on the page — the same trick
+            the hero uses to keep its full sentence. */}
+        <h2 className="sr-only">The Ziiro System</h2>
         <SectionHeader
           index="01"
           label="The Ziiro System"
@@ -139,7 +147,12 @@ export default function SystemDirectory() {
             <div role="group" aria-label="Choose a system">
               <MotionReveal
                 stagger={STAGGER.tight}
-                className="flex flex-wrap gap-x-7 gap-y-3"
+                // gap-y-8, not gap-y-3: each chip grows its hit area 16px past
+                // its ink (see SystemChip), so wrapped rows 12px apart would
+                // have overlapping targets and a tap near the join would land
+                // on whichever chip won the stacking order. 32px is exactly
+                // the two halves, so the rows meet without overlapping.
+                className="flex flex-wrap gap-x-7 gap-y-8"
               >
                 <MotionRevealItem as="span">
                   <SystemChip
@@ -302,7 +315,11 @@ function SystemChip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className="group flex items-center gap-2.5 rounded-sm font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
+      // The chip's ink is 15px tall, which is not a tap target. `py-4` takes
+      // the button to 47px and `-my-4` gives the padding back to the layout,
+      // so the row sits exactly where it did and only the hit area grows.
+      // The wrapper's gap-y is set to match — see the note there.
+      className="group -my-4 flex items-center gap-2.5 rounded-sm py-4 font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
       style={{
         letterSpacing: "0.2em",
         color: active ? "var(--dir-ink)" : "var(--dir-faint)",

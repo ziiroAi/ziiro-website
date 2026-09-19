@@ -30,6 +30,7 @@ export default function TestimonialAttribution({
         <img
           src={photo}
           alt=""
+          aria-hidden="true"
           width={44}
           height={44}
           loading="lazy"

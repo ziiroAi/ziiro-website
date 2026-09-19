@@ -1,4 +1,5 @@
 import { motion, useReducedMotion, type Variants } from "framer-motion";
+import { Link } from "react-router-dom";
 
 import SectionHeader from "@/shared/ui/section-header";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
@@ -189,6 +190,29 @@ export default function WhyDifferent() {
               </ul>
             </div>
           </motion.div>
+        </MotionReveal>
+
+        {/* The two questions the comparison leaves open — what it costs, and
+            who is doing it — answered by the pages that answer them, from
+            the body rather than only from the footer. */}
+        <MotionReveal>
+          <p className="mt-12 max-w-[52ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+            How a build gets scoped and priced is on the{" "}
+            <Link
+              to="/pricing"
+              className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+            >
+              pricing page
+            </Link>
+            , and the people doing the scoping are{" "}
+            <Link
+              to="/who-we-are"
+              className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+            >
+              who we are
+            </Link>
+            .
+          </p>
         </MotionReveal>
       </div>
     </section>

@@ -113,8 +113,8 @@ export default function WhoWeAre() {
   return (
     <div className="relative">
       <SEO
-        title="Who We Are: The Team Behind Ziiro"
-        description="Ziiro is a small, operator-led AI and business intelligence consultancy. Watch the short video, then see how we work and who we build for."
+        title="Who We Are: The Operators Behind Ziiro AI"
+        description="Ziiro is a small, operator-led AI and business intelligence consultancy for founder-led teams. Watch the short video, then see how we work and who we build for."
         canonical="/who-we-are"
       />
 

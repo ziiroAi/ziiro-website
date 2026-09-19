@@ -72,7 +72,11 @@ export default function BookConsultation() {
                   <li key={email}>
                     <a
                       href={`mailto:${email}`}
-                      className="font-mono text-sm tracking-wide text-[var(--text-primary)] underline decoration-[color:var(--border-strong)] underline-offset-4 transition-opacity hover:opacity-70"
+                      // An address on its own line is an action, not a link
+                      // inside a sentence, so the anchor owns a 44px target.
+                      // The rule here is text-decoration rather than a border,
+                      // so it stays under the words as the box grows.
+                      className="inline-flex min-h-[44px] items-center font-mono text-sm tracking-wide text-[var(--text-primary)] underline decoration-[color:var(--border-strong)] underline-offset-4 transition-opacity hover:opacity-70"
                       style={microTransition}
                     >
                       {email}

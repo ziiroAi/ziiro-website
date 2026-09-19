@@ -58,8 +58,8 @@ export default function Home() {
   return (
     <div className="relative">
       <SEO
-        title="Ziiro: AI That Has to Pay for Itself"
-        description="Ziiro is a business-intelligence-first AI consultancy for founder-led teams. We find where your hours and money go, quantify the ROI, then build only the systems the numbers justify."
+        title="Agentic AI Systems for Founder-Led Teams"
+        description="Ziiro is a business-intelligence-first AI consultancy for founder-led teams. We quantify the ROI first, then build only the systems the numbers justify."
         canonical="/"
       />
 

@@ -65,7 +65,12 @@ const NotFound = () => {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[var(--background)] px-6 pb-16 pt-28">
-      <SEO title="Page Not Found" canonical="/404" noindex />
+      <SEO
+        title="Page Not Found"
+        description="This Ziiro AI page does not exist or has moved. Head back to the homepage, or find our products, pricing, process and contact details in the navigation."
+        canonical="/404"
+        noindex
+      />
       <div ref={rootRef} className="flex w-full max-w-3xl flex-col items-center text-center">
         <p
           data-nf-rise
@@ -130,11 +135,20 @@ const NotFound = () => {
           >
             Back to base
           </Link>
+          {/* The rule belongs to the label, the height belongs to the link:
+              putting `pb-1 border-b` on the anchor itself pinned it to 21px
+              beside a 52px button. The span keeps the underline tight to the
+              text while the anchor owns a 44px target around it. */}
           <Link
             to="/contact"
-            className="border-b border-[var(--border-strong)] pb-1 font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)] transition-colors hover:border-[var(--text-primary)] hover:text-[var(--text-primary)]"
+            className="group flex min-h-[44px] items-center font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
-            Book a call
+            <span
+              className="border-b border-[var(--border-strong)] pb-1 transition-colors group-hover:border-[var(--text-primary)]"
+              style={{ transitionDuration: "inherit" }}
+            >
+              Book a call
+            </span>
           </Link>
         </div>
 

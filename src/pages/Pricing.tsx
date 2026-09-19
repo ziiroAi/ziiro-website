@@ -6,6 +6,10 @@ import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import TextReveal from "@/shared/motion/TextReveal";
 import { MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import SEO from "@/shared/components/SEO";
+import {
+  faqPageSchema,
+  serviceCatalogSchema,
+} from "@/shared/components/seo-schema";
 import { PRICING_FAQS as faqs } from "@/features/pricing/entities/faqs";
 
 const tiers = [
@@ -193,9 +197,26 @@ export default function Pricing() {
   return (
     <div className="relative">
       <SEO
-        title="Investment: Ziiro AI Systems"
+        title="AI Systems Pricing: Scoped, Not Menu Priced"
         description="No fixed project pricing. After an hourly consultation, Ziiro scopes a Strategy Sprint (1-3 weeks) or a Full Build (4-12 weeks) to your needs."
         canonical="/pricing"
+        // Both nodes are read off what the page renders: the engagement
+        // rows and the FAQ accordion. The rows carry no figure, so
+        // neither does the catalog.
+        schema={[
+          serviceCatalogSchema({
+            path: "/pricing",
+            name: "Ziiro AI engagements",
+            description:
+              "Scoped AI engagements: a Strategy Sprint to find the highest-leverage system, or a Full Build to ship it. Consultations run by the hour.",
+            catalogName: "Engagements",
+            offerings: tiers.map((tier) => ({
+              name: tier.name,
+              description: tier.desc,
+            })),
+          }),
+          faqPageSchema(faqs, "/pricing"),
+        ]}
       />
 
       {/* ── Page hero ── */}

@@ -5,8 +5,12 @@ interface SEOProps {
   description?: string;
   canonical?: string;
   ogImage?: string;
-  /** Route-level JSON-LD (e.g. BreadcrumbList + page type). */
-  schema?: object;
+  /**
+   * Route-level JSON-LD, on top of the WebPage + BreadcrumbList every page
+   * gets. An array is emitted as one @graph, so its nodes omit "@context";
+   * a single object is emitted as-is and carries its own.
+   */
+  schema?: object | object[];
   /**
    * Explicit breadcrumb trail. Needed when a path contains a segment that
    * isn't a real page: /watch/<slug> has no /watch index, and deriving the
@@ -104,6 +108,12 @@ const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noin
     ],
   };
 
+  // Several nodes travel as one @graph rather than several script tags: one
+  // document, one place for a validator to look.
+  const extraSchema = Array.isArray(schema)
+    ? { "@context": "https://schema.org", "@graph": schema }
+    : schema;
+
   return (
     <Helmet>
       <title>{fullTitle}</title>
@@ -133,11 +143,12 @@ const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noin
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={desc} />
       <meta name="twitter:image" content={ogImage} />
+      <meta name="twitter:image:alt" content={fullTitle} />
 
       <script type="application/ld+json">{JSON.stringify(pageGraph)}</script>
 
-      {schema && (
-        <script type="application/ld+json">{JSON.stringify(schema)}</script>
+      {extraSchema && (
+        <script type="application/ld+json">{JSON.stringify(extraSchema)}</script>
       )}
     </Helmet>
   );
