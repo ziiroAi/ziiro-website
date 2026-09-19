@@ -9,7 +9,10 @@ import { STAGGER } from "@/shared/motion/tokens";
  * here because the next section is about exactly that.
  */
 const facts = [
-  { term: "What we are", detail: "A business-intelligence-first AI consultancy." },
+  // Was "What we are: A business-intelligence-first AI consultancy." That is
+  // the exact sentence three other pages were also opening with, and naming the
+  // category says less than naming the act. This states what actually happens.
+  { term: "What we do", detail: "Measure an operation, then automate the part worth automating." },
   { term: "Who we work with", detail: "Startups and founder-led teams." },
   { term: "Where we are", detail: "Haryana, India, working with teams worldwide." },
 ];

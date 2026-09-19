@@ -22,80 +22,130 @@ import {
 import TextReveal from "@/shared/motion/TextReveal";
 import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/shared/ui/dot-glyph";
 
-interface Product {
+/** One line of the catalogue: a thing that gets built, not a thing that gets
+ *  chosen. Capabilities are only ever read inside the stage that owns them. */
+interface Capability {
+  name: string;
+  line: string;
+}
+
+interface Stage {
   name: string;
   sub: string;
   desc: string;
-  deliverables: string[];
+  capabilities: Capability[];
   glyph: GlyphVariant;
   figCaption: string;
-  build: string;
+  handover: string;
 }
 
-const products: Product[] = [
+/** The whole offer. Three stages, and nothing a reader is asked to choose
+ *  between sits outside them: the five separately-branded services this page
+ *  used to list are now capabilities inside the stage that produces them.
+ *  Pricing.tsx names the same three and must stay in step. */
+const stages: Stage[] = [
   {
-    name: "Agentic Systems",
-    sub: "Custom AI operators",
-    desc: "We build agents that handle real business workflows: research, routing, follow-ups, reporting, and the repetitive decisions that shouldn't live in a founder's head.",
-    deliverables: ["Inbox & follow-up agents", "Research & enrichment", "Ops routing", "Reporting agents"],
-    glyph: "agents",
-    figCaption: "Operators in motion",
-    build: "Typical build: 2-6 weeks",
-  },
-  {
-    name: "Self-Optimizing Systems",
-    sub: "Feedback loops that learn",
-    desc: "Marketing, outreach, website, and workflow loops that track their own outcomes and improve automatically, instead of guessing forever.",
-    deliverables: ["Outcome tracking", "A/B loops", "Auto-tuned campaigns", "Weekly learning reports"],
-    glyph: "loops",
-    figCaption: "A loop, learning",
-    build: "Typical build: 2-4 weeks",
-  },
-  {
-    name: "Business Intelligence",
-    sub: "Data that drives decisions",
-    desc: "KPI baselines, analytics dashboards, ROI calculations, and priority matrices that show exactly where to invest next.",
-    deliverables: ["KPI baselines", "Live dashboards", "ROI models", "Priority matrix"],
-    glyph: "bars",
-    figCaption: "Signal over noise",
-    build: "Typical build: 1-3 weeks",
-  },
-  {
-    name: "AI Strategy Sprint",
-    sub: "Know what to build",
-    desc: "We map your team, stack, and constraints into a focused roadmap. No random tools, just the highest-leverage system to ship first.",
-    deliverables: ["Team & stack audit", "Opportunity map", "Build roadmap", "First-system spec"],
+    name: "Diagnose",
+    sub: "Before anything gets built",
+    desc: "We map how the business actually runs: where the hours go, which decisions repeat, and what a system would have to be worth to justify building it. Nothing is proposed until the numbers say what to propose.",
+    capabilities: [
+      {
+        name: "Operations map",
+        line: "How work moves through the business today, written down, including the parts nobody ever documented.",
+      },
+      {
+        name: "KPI baselines",
+        line: "The numbers as they stand before anything changes, so a later claim of improvement has something to be measured against.",
+      },
+      {
+        name: "ROI models",
+        line: "What each candidate system would have to save or earn, set against what it costs to build.",
+      },
+      {
+        name: "Role diagnostics",
+        line: "What each person should own, and which parts of their week a system should be taking off them.",
+      },
+      {
+        name: "Build roadmap",
+        line: "The order to build in, with the first system specified in enough detail to start on it.",
+      },
+    ],
     glyph: "path",
     figCaption: "The shortest route",
-    build: "Typical build: 1-2 weeks",
+    handover: "You leave with a roadmap and a spec, whether or not we build it.",
   },
   {
-    name: "Role Analyzer",
-    sub: "People in the right seats",
-    desc: "A people-fit diagnostic for founder-led teams: understand what each person should own and how to redesign roles for throughput.",
-    deliverables: ["Role diagnostics", "Ownership map", "Throughput redesign", "Hiring guidance"],
-    glyph: "clusters",
-    figCaption: "Right people, right seats",
-    build: "Typical build: 1 week",
+    name: "Build",
+    sub: "The system goes into the operation",
+    desc: "Agents that do real work inside the tools you already run: research, routing, follow-up, reporting. Not a prototype in a sandbox, and not a license to something we host and you rent.",
+    capabilities: [
+      {
+        name: "Workflow agents",
+        line: "The repetitive decisions that currently live in a founder's head, handed to something that makes them the same way every time.",
+      },
+      {
+        name: "Research and enrichment",
+        line: "Agents that go and find what a person would otherwise be clicking through tabs to assemble by hand.",
+      },
+      {
+        name: "Routing and follow-up",
+        line: "Inbound work sorted and sent where it belongs, and the follow-ups that get forgotten sent anyway.",
+      },
+      {
+        name: "Stack integration",
+        line: "Wired into the systems you already pay for, rather than asking you to move off them.",
+      },
+      {
+        name: "Dashboards and controls",
+        line: "A panel showing what the agents did, and the switches to change what they do next.",
+      },
+    ],
+    glyph: "agents",
+    figCaption: "Operators in motion",
+    handover: "You leave with a running system, the access to it, and the documentation for it.",
+  },
+  {
+    name: "Optimize",
+    sub: "After launch, it keeps moving",
+    desc: "A system that ships and then sits still starts decaying the day the business changes. These loops watch their own outcomes and tune against them, then report what moved, so an improvement is something you can read rather than something we assert.",
+    capabilities: [
+      {
+        name: "Outcome tracking",
+        line: "Every run recorded against the baselines taken during Diagnose, so drift shows up while it is still small.",
+      },
+      {
+        name: "Test loops",
+        line: "Variants run against each other and the weaker one retired, instead of a preference argued in a meeting.",
+      },
+      {
+        name: "Auto-tuned campaigns",
+        line: "Outreach and marketing that adjust to what is working without waiting for someone to notice.",
+      },
+      {
+        name: "Learning reports",
+        line: "What the system changed, what it cost and what came back, in a form you can read in one sitting.",
+      },
+    ],
+    glyph: "loops",
+    figCaption: "A loop, learning",
+    handover: "You leave with a measurement cycle, running on a cadence you agreed to.",
   },
 ];
 
-const sequence = [
+/** The same three names again, answering the only question this page leaves
+ *  open: which one is mine. Deliberately not a fourth vocabulary. */
+const entryPoints = [
   {
-    step: "Audit",
-    line: "Understand how the business actually runs, before touching any technology.",
+    stage: "Diagnose",
+    line: "Something is slow and expensive, but you cannot yet say which part is worth fixing first.",
   },
   {
-    step: "Strategy",
-    line: "Pick the one system the numbers justify. No AI for AI's sake.",
+    stage: "Build",
+    line: "You already know what to build and want it running, not specified a second time.",
   },
   {
-    step: "Build",
-    line: "Ship a working system into your operation, not a slide deck.",
-  },
-  {
-    step: "Optimize",
-    line: "Loops track their own outcomes and keep improving after launch.",
+    stage: "Optimize",
+    line: "Something is live, and nobody can tell you whether it is getting better.",
   },
 ];
 
@@ -111,7 +161,7 @@ export default function Products() {
   const titleAnims = useRef<Animatable[]>([]);
   const energyAnims = useRef<Animatable[]>([]);
   const energies = useRef<{ current: GlyphEnergy }[]>(
-    products.map(() => ({ current: { speed: 1, gain: 0 } })),
+    stages.map(() => ({ current: { speed: 1, gain: 0 } })),
   );
 
   // Hero entrance: label -> headline -> sub -> hairline, one sequenced
@@ -229,21 +279,22 @@ export default function Products() {
   return (
     <div className="relative">
       <SEO
-        title="Products: Agentic Systems, BI and AI Sprints"
-        description="Ziiro builds leverage: agentic systems, self-optimizing loops, business intelligence, strategy sprints, and role diagnostics, each a working system."
+        title="Products: What Gets Built at Each Stage"
+        description="What actually ships: operations maps and ROI models, agents that route and follow up inside your stack, and loops that retune on their own outcomes."
         canonical="/products"
-        // The catalog is the products list itself, so the markup cannot
-        // drift from the rows below it.
+        // The catalog is the stage list itself, so the markup cannot drift
+        // from the rows below it. Three offers, because there are three
+        // things to engage on.
         schema={[
           serviceCatalogSchema({
             path: "/products",
-            name: "Ziiro AI systems",
+            name: "Ziiro engagement stages",
             description:
-              "The systems Ziiro builds: agentic operators, self-optimizing loops, business intelligence, strategy sprints, and role diagnostics.",
-            catalogName: "Systems",
-            offerings: products.map((product) => ({
-              name: product.name,
-              description: product.desc,
+              "The three stages Ziiro works in: Diagnose, which maps the operation and prices the opportunity; Build, which ships agents into it; and Optimize, which keeps them measured and tuned.",
+            catalogName: "Stages",
+            offerings: stages.map((stage) => ({
+              name: stage.name,
+              description: stage.desc,
             })),
           }),
         ]}
@@ -270,10 +321,10 @@ export default function Products() {
               lineHeight: 1.04,
             }}
           >
-            Systems, not software.
+            Diagnose. Build. Optimize.
             <br />
             <span className="text-[var(--text-secondary)]">
-              Five ways we build leverage.
+              Everything we make sits in one of these three.
             </span>
           </h1>
           <p
@@ -281,9 +332,16 @@ export default function Products() {
             className="mt-8 max-w-xl leading-relaxed text-[var(--text-secondary)]"
             style={{ opacity: 0 }}
           >
-            Every engagement ships a working system: something running inside
-            your business, doing real work, measured against real numbers. Not
-            a license, not a slide deck. These are the five we build.
+            What follows is the catalogue: what each stage produces, and what
+            you are actually handed at the end of it. No stage ships a slide
+            deck. What it costs to engage is set out on{" "}
+            <Link
+              to="/pricing"
+              className="text-[var(--text-primary)] underline underline-offset-4"
+            >
+              Pricing
+            </Link>
+            .
           </p>
           <div
             data-hero-rule
@@ -293,15 +351,15 @@ export default function Products() {
         </div>
       </section>
 
-      {/* ---- Five product blocks ---- */}
+      {/* ---- The catalogue, in three stages ---- */}
       <section className="pb-24">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <div ref={listRef}>
-            {products.map((p, i) => (
+            {stages.map((stage, i) => (
               <article
-                key={p.name}
+                key={stage.name}
                 data-prod-row
-                className="grid grid-cols-12 items-center gap-x-6 gap-y-10 border-b border-[var(--border)] py-16 md:py-24"
+                className="grid grid-cols-12 gap-x-6 gap-y-10 border-b border-[var(--border)] py-16 md:py-24"
                 style={{ opacity: 0 }}
                 onMouseEnter={() => rowEnter(i)}
                 onMouseLeave={() => rowLeave(i)}
@@ -321,47 +379,65 @@ export default function Products() {
                           lineHeight: 1.04,
                         }}
                       >
-                        {p.name}
+                        {stage.name}
                       </h2>
                       <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                        {p.sub}
+                        {stage.sub}
                       </p>
                     </div>
                   </div>
 
                   <div className="mt-8 md:pl-[calc(2ch+2.5rem)]">
                     <p className="max-w-xl leading-relaxed text-[var(--text-secondary)]">
-                      {p.desc}
+                      {stage.desc}
                     </p>
-                    <div className="mt-7 flex flex-wrap gap-2.5">
-                      {p.deliverables.map((d) => (
-                        <span
-                          key={d}
-                          className="neo-inset rounded-full px-4 py-2 font-mono text-xs tracking-wide text-[var(--text-secondary)]"
+
+                    {/* The catalogue proper. A definition list, not a pill
+                        row: pills fit four words, and the point of this page
+                        is that a reader can see what the thing actually is. */}
+                    <dl className="mt-10 max-w-xl border-t border-[var(--border)]">
+                      {stage.capabilities.map((c) => (
+                        <div
+                          key={c.name}
+                          className="border-b border-[var(--border)] py-4"
                         >
-                          {d}
-                        </span>
+                          <dt className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-primary)]">
+                            {c.name}
+                          </dt>
+                          <dd className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+                            {c.line}
+                          </dd>
+                        </div>
                       ))}
-                    </div>
-                    <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
-                      [ {p.build} ]
+                    </dl>
+
+                    {/* Label and sentence split across two lines rather than
+                        set as one bracketed mono string: at 10px with 0.25em
+                        tracking these sentences overrun max-w-xl and the
+                        closing bracket wraps onto a line of its own. Same
+                        treatment as [ Scoped by ] on Pricing. */}
+                    <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                      [ Handover ]
+                    </p>
+                    <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]">
+                      {stage.handover}
                     </p>
                   </div>
                 </div>
 
-                <div className="hidden md:col-span-4 md:col-start-9 md:flex md:flex-col md:items-center md:justify-center">
+                <div className="hidden md:col-span-4 md:col-start-9 md:flex md:flex-col md:items-center md:justify-start md:pt-2">
                   {/* The glyph's canvas is a fixed 320px. This column is four
                       of twelve, which at exactly 768px is ~307px, so at the md
                       breakpoint the canvas hung 13px past the viewport and put
                       a horizontal scrollbar on the whole page. max-w-full caps
                       it to the column and scales the drawing down instead. */}
                   <DotGlyph
-                    variant={p.glyph}
+                    variant={stage.glyph}
                     energy={energies.current[i]}
                     className="max-w-full text-[var(--text-primary)]"
                   />
                   <p className="mt-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-secondary)]">
-                    Fig. {String(i + 1).padStart(2, "0")} / {p.figCaption}
+                    Fig. {String(i + 1).padStart(2, "0")} / {stage.figCaption}
                   </p>
                 </div>
               </article>
@@ -378,10 +454,10 @@ export default function Products() {
               <div className="flex items-center justify-between gap-4">
                 <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                  Sec. 02 / Sequence
+                  Sec. 02 / Where to start
                 </p>
                 <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
-                  [ 04 steps ]
+                  [ 03 entry points ]
                 </p>
               </div>
             </div>
@@ -389,7 +465,7 @@ export default function Products() {
 
           {/* The page's statement: scroll-scrubbed word-by-word reveal */}
           <TextReveal
-            text="The order that works."
+            text="Most teams run these in order. You do not have to."
             as="h2"
             className="mt-10 max-w-4xl font-display font-semibold text-[var(--text-primary)]"
             style={{
@@ -401,33 +477,30 @@ export default function Products() {
 
           <MotionReveal>
             <p className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
-              Start anywhere, but this is the route most teams take:
-              understanding first, technology only when the numbers prove it.
+              Which stage you enter at depends on what you already know about
+              your own operation. One of these three will sound like you.
             </p>
           </MotionReveal>
 
-          {/* One viewport trigger for the whole row, not four. Four cards that
-              sit side by side each firing on their own arrive at slightly
+          {/* One viewport trigger for the whole row, not three. Cards that sit
+              side by side each firing on their own arrive at slightly
               different times depending on where the row happens to stop, which
               reads as jitter; a parent stagger makes it one deliberate sweep. */}
           <MotionReveal
             stagger={STAGGER.card}
-            className="mt-14 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4"
+            className="mt-14 grid grid-cols-1 gap-x-8 gap-y-10 sm:grid-cols-3"
           >
-            {sequence.map((s, i) => (
-              <MotionRevealItem key={s.step}>
+            {entryPoints.map((e, i) => (
+              <MotionRevealItem key={e.stage}>
                 <div className="border-t border-[var(--border)] pt-6">
                   <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
-                    {String(i + 1).padStart(2, "0")} / 04
+                    {String(i + 1).padStart(2, "0")} / 03
                   </p>
                   <p className="mt-5 font-mono text-sm font-bold uppercase tracking-[0.25em] text-[var(--text-primary)]">
-                    {s.step}
-                    {i < sequence.length - 1 && (
-                      <span className="ml-3 text-[var(--text-muted)]">→</span>
-                    )}
+                    Start at {e.stage}
                   </p>
-                  <p className="mt-4 max-w-[26ch] text-sm leading-relaxed text-[var(--text-secondary)]">
-                    {s.line}
+                  <p className="mt-4 max-w-[30ch] text-sm leading-relaxed text-[var(--text-secondary)]">
+                    {e.line}
                   </p>
                 </div>
               </MotionRevealItem>
@@ -442,7 +515,7 @@ export default function Products() {
           <MotionReveal>
             <div className="border-t border-[var(--border)] pt-20 text-center">
               <p className="mb-8 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                ( Start Anywhere )
+                ( Next )
               </p>
               <h2
                 className="font-display font-semibold text-[var(--text-primary)]"
@@ -452,26 +525,29 @@ export default function Products() {
                   lineHeight: 1.04,
                 }}
               >
-                Not sure which one
+                That is what gets built.
                 <br />
-                <span className="text-[var(--text-secondary)]">you need?</span>
+                <span className="text-[var(--text-secondary)]">
+                  Scoping it is one page over.
+                </span>
               </h2>
               <p className="mx-auto mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
-                That's exactly what a consultation answers.
+                Pricing covers what a stage costs to engage and what sets its
+                size.
               </p>
               {/* The site's house curve, applied inline because Tailwind's
                   `transition-opacity` ships its own timing function and, being
                   a class, outranks the zero-specificity :where() rule in
                   index.css that puts everything else on expo-out. */}
               <Link
-                to="/contact"
+                to="/pricing"
                 className="mt-10 inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
                 style={{
                   transitionDuration: `${DURATION.micro}s`,
                   transitionTimingFunction: CSS_EASE.outExpo,
                 }}
               >
-                Book a call
+                See pricing
               </Link>
             </div>
           </MotionReveal>

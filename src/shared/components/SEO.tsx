@@ -91,8 +91,8 @@ const trailBreadcrumb = (
 });
 
 const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noindex, breadcrumb }: SEOProps) => {
-  const fullTitle = title ? `${title} | Ziiro AI` : "Ziiro AI: Leverage AI Anywhere | Agentic AI Systems for Startups";
-  const desc = description || "Business-intelligence-first AI consultancy for startups and founder-led teams. We prove the ROI, then build agentic systems and self-optimizing loops.";
+  const fullTitle = title ? `${title} | Ziiro AI` : "Ziiro AI: Diagnose, Build, Optimize | AI That Earns Its Cost";
+  const desc = description || "An AI consultancy that works in three stages: Diagnose maps the operation and prices the opportunity, Build ships agents into it, Optimize keeps them tuned.";
   const path = canonical || "/";
   const url = canonical ? `${BASE_URL}${canonical}` : BASE_URL;
 

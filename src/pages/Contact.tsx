@@ -11,7 +11,7 @@ import {
   TRAVEL,
   VIEWPORT,
 } from "@/shared/motion/tokens";
-import { BOOKING_URL, MIN_SESSION_MINUTES } from "@/features/pricing/entities/rates";
+import { INTERIM_BOOKING_URL, MIN_SESSION_MINUTES } from "@/features/pricing/entities/rates";
 import { useMarket } from "@/features/pricing/hooks/useMarket";
 
 /** The house expo-out, handed to anime.js. Built from the token control points
@@ -232,8 +232,8 @@ const Contact = () => {
   return (
     <div ref={rootRef} className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Book a Paid 1-Hour AI Strategy Consultation"
-        description="Book a paid one-hour AI strategy consultation with Ziiro AI. Leave with a prioritised plan of the automations worth building and a recommended next step."
+        title="Book a Consultation: 60-Minute Minimum, Paid"
+        description="Book the session. One hour minimum, billed at your region's rate, no pitch. You leave with the bottlenecks named and the roadmap in your hands."
         canonical="/contact"
       />
 
@@ -365,7 +365,7 @@ const Contact = () => {
             </p>
 
             <a
-              href={BOOKING_URL}
+              href={INTERIM_BOOKING_URL}
               target="_blank"
               rel="noopener"
               onMouseEnter={ctaEnter}

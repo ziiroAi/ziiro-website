@@ -113,8 +113,8 @@ export default function WhoWeAre() {
   return (
     <div className="relative">
       <SEO
-        title="Who We Are: The Operators Behind Ziiro AI"
-        description="Ziiro is a small, operator-led AI and business intelligence consultancy for founder-led teams. Watch the short video, then see how we work and who we build for."
+        title="Who We Are: Who You Hire and How We Work"
+        description="No agency bench, no handover: the people who map your operations are the ones who build the systems. See how the three stages run, then watch the walkthrough."
         canonical="/who-we-are"
       />
 
@@ -145,26 +145,33 @@ export default function WhoWeAre() {
               when AI has to pay for itself.
             </span>
           </h1>
+          {/* Who you are actually hiring. This opened with "We're Ziiro, a
+              business-intelligence-first AI consultancy", which is the same
+              claim / and /mission were each making in their own words. The
+              reader arriving here has already been told what Ziiro does; what
+              they cannot get anywhere else is who does it. */}
           <p
             data-hero-sub
             className="mt-8 max-w-xl leading-relaxed text-[var(--text-secondary)]"
             style={{ opacity: 0 }}
           >
-            We're Ziiro, a business-intelligence-first AI consultancy. Every
-            engagement begins by understanding where your business spends time,
-            money, and operational effort. Only once we've quantified those
-            opportunities do we recommend technology.
+            A small team, not an agency bench. The people who map your
+            operations are the same people who build the systems, and the same
+            people you reach when something breaks at nine on a Friday.
           </p>
 
-          {/* The homepage sells the value; this is the line that carries the
-              story, so it gets its own weight rather than a bullet. */}
+          {/* The second paragraph used to argue "most consultancies start with
+              tools, we start with the numbers", which is a belief and now
+              belongs to /mission alone. This one answers the other half of this
+              page's job: the shape of an engagement. */}
           <p
             data-hero-sub
             className="mt-8 max-w-xl text-lg leading-relaxed text-[var(--text-primary)]"
             style={{ opacity: 0 }}
           >
-            Most AI consultancies start with tools. We start with the numbers.
-            That difference determines everything we build.
+            An engagement runs in three stages, Diagnose, Build and Optimize.
+            You keep the process maps and the roadmap whatever you decide to
+            build at the end of it.
           </p>
           <div
             data-hero-rule
@@ -189,7 +196,7 @@ export default function WhoWeAre() {
                 >
                   Open the full walkthrough
                 </Link>{" "}
-                — {FEATURED.vsl.runtime}, with what it covers written out.
+                ({FEATURED.vsl.runtime}), with what it covers written out.
               </p>
             )}
           </MotionReveal>
@@ -205,12 +212,24 @@ export default function WhoWeAre() {
           and the video above open the first section. */}
       <section className="pb-24 md:pb-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
+          {/* Was "The origin / We got tired of watching money burn", which
+              told the same founding story as /mission section 02, down to the
+              same three examples (a chatbot nobody needed, a dashboard nobody
+              opened, an automation that moved the bottleneck). That story is
+              why the company exists, so /mission keeps it and this section
+              answers who is on the other end of the engagement instead. */}
+          {/* This said "The people who scope it / are the people who build it."
+              Section 04 (WhyWorkWithUs) has carried that exact pair all along,
+              so the page was running the same H2 twice, and its sub said the
+              same thing a third time. No-handoffs is 04's point; 01 takes the
+              part nobody else on the page covers, which is what staying this
+              small costs the reader as well as what it buys them. */}
           <SectionHeader
             index="01"
             label="Who We Are"
-            meta="The origin"
-            titleA="We got tired of"
-            titleB="watching money burn."
+            meta="The trade-off"
+            titleA="We take on less"
+            titleB="than we could sell."
           />
           {/* Two columns that are always in view together, so they reveal from
               one trigger with STAGGER.card between them. Two independent
@@ -222,24 +241,24 @@ export default function WhoWeAre() {
           >
             <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                Ziiro started from a pattern we kept seeing: companies buying
-                AI the way you'd buy a lottery ticket. A chatbot nobody needed.
-                A dashboard nobody opened. An automation that moved the
-                bottleneck instead of removing it.
+                Staying this small caps how many engagements can run at once, so
+                we say no more often than a larger shop would. Sometimes the
+                honest answer is that the timing is wrong, or that the problem
+                you have does not need us.
               </p>
             </MotionRevealItem>
             <MotionRevealItem>
               <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                The technology was never the problem. Nobody had done the
-                boring part first: mapping how the business actually runs,
-                where the hours go, what a saved hour is worth. So we built a
-                consultancy that refuses to skip it.
+                What the limit buys is that the estimate and the invoice belong
+                to the same person. Nobody here can win an argument about scope
+                by pointing at a colleague who has already rolled off the
+                project.
               </p>
             </MotionRevealItem>
           </MotionReveal>
 
           <TextReveal
-            text="We're the people who ask what it's worth before we ask what to build."
+            text="Being small is the constraint that keeps the estimate honest."
             as="h2"
             className="mt-16 max-w-4xl font-display font-semibold text-[var(--text-primary)]"
             style={{
