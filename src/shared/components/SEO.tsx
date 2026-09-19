@@ -22,7 +22,15 @@ interface SEOProps {
 }
 
 const BASE_URL = "https://ziiro.work";
-const DEFAULT_OG = `${BASE_URL}/og-image.jpeg`;
+/**
+ * The share card: the mark and wordmark on the white ground, 1200x630 for the
+ * 1.91:1 slot Facebook, LinkedIn, Slack and X all crop to. OG_W/OG_H are
+ * declared to the scrapers below and have to keep matching the actual file, so
+ * they live next to the URL rather than inline in the markup.
+ */
+const DEFAULT_OG = `${BASE_URL}/og-image.png`;
+const OG_W = "1200";
+const OG_H = "630";
 /** Matches the WebSite node @id in index.html's static @graph. */
 const WEBSITE_ID = `${BASE_URL}/#website`;
 
@@ -136,8 +144,8 @@ const SEO = ({ title, description, canonical, ogImage = DEFAULT_OG, schema, noin
       <meta property="og:url" content={url} />
       <meta property="og:image" content={ogImage} />
       <meta property="og:image:alt" content={fullTitle} />
-      <meta property="og:image:width" content="1024" />
-      <meta property="og:image:height" content="1024" />
+      <meta property="og:image:width" content={OG_W} />
+      <meta property="og:image:height" content={OG_H} />
 
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
