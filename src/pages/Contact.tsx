@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { animate, createAnimatable, createTimeline, cubicBezier, stagger } from "animejs";
 import { ArrowUpRight } from "lucide-react";
 import SEO from "@/shared/components/SEO";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 import {
   CSS_EASE,
   DURATION,
@@ -262,9 +263,7 @@ const Contact = () => {
               opacity: 0,
             }}
           >
-            Book a strategy session.
-            <br />
-            <span className="text-[var(--text-secondary)]">Leave with a plan you can act on.</span>
+            <SplitHeadline lead="Book a strategy session." tail="Leave with a plan you can act on." />
           </h1>
           <p
             data-rise
@@ -450,9 +449,10 @@ const Contact = () => {
                 lineHeight: 1.08,
               }}
             >
-              Value of your investment.
-              <br />
-              <span className="text-[var(--text-secondary)]">What you leave the hour with.</span>
+              <SplitHeadline
+                lead="Value of your investment."
+                tail="What you leave the hour with."
+              />
             </h2>
           </div>
 

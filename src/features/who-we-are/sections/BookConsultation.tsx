@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import { CSS_EASE, DURATION, STAGGER } from "@/shared/motion/tokens";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 
 const emails = ["aniket@ziiro.work", "govind@ziiro.work"];
 
@@ -38,9 +39,7 @@ export default function BookConsultation() {
               className="mt-8 font-display font-semibold text-[var(--text-primary)]"
               style={{ fontSize: "clamp(2.4rem, 5vw, 4.3rem)", letterSpacing: "-0.03em", lineHeight: 1.04 }}
             >
-              Let's look at
-              <br />
-              <span className="text-[var(--text-secondary)]">your numbers.</span>
+              <SplitHeadline lead="Let's look at" tail="your numbers." />
             </h2>
           </MotionRevealItem>
 

@@ -11,6 +11,7 @@ import TestimonialCard from "@/features/testimonials/TestimonialCard";
 import VideoTestimonialCard from "@/features/testimonials/VideoTestimonialCard";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import { CSS_EASE, DURATION, STAGGER, TRAVEL } from "@/shared/motion/tokens";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 
 export interface TestimonialsSectionProps {
   /**
@@ -164,17 +165,17 @@ export default function TestimonialsSection({
                 lineHeight: 1.04,
               }}
             >
-              {titleA}
-              {titleB && (
-                <>
-                  <br />
-                  {/* Two-tone by weight of ink, not by hue. The second line
-                      steps back to --text-secondary, which also puts the
-                      descenders back: they were being clipped by the
-                      background-clip box this used to need. */}
-                  <span className="text-[var(--text-secondary)]">{titleB}</span>
-                </>
-              )}
+              {/* Two-tone by weight of ink, not by hue: SplitHeadline steps the
+                  second line back to --text-secondary, which also puts the
+                  descenders back, since they were being clipped by the
+                  background-clip box this used to need.
+
+                  This section renders nothing today (it is commented out on
+                  /who-we-are until there is a real testimonial), so it was not
+                  among the glued headings measured in the DOM. It carried its
+                  own copy of the same titleA/<br>/titleB idiom, which would
+                  have reintroduced the bug the day it was switched back on. */}
+              {titleB ? <SplitHeadline lead={titleA} tail={titleB} /> : titleA}
             </h2>
           </MotionRevealItem>
         </MotionReveal>

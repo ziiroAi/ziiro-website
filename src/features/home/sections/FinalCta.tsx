@@ -4,6 +4,7 @@ import { useReducedMotion } from "framer-motion";
 
 import MotionReveal from "@/shared/motion/MotionReveal";
 import { CSS_EASE, DURATION, TRAVEL } from "@/shared/motion/tokens";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 
 /**
  * Closing CTA. "Book a call" asks the visitor to pay for an hour against an
@@ -97,11 +98,10 @@ export default function FinalCta() {
               lineHeight: 1.04,
             }}
           >
-            One focused hour.
-            <br />
-            <span className="text-[var(--text-secondary)]">
-              Then you'll know the number.
-            </span>
+            <SplitHeadline
+              lead="One focused hour."
+              tail="Then you'll know the number."
+            />
           </h2>
 
           <div className="mt-12 grid gap-12 md:grid-cols-2">

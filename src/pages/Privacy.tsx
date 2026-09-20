@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { animate, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 
 /** Small dot marker for editorial list items, same language as the dot world. */
 const Dot = () => (
@@ -151,9 +152,7 @@ const Privacy = () => {
                 lineHeight: 1.04,
               }}
             >
-              Privacy
-              <br />
-              <span className="text-[var(--text-secondary)]">policy.</span>
+              <SplitHeadline lead="Privacy" tail="policy." />
             </h1>
 
             <p

@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { animate, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 
 /** Small dot marker for editorial list items, same language as the dot world. */
 const Dot = () => (
@@ -151,9 +152,7 @@ const Terms = () => {
                 lineHeight: 1.04,
               }}
             >
-              Terms &amp;
-              <br />
-              <span className="text-[var(--text-secondary)]">conditions.</span>
+              <SplitHeadline lead="Terms &" tail="conditions." />
             </h1>
 
             <p
