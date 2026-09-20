@@ -74,6 +74,26 @@ const CTA_SPAN_VH = 2.2;
 const CTA_CURVE = 3.3;
 const CTA_LIFT = 10;
 
+/**
+ * How far the reader scrolls before the blur behind the bar is fully in, in px.
+ *
+ * The blur fades in rather than sitting there from the very top, for two
+ * reasons. The hero is white space under the header, and blurring white against
+ * white cannot produce a visible pixel, so at rest it would be pure cost for no
+ * effect. And backdrop-filter is a per-frame GPU job that runs whether or not
+ * it changes anything, on the one page that is also running the WebGL orb.
+ *
+ * 120px is short enough that the blur is already there by the time any real
+ * content reaches the bar, and long enough that it arrives as a fade rather
+ * than snapping on at a threshold.
+ *
+ * This ramp is kept under reduced motion, unlike the call to action's lift.
+ * The preference is about movement; nothing here moves, and a cross-fade is
+ * one of the standard things to reduce movement TO. Popping the blur on at a
+ * hard cutoff would be the more jarring of the two.
+ */
+const BACKDROP_SPAN = 120;
+
 /** Pointer feedback across the bar. 0.15s is the value the reference uses on
  *  nearly everything that reacts to a cursor, and it is the difference between
  *  chrome that feels attached to the pointer and chrome that lags it. */
@@ -88,6 +108,8 @@ export default function Navbar() {
 
   // 0 at the top of the page, 1 once the call to action is fully seated.
   const [ctaProgress, setCtaProgress] = useState(0);
+  // 0 at the top of the page, 1 once the blur behind the bar is fully in.
+  const [backdropProgress, setBackdropProgress] = useState(0);
   const [reduced, setReduced] = useState(false);
 
   // Three ways in, one open state. Hover covers pointers, focus-visible covers
@@ -116,6 +138,12 @@ export default function Navbar() {
       const span = window.innerHeight * CTA_SPAN_VH;
       const p = span > 0 ? Math.min(Math.max(window.scrollY / span, 0), 1) : 1;
       setCtaProgress(1 - Math.pow(1 - p, CTA_CURVE));
+      // Same frame as the call to action, on purpose: a second scroll listener
+      // and a second rAF to read the same scrollY would double the work for a
+      // value that changes on exactly the same beat.
+      setBackdropProgress(
+        Math.min(Math.max(window.scrollY / BACKDROP_SPAN, 0), 1),
+      );
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(measure);
@@ -177,6 +205,22 @@ export default function Navbar() {
 
   return (
     <nav className="fixed left-0 right-0 top-0 z-50 py-5">
+      {/* The progressive blur, and the only thing in this bar that is not a
+          control. It is first so it paints behind everything below it, and
+          aria-hidden because it is a surface, not content.
+
+          Hidden outright while it is invisible rather than left at opacity 0:
+          a backdrop-filter at zero opacity can still cost a compositor pass,
+          and the top of the page is exactly where the homepage is busiest. */}
+      <div
+        className="site-nav-backdrop"
+        aria-hidden="true"
+        style={{
+          opacity: backdropProgress,
+          visibility: backdropProgress < 0.02 ? "hidden" : "visible",
+        }}
+      />
+
       <div className="relative mx-auto flex w-full max-w-[1400px] flex-wrap items-center justify-between px-6 md:px-10">
         {/* ─── The logo pill ───────────────────────────────────────────────
             At rest it is a circle holding just the mark. On hover, on

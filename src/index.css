@@ -310,6 +310,60 @@
     border-color: var(--border-strong);
   }
 
+  /* ─── Navigation backdrop ───
+     Progressive blur behind the fixed header, so copy scrolling under the bar
+     goes soft instead of colliding with the nav text.
+
+     It is a separate element, not a background on <nav>. The header itself
+     still has no background, border or shadow, which is the rule; this only
+     softens what passes behind it. It mounts as the nav's FIRST child, so the
+     logo, the links and the call to action all paint after it and stay
+     perfectly sharp: backdrop-filter samples what is painted BEHIND the
+     element, and the nav's own controls come later in paint order.
+
+     There is no colour here at all. `transparent` rather than a white at zero
+     alpha: same computed result, and it keeps a white literal out of a file
+     where colour comes from tokens. A tint would fog the white ground.
+
+     The mask is the whole trick. Without it the blur ends on a hard horizontal
+     line across the page, which is the tell of a badly copied version of this
+     effect. The gradient dissolves it: fully opaque at the top, still 0.92 at
+     38%, then out to nothing. Those stops are alpha, not ink, so they are
+     deliberately literal and not tokens. */
+  .site-nav-backdrop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    /* 140% of the header rather than a hardcoded height: the bar grows taller
+       when the three links wrap onto their own row on a narrow phone, and the
+       blur has to grow with it. The reference measures 112px against an 80px
+       header, which is this same ratio, expressed so it cannot go stale. */
+    height: 140%;
+    /* Mandatory. Without it this invisible 112px band sits over the top of
+       every page and eats clicks on anything near the top. */
+    pointer-events: none;
+    background: transparent;
+
+    /* No saturate(). The reference pairs blur with saturate(1.08) to stop
+       colour going flat behind frosted glass; this site is monochrome, and
+       scaling the saturation of a grey pixel returns the same grey, so it
+       would be a per-frame GPU cost that cannot change a single pixel. */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+
+    -webkit-mask-image: linear-gradient(
+      rgb(0, 0, 0) 0px,
+      rgba(0, 0, 0, 0.92) 38%,
+      rgba(0, 0, 0, 0)
+    );
+    mask-image: linear-gradient(
+      rgb(0, 0, 0) 0px,
+      rgba(0, 0, 0, 0.92) 38%,
+      rgba(0, 0, 0, 0)
+    );
+  }
+
   /* ─── Orbital Node ─── */
   .orbital-node {
     background: var(--neo-bg);
