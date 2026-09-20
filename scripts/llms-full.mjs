@@ -49,6 +49,45 @@ const decode = (s) =>
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&");
 
+/**
+ * Removes HTML comments in ONE left-to-right pass, appending as it goes.
+ *
+ * WHY NOT `s.replace(/<!--[\s\S]*?-->/g, "")`, which is what this was.
+ * CodeQL rates that High as "incomplete multi-character sanitization", and it
+ * is right: a single replace over a mutated string can splice a new comment
+ * into existence out of text either side of the one it just removed. Given
+ * `<!-<!-- -->- x -->` the replace deletes the inner comment and leaves
+ * `<!-- x -->` behind, which it never looks at again.
+ *
+ * WHY NOT THE SUGGESTED LOOP-UNTIL-STABLE either, which is the other obvious
+ * answer. It terminates fine, because every pass that changes anything removes
+ * at least seven characters, so it cannot spin. But it is wrong about what
+ * this function is FOR. A browser tokenizes left to right over the original
+ * bytes: in that example it sees the text `<!-`, then a comment, then the text
+ * `- x -->`. The spliced comment never existed as far as the page is
+ * concerned, so looping until stable would strip content the reader can see.
+ * This file's whole job is to reproduce what a crawler reads.
+ *
+ * So: scan once, copy the kept text into a separate buffer, and never
+ * reconsider what has already been copied. Splicing is impossible because the
+ * two sides never meet again. `i` strictly increases and the loop is bounded
+ * by the input length, so there is no pathological input.
+ */
+function stripComments(html) {
+  let out = "";
+  let i = 0;
+  for (;;) {
+    const start = html.indexOf("<!--", i);
+    if (start === -1) return out + html.slice(i);
+    out += html.slice(i, start);
+    const end = html.indexOf("-->", start + 4);
+    // Unterminated comment: a browser would swallow the rest of the document,
+    // so do the same rather than emitting the raw tail as text.
+    if (end === -1) return out;
+    i = end + 3;
+  }
+}
+
 /** Drops one element and everything inside it, matching nested opens so a
  *  <div> inside the element cannot end the match early. */
 function dropElement(html, tag) {
@@ -107,7 +146,7 @@ function dropByAttr(html, attr) {
 function pageToMarkdown(html) {
   let s = (html.match(/<body[^>]*>([\s\S]*)<\/body>/i) || [, ""])[1];
 
-  s = s.replace(/<!--[\s\S]*?-->/g, "");
+  s = stripComments(s);
   for (const tag of ["script", "style", "svg", "nav", "footer"]) s = dropElement(s, tag);
   s = dropByAttr(s, 'class="sr-only"');
   s = dropByAttr(s, 'aria-hidden="true"');
