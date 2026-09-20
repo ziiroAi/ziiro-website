@@ -1,169 +1,157 @@
-import { useEffect, useRef, useState } from "react";
-import { animate, createAnimatable, createTimeline, cubicBezier, stagger } from "animejs";
-import { ArrowUpRight } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
+import { createAnimatable, createTimeline, cubicBezier } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
-import Beam from "@/shared/motion/Beam";
-import {
-  CSS_EASE,
-  DURATION,
-  EASE_OUT_EXPO,
-  MS,
-  STAGGER,
-  TRAVEL,
-  VIEWPORT,
-} from "@/shared/motion/tokens";
-import {
-  INTERIM_BOOKING_URL,
-  MIN_SESSION_MINUTES,
-} from "@/features/pricing/entities/rates";
-import { useMarket } from "@/features/pricing/hooks/useMarket";
+import { CSS_EASE, DURATION, EASE_OUT_EXPO, MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 
-/** The house expo-out, handed to anime.js. Built from the token control points
- *  rather than retyped, so this page cannot drift the next time the curve is
- *  tuned. */
+/**
+ * Contact: general communication with Ziiro, and nothing else.
+ *
+ * WHAT THIS PAGE IS NOT, because it used to be all of it. Until this rewrite
+ * /contact was the booking page: a regional hourly rate, a Calendly button, a
+ * three-item "you leave with" list, a beam around the card and an ambient orb.
+ * Every one of those is commercial conversion and now belongs to /book-a-call.
+ * Keeping a second copy here would mean two pages competing for the same
+ * visitor, which is the exact thing this split exists to stop.
+ *
+ * So this page answers one question: I have something to ask Ziiro. It is a
+ * form, two email addresses and a response expectation. That is the whole page,
+ * and the restraint is the design rather than a gap in it.
+ *
+ * NO ORB, NO SHADER, NO CANVAS, and no decorative motion. The only movement is
+ * the site's standard entrance, which carries hierarchy rather than filling
+ * space, and it zeroes out under reduced motion like everything else.
+ *
+ * NOTHING HERE MAY MENTION LOCATION. The old page printed the visitor's region
+ * above the rate, and the rate itself came from an IP lookup. Both are gone
+ * with the commercial block. If regional logic is ever needed on this page it
+ * stays invisible: never tell a visitor their location was identified.
+ */
+
+/** The house expo-out, built from the token control points rather than retyped. */
 const expoOut = cubicBezier(...EASE_OUT_EXPO);
 
-/** anime.js counts in milliseconds and the tokens in seconds; converting once
- *  here keeps the arithmetic out of the timeline. */
 const RISE_STAGGER_MS = Math.round(STAGGER.card * 1000);
-
-/** Everything that merely changes colour or opacity on this page settles at the
- *  micro duration, stated rather than left to Tailwind's default so the timing
- *  comes from the same file as the rest of the site. */
-const microTransition = {
-  transitionDuration: `${DURATION.micro}s`,
-  transitionTimingFunction: CSS_EASE.out,
-} as const;
-
-const colorTransition = {
-  transitionProperty: "background-color, border-color, color",
-  ...microTransition,
-} as const;
-
-const opacityTransition = {
-  transitionProperty: "opacity",
-  ...microTransition,
-} as const;
-
-/** The rate's reveal once the region is known: a view change that keeps its
- *  box, so it settles over the swap duration rather than the micro one. */
-const revealTransition = {
-  transitionProperty: "opacity",
-  transitionDuration: `${DURATION.swap}s`,
-  transitionTimingFunction: CSS_EASE.outExpo,
-} as const;
 
 const emails = ["aniket@ziiro.work", "govind@ziiro.work"];
 
-/** Derived from the one constant in rates.ts, so changing the minimum there can
- *  never leave this row saying something else. Split into figure and unit so
- *  the row reads in the same figure-then-unit rhythm as the rate above it. */
-const minimumEngagement =
-  MIN_SESSION_MINUTES % 60 === 0
-    ? { amount: MIN_SESSION_MINUTES / 60, unit: MIN_SESSION_MINUTES === 60 ? "hour" : "hours" }
-    : { amount: MIN_SESSION_MINUTES, unit: "minutes" };
-
-/** One investment row: label then value, side by side from sm up and stacked
- *  below it, so both rows change shape together on a phone rather than one
- *  wrapping while the other does not. */
-const investmentRow =
-  "flex flex-col gap-2 border-b border-[var(--border)] py-5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6";
-
-/** The label column of the investment rows: the site's mono micro-label. */
-const rowLabel =
-  "shrink-0 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]";
-
 /**
- * ── CURRENCY: DETECTED, NOT ASKED ─────────────────────────────────────
- *
- * The rate shown is the visitor's own, worked out silently. There is nothing
- * on screen about currency or region: no label, no selector, no wording about
- * where the visitor is or how we know.
- *
- * Two things have been removed from this spot, and neither should come back:
- *
- *   1. "[ INDIA · DETECTED FROM YOUR IP ]" above the rate, and
- *      "[ DETECTING YOUR REGION ]" while the lookup ran. Accurate and
- *      well-meant, but telling visitors you have identified their location
- *      reads as surveillance even when it is harmless.
- *   2. A USD / INR button pair that replaced it. If the region is already
- *      detected, asking the visitor to pick a currency undoes the point of
- *      detecting it: it makes them do work the page has already done, and it
- *      re-raises the question of how the page knew which button to preselect.
- *      One correct number, shown without comment, is the whole feature.
- *
- * The lookup itself is a separate question from the copy. Hosting, CDN and
- * infrastructure still receive IPs, and the Privacy Policy must keep
- * disclosing that accurately whatever this page does or does not say.
+ * Why someone is writing. Exactly the six from the brief, in that order, and
+ * the value sent to the server is the label: the team inbox reads a word, not
+ * a code, and a select cannot submit anything that is not in this list.
  */
-
-/** Same arrow as the homepage's closing CTA: it travels TRAVEL.nudge and the
- *  link holds still, so the target never moves out from under the cursor.
- *  Zeroed rather than left untransitioned under reduced motion.
- *
- *  Only the client-voices CTA uses it, and that section is commented out at
- *  the bottom of the page for now. It stays defined so the block can be
- *  re-enabled as it is. */
-function Arrow({ nudge }: { nudge: boolean }) {
-  return (
-    <svg
-      aria-hidden="true"
-      width="18"
-      height="18"
-      viewBox="0 0 15 15"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="shrink-0 group-hover:translate-x-[var(--nudge)] group-focus-visible:translate-x-[var(--nudge)]"
-      style={{
-        transitionProperty: "transform",
-        ...microTransition,
-        ["--nudge" as string]: nudge ? `${TRAVEL.nudge}px` : "0px",
-      }}
-    >
-      <path d="M3 7.5h9M8.4 3.9 12 7.5l-3.6 3.6" />
-    </svg>
-  );
-}
-
-/** What the client walks away with. Three blocks, a label and one line each.
- *  This was three headed paragraphs; the information is unchanged and the
- *  prose around it is gone, because the page already shows the price, the
- *  duration and the deliverables and did not need to argue for them.
- *
- *  Generic outcomes only: nothing here promises a result the session cannot
- *  control. Confirm with the business before adding specifics: turnaround
- *  times, written reports or recaps, document formats and follow-up calls all
- *  stay out of this list until the business has agreed to deliver them. */
-const deliverables = [
-  { title: "Priority opportunities", detail: "Ranked in the order we would build them." },
-  { title: "Rough ROI and effort sizing", detail: "Hours back, set against effort to build." },
-  { title: "One recommended next move", detail: "Build it, hand it over, or let it wait." },
+const REASONS = [
+  "Project inquiry",
+  "Partnership",
+  "Existing client",
+  "Press / Media",
+  "General question",
+  "Other",
 ];
 
+/** POST target. Body is { name, email, company, reason, message,
+ *  turnstileToken } as JSON, answered with { success: boolean, error?: string }. */
+const ENDPOINT = "/api/send-contact";
+
+/**
+ * Cloudflare Turnstile, the bot check the restored endpoint requires.
+ *
+ * The endpoint fails closed: no valid token means no mail, so without this the
+ * form could not succeed at all. The secret half lives on the server as
+ * TURNSTILE_SECRET_KEY; this is the public half and it is safe in the bundle.
+ *
+ * THE HUMAN MUST SET `VITE_TURNSTILE_SITE_KEY` in Vercel for the form to work
+ * in production. It is read at build time, not at runtime, so setting it
+ * requires a redeploy. When it is absent, as it is in local development, the
+ * widget does not render, no third-party script is fetched, and a submission
+ * fails the server's check and lands in the error state with the two email
+ * addresses beside it. That is deliberate: a contact form that silently
+ * pretends to send is worse than one that says it could not.
+ */
+const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
+const TURNSTILE_SRC =
+  "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+
+interface TurnstileApi {
+  render: (el: HTMLElement, opts: Record<string, unknown>) => string;
+  reset: (id?: string) => void;
+  remove: (id?: string) => void;
+}
+
+type Status = "idle" | "sending" | "sent" | "error";
+
+/** One field's chrome. A hairline under the control and nothing else: the
+ *  brief asks for thin borders and no unnecessary cards, and a boxed input on
+ *  a page this quiet reads as a form from a different site. */
+const field =
+  "w-full border-b border-[var(--border)] bg-transparent py-3 text-[15px] text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] hover:border-[var(--border-strong)] focus:border-[var(--text-primary)]";
+
+const fieldLabel =
+  "block font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]";
+
 const Contact = () => {
-  // Detection is the only source of the rate now, so the market it returns is
-  // the market shown. Nothing on the page can override it.
-  const { market, resolving } = useMarket();
-
-  // The rate stays hidden until there is a real one to show: the default
-  // market is not the visitor's, so it must never flash before theirs lands.
-  const rateHidden = resolving;
-
   const rootRef = useRef<HTMLDivElement>(null);
-  const valueRef = useRef<HTMLElement>(null);
-  const ctaArrowRef = useRef<HTMLSpanElement>(null);
   const emailAnims = useRef<ReturnType<typeof createAnimatable>[]>([]);
-  const ctaArrowAnim = useRef<ReturnType<typeof createAnimatable> | null>(null);
   const reduced = useRef(false);
-  /** Pointer is over the book button, so the card's beam picks up. State
-   *  rather than a ref because the beam is rendered, not animated by hand. */
-  const [ctaHot, setCtaHot] = useState(false);
 
-  // Sequenced entrance: label -> headline -> sub -> investment -> direct lines
+  const [status, setStatus] = useState<Status>("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  /** The Turnstile token, and the widget id so it can be reset. A token is
+   *  single use, so a second message needs a fresh one. */
+  const [token, setToken] = useState("");
+  const widgetHost = useRef<HTMLDivElement>(null);
+  const widgetId = useRef<string | null>(null);
+
+  // Load the Turnstile script and render the widget, but only when a site key
+  // is configured. No key means no third-party request from this page at all,
+  // which is why this is not in index.html: the quietest page on the site
+  // should not fetch Cloudflare for a visitor who is only reading it.
+  useEffect(() => {
+    if (!SITE_KEY) return;
+    const host = widgetHost.current;
+    if (!host) return;
+    let cancelled = false;
+
+    const render = () => {
+      const api = (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+      if (cancelled || !api || widgetId.current) return;
+      widgetId.current = api.render(host, {
+        sitekey: SITE_KEY,
+        theme: "light",
+        callback: (t: string) => setToken(t),
+        // A token expires. Clearing it here means the next submit fails the
+        // server check honestly rather than sending something already stale.
+        "expired-callback": () => setToken(""),
+        "error-callback": () => setToken(""),
+      });
+    };
+
+    let script = document.querySelector<HTMLScriptElement>(
+      `script[src="${TURNSTILE_SRC}"]`,
+    );
+    if (!script) {
+      script = document.createElement("script");
+      script.src = TURNSTILE_SRC;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+    script.addEventListener("load", render);
+    // Already loaded from a previous visit to this route in the same session.
+    render();
+
+    return () => {
+      cancelled = true;
+      script?.removeEventListener("load", render);
+      const api = (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+      if (api && widgetId.current) api.remove(widgetId.current);
+      widgetId.current = null;
+    };
+  }, []);
+
+  // Sequenced entrance: label, headline, sub, then the form and the aside.
   useEffect(() => {
     reduced.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const root = rootRef.current;
@@ -185,35 +173,9 @@ const Contact = () => {
     };
   }, []);
 
-  // The value block sits below the fold on most screens, so it rises when it
-  // is scrolled to rather than on mount, where its entrance would play unseen.
-  useEffect(() => {
-    const block = valueRef.current;
-    if (!block) return;
-    const els = block.querySelectorAll<HTMLElement>("[data-value-rise]");
-    let anim: ReturnType<typeof animate> | null = null;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        io.disconnect();
-        anim = animate(els, {
-          opacity: [0, 1],
-          y: [TRAVEL.reveal, 0],
-          delay: reduced.current ? 0 : stagger(RISE_STAGGER_MS),
-          duration: reduced.current ? 0 : MS.reveal,
-          ease: expoOut,
-        });
-      },
-      { threshold: VIEWPORT.amount },
-    );
-    io.observe(block);
-    return () => {
-      io.disconnect();
-      anim?.revert();
-    };
-  }, []);
-
-  // Hover-follow micro-interactions: the direct email links and the CTA arrow
+  // The direct addresses nudge on hover, the same as they did before. It is
+  // the one micro-interaction kept from the old page, because it marks the
+  // addresses as actions rather than as text.
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -221,48 +183,79 @@ const Contact = () => {
     emailAnims.current = links.map((el) =>
       createAnimatable(el, { x: MS.micro, ease: expoOut }),
     );
-    if (ctaArrowRef.current) {
-      ctaArrowAnim.current = createAnimatable(ctaArrowRef.current, {
-        x: MS.micro,
-        y: MS.micro,
-        ease: expoOut,
-      });
-    }
     return () => {
       emailAnims.current.forEach((a) => a.revert());
       emailAnims.current = [];
-      ctaArrowAnim.current?.revert();
-      ctaArrowAnim.current = null;
     };
   }, []);
 
-  const ctaEnter = () => {
-    if (reduced.current) return;
-    setCtaHot(true);
-    ctaArrowAnim.current?.x(TRAVEL.nudge);
-    ctaArrowAnim.current?.y(-TRAVEL.nudge);
-  };
-  const ctaLeave = () => {
-    setCtaHot(false);
-    ctaArrowAnim.current?.x(0);
-    ctaArrowAnim.current?.y(0);
+  /**
+   * Submit. The fetch lives here rather than anywhere near render, because the
+   * page is prerendered at build time and a render body must not touch the
+   * network or the browser.
+   *
+   * The endpoint is being restored and hardened by another worker in parallel,
+   * so it may legitimately 404 for a window. That is handled the same as any
+   * other failure: the form says so and the two email addresses are sitting
+   * directly beside it, unaffected, so the page is never a dead end.
+   */
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (status === "sending") return;
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    setStatus("sending");
+    setError(null);
+
+    try {
+      const res = await fetch(ENDPOINT, {
+        method: "POST",
+        // Required, and not incidental: the endpoint rejects anything else on
+        // purpose. A JSON body sent as text/plain is a CORS-simple request
+        // that skips preflight, which is how another site could make its own
+        // visitors send mail from their addresses.
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.get("name"),
+          email: data.get("email"),
+          company: data.get("company"),
+          reason: data.get("reason"),
+          message: data.get("message"),
+          turnstileToken: token,
+        }),
+      });
+      const body = (await res.json().catch(() => null)) as
+        | { success?: boolean; error?: string }
+        | null;
+      if (!res.ok || !body?.success) {
+        throw new Error(body?.error || "That did not send.");
+      }
+      setStatus("sent");
+      form.reset();
+      // Single-use token: without this a second message reuses a spent one
+      // and the server correctly refuses it.
+      const api = (window as unknown as { turnstile?: TurnstileApi }).turnstile;
+      if (api && widgetId.current) api.reset(widgetId.current);
+      setToken("");
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "That did not send.");
+    }
   };
 
   return (
     <div ref={rootRef} className="relative" style={{ zIndex: 1 }}>
       <SEO
-        title="Book a Consultation: 60-Minute Minimum, Paid"
-        // No mention of region here either: a meta description is rendered
-        // copy, it just renders in a search result instead of on the page.
-        description="Book the session. Paid, one hour minimum, no pitch. You leave with the priority opportunities ranked, rough sizing for each, and one recommended next move."
+        title="Contact Ziiro"
+        description="Ask a question, propose a partnership, or send us something to look at. We usually reply within 24 hours. To explore working together, book a call instead."
         canonical="/contact"
       />
 
       <div className="mx-auto max-w-7xl px-6 md:px-10">
-        {/* ─── Page hero ───
-            Every block that starts hidden also carries data-reveal, so the
-            prerendered HTML stays readable without JavaScript (index.css). */}
-        <header className="border-b border-[var(--border)] pb-16 pt-36">
+        {/* ─── Hero ───
+            Short, and deliberately not a statement of philosophy. Mission owns
+            why Ziiro works the way it does; this page owns "send it over". */}
+        <header className="border-b border-[var(--border)] pb-14 pt-36">
           <p
             data-rise
             data-reveal
@@ -283,7 +276,7 @@ const Contact = () => {
               opacity: 0,
             }}
           >
-            <SplitHeadline lead="Book a strategy session." tail="Leave with a plan you can act on." />
+            <SplitHeadline lead="Contact Ziiro." tail="Send it over." />
           </h1>
           <p
             data-rise
@@ -291,177 +284,172 @@ const Contact = () => {
             className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]"
             style={{ opacity: 0 }}
           >
-            Bring the work that eats your week. We&apos;ll identify where AI can create
-            measurable leverage, what is worth building and what should come first.
-          </p>
-
-          {/* The brand line, as a reminder only. Mission is where the idea is
-              explained; this is the one-line version a visitor needs at the
-              moment they are deciding to book, and it must not grow into a
-              second explainer. */}
-          <p
-            data-rise
-            data-reveal
-            className="mt-8 max-w-xl border-l border-[var(--border-strong)] pl-5 text-sm leading-relaxed text-[var(--text-secondary)]"
-            style={{ opacity: 0 }}
-          >
-            <span className="font-medium text-[var(--text-primary)]">Leverage AI Anywhere.</span>{" "}
-            Anywhere doesn&apos;t mean everywhere. We look across your operation and use AI only
-            where the numbers justify it.
+            Have a question, partnership idea, or something you want us to look at?
           </p>
         </header>
 
-        {/* ─── Your investment + direct lines ───
-            The investment comes first in the source so it leads on phones and
-            for keyboard and screen-reader order; from lg up the grid places it
-            in the right-hand column. */}
-        <div className="grid grid-cols-1 gap-16 pb-20 pt-16 lg:grid-cols-12">
-          {/* The one beam on this page, and one of only two on the site. This
-              is the booking card, the single most important thing a visitor
-              can act on, so it carries a slow low beam at rest and picks up
-              while the pointer is over the book button. Alive, not insistent.
-
-              The grid placement lives on the wrapper rather than the card,
-              because the wrapper is the grid item once the beam mounts. The
-              card keeps its own look, and `md` traces the full rounded border
-              it already has. */}
-          <Beam
-            className="lg:col-span-6 lg:col-start-7 lg:row-start-1"
-            size="md"
-            radius={16}
-            strength={ctaHot ? 0.46 : 0.2}
-            duration={ctaHot ? 5 : 9}
-          >
+        <div className="grid grid-cols-1 gap-14 pb-28 pt-14 lg:grid-cols-12 lg:gap-16">
+          {/* ─── The form ───
+              A real <form> with real labels, so the prerendered HTML a crawler
+              or a reader without JavaScript receives is the actual form rather
+              than an empty shell. */}
           <section
             data-rise
             data-reveal
-            aria-labelledby="investment-heading"
-            className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-8 md:p-10"
+            aria-labelledby="form-heading"
+            className="lg:col-span-7"
+            style={{ opacity: 0 }}
+          >
+            <h2 id="form-heading" className="sr-only">
+              Send a message
+            </h2>
+
+            <form onSubmit={onSubmit}>
+              <div className="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
+                <div>
+                  <label className={fieldLabel} htmlFor="name">
+                    Name
+                  </label>
+                  <input
+                    id="name"
+                    name="name"
+                    type="text"
+                    required
+                    autoComplete="name"
+                    maxLength={100}
+                    className={field}
+                    style={{ transitionProperty: "border-color", transitionDuration: `${DURATION.micro}s`, transitionTimingFunction: CSS_EASE.out }}
+                  />
+                </div>
+
+                <div>
+                  <label className={fieldLabel} htmlFor="email">
+                    Work email
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    maxLength={254}
+                    className={field}
+                    style={{ transitionProperty: "border-color", transitionDuration: `${DURATION.micro}s`, transitionTimingFunction: CSS_EASE.out }}
+                  />
+                </div>
+
+                <div>
+                  {/* REQUIRED, matching the server, not because I think it
+                      should be. The restored endpoint rejects a submission
+                      with no company, so a form that let it through would 400
+                      on the visitor. I argued in requests.md that it should be
+                      optional, since "Press / Media" and "General question"
+                      are two of the six reasons below and neither implies a
+                      company; if that lands, drop `required` here and restore
+                      the optional hint. Marking it required is the version
+                      that works today. */}
+                  <label className={fieldLabel} htmlFor="company">
+                    Company
+                  </label>
+                  <input
+                    id="company"
+                    name="company"
+                    type="text"
+                    required
+                    autoComplete="organization"
+                    maxLength={120}
+                    className={field}
+                    style={{ transitionProperty: "border-color", transitionDuration: `${DURATION.micro}s`, transitionTimingFunction: CSS_EASE.out }}
+                  />
+                </div>
+
+                <div>
+                  <label className={fieldLabel} htmlFor="reason">
+                    Reason for reaching out
+                  </label>
+                  {/* The native select. A custom listbox here would be a
+                      component to maintain, a keyboard model to reimplement and
+                      a thing that does not render without JavaScript, for six
+                      fixed options on the quietest page on the site. */}
+                  <select
+                    id="reason"
+                    name="reason"
+                    defaultValue={REASONS[0]}
+                    className={`${field} cursor-pointer appearance-none rounded-none`}
+                    style={{ transitionProperty: "border-color", transitionDuration: `${DURATION.micro}s`, transitionTimingFunction: CSS_EASE.out }}
+                  >
+                    {REASONS.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-8">
+                <label className={fieldLabel} htmlFor="message">
+                  Message
+                </label>
+                <textarea
+                  id="message"
+                  name="message"
+                  required
+                  rows={5}
+                  maxLength={2000}
+                  className={`${field} resize-y`}
+                  style={{ transitionProperty: "border-color", transitionDuration: `${DURATION.micro}s`, transitionTimingFunction: CSS_EASE.out }}
+                />
+              </div>
+
+              {/* The bot check. Empty and invisible when no site key is
+                  configured, so nothing shifts and nothing is fetched. */}
+              <div ref={widgetHost} className="mt-8 empty:mt-0" />
+
+              <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
+                <button
+                  type="submit"
+                  disabled={status === "sending"}
+                  className="rounded-full bg-[var(--text-primary)] px-8 py-4 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90 disabled:opacity-60"
+                  style={{ transitionProperty: "opacity", transitionDuration: `${DURATION.micro}s`, transitionTimingFunction: CSS_EASE.out }}
+                >
+                  {status === "sending" ? "Sending" : "Send message"}
+                </button>
+
+                {/* One live region for the whole form, polite, so a screen
+                    reader hears the outcome once rather than on every keypress.
+                    It holds nothing at rest, so it announces nothing at rest. */}
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className="text-sm leading-relaxed text-[var(--text-secondary)]"
+                >
+                  {status === "sent" && "Sent. We'll reply to the address you gave us."}
+                  {status === "error" &&
+                    `${error} You can email us directly instead, below.`}
+                </p>
+              </div>
+            </form>
+          </section>
+
+          {/* ─── Secondary: the direct addresses ───
+              Beside the form from lg up and under it below, so on a phone the
+              form is what the reader meets first. Deliberately quieter than
+              the form: smaller type, no button, no card. */}
+          <aside
+            data-rise
+            data-reveal
+            aria-labelledby="direct-heading"
+            className="lg:col-span-4 lg:col-start-9"
             style={{ opacity: 0 }}
           >
             <h2
-              id="investment-heading"
-              className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]"
+              id="direct-heading"
+              className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]"
             >
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-              {"( YOUR INVESTMENT )"}
+              Prefer email?
             </h2>
-            {/* Two rows, label then value (see investmentRow). The heading
-                above used to be followed by a currency selector; the rows now
-                sit directly under it, so the spacing that separated the two
-                moves here. */}
-            <dl className="mt-8 border-t border-[var(--border)]">
-              <div className={investmentRow}>
-                <dt className={rowLabel}>Hourly Rate</dt>
-                {/* Hidden, not removed, while the region resolves: the default
-                    market's rate is not the visitor's, so it must never flash
-                    before theirs lands. The text stays in the DOM for crawlers,
-                    data-reveal shows it when JavaScript never runs (index.css),
-                    and the box keeps its height so nothing shifts on reveal.
-                    aria-busy holds the announcement until the real rate is in. */}
-                <dd
-                  aria-live="polite"
-                  aria-busy={rateHidden}
-                  data-reveal
-                  className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1"
-                  style={{ ...revealTransition, opacity: rateHidden ? 0 : 1 }}
-                >
-                  <span
-                    className="font-display font-semibold text-[var(--text-primary)]"
-                    style={{
-                      fontSize: "clamp(2.6rem, 5vw, 4rem)",
-                      letterSpacing: "-0.04em",
-                      lineHeight: 1,
-                    }}
-                  >
-                    {market.display}
-                  </span>{" "}
-                  <span className="text-base text-[var(--text-secondary)]">{market.per}</span>{" "}
-                  <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                    {market.currency}
-                  </span>
-                </dd>
-              </div>
-              <div className={investmentRow}>
-                <dt className={rowLabel}>Minimum Engagement</dt>
-                <dd className="flex items-baseline gap-x-2">
-                  <span
-                    className="font-display font-semibold text-[var(--text-primary)]"
-                    style={{ fontSize: "1.75rem", letterSpacing: "-0.03em", lineHeight: 1 }}
-                  >
-                    {minimumEngagement.amount}
-                  </span>{" "}
-                  <span className="text-base text-[var(--text-secondary)]">{minimumEngagement.unit}</span>
-                </dd>
-              </div>
-            </dl>
-            {market.note && (
-              <p
-                data-reveal
-                className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]"
-                style={{ ...revealTransition, opacity: rateHidden ? 0 : 1 }}
-              >
-                {market.note}
-              </p>
-            )}
-
-            <a
-              href={INTERIM_BOOKING_URL}
-              target="_blank"
-              rel="noopener"
-              onMouseEnter={ctaEnter}
-              onMouseLeave={ctaLeave}
-              style={opacityTransition}
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-8 py-4 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90"
-            >
-              Book your session
-              <span ref={ctaArrowRef} aria-hidden="true" className="inline-flex">
-                <ArrowUpRight size={14} />
-              </span>
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-
-            {/* THE GUARANTEE LINE IS DELIBERATELY ABSENT. IT NEEDS THE HUMAN.
-
-                This card used to close with "If the session doesn't give you a
-                clear next step, tell us before you leave the call and we'll
-                make it right." It named no remedy and no condition, so it
-                promised nothing while sounding like a promise, which is the
-                worst of both. The alternative on the table is a real policy,
-                "Clear-next-step guarantee: if we cannot identify a useful next
-                step during the session, you don't pay", and that is a refund
-                commitment the business has not agreed to and we cannot invent
-                on its behalf.
-
-                So it is removed rather than reworded. To restore it, get the
-                policy confirmed first (what the remedy is, who judges it, and
-                by when it must be raised), then write that. Do not reinstate
-                the old wording. */}
-          </section>
-          </Beam>
-
-          <div
-            data-rise
-            data-reveal
-            className="lg:col-span-5 lg:col-start-1 lg:row-start-1"
-            style={{ opacity: 0 }}
-          >
-            <div className="mb-5 flex items-center justify-between gap-4">
-              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                {"( DIRECT )"}
-              </p>
-              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
-                [ RESPONSE &lt; 24H ]
-              </p>
-            </div>
-            <p className="mb-6 max-w-md leading-relaxed text-[var(--text-secondary)]">
-              Questions before you book? Email us directly.
-            </p>
-            {/* No gap: each address is its own 44px row, and two 44px targets
-                need to sit flush rather than overlap into the space between
-                them. These are the page's contact actions, not links inside a
-                sentence, so they get a thumb-sized row. */}
-            <div className="flex flex-col">
+            <div className="mt-5 flex flex-col">
               {emails.map((email, i) => (
                 <a
                   key={email}
@@ -469,104 +457,41 @@ const Contact = () => {
                   href={`mailto:${email}`}
                   onMouseEnter={() => emailAnims.current[i]?.x(TRAVEL.nudge)}
                   onMouseLeave={() => emailAnims.current[i]?.x(0)}
-                  style={colorTransition}
                   className="flex min-h-[44px] w-fit items-center font-mono text-sm tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  style={{
+                    transitionProperty: "color",
+                    transitionDuration: `${DURATION.micro}s`,
+                    transitionTimingFunction: CSS_EASE.out,
+                  }}
                 >
                   {email}
                 </a>
               ))}
             </div>
-          </div>
-        </div>
-
-        {/* ─── Value of your investment ─── */}
-        <section
-          ref={valueRef}
-          aria-labelledby="value-heading"
-          className="grid grid-cols-1 gap-12 border-t border-[var(--border)] pb-28 pt-16 lg:grid-cols-12 lg:gap-16"
-        >
-          <div data-value-rise data-reveal className="lg:col-span-4" style={{ opacity: 0 }}>
-            <h2
-              id="value-heading"
-              className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]"
-            >
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-              {"( YOU LEAVE WITH )"}
-            </h2>
-          </div>
-
-          {/* Three blocks side by side from sm up, a label and one line each.
-              This was three headed paragraphs plus a closing claim about the
-              hour being worth more than it costs; the claim is gone because it
-              was ours to make and nothing could back it. */}
-          <ol className="grid gap-px overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--border)] sm:grid-cols-3 lg:col-span-8">
-            {deliverables.map((d, i) => (
-              <li
-                key={d.title}
-                data-value-rise
-                data-reveal
-                className="bg-[var(--background)] p-6"
-                style={{ opacity: 0 }}
-              >
-                <span
-                  aria-hidden="true"
-                  className="font-mono text-[10px] tracking-[0.2em] text-[var(--text-muted)]"
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <p className="mt-3 font-medium text-[var(--text-primary)]">{d.title}</p>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-                  {d.detail}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {/* ─── Client voices: disabled for now ───
-            Commented out on the human's request and kept in place so it can
-            come back; nothing renders here meanwhile. To re-enable, uncomment
-            the <section> below and restore the three things only it uses:
-              import { Link } from "react-router-dom";
-              import MotionReveal from "@/shared/motion/MotionReveal";
-              import { useReducedMotion } from "framer-motion";
-            plus `const shouldReduce = useReducedMotion();` at the top of the
-            component. The Arrow helper is still defined above.
-
-            It is a pointer rather than the testimonials themselves: they live
-            on Who We Are, and one place keeps two copies from drifting apart.
-
-            BEFORE RE-ENABLING, FIX THE LINK. The anchor below is
-            /who-we-are#testimonials and there is no longer an element with
-            that id: the testimonials mount on Who We Are is commented out too,
-            so uncommenting this section as it stands ships a broken link. It
-            stays written down rather than corrected because there is nothing
-            correct to point it at yet. Testimonials are deliberately hidden in
-            production until there are real ones, so restoring the anchor is
-            part of restoring the testimonials, not a separate fix.
-
-        <section aria-label="Client testimonials" className="pb-24 md:pb-32">
-          <MotionReveal className="flex flex-col items-start justify-between gap-5 border-t border-[var(--border)] pt-10 md:flex-row md:items-center">
-            <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-              {"( TESTIMONIALS )"}
+            <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
+              Usually within 24 hours
             </p>
-            <Link
-              to="/who-we-are#testimonials"
-              className="group inline-flex items-center gap-3 font-display font-semibold text-[var(--text-primary)] hover:opacity-80"
-              style={{
-                ...opacityTransition,
-                fontSize: "clamp(1.3rem, 2.4vw, 1.9rem)",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.2,
-              }}
-            >
-              See what our clients think about our AI audit
-              <Arrow nudge={!shouldReduce} />
-            </Link>
-          </MotionReveal>
-        </section>
-        */}
+
+            {/* The one pointer to the other page. Someone who wants a session
+                rather than an answer should not be filling in this form, and
+                this is the only place the two pages touch. */}
+            <p className="mt-12 border-t border-[var(--border)] pt-8 text-sm leading-relaxed text-[var(--text-secondary)]">
+              Looking to explore working together?{" "}
+              <Link
+                to="/book-a-call"
+                className="border-b border-[var(--border-strong)] pb-0.5 text-[var(--text-primary)] hover:border-[var(--text-primary)]"
+                style={{
+                  transitionProperty: "border-color",
+                  transitionDuration: `${DURATION.micro}s`,
+                  transitionTimingFunction: CSS_EASE.out,
+                }}
+              >
+                Book a call
+              </Link>{" "}
+              instead.
+            </p>
+          </aside>
+        </div>
       </div>
     </div>
   );

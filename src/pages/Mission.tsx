@@ -414,7 +414,7 @@ export default function Mission() {
                     being a class, outranks the zero-specificity :where() rule
                     in index.css that puts everything else on expo-out. */}
                 <Link
-                  to="/contact"
+                  to="/book-a-call"
                   className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
                   style={{
                     transitionDuration: `${DURATION.micro}s`,

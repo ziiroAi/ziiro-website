@@ -52,7 +52,7 @@ export default function BookConsultation() {
           <MotionRevealItem>
             <div className="mt-10">
               <Link
-                to="/contact"
+                to="/book-a-call"
                 className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
                 style={microTransition}
               >

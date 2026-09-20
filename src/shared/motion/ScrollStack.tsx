@@ -35,10 +35,61 @@ const MIN_OPACITY = 0.35;
 /** Vertical offset per card, so the stack reads as a deck with visible edges. */
 const STEP_PX = 18;
 
+/**
+ * ── THE GAP BUG, AND WHY THE RUNWAY IS NOW MEASURED ───────────────────
+ *
+ * The gap under each card used to be a fixed fraction of the viewport
+ * (0.85vh). That number had nothing to do with how tall the cards actually
+ * were, and the two quantities have to agree, because:
+ *
+ *   scroll between card N and card N+1 arriving  =  card height + gap
+ *   scroll during which anything visibly moves   =  viewport - topOffset
+ *
+ * Measured on the live page at 949px tall: cards 581px, gap 807px, so 1,388px
+ * of scrolling to advance a card whose transition only occupies 833px of it.
+ * The other 555px was scroll in which the pinned card sat motionless with
+ * white space under it and the next card still below the fold. Per gap. That
+ * is the "so much gap" in the complaint, and it is also the "slow": a scrub
+ * that spends 40 percent of its runway producing no change reads as drag even
+ * though nothing is easing or lagging.
+ *
+ * So the gap is no longer chosen. It is derived: gap = span - cardHeight, for
+ * each card separately, which makes the runway equal the transition span and
+ * leaves no scroll in which nothing happens. Cards of different heights get
+ * different gaps, which is the point; a fixed vh could not do that.
+ *
+ * Recomputed on resize AND on card resize, because these cards contain
+ * disclosures. Opening one makes the card taller, which must shorten its gap
+ * by the same amount or the dead band comes straight back.
+ */
+
+/** Smallest gap, for when a card is nearly as tall as the span. Below this the
+ *  deck stops reading as separate plates. */
+const MIN_GAP = 40;
+/**
+ * Largest gap, and the reason there is an upper bound at all.
+ *
+ * `span - height` is the gap that makes the runway exactly one transition, but
+ * it is also literally the white band under the pinned card, so on a short
+ * card it trades dead scroll for dead space. Capping it does three things at
+ * once: less white, a shorter section, and a faster advance, because the gap
+ * IS the runway. The cost is that the incoming card starts arriving slightly
+ * before the outgoing one has finished receding, which reads as continuous
+ * rather than as a queue.
+ */
+const MAX_GAP = 180;
+/**
+ * How much of the next card is already showing when the current one pins.
+ * A sliver of the following card is what tells a reader there is more, and it
+ * is what stops the bottom of the viewport looking like the end of the page.
+ */
+const PEEK = 120;
+/** Gap used when the stack is not stacking: no JavaScript, or reduced motion.
+ *  Ordinary spacing in an ordinary list. */
+const REST_GAP = 48;
+
 interface ScrollStackProps {
   children: ReactNode[];
-  /** Distance the page scrolls per card, as a fraction of viewport height. */
-  perCardVh?: number;
   /** Where the pinned card rests, in px from the top of the viewport. */
   topOffset?: number;
   className?: string;
@@ -46,7 +97,6 @@ interface ScrollStackProps {
 
 export default function ScrollStack({
   children,
-  perCardVh = 0.85,
   topOffset = 120,
   className,
 }: ScrollStackProps) {
@@ -57,16 +107,50 @@ export default function ScrollStack({
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
+    const cards = [...root.querySelectorAll<HTMLElement>("[data-stack-card]")];
+    if (cards.length === 0) return;
+
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      // The gentle equivalent: leave every card at rest. The markup is already
-      // a plain list, so there is nothing to undo.
+      // The gentle equivalent, and it has to actually be one. The markup is a
+      // plain list, but the cards were still being made sticky with a gap
+      // nearly a viewport tall, so this reader got the pinning and the dead
+      // space and none of the motion that justified them. Leave them static,
+      // evenly spaced, full size, full opacity.
       root.dataset.stacked = "false";
+      for (const card of cards) {
+        card.style.position = "static";
+        card.style.marginBottom = `${REST_GAP}px`;
+      }
+      cards[cards.length - 1].style.marginBottom = "0px";
       return;
     }
     root.dataset.stacked = "true";
 
-    const cards = [...root.querySelectorAll<HTMLElement>("[data-stack-card]")];
-    if (cards.length === 0) return;
+    /**
+     * Derive each card's gap from its own measured height, so the scroll
+     * between two cards arriving is exactly the scroll during which the
+     * incoming one is visibly travelling. Run before paint, and again whenever
+     * the viewport or a card changes size.
+     */
+    const layout = () => {
+      const span = Math.max(1, window.innerHeight - topOffset);
+      for (let i = 0; i < cards.length; i += 1) {
+        cards[i].style.position = "sticky";
+        cards[i].style.willChange = "transform, opacity";
+        if (i === cards.length - 1) {
+          // Nothing follows the last card, so it needs no runway at all. Any
+          // gap here is pure trailing white space before the next section.
+          cards[i].style.marginBottom = "0px";
+          continue;
+        }
+        // Measure the unscaled height: the card may currently be drawn scaled
+        // down, and feeding a transformed height back into the layout would
+        // make the gap drift every frame.
+        const h = cards[i].offsetHeight;
+        const gap = Math.max(MIN_GAP, Math.min(MAX_GAP, Math.round(span - h - PEEK)));
+        cards[i].style.marginBottom = `${gap}px`;
+      }
+    };
 
     const paint = () => {
       frame.current = 0;
@@ -100,20 +184,37 @@ export default function ScrollStack({
       frame.current = requestAnimationFrame(paint);
     };
 
-    paint();
+    const relayout = () => {
+      layout();
+      paint();
+    };
+
+    relayout();
     // Passive: this listener must never be able to delay or cancel a scroll.
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", paint, { passive: true });
+    window.addEventListener("resize", relayout, { passive: true });
+
+    // The cards hold disclosures. Opening one grows the card, and its gap has
+    // to shrink by the same amount or the dead band returns for that card
+    // alone. Observing height is the only way to catch that: it is not a
+    // resize, not a scroll, and not a prop change.
+    const ro = new ResizeObserver(relayout);
+    for (const card of cards) ro.observe(card);
+
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", paint);
+      window.removeEventListener("resize", relayout);
+      ro.disconnect();
       cancelAnimationFrame(frame.current);
       for (const card of cards) {
         card.style.transform = "";
         card.style.opacity = "";
+        card.style.marginBottom = "";
+        card.style.position = "";
+        card.style.willChange = "";
       }
     };
-  }, [perCardVh, topOffset]);
+  }, [topOffset]);
 
   return (
     <div ref={rootRef} className={className}>
@@ -121,17 +222,17 @@ export default function ScrollStack({
         <div
           key={i}
           data-stack-card
-          // Sticky is what pins each card without anyone owning the scroll.
-          // z-index rises with index so a later card covers the one before it.
-          className="sticky"
+          // Deliberately NOT sticky here. Sticky and the runway gap are both
+          // applied by the effect, because both only make sense once the
+          // cards have been measured. What the server emits, and what a
+          // reader with no JavaScript gets, is an ordinary spaced list that
+          // reads top to bottom. z-index is harmless either way and rises
+          // with index so a later card covers the one before it.
           style={{
             top: `${topOffset}px`,
             zIndex: i + 1,
             transformOrigin: "center top",
-            willChange: "transform, opacity",
-            // Space below each card is what the page scrolls through while the
-            // card is pinned. The last one needs none: the section ends there.
-            marginBottom: i === children.length - 1 ? 0 : `${perCardVh * 100}vh`,
+            marginBottom: i === children.length - 1 ? 0 : `${REST_GAP}px`,
           }}
         >
           {child}

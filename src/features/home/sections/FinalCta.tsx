@@ -137,7 +137,7 @@ export default function FinalCta() {
 
               <div className="mt-10">
                 <Link
-                  to="/contact"
+                  to="/book-a-call"
                   className="group inline-flex min-h-[52px] items-center justify-center gap-2.5 rounded-full bg-[var(--text-primary)] px-8 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-85"
                   style={micro}
                 >

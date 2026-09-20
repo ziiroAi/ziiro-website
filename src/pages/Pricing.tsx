@@ -7,10 +7,9 @@ import { MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
 import {
-  faqPageSchema,
   serviceCatalogSchema,
 } from "@/shared/components/seo-schema";
-import { PRICING_PAGE_FAQS as faqs } from "@/features/pricing/entities/faqs";
+import { PRICING_PAGE_FAQS as faqs } from "@/features/faq/entities/questions";
 import { MARKETS, MIN_SESSION_MINUTES } from "@/features/pricing/entities/rates";
 
 /**
@@ -255,7 +254,6 @@ export default function Pricing() {
               description: stage.desc,
             })),
           }),
-          faqPageSchema(faqs, "/pricing"),
         ]}
       />
 
@@ -520,7 +518,7 @@ export default function Pricing() {
             <MotionRevealItem>
               <div className="mt-12">
                 <Link
-                  to="/contact"
+                  to="/book-a-call"
                   className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-transform duration-150 ease-out hover:-translate-y-1"
                 >
                   Book a consultation

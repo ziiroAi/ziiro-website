@@ -90,7 +90,7 @@ export default function HeroActions() {
           colour: the fill is --text-primary, and the only honest lighter
           version of it on this page is itself over the white ground. */}
       <Link
-        to="/contact"
+        to="/book-a-call"
         className={`${base} hover:opacity-[0.86] focus-visible:opacity-[0.86]`}
         style={{
           ...micro,

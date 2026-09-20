@@ -65,7 +65,9 @@ export const routes = [
   },
   {
     path: "/pricing",
-    sources: ["src/pages/Pricing.tsx"],
+    // Pricing renders three questions out of the shared bank, so a change to
+    // the bank is a change to this page, the same as it is for /docs.
+    sources: ["src/pages/Pricing.tsx", "src/features/faq/entities/questions.ts"],
     changefreq: "monthly",
     priority: "0.7",
     fallback: "2026-07-27",
@@ -76,13 +78,32 @@ export const routes = [
     // so a change to any of those is a change to this page.
     sources: [
       "src/pages/Docs.tsx",
-      "src/features/pricing/entities/faqs.ts",
+      "src/features/faq/entities/questions.ts",
       "src/features/who-we-are/entities",
       "src/features/watch/videos.ts",
     ],
     changefreq: "monthly",
     priority: "0.6",
     fallback: "2026-09-16",
+  },
+  {
+    path: "/book-a-call",
+    // The conversion page. Its rate and minimum come from rates.ts, so a
+    // change there is a change to this page.
+    sources: ["src/pages/BookACall.tsx", "src/features/pricing/entities/rates.ts"],
+    changefreq: "monthly",
+    priority: "0.9",
+    fallback: "2026-09-21",
+  },
+  {
+    path: "/faq",
+    sources: ["src/pages/Faq.tsx", "src/features/faq"],
+    // The answers change when the offer or the policy behind one changes,
+    // which is not a schedule. It is not weekly and pretending otherwise
+    // teaches a crawler to ignore the whole file.
+    changefreq: "monthly",
+    priority: "0.6",
+    fallback: "2026-09-21",
   },
   {
     path: "/careers",
@@ -92,6 +113,19 @@ export const routes = [
     changefreq: "yearly",
     priority: "0.4",
     fallback: "2026-09-20",
+  },
+  {
+    path: "/security",
+    // The posture entity is the page's real content, and the diagram draws the
+    // two edge functions, so a change to any of them changes this page.
+    sources: [
+      "src/pages/Security.tsx",
+      "src/features/security",
+      "api",
+    ],
+    changefreq: "monthly",
+    priority: "0.5",
+    fallback: "2026-09-21",
   },
   {
     path: "/privacy",

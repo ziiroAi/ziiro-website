@@ -413,7 +413,7 @@ export default function Careers() {
               <p className="mx-auto mt-10 max-w-md text-center text-sm leading-relaxed text-[var(--text-secondary)]">
                 Looking for the paid consultation rather than a job?{" "}
                 <Link
-                  to="/contact"
+                  to="/book-a-call"
                   className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
                   style={{
                     transitionDuration: `${DURATION.micro}s`,

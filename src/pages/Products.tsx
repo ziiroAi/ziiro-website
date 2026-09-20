@@ -9,6 +9,7 @@ import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import Beam from "@/shared/motion/Beam";
 import MagnetTabs from "@/shared/motion/MagnetTabs";
 import ScrollStack from "@/shared/motion/ScrollStack";
+import StatefulOrb, { type OrbState } from "@/shared/ui/StatefulOrb";
 import { scrollTo } from "@/shared/motion/SmoothScroll";
 import {
   CSS_EASE,
@@ -229,11 +230,18 @@ function StageCard({
             </p>
           </div>
         </div>
-        <div className="hidden shrink-0 lg:block">
+        {/* The width cap lives on this wrapper, not on the glyph's own class.
+            dot-glyph sets `maxWidth: 320` as an INLINE style, and an inline
+            style beats a class, so the `max-w-[150px]` that used to sit on the
+            glyph was silently doing nothing: it rendered 320px wide and 220px
+            tall. That height set the whole header row, which pushed the
+            purpose line down and left roughly 200px of white inside the card.
+            Constraining the parent works because the canvas is width: 100%. */}
+        <div className="hidden w-[150px] shrink-0 lg:block">
           <DotGlyph
             variant={stage.glyph}
             energy={energy}
-            className="max-w-[150px] text-[var(--text-primary)]"
+            className="text-[var(--text-primary)]"
           />
         </div>
       </div>
@@ -466,6 +474,39 @@ function DeliverableLabels({ items }: { items: string[] }) {
 
 /** The motion tokens are in seconds, because framer-motion is. anime.js counts
  *  in milliseconds, so every token that reaches it goes through this. */
+/**
+ * What each stage DOES, said in the orb's state language.
+ *
+ * READ THIS BEFORE CHANGING IT. Nothing is being computed on this page. These
+ * sequences describe the shape of a stage of an engagement, which is a claim
+ * the company can stand behind, and they must never be read as live processing.
+ * That is why each one PLAYS ONCE and settles rather than looping: a permanent
+ * cycle is a machine pretending to work, and this site has refused to fabricate
+ * results everywhere else.
+ *
+ * The settle states are the honest part. Diagnose and Build each end in
+ * something handed over, an artefact and a running system, so they settle on
+ * `complete`. Optimize is the only stage that repeats, so it settles on `idle`,
+ * meaning ready for the next cycle rather than finished with the job.
+ */
+const STAGE_SEQUENCE: Record<string, OrbState[]> = {
+  Diagnose: ["searching", "connecting", "reasoning", "complete"],
+  Build: ["connecting", "working", "complete"],
+  Optimize: ["working", "reasoning", "idle"],
+};
+
+/** How long each step of a sequence holds, in ms. Long enough that the WORD is
+ *  readable, since the word is the canonical carrier and the animation only
+ *  reinforces it. At 1200 a four-step Diagnose resolves in 3.6s and never asks
+ *  to be watched. */
+const ORB_STEP_MS = 1200;
+
+/** Where a stage rests once its sequence has run. */
+const settledState = (stageName: string): OrbState => {
+  const seq = STAGE_SEQUENCE[stageName];
+  return seq ? seq[seq.length - 1] : "idle";
+};
+
 const ms = (seconds: number) => Math.round(seconds * 1000);
 
 export default function Products() {
@@ -520,6 +561,65 @@ export default function Products() {
     m.addEventListener("change", sync);
     return () => m.removeEventListener("change", sync);
   }, []);
+
+  /* ── The orb's state, driven by the SAME selection everything else reads ──
+     `activeStage` is derived from `openEntry`, which the tabs write and the
+     beam and the self-qualification list read. The orb joins that rather than
+     keeping a second selection of its own, so it can never disagree with the
+     tab that is lit.
+
+     It waits for the block to be looked at before it plays. Running the
+     sequence at mount would spend it below the fold, where the reader is still
+     in the hero; `seen` flips once and never flips back, so this is a first
+     impression rather than a loop that fires every time the section scrolls
+     past. After that, every stage selection replays it. */
+  const orbBlock = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(false);
+  const [orbState, setOrbState] = useState<OrbState>(() =>
+    settledState(stages[0].name),
+  );
+
+  useEffect(() => {
+    const host = orbBlock.current;
+    if (!host) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "-10% 0px" },
+    );
+    io.observe(host);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const seq = STAGE_SEQUENCE[stages[activeStage].name];
+    if (!seq) return;
+    const settled = seq[seq.length - 1];
+
+    // Reduced motion gets the answer, not a slower version of the journey.
+    // Stepping a word through four values is itself movement on the page, and
+    // the settled state is the one that carries the meaning anyway.
+    if (reduced || !seen) {
+      setOrbState(settled);
+      return;
+    }
+
+    let step = 0;
+    setOrbState(seq[0]);
+    const id = window.setInterval(() => {
+      step += 1;
+      if (step >= seq.length) {
+        window.clearInterval(id);
+        return;
+      }
+      setOrbState(seq[step]);
+    }, ORB_STEP_MS);
+    return () => window.clearInterval(id);
+  }, [activeStage, reduced, seen]);
 
   // Hero entrance: label -> headline -> sub -> hairline, one sequenced
   // timeline. Elements start hidden via inline style so nothing flashes.
@@ -654,6 +754,47 @@ export default function Products() {
               goes through the stage NAME rather than the array position: the
               two lists happen to be in the same order today and nothing should
               depend on that staying true. */}
+          {/* ── The orb, in FUNCTIONAL mode ──
+              One orb for the whole selection, sitting at the control that
+              changes it, rather than one per card. Three orbs visible at once
+              would be decoration; this one is the selected stage reporting
+              what it does.
+
+              The line underneath is not hedging, it is the honest part. The
+              site has refused to fabricate results everywhere else, and an
+              orb that reads WORKING next to three service cards would imply a
+              machine running on this page. It is not. The states describe the
+              stage. */}
+          <MotionReveal>
+            {/* max-w so the orb and its sentence read as one object instead of
+                a small mark stranded at the left of a 1400px band, and a real
+                gap below it so the state word is not mistaken for a label on
+                the tab row that follows. */}
+            <div
+              ref={orbBlock}
+              className="mb-14 flex max-w-2xl flex-col items-center gap-6 border-t border-[var(--border)] pt-8 text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left"
+            >
+              <StatefulOrb
+                state={orbState}
+                size="md"
+                mode="functional"
+                className="shrink-0"
+              />
+              <div className="max-w-md">
+                <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                  [ Stage behaviour ]
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]">
+                  What a Ziiro system does during{" "}
+                  <span className="text-[var(--text-primary)]">
+                    {stages[activeStage].name}
+                  </span>
+                  . Nothing is being computed on this page.
+                </p>
+              </div>
+            </div>
+          </MotionReveal>
+
           <MotionReveal>
             <MagnetTabs
               aria-label="Engagement stages"

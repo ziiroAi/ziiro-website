@@ -111,7 +111,7 @@ export default function Watch() {
               </p>
               <div className="mt-8 flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-8">
                 <Link
-                  to="/contact"
+                  to="/book-a-call"
                   className="inline-flex items-center justify-center rounded-full bg-[var(--text-primary)] px-8 py-4 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-90"
                 >
                   Book a strategy session

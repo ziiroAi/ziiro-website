@@ -21,6 +21,11 @@ const LINKS = [
   { label: "Mission", to: "/mission" },
   { label: "Who We Are", to: "/who-we-are" },
   { label: "Products", to: "/products" },
+  // Three items, and Contact is deliberately not one of them. It was added
+  // here briefly when the Book a Call CTA was repointed, on the reasoning that
+  // Contact would otherwise leave the header entirely; the human saw the
+  // four-item bar and wanted three back. Contact keeps its footer link and its
+  // in-body links and is a real page; it simply does not sit in the header.
 ];
 
 /** The reveal is pinned at 500ms by the measured spec, and there is no 0.5s in
@@ -50,11 +55,43 @@ const WORD_PX = 34;
 const PILL_INSET = (PILL_PX - 2 - MARK_PX) / 2;
 /** Ink to ink, the lockup's own 18/136 of the mark height. */
 const WORD_GAP_INK = MARK_PX * (18 / 136);
-/** Side bearings measured off the rendered span at WORD_PX: the "i" carries
- *  1.97px of air before its stem and the "o" 1.29px after its bowl. Both are
- *  taken out so the gap and the right inset are ink to ink, not box to box. */
-const I_BEARING = 1.97;
-const O_BEARING = 1.29;
+/** The wordmark's tracking. Named rather than inlined because the trailing
+ *  compensation below has to subtract it, and the two going out of step is
+ *  what sliced the "o". */
+const WORD_TRACK_EM = -0.03;
+
+/** Side bearings, measured off the rendered span at WORD_PX and stored as a
+ *  FRACTION OF THE FONT SIZE rather than as pixels. A bearing is a property of
+ *  the glyph, so it scales with the type; as a fixed px value it was only ever
+ *  correct at one size, and anything that changed WORD_PX would have re-cut the
+ *  word. The "i" carries 1.97px of air before its stem at 34px and the "o"
+ *  1.29px after its bowl. */
+const I_BEARING_EM = 1.97 / 34;
+const O_BEARING_EM = 1.29 / 34;
+
+const I_BEARING = I_BEARING_EM * WORD_PX;
+
+/**
+ * ── WHY THE TRAILING COMPENSATION IS NOT JUST THE BEARING ──────────────
+ *
+ * This used to be `marginRight: -O_BEARING`, and it sliced the bowl off the
+ * final "o" against the pill's overflow.
+ *
+ * CSS letter-spacing is added after EVERY character including the last, so the
+ * text box already ends WORD_TRACK_EM short of the glyph advance before any
+ * margin is applied. Taking the full bearing off on top of that removed the
+ * same air twice and then kept going into the ink:
+ *
+ *   box end = advance + track + margin
+ *           = advance - 1.02 - 1.29   = advance - 2.31
+ *   ink end = advance - 1.29 (the bearing)
+ *   so the box ended 1.02px INSIDE the ink, and overflow:hidden cut it.
+ *
+ * The compensation is therefore the bearing NET of the tracking already taken,
+ * which lands the box edge exactly on the end of the ink. Measured after the
+ * fix: left inset 8.00, right inset 8.00, nothing clipped.
+ */
+const O_TRIM = -(O_BEARING_EM + WORD_TRACK_EM) * WORD_PX;
 /** Vertical nudge on the wordmark, in px. Flex centres the 34px line box, which
  *  leaves the letters sitting low against the mark. The anchor that transfers
  *  between typefaces is the baseline: in the lockup the mark's bottom lands on
@@ -299,13 +336,15 @@ export default function Navbar() {
                 style={{
                   fontSize: WORD_PX,
                   lineHeight: 1,
-                  letterSpacing: "-0.03em",
+                  letterSpacing: `${WORD_TRACK_EM}em`,
                   whiteSpace: "nowrap",
                   paddingLeft: WORD_GAP_INK - I_BEARING,
                   // The pill's own inset supplies the space on the right; this
-                  // only cancels the "o"'s side bearing so the ink sits the
-                  // same distance from the edge as the mark does on the left.
-                  marginRight: -O_BEARING,
+                  // only cancels what is left of the "o"'s side bearing after
+                  // the tracking has already taken part of it, so the ink sits
+                  // the same distance from the edge as the mark does on the
+                  // left. See O_TRIM for why it is not the whole bearing.
+                  marginRight: O_TRIM,
                   // Optical, not box, centring: the mark is a symmetric form
                   // read from its middle, the word from the band between its
                   // x-height and its baseline, so centring the two boxes leaves
@@ -399,7 +438,7 @@ export default function Navbar() {
           }}
         >
           <Link
-            to="/contact"
+            to="/book-a-call"
             data-reveal
             tabIndex={ctaIdle ? -1 : undefined}
             aria-hidden={ctaIdle || undefined}

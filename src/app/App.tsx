@@ -24,7 +24,10 @@ const WhoWeAre = lazy(() => import("@/pages/WhoWeAre"));
 const Products = lazy(() => import("@/pages/Products"));
 const Docs = lazy(() => import("@/pages/Docs"));
 const Careers = lazy(() => import("@/pages/Careers"));
+const Faq = lazy(() => import("@/pages/Faq"));
+const BookACall = lazy(() => import("@/pages/BookACall"));
 const Watch = lazy(() => import("@/pages/Watch"));
+const Security = lazy(() => import("@/pages/Security"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 /**
@@ -197,14 +200,17 @@ export function AppRoutes() {
       <Route path="/products" element={<Products />} />
       <Route path="/docs" element={<Docs />} />
       <Route path="/careers" element={<Careers />} />
+      <Route path="/faq" element={<Faq />} />
+      <Route path="/book-a-call" element={<BookACall />} />
       {/* One watch page per video: Google only indexes a video that owns its URL. */}
       <Route path="/watch/:slug" element={<Watch />} />
+      <Route path="/security" element={<Security />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       {/* Redirects from old routes */}
       <Route path="/services" element={<Navigate to="/" replace />} />
       <Route path="/about" element={<Navigate to="/who-we-are" replace />} />
-      <Route path="/audit" element={<Navigate to="/contact" replace />} />
+      <Route path="/audit" element={<Navigate to="/book-a-call" replace />} />
       <Route path="/process" element={<Navigate to="/who-we-are" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
