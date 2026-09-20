@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { createAnimatable, createTimeline, cubicBezier } from "animejs";
 import SEO from "@/shared/components/SEO";
@@ -90,6 +90,17 @@ export default function Mission() {
 
   // Hero entrance: label -> headline -> sub -> hairline, one sequenced
   // timeline. Elements start hidden via inline style so nothing flashes.
+  /** Drives the closing dwell. Read in an effect, never in render: the page
+   *  is prerendered and a render body must not touch matchMedia. */
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReducedMotion(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   useEffect(() => {
     const root = heroRef.current;
     if (!root) return;
@@ -208,15 +219,18 @@ export default function Mission() {
           {/* Belief, not capability. This page used to open by naming the
               category Ziiro belongs to, which is the same sentence /, /who-we-are
               and /products were each opening with. What only this page can say
-              is why the company exists and what it will not take money for. */}
+              is why the company exists and what it will not take money for.
+              
+              Two short statements, one idea each, down from 32 words to 18.
+              The headline is four words; supporting copy that ran three
+              clauses long was out-talking the thing it supports. */}
           <p
             data-hero-sub
             className="mt-8 max-w-xl leading-relaxed text-[var(--text-secondary)]"
             style={{ opacity: 0 }}
           >
-            The AI industry sells transformation and almost never goes back to
-            check whether it paid. We exist to run that check first, and to turn
-            the work down when the answer is no.
+            Most AI work is never checked against the numbers. We check
+            first, and say so when it doesn&apos;t pay.
           </p>
           <div
             data-hero-rule
@@ -390,16 +404,57 @@ export default function Mission() {
         </div>
       </section>
 
-      {/* ── Final CTA ── */}
+      {/* ── The close ──────────────────────────────────────────────────
+          This used to be a bordered, centred card dropped under the page: a
+          third piece of furniture that shared no language with the argument
+          above it, arriving with no warning and scrolled straight past into
+          the footer.
+
+          It is a conclusion now, in three beats. The page's last statement
+          hands off, a short quiet stretch lets it land, and then the ask.
+
+          THE DWELL IS LAYOUT, NOT SCROLL-JACKING, which this site forbids.
+          The section is simply taller than its content and the content is
+          sticky inside it, so the ask holds in view for about half a screen
+          of scrolling before the footer arrives. Nothing intercepts the
+          wheel, nothing is pinned by script, and the reader can keep
+          scrolling at any moment at their own speed. Under reduced motion the
+          extra height is dropped entirely and it becomes an ordinary section,
+          which is the required alternative.
+
+          It also sits clear of the Text Fill and the Grid Lift above: both
+          are scroll-driven inside the previous section and neither reads
+          anything this does. ── */}
       <section className="pb-24 md:pb-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <MotionReveal>
-            <div className="border-t border-[var(--border)] pt-20 text-center">
-              <p className="mb-8 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                ( Your biggest leak )
+          {/* The extra height belongs HERE, on the sticky element's own
+              containing block, and getting that wrong is worth a note.
+
+              It was on the <section> first. A sticky element's range is set by
+              its CONTAINING BLOCK, which is this inner column, and that column
+              was only as tall as its content, so the stick range was zero: the
+              ask scrolled away normally and the section's extra height became
+              half a screen of empty white before the footer. Which is the exact
+              gap this was meant to remove. Every measurement still passed, and
+              only the screenshot showed it. */}
+          <div style={{ minHeight: reducedMotion ? undefined : "150vh" }}>
+            <div className="sticky top-0 flex min-h-screen flex-col justify-center">
+            <MotionReveal>
+              {/* Beat one: the argument's last word, in the page's own voice
+                  rather than a label announcing a call to action. */}
+              <p className="max-w-2xl font-display text-xl font-semibold leading-relaxed text-[var(--text-primary)] md:text-2xl">
+                Every engagement starts the same way. We find what the work is
+                costing you before anyone builds anything.
               </p>
+
+              {/* Beat two: the anticipation. A rule that is the only thing
+                  between the statement and the ask, so the pause is
+                  structural and costs no extra words. */}
+              <div className="mt-14 h-px w-full bg-[var(--border)] md:mt-20" />
+
+              {/* Beat three: the ask. */}
               <h2
-                className="font-display font-semibold text-[var(--text-primary)]"
+                className="mt-14 max-w-3xl font-display font-semibold text-[var(--text-primary)] md:mt-20"
                 style={{
                   fontSize: "clamp(2.4rem, 5vw, 4.3rem)",
                   letterSpacing: "-0.03em",
@@ -408,7 +463,7 @@ export default function Mission() {
               >
                 <SplitHeadline lead="Let's find your" tail="biggest leak." />
               </h2>
-              <div className="mt-12">
+              <div className="mt-10">
                 {/* The site's house curve, applied inline because Tailwind's
                     `transition-opacity` ships its own timing function and,
                     being a class, outranks the zero-specificity :where() rule
@@ -421,11 +476,12 @@ export default function Mission() {
                     transitionTimingFunction: CSS_EASE.outExpo,
                   }}
                 >
-                  Book a consultation
+                  Book a call
                 </Link>
               </div>
+              </MotionReveal>
             </div>
-          </MotionReveal>
+          </div>
         </div>
       </section>
     </div>

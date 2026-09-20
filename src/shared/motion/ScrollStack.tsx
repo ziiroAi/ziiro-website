@@ -30,8 +30,27 @@ import { useEffect, useRef, type ReactNode } from "react";
 /** How far a card scales down once it is fully behind the next one. */
 const MIN_SCALE = 0.9;
 /** How far it fades. It never reaches zero: a card that vanished would read as
- *  content being removed rather than as depth. */
-const MIN_OPACITY = 0.35;
+ *  content being removed rather than as depth. 0.15 is a ghost, which is what
+ *  depth should look like; it was 0.35, which is still comfortably readable
+ *  body text and is why an outgoing card competed with the one arriving. */
+const MIN_OPACITY = 0.15;
+
+/**
+ * THE FADE FINISHES BEFORE THE INCOMING CARD DOES, and that is the whole point.
+ *
+ * The opacity used to be linear across the full travel, so at the midpoint of a
+ * transition the outgoing card was still at 0.675 while the incoming card was
+ * fully opaque and sliding over it. Two large blocks of text, both readable,
+ * competing. The last card in the stack looked better only because nothing
+ * follows it, so it never faded at all; it was the reference by accident.
+ *
+ * Completing the fade at 62 percent of the travel means the outgoing card has
+ * reached its floor before the arriving one takes the top of the screen, so
+ * there is no moment where both are legible. Depth keeps developing after that
+ * through scale and lift, which do run the full span: the card carries on
+ * receding, it just stops being something you could read.
+ */
+const FADE_COMPLETE_AT = 0.62;
 /** Vertical offset per card, so the stack reads as a deck with visible edges. */
 const STEP_PX = 18;
 
@@ -170,7 +189,10 @@ export default function ScrollStack({
           ? Math.max(0, Math.min(1, (viewport - next.getBoundingClientRect().top) / span))
           : 0;
         const scale = 1 - (1 - MIN_SCALE) * behind;
-        const opacity = 1 - (1 - MIN_OPACITY) * behind;
+        // Scale and lift track `behind` across the whole travel; opacity runs
+        // on its own shorter clock so readability resolves first.
+        const faded = Math.min(1, behind / FADE_COMPLETE_AT);
+        const opacity = 1 - (1 - MIN_OPACITY) * faded;
         const lift = -STEP_PX * behind;
         cards[i].style.transform = `translate3d(0, ${lift.toFixed(2)}px, 0) scale(${scale.toFixed(4)})`;
         cards[i].style.opacity = opacity.toFixed(3);

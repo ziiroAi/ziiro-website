@@ -463,7 +463,7 @@ export default function Docs() {
               <DocSection id="getting-started">
                 <ul className="space-y-3">
                   <li>
-                    <DocLink to="/book-a-call">Book a strategy session</DocLink>. Paid, billed hourly, with a{" "}
+                    <DocLink to="/book-a-call">Book a call</DocLink>. Paid, billed hourly, with a{" "}
                     {MIN_SESSION_MINUTES}-minute minimum.
                   </li>
                   <li>

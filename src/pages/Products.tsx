@@ -7,10 +7,8 @@ import ArrowFillLink from "@/shared/ui/arrow-fill-link";
 import { serviceCatalogSchema } from "@/shared/components/seo-schema";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import Beam from "@/shared/motion/Beam";
-import MagnetTabs from "@/shared/motion/MagnetTabs";
 import ScrollStack from "@/shared/motion/ScrollStack";
 import StatefulOrb, { type OrbState } from "@/shared/ui/StatefulOrb";
-import { scrollTo } from "@/shared/motion/SmoothScroll";
 import {
   CSS_EASE,
   DURATION,
@@ -204,8 +202,11 @@ function StageCard({
   return (
     <article
       id={`stage-panel-${id}`}
-      role="tabpanel"
-      aria-labelledby={`magnet-tab-${id}`}
+      // Was role="tabpanel" with aria-labelledby pointing at a magnet tab.
+      // The tabs are gone (review item 17), and a tabpanel with no tablist
+      // tells a screen reader it is inside a widget that does not exist.
+      data-stage-card
+      aria-labelledby={`stage-title-${id}`}
       className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-6 md:p-10"
     >
       <div className="flex items-start justify-between gap-6">
@@ -215,6 +216,7 @@ function StageCard({
           </span>
           <div>
             <h2
+              id={`stage-title-${id}`}
               className="font-display font-semibold text-[var(--text-primary)]"
               style={{
                 fontSize: "clamp(1.7rem, 3.4vw, 2.7rem)",
@@ -522,37 +524,89 @@ export default function Products() {
   //
   // THIS IS THE PAGE'S ONE "CURRENT STAGE". Three things read it and two write
   // it: the magnet tabs and the self-qualification list both set it, and the
-  // tabs, the beam and the list all render from it. There is deliberately no
-  // second selection anywhere on this page, because two of them drift and the
-  // page ends up beaming Diagnose while telling the reader to start at Build.
-  //
-  // Scroll does NOT write it. The scroll stack is presentation only, so there
-  // is no loop where a tab scrolls the page and the page then reselects a tab.
-  const [openEntry, setOpenEntry] = useState(0);
   /** Which stage card has its detail open. Null is all closed, which is the
    *  resting state: the point of the card is that the detail is optional. */
   const [openDetail, setOpenDetail] = useState<number | null>(null);
 
-  // The two lists are in the same order today. Going through the stage NAME
-  // rather than the index means nothing breaks the day one of them is
-  // reordered, which an index would do silently.
-  const activeStage = Math.max(
-    0,
-    stages.findIndex((s) => s.name === entryPoints[openEntry].stage),
-  );
-  const selectStage = (i: number) => {
-    const entry = entryPoints.findIndex((e) => e.stage === stages[i].name);
-    if (entry >= 0) setOpenEntry(entry);
-    // Bring the card into view, because a selection you cannot see is not
-    // feedback. Through Lenis rather than the DOM, since Lenis owns the
-    // scroller and a raw scrollIntoView fights it.
-    const card = document.getElementById(`stage-panel-${stageId(stages[i].name)}`);
-    if (!card) return;
-    const top = card.getBoundingClientRect().top + window.scrollY - 140;
-    scrollTo(Math.max(0, top), {
-      immediate: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    });
-  };
+  /**
+   * ── WHERE THE SELECTION COMES FROM NOW (review item 17) ──
+   *
+   * There used to be a Diagnose / Build / Optimize segmented control above the
+   * stack. It looked like a tab interface and was not one: every tab scrolled
+   * the page to a section that was already on its way past. The review's test
+   * is whether a control offers a capability not already available immediately
+   * adjacent, and scrolling on a scroll-led page is not one, so it is gone
+   * rather than rebuilt as a sticky navigator. A persistent navigator would be
+   * MORE chrome on a page whose argument is that the three stages are one
+   * progression you read through.
+   *
+   * Removing it would have stranded two things that read the selection: the
+   * Beam that marks the current card, and the orb that reports what the stage
+   * does. So the selection is now derived from the page itself: whichever card
+   * is resting under the header is the active stage. Both indicators survive
+   * and both got more honest in the process, because they now report where the
+   * reader actually IS rather than what they last clicked.
+   *
+   * The old note here said scroll must not write this, because a tab that
+   * scrolled the page and a page that reselected the tab would have been a
+   * loop. With the tabs gone there is no loop left to avoid.
+   */
+  const [activeStage, setActiveStage] = useState(0);
+  const stackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const root = stackRef.current;
+    if (!root) return;
+    const cards = [...root.querySelectorAll<HTMLElement>("[data-stage-card]")];
+    if (!cards.length) return;
+
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      // WHY NOT "the last card whose top passed a line": in a sticky stack every
+      // card that has arrived is pinned at the same top, so that test is true
+      // for all of them at once and always answers "the last one". The page
+      // reported Optimize while the reader was still on Build.
+      //
+      // The card on top of the deck is the one the NEXT card has not yet
+      // covered, which is the same quantity ScrollStack uses to decide how far
+      // a card has receded. Mirrored here rather than exported, because the two
+      // are measuring the same geometry for different reasons and coupling them
+      // would make one of them hard to tune.
+      const span = Math.max(1, window.innerHeight - 116);
+      let current = cards.length - 1;
+      for (let i = 0; i < cards.length; i += 1) {
+        const next = cards[i + 1];
+        const behind = next
+          ? Math.max(0, Math.min(1, (window.innerHeight - next.getBoundingClientRect().top) / span))
+          : 0;
+        // Half covered is where the incoming card takes over as the one being
+        // read, and it is also where its opacity has overtaken the outgoing.
+        if (behind < 0.5) {
+          current = i;
+          break;
+        }
+      }
+      setActiveStage(current);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(measure);
+    };
+
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  /** Which self-qualifying statement is open. Independent of the stage the
+   *  reader is scrolled to: it used to drive that too, so opening a row at the
+   *  bottom of the page silently re-beamed a card at the top. */
+  const [openEntry, setOpenEntry] = useState(0);
 
   useEffect(() => {
     const m = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -749,37 +803,38 @@ export default function Products() {
       {/* ---- The catalogue: three stages as one progression ---- */}
       <section className="pb-24">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
-          {/* The tabs write the SAME state the beam and the self-qualification
-              list read. `openEntry` indexes entryPoints, so the mapping below
-              goes through the stage NAME rather than the array position: the
-              two lists happen to be in the same order today and nothing should
-              depend on that staying true. */}
           {/* ── The orb, in FUNCTIONAL mode ──
-              One orb for the whole selection, sitting at the control that
-              changes it, rather than one per card. Three orbs visible at once
-              would be decoration; this one is the selected stage reporting
-              what it does.
+              One orb for the whole progression rather than one per card. Three
+              orbs visible at once would be decoration; this one reports what
+              the stage currently under the header does.
+
+              ITEM 16, THE BOUNCING. The orb sat in an auto-width column beside
+              its copy, and the column's width was set by the state WORD below
+              it. SEARCHING, CONNECTING, REASONING and COMPLETE are all
+              different lengths, so every state change resized the column and
+              shoved the orb and the paragraph sideways. The page looked like it
+              was bouncing because it was. A fixed column width holds the layout
+              still while the orb keeps breathing and morphing inside it, which
+              is the part that was always meant to move. The width is sized for
+              CONNECTING, the longest of the seven words.
 
               The line underneath is not hedging, it is the honest part. The
-              site has refused to fabricate results everywhere else, and an
-              orb that reads WORKING next to three service cards would imply a
+              site has refused to fabricate results everywhere else, and an orb
+              that reads WORKING next to three service cards would imply a
               machine running on this page. It is not. The states describe the
               stage. */}
           <MotionReveal>
-            {/* max-w so the orb and its sentence read as one object instead of
-                a small mark stranded at the left of a 1400px band, and a real
-                gap below it so the state word is not mistaken for a label on
-                the tab row that follows. */}
             <div
               ref={orbBlock}
-              className="mb-14 flex max-w-2xl flex-col items-center gap-6 border-t border-[var(--border)] pt-8 text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left"
+              className="mb-14 flex max-w-2xl flex-col items-center gap-6 border-t border-[var(--border)] pt-8 text-center sm:flex-row sm:items-start sm:gap-8 sm:text-left"
             >
-              <StatefulOrb
-                state={orbState}
-                size="md"
-                mode="functional"
-                className="shrink-0"
-              />
+              <div className="flex w-32 shrink-0 justify-center">
+                <StatefulOrb
+                  state={orbState}
+                  size="md"
+                  mode="functional"
+                />
+              </div>
               <div className="max-w-md">
                 <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
                   [ Stage behaviour ]
@@ -795,16 +850,10 @@ export default function Products() {
             </div>
           </MotionReveal>
 
-          <MotionReveal>
-            <MagnetTabs
-              aria-label="Engagement stages"
-              tabs={stages.map((s) => ({ id: stageId(s.name), label: s.name }))}
-              value={activeStage}
-              onChange={selectStage}
-              panelId={(i) => `stage-panel-${stageId(stages[i].name)}`}
-            />
-          </MotionReveal>
-
+          {/* The ref lives on a wrapper rather than on ScrollStack, which does
+              not forward one. Changing a shared component's API for one page's
+              measurement would be the wrong trade. */}
+          <div ref={stackRef}>
           <ScrollStack className="mt-12" topOffset={116}>
             {stages.map((stage, i) => (
               <Beam
@@ -826,6 +875,7 @@ export default function Products() {
               </Beam>
             ))}
           </ScrollStack>
+          </div>
         </div>
       </section>
       {/* ---- The order that works ---- */}
@@ -875,7 +925,12 @@ export default function Products() {
                   <div className="border-t border-[var(--border)] last:border-b last:border-[var(--border)]">
                     <button
                       type="button"
-                      onMouseEnter={() => setOpenEntry(i)}
+                      // No onMouseEnter. Opening on hover meant the panel
+                      // grew and its neighbour collapsed as the pointer merely
+                      // crossed a row, so the page moved under a reader who had
+                      // not asked for anything. That is the layout shift item 19
+                      // reports, and it is worse than the click-induced kind
+                      // item 20 bans because it needs no click at all.
                       onFocus={() => setOpenEntry(i)}
                       onClick={() => setOpenEntry(i)}
                       aria-expanded={isOpen}
@@ -909,9 +964,20 @@ export default function Products() {
                     >
                       <div className="overflow-hidden">
                         <div className="pb-7 pl-9">
-                          <p className="font-mono text-sm font-bold uppercase tracking-[0.25em] text-[var(--text-primary)]">
-                            <span aria-hidden="true">{"\u2192"} </span>
-                            Start at {e.stage}
+                          {/* ITEM 19. This read "-> START AT DIAGNOSE" in bold
+                              tracked mono at full ink with the site's action
+                              arrow in front of it, which is the exact costume
+                              the real calls to action wear. It is not one. It
+                              is the answer to the sentence above it, and
+                              clicking it does nothing, so it is now set as a
+                              label: a quiet mono caption and the stage name in
+                              display type. Nothing here is styled as a control
+                              unless it is one. */}
+                          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
+                            [ Where you would start ]
+                          </p>
+                          <p className="mt-2 font-display text-lg font-medium text-[var(--text-primary)]">
+                            {e.stage}
                           </p>
                           <p className="mt-3 max-w-[46ch] text-sm leading-relaxed text-[var(--text-secondary)]">
                             {e.line}

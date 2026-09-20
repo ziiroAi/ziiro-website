@@ -32,6 +32,15 @@ import {
 
 export interface CoreOrbHandle {
   /**
+   * Hold the ring at its sustained hover level, or let it fall back to rest.
+   *
+   * The ring used to respond to clicks only, so the orb sat inert under a
+   * pointer that was already on it. This is the main effect now: it comes up
+   * on hover, subtly, and a click adds a little on top of it rather than being
+   * the only way in.
+   */
+  setHover(on: boolean): void;
+  /**
    * Inject an activation impulse. `client` is a viewport-space point (a real
    * click or tap); omit it for keyboard activation. The ring's ripple is
    * radially symmetric, so the point is used for the recoil direction rather
@@ -71,7 +80,16 @@ const TUNING = {
   /** Energy added per activation, and its decay constant in seconds.
    *  0.62s puts the ripple at ~2% of peak by 2.4s — a smooth settle with no
    *  reset, which is what the brief asks for. */
-  energyPerHit: 0.9,
+  /** Sustained while the pointer is on the orb. Deliberately low: this is a
+   *  continuous state a reader can sit in and study, so it has to read as the
+   *  object being alive rather than as an event. */
+  hoverLevel: 0.26,
+  /** Added by a click, on top of whatever is already there. */
+  energyPerHit: 0.24,
+  /** And the ceiling a click can reach. The brief is explicit that a click may
+   *  push slightly beyond the hover state but must never jump to the maximum,
+   *  so this sits just above `hoverLevel` and nowhere near 1. */
+  clickCeiling: 0.52,
   energyDecay: 0.52,
   /** How fast the shader's ripple follows the energy. The reference eases its
    *  hover with a ~158ms time constant; matching it keeps the build-in around
@@ -107,13 +125,17 @@ const CoreOrb = forwardRef<CoreOrbHandle, CoreOrbProps>(function CoreOrb(
   ref,
 ) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const hoverRef = useRef<((on: boolean) => void) | null>(null);
   const activateRef = useRef<
     ((client?: { x: number; y: number }) => void) | null
   >(null);
 
   useImperativeHandle(
     ref,
-    () => ({ activate: (client) => activateRef.current?.(client) }),
+    () => ({
+      activate: (client) => activateRef.current?.(client),
+      setHover: (on) => hoverRef.current?.(on),
+    }),
     [],
   );
 
@@ -227,13 +249,17 @@ const CoreOrb = forwardRef<CoreOrbHandle, CoreOrbProps>(function CoreOrb(
     // ── Activation ────────────────────────────────────────────────────────
     let energy = 0;
     let hover = 0;
+    /** Pointer is on the orb. Holds the energy floor above. */
+    let hoverHeld = false;
     let rotation = 0;
     const recoil = { x: 0, y: 0, vx: 0, vy: 0 };
 
     const activate = (client?: { x: number; y: number }) => {
-      // Diminishing returns while the ring is already hot: a rapid tapper adds
-      // motion but can never drive it anywhere near instability.
-      energy = Math.min(1, energy + TUNING.energyPerHit * (1 - 0.45 * energy));
+      // Bounded by clickCeiling rather than by 1. A rapid tapper adds motion
+      // and can never drive the ring past a little beyond its hover state,
+      // which is the whole point of the retune: the click is a nudge on top of
+      // an effect that is already running, not the only way to see anything.
+      energy = Math.min(TUNING.clickCeiling, energy + TUNING.energyPerHit);
 
       if (!reducedMotion && client) {
         // The shove is away from the point of contact. The ripple stays the
@@ -250,6 +276,16 @@ const CoreOrb = forwardRef<CoreOrbHandle, CoreOrbProps>(function CoreOrb(
       if (!running) start();
     };
     activateRef.current = activate;
+    hoverRef.current = (on: boolean) => {
+      hoverHeld = on;
+      // Coming on: seed the ring so it eases up from rest immediately rather
+      // than waiting for the next frame's floor to catch it. Going off: leave
+      // the energy where it is and let the existing decay carry it down, so
+      // the exit is the same curve as any other settle.
+      if (on && !reducedMotion) energy = Math.max(energy, TUNING.hoverLevel);
+      if (on && !running) start();
+      sync();
+    };
 
     // ── Scroll handoff ────────────────────────────────────────────────────
     // Computed in the scroll handler, not the frame loop: getBoundingClientRect
@@ -292,6 +328,10 @@ const CoreOrb = forwardRef<CoreOrbHandle, CoreOrbProps>(function CoreOrb(
       // Energy decays; the shader's ripple eases toward it rather than
       // tracking it exactly, which is what gives the 120-200ms build-in.
       energy *= Math.exp(-dt / TUNING.energyDecay);
+      // The pointer holds a floor under the decay, so hovering sustains the
+      // ring and a click decays back down to the hover level rather than to
+      // nothing while the pointer is still on the orb.
+      if (hoverHeld && !reducedMotion) energy = Math.max(energy, TUNING.hoverLevel);
       if (energy < 0.001) energy = 0;
       hover += (energy - hover) * (1 - Math.exp(-TUNING.energyFollow * dt));
       if (hover < 0.0005 && energy === 0) hover = 0;
@@ -395,6 +435,7 @@ const CoreOrb = forwardRef<CoreOrbHandle, CoreOrbProps>(function CoreOrb(
     return () => {
       stop();
       activateRef.current = null;
+      hoverRef.current = null;
       io.disconnect();
       ro.disconnect();
       window.removeEventListener("scroll", onScroll);

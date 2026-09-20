@@ -102,7 +102,7 @@ export default function HeroActions() {
           ["--tw-ring-color" as string]: "var(--text-primary)",
         }}
       >
-        Book a strategy session
+        Book a call
         <Arrow
           className="group-hover:translate-x-[var(--nudge)] group-focus-visible:translate-x-[var(--nudge)]"
           style={nudge}

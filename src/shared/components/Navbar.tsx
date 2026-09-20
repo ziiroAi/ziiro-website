@@ -7,10 +7,27 @@ import { scrollTo } from "@/shared/motion/SmoothScroll";
 /**
  * Site navigation, built to the measured reference.
  *
- * The bar is fixed and completely transparent at every scroll depth: no
- * backdrop, no blur, no border, no shadow. That transparency is the whole
- * reason it reads as part of the page rather than as a strip stuck to the top,
- * so nothing here should ever start painting a background again.
+ * The bar is fixed and fully transparent AT THE TOP of a page, which is what
+ * makes it read as part of the page rather than as a strip stuck over it. It
+ * is not transparent all the way down: as the reader scrolls, a restrained
+ * glass surface fades in behind it, because once real content is moving under
+ * the bar the links have to stay readable against it.
+ *
+ * THIS NOTE USED TO SAY THE OPPOSITE, and the history is worth keeping. The
+ * human asked for "no blur animation overall", it was read as "remove the
+ * blur", and the blur was deleted. They had actually meant they could not SEE
+ * it, and the reason was a build defect: Vite's CSS minifier was collapsing
+ * the standard and prefixed properties, so production shipped only one of them
+ * and the effect was dead on the live site while working in dev. That is fixed
+ * now, and the built CSS carries both `-webkit-backdrop-filter` and
+ * `backdrop-filter`. Anything added here that uses backdrop-filter must be
+ * verified against the BUILT output, not the dev server, because that is
+ * exactly how this shipped broken the first time.
+ *
+ * The surface is three restrained parts and no more: a 20px blur, a thin wash
+ * of the page's own ground so contrast actually drops behind the links, and a
+ * hairline on the bar's bottom edge. It is not a glass card and must not
+ * become one. All three fade in together on the same scroll progress.
  *
  * The logo pill and the three links are there from the first paint. The call to
  * action is the only thing that arrives later, rising in continuously as the
@@ -251,6 +268,17 @@ export default function Navbar() {
           and the top of the page is exactly where the homepage is busiest. */}
       <div
         className="site-nav-backdrop"
+        aria-hidden="true"
+        style={{
+          opacity: backdropProgress,
+          visibility: backdropProgress < 0.02 ? "hidden" : "visible",
+        }}
+      />
+      {/* The hairline, on the same scroll progress as the surface behind it.
+          Separate from the band above because that band is masked to fade
+          downward, and a border on it would fade out before it ever drew. */}
+      <div
+        className="site-nav-edge"
         aria-hidden="true"
         style={{
           opacity: backdropProgress,

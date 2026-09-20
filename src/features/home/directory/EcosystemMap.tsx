@@ -128,6 +128,17 @@ function useUnitsPerPixel(ref: RefObject<HTMLElement>) {
   return { unitsPerPx: VIEW / width, width };
 }
 
+/** How far back the map starts, in px of Z. Far enough to read as coming
+ *  forward, close enough that the foreshortening never looks like a zoom.
+ *  Paired with MAP_PERSPECTIVE_PX on the wrapper: changing one without the
+ *  other changes how strong the effect is. */
+const MAP_DEPTH_PX = -240;
+
+/** The viewing distance the depth is measured against. Long rather than short,
+ *  because a short perspective exaggerates the foreshortening into a swoop and
+ *  the brief asks for restraint. */
+const MAP_PERSPECTIVE_PX = 1400;
+
 export default function EcosystemMap({
   pipelines,
   selectedId = ALL,
@@ -200,36 +211,59 @@ export default function EcosystemMap({
         observer.disconnect();
 
         const q = (sel: string) => svg.querySelectorAll<SVGElement>(sel);
+
+        /* ── ITEM 5: THE MAP NOW ARRIVES THROUGH DEPTH ──────────────────────
+           It used to "slide in from the left or top-left", and that was never
+           written as a slide. Every node was revealed with `scale: [0.6, 1]`,
+           and an SVG element's transform-origin defaults to the VIEWBOX origin
+           rather than the element's own centre: computed
+           `transform-box: view-box; transform-origin: 0px 0px`. Measured, a
+           node at 0.6 sat 136px left and 96px above its resting place, so
+           scaling up read as travelling down and right into position. The
+           diagonal drift was a side effect of the origin, not a decision.
+
+           So the scales are gone, and with them the drift. The whole map now
+           comes forward: perspective on the wrapper, the svg translating from
+           negative Z to zero, which foreshortening renders as the object
+           emerging toward the viewer rather than arriving from one side. The
+           nodes inside simply fade, staggered, because a second moving part
+           would be two animations explaining the same arrival.
+
+           NO ROTATION, deliberately. Depth alone is the brief.
+
+           Still one shot: the observer disconnects on first intersection and
+           the timeline is cancelled on cleanup, so nothing here is per-frame
+           work and nothing survives the section leaving the screen. */
         tl = createTimeline({ defaults: { ease: "out(3)" } });
-        tl.add(q("[data-map-centre]"), {
+        tl.add(svg, {
           opacity: [0, 1],
-          scale: [0.6, 1],
-          duration: 900,
+          translateZ: [MAP_DEPTH_PX, 0],
+          duration: 1100,
         })
           .add(
+            q("[data-map-centre]"),
+            { opacity: [0, 1], duration: 700 },
+            "-=820",
+          )
+          .add(
             q("[data-map-bundle]"),
-            { opacity: [0, 1], scale: [0.8, 1], duration: 1400 },
-            "-=560",
+            { opacity: [0, 1], duration: 900 },
+            "-=640",
           )
           .add(
             q("[data-map-tree]"),
-            { opacity: [0, 1], duration: 1100, delay: stagger(80) },
-            "-=1000",
+            { opacity: [0, 1], duration: 900, delay: stagger(80) },
+            "-=760",
           )
           .add(
             q("[data-map-system]"),
-            {
-              opacity: [0, 1],
-              scale: [0.6, 1],
-              duration: 700,
-              delay: stagger(70),
-            },
-            "-=1000",
+            { opacity: [0, 1], duration: 700, delay: stagger(70) },
+            "-=760",
           )
           .add(
             q("[data-map-label]"),
             { opacity: [0, 1], duration: 600, delay: stagger(60) },
-            "-=520",
+            "-=420",
           );
       },
       { rootMargin: "-12% 0px" },
@@ -259,11 +293,21 @@ export default function EcosystemMap({
   };
 
   return (
-    <div ref={wrapRef} className="relative w-full">
+    // The perspective lives here rather than on the svg, because an element
+    // cannot foreshorten its own Z: the parent supplies the viewing distance.
+    <div
+      ref={wrapRef}
+      className="relative w-full"
+      style={{ perspective: `${MAP_PERSPECTIVE_PX}px` }}
+    >
       <svg
         ref={svgRef}
         viewBox={`0 0 ${VIEW} ${VIEW}`}
         className="h-auto w-full overflow-visible"
+        // Stated, not inherited. An SVG defaults to transform-box: view-box
+        // with the origin at 0 0, which is what turned a scale into a slide
+        // from the top left; the map now comes forward about its own centre.
+        style={{ transformBox: "border-box", transformOrigin: "center" }}
         role="group"
         aria-label={`Ziiro system map. ${pipelines.length} systems around a shared core. Select a system, or the core for all of them.`}
       >
@@ -689,7 +733,14 @@ export default function EcosystemMap({
                     x={clampLabel(system.label.x, pipeline.shortName, nameSize)}
                     y={system.label.y}
                     textAnchor="middle"
-                    className="font-serif"
+                    // font-display, not font-serif. These labels were set in
+                    // Instrument Serif, the only live use of a face this site
+                    // does not otherwise have: a decorative serif inside a
+                    // Helvetica and Space Mono system, used to make one
+                    // section feel different. Hierarchy here comes from size,
+                    // fill weight and the halo stroke, all of which are still
+                    // doing their job.
+                    className="font-display"
                     fontSize={nameSize}
                     letterSpacing={u(2.4)}
                     fill={open ? INK : isAll ? DIM : FAINT}

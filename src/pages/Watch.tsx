@@ -114,7 +114,7 @@ export default function Watch() {
                   to="/book-a-call"
                   className="inline-flex items-center justify-center rounded-full bg-[var(--text-primary)] px-8 py-4 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-90"
                 >
-                  Book a strategy session
+                  Book a call
                 </Link>
                 <ArrowFillLink to="/docs">Prefer reading? Explore Docs</ArrowFillLink>
               </div>

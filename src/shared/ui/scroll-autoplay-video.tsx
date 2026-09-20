@@ -81,8 +81,43 @@ const hit =
 
 /** The visible control. Hover and focus are driven from the button around it,
  *  so the ring lands tight on the pill rather than on the invisible box. */
+/* color-mix, NOT `bg-[var(--background)]/80`. Tailwind cannot apply an alpha
+   modifier to a var() colour and silently emits no rule at all, which is the
+   house rule about this: verified against the built CSS, where the old class
+   produced zero declarations, so this pill had no ground under its label at
+   all while sitting on top of a moving film. */
 const pill =
-  "rounded-full border border-[var(--border)] bg-[var(--background)]/80 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-primary)] backdrop-blur-sm group-hover:bg-[var(--background)] group-focus-visible:bg-[var(--background)] group-focus-visible:ring-1 group-focus-visible:ring-[var(--text-primary)]";
+  "rounded-full border border-[var(--border)] bg-[color-mix(in_srgb,var(--background)_80%,transparent)] px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--text-primary)] backdrop-blur-sm group-hover:bg-[var(--background)] group-focus-visible:bg-[var(--background)] group-focus-visible:ring-1 group-focus-visible:ring-[var(--text-primary)]";
+
+/**
+ * A label that never changes its control's width.
+ *
+ * Both controls below swap their text: Play / Pause / Replay, and Sound on /
+ * Sound off. A shorter word made the pill narrower, so the button moved under
+ * the pointer at the exact moment it was pressed. Measured at 8.1px on the
+ * sound toggle, which is small and is still the page twitching while someone
+ * is using it.
+ *
+ * Every option is rendered into the SAME grid cell, so the cell is as wide as
+ * the widest of them and the width is fixed for the control's whole life. Only
+ * the current one is visible. The buttons carry their own aria-label, so this
+ * text is not the accessible name and hiding the others costs nothing.
+ */
+function StableLabel({ options, current }: { options: string[]; current: string }) {
+  return (
+    <span className="grid place-items-center">
+      {options.map((o) => (
+        <span
+          key={o}
+          aria-hidden={o !== current}
+          className={`col-start-1 row-start-1 ${o === current ? "" : "invisible"}`}
+        >
+          {o}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const micro = {
   transitionProperty: "opacity, background-color, transform",
@@ -335,7 +370,10 @@ export default function ScrollAutoplayVideo({
           aria-label={playing ? `Pause: ${title}` : `Play: ${title}`}
         >
           <span className={pill} style={micro}>
-            {playing ? "Pause" : ended ? "Replay" : "Play"}
+            <StableLabel
+              options={["Play", "Pause", "Replay"]}
+              current={playing ? "Pause" : ended ? "Replay" : "Play"}
+            />
           </span>
         </button>
         <button
@@ -346,7 +384,10 @@ export default function ScrollAutoplayVideo({
           aria-pressed={!muted}
         >
           <span className={pill} style={micro}>
-            {muted ? "Sound on" : "Sound off"}
+            <StableLabel
+              options={["Sound on", "Sound off"]}
+              current={muted ? "Sound on" : "Sound off"}
+            />
           </span>
         </button>
       </div>

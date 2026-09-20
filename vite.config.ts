@@ -45,11 +45,22 @@ export default defineConfig({
         // rule in vercel.json. The entry chunk drops 544 kB -> 320 kB; total
         // JS rises ~12 kB from the extra chunk boundaries, which is the trade.
         //
-        // What this does NOT do is take WebGL off the critical path. ogl is
-        // still modulepreloaded on the homepage because the hero imports it
-        // statically (IntelligenceOrb.tsx -> CoreOrb -> ogl). Only a lazy()
-        // there can defer it; the chunk boundary is already in place for when
-        // that happens.
+        // WebGL is now genuinely off the critical path, which it was not when
+        // the note above was written. Two things had to change beyond this
+        // config, because a chunk boundary only decides where code LANDS, not
+        // who asks for it: IntelligenceOrb lazy()s CoreOrb, and App lazy()s
+        // the homepage itself. While `/` was imported eagerly in App.tsx, the
+        // homepage and everything it reaches was linked into the shared entry
+        // chunk, so /pricing and /docs downloaded and executed the hero, the
+        // system directory and framer-motion to render a page of text. Now no
+        // route preloads anything but the runtime, react-dom and lenis, and
+        // ogl is requested only by `/`.
+        //
+        // NAMING CAVEAT: the "toast" group is ~167 kB and is mostly react-dom,
+        // not sonner. react-dom is reachable from sonner and got assigned to
+        // the first group that claimed it. That is not a leak, react-dom is
+        // needed on every route regardless, but do not read the size of this
+        // chunk as the cost of the toaster.
         codeSplitting: {
           groups: [
             { name: "webgl", test: /node_modules[\\/]ogl[\\/]/ },

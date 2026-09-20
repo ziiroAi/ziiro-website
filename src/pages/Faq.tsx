@@ -271,7 +271,7 @@ export default function Faq() {
                 . Anything else is a better conversation than a paragraph.
               </p>
               <div className="mt-10">
-                <ArrowFillLink to="/book-a-call">Book a strategy session</ArrowFillLink>
+                <ArrowFillLink to="/book-a-call">Book a call</ArrowFillLink>
               </div>
             </div>
           </MotionReveal>

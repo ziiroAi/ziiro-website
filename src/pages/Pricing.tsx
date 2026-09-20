@@ -10,20 +10,27 @@ import {
   serviceCatalogSchema,
 } from "@/shared/components/seo-schema";
 import { PRICING_PAGE_FAQS as faqs } from "@/features/faq/entities/questions";
-import { MARKETS, MIN_SESSION_MINUTES } from "@/features/pricing/entities/rates";
+import {
+  MINIMUM_ENGAGEMENT,
+  MINIMUM_LABEL,
+  PUBLISHED_RATE,
+} from "@/features/pricing/entities/rates";
 
 /**
- * The consultation rate, built from the pricing entity rather than typed here,
- * so this page cannot drift from Contact or from rates.ts.
+ * The consultation rate and the session minimum, both imported rather than
+ * derived here, so this page cannot drift from /book-a-call or from rates.ts.
  *
  * Both currencies are shown side by side. The rates are set per market and are
  * deliberately NOT conversions of each other, so there is no single number to
  * print; showing both is also the one presentation that needs no region
  * detection, which is the thing Contact just removed from view. A visitor reads
  * their own currency without the page telling them where they are.
+ *
+ * These were local constants built from the same expression /book-a-call used
+ * under a different name. They now come from the entity, which is the only
+ * place a rate or a minimum is allowed to be decided.
  */
-const HOURLY = `${MARKETS.GLOBAL.display} / ${MARKETS.IN.display}`;
-const MIN_HOURS = MIN_SESSION_MINUTES / 60;
+const HOURLY = PUBLISHED_RATE;
 
 /** The four questions this page exists to answer, in the order a buyer asks
  *  them: what the first conversation costs, how a project is priced, what
@@ -36,7 +43,7 @@ const MIN_HOURS = MIN_SESSION_MINUTES / 60;
 const howItRuns = [
   {
     step: "Consultation",
-    line: `${HOURLY} an hour, ${MIN_HOURS} hour minimum. We work out what is worth pursuing, and you leave with a direction either way.`,
+    line: `${HOURLY} an hour, ${MINIMUM_LABEL}. We work out what is worth pursuing, and you leave with a direction either way.`,
   },
   {
     step: "Scope",
@@ -287,7 +294,7 @@ export default function Pricing() {
             style={{ opacity: 0 }}
             className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]"
           >
-            {HOURLY} an hour for the consultation, {MIN_HOURS} hour minimum.
+            {HOURLY} an hour for the consultation, {MINIMUM_LABEL}.
             Project work is quoted after it, one stage at a time. There is no
             price list, because there is no standard project.
           </p>
@@ -301,7 +308,12 @@ export default function Pricing() {
               [ 03 Stages ]
             </p>
             <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-              [ 01 Hour minimum ]
+              {/* Zero-padded to match "[ 03 Stages ]" beside it, but the
+                  number and the unit are derived: this line used to say
+                  "01 Hour minimum" as a literal and would have kept saying it
+                  after the minimum changed. */}
+              [ {String(MINIMUM_ENGAGEMENT.amount).padStart(2, "0")}{" "}
+              {MINIMUM_ENGAGEMENT.unit} minimum ]
             </p>
           </div>
         </div>
@@ -521,14 +533,14 @@ export default function Pricing() {
                   to="/book-a-call"
                   className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-transform duration-150 ease-out hover:-translate-y-1"
                 >
-                  Book a consultation
+                  Book a call
                 </Link>
               </div>
             </MotionRevealItem>
 
             <MotionRevealItem>
               <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                [ Paid / one hour minimum ]
+                [ Paid / {MINIMUM_LABEL} ]
               </p>
             </MotionRevealItem>
           </MotionReveal>
