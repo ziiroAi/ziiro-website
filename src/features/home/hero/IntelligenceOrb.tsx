@@ -186,6 +186,23 @@ export default function IntelligenceOrb() {
       // leave fires, it grows back, enter fires, and it flickers. This box never
       // transforms. Focus events bubble in React, so both buttons inside are
       // covered by the same pair and a keyboard reader gets what hover gets.
+      //
+      // Binding here is necessary but NOT sufficient, and this is the subtle
+      // part: pointerenter/pointerleave on a box are satisfied by the pointer
+      // being over ANY DESCENDANT of it, not just over the box itself. The
+      // decorative layers below are drawn at -inset-22% and -inset-26%, so they
+      // hang ~22% of the orb's width outside this box — and they sit inside
+      // [data-orb-turn], which is the thing that scales. So a pointer resting
+      // on the outer edge of the glow was still "inside" this box, engaging it,
+      // which shrank the glow out from under the pointer, which fired leave,
+      // which grew it back. The exact loop the paragraph above is about, one
+      // element further out. Measured at 20-26 enter/leave pairs per second
+      // from a stationary pointer, in a ~19px band at the edge of the halo.
+      //
+      // The fix is that every layer reaching outside this box is
+      // pointer-events-none, so the hit region is this box and nothing wider.
+      // If you add another layer out there, it needs the same, or the flicker
+      // comes straight back.
       onPointerEnter={engage}
       onPointerLeave={release}
       onPointerCancel={release}
@@ -225,7 +242,9 @@ export default function IntelligenceOrb() {
         data-hero-reveal
         data-hero-glow
         aria-hidden="true"
-        className="hero-glow-pulse absolute -inset-[22%] rounded-full"
+        // pointer-events-none because this reaches outside [data-orb-scope],
+        // which owns the hover gesture. See the note on that element.
+        className="hero-glow-pulse pointer-events-none absolute -inset-[22%] rounded-full"
         style={{
           background:
             "radial-gradient(circle closest-side at 50% 64%, rgba(10,10,10,0.05) 0%, rgba(10,10,10,0.03) 30%, rgba(10,10,10,0.012) 52%, transparent 78%)",
@@ -272,7 +291,11 @@ export default function IntelligenceOrb() {
         data-hero-reveal
         data-hero-orb
         aria-hidden="true"
-        className="absolute -inset-[22%]"
+        // pointer-events-none for the same reason as the bloom above: this box
+        // reaches outside [data-orb-scope] and scales with the hover, so left
+        // hit-testable it makes the gesture fight itself. Inherited by both
+        // morph blobs inside it.
+        className="pointer-events-none absolute -inset-[22%]"
       >
         <div
           className="hero-morph absolute inset-[15.28%]"

@@ -17,8 +17,11 @@
      Every text pairing on that ground clears WCAG AA:
        --text-primary   #0A0A0A  19.80:1   body and headlines
        --text-secondary #6B6B6B   5.33:1   support copy, secondary labels
-       --text-muted     #9A9A9A   2.81:1   hairlines and micro-labels ONLY,
-                                           never body copy
+       --text-muted     #767676   4.54:1   micro-labels, meta, hairline text.
+                                           Was #9A9A9A at 2.81:1, which failed
+                                           AA outright while this very comment
+                                           restricted it to "micro-labels",
+                                           and 47 of its 48 uses are text.
      ═══════════════════════════════════════════════════════════════════════ */
   :root,
   .dark {
@@ -28,7 +31,7 @@
 
     --text-primary: #0A0A0A;
     --text-secondary: #6B6B6B;
-    --text-muted: #9A9A9A;
+    --text-muted: #767676;
 
     /* The duotone is gone. The site is black ink on white paper and nothing
        carries a hue.
@@ -75,30 +78,34 @@
        light rather than as a stain. */
     --page-atmosphere: 0;
 
-    /* shadcn compatibility */
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 4%;
+    /* ── Toast and tooltip tokens ─────────────────────────────────────────
+       These are the only survivors of the shadcn scaffold, and they are NOT
+       dead. Nothing reads them through var(), so a grep for `var(--popover)`
+       returns nothing and they look deletable. They are consumed through
+       TAILWIND CLASS NAMES instead: tailwind.config.ts maps each one to a
+       colour (`popover: hsl(var(--popover))`), and src/shared/ui/tooltip.tsx,
+       toast.tsx and sonner.tsx use `bg-popover`, `text-muted-foreground`,
+       `bg-primary`, `bg-destructive`, `hover:bg-secondary` and `focus:ring-ring`.
+       Delete one of these and nothing fails to build: the toast or tooltip
+       just renders an invisible or wrongly coloured box.
+
+       So check BOTH routes before removing any of them, the var() route and
+       the Tailwind class route. Everything here is currently referenced by one
+       of those three components; --card, --secondary-foreground, --input and
+       the whole --sidebar-* set were referenced by neither and are gone.
+
+       Deliberately HSL triplets rather than hex, because `hsl(var(--x))` in
+       the Tailwind config only parses if the variable is bare channel values. */
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 4%;
     --primary: 0 0% 4%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 4%;
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 42%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --input: 0 0% 4% / 0.10;
     --ring: 0 0% 4%;
-
-    --sidebar-background: #FFFFFF;
-    --sidebar-foreground: #0A0A0A;
-    --sidebar-primary: #0A0A0A;
-    --sidebar-primary-foreground: #FFFFFF;
-    --sidebar-accent: rgba(10, 10, 10, 0.05);
-    --sidebar-accent-foreground: #0A0A0A;
-    --sidebar-border: rgba(10, 10, 10, 0.10);
-    --sidebar-ring: #0A0A0A;
 
     /* ── Hero tokens ──────────────────────────────────────────────────────
        These used to live only inside [data-hero-dark]. The hero is no longer
@@ -126,7 +133,7 @@
     --dir-bg: #FFFFFF;
     --dir-ink: #0A0A0A;
     --dir-dim: #6B6B6B;
-    --dir-faint: #9A9A9A;
+    --dir-faint: #767676;
     --dir-line: rgba(10, 10, 10, 0.10);
     --dir-line-strong: rgba(10, 10, 10, 0.16);
     --dir-live: #0A0A0A;
@@ -308,6 +315,121 @@
     background: var(--glass-border);
     transform: translateY(-2px);
     border-color: var(--border-strong);
+  }
+
+  /* ─── Dotted grid ───
+     The technical canvas behind a diagram. Engineering paper, not graph paper:
+     22px between dots reads as a drawing surface, where the 8px a literal grid
+     would use reads as a maths exercise book.
+
+     Opacity is 0.06, in the middle of the 0.04 to 0.08 the brief asked for. At
+     this weight it is felt rather than seen, which is the entire point; anything
+     stronger starts competing with the hairlines the diagrams are built from.
+
+     The dot colour comes from the ink token, and the layer's own opacity is what
+     makes it faint. That is deliberate and not a shortcut: Tailwind cannot
+     alpha-modify a var() colour, and hard-coding an rgba here would put a colour
+     literal in a file where colour comes from tokens.
+
+     The mask stops it ending on four hard edges. A rectangle of dots that simply
+     stops looks like a texture swatch; fading it out makes it read as a surface
+     the diagram is sitting on.
+
+     It extends 16px past its parent, which is inside the page's 24px gutter, so
+     it cannot widen the page at 390. */
+  .dotted-grid {
+    position: absolute;
+    inset: -16px;
+    pointer-events: none;
+    z-index: -1;
+    background-image: radial-gradient(
+      circle,
+      var(--text-primary) 1px,
+      transparent 1px
+    );
+    background-size: 22px 22px;
+    opacity: 0.06;
+    -webkit-mask-image: radial-gradient(
+      ellipse at center,
+      rgb(0, 0, 0) 55%,
+      rgba(0, 0, 0, 0) 100%
+    );
+    mask-image: radial-gradient(
+      ellipse at center,
+      rgb(0, 0, 0) 55%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
+
+  /* Both of these preferences are asking for less decoration and more defined
+     surface, and a 6% texture is decoration by definition. The diagrams keep
+     their own borders and hairlines, so nothing structural is lost by removing
+     it. The motion system notes the site handles neither query anywhere else;
+     this covers only what this component paints, not that wider gap. */
+  @media (prefers-reduced-transparency: reduce) {
+    .dotted-grid {
+      display: none;
+    }
+  }
+
+  @media (prefers-contrast: more) {
+    .dotted-grid {
+      display: none;
+    }
+  }
+
+  /* ─── Navigation backdrop ───
+     Progressive blur behind the fixed header, so copy scrolling under the bar
+     goes soft instead of colliding with the nav text.
+
+     It is a separate element, not a background on <nav>. The header itself
+     still has no background, border or shadow, which is the rule; this only
+     softens what passes behind it. It mounts as the nav's FIRST child, so the
+     logo, the links and the call to action all paint after it and stay
+     perfectly sharp: backdrop-filter samples what is painted BEHIND the
+     element, and the nav's own controls come later in paint order.
+
+     There is no colour here at all. `transparent` rather than a white at zero
+     alpha: same computed result, and it keeps a white literal out of a file
+     where colour comes from tokens. A tint would fog the white ground.
+
+     The mask is the whole trick. Without it the blur ends on a hard horizontal
+     line across the page, which is the tell of a badly copied version of this
+     effect. The gradient dissolves it: fully opaque at the top, still 0.92 at
+     38%, then out to nothing. Those stops are alpha, not ink, so they are
+     deliberately literal and not tokens. */
+  .site-nav-backdrop {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    /* 140% of the header rather than a hardcoded height: the bar grows taller
+       when the three links wrap onto their own row on a narrow phone, and the
+       blur has to grow with it. The reference measures 112px against an 80px
+       header, which is this same ratio, expressed so it cannot go stale. */
+    height: 140%;
+    /* Mandatory. Without it this invisible 112px band sits over the top of
+       every page and eats clicks on anything near the top. */
+    pointer-events: none;
+    background: transparent;
+
+    /* No saturate(). The reference pairs blur with saturate(1.08) to stop
+       colour going flat behind frosted glass; this site is monochrome, and
+       scaling the saturation of a grey pixel returns the same grey, so it
+       would be a per-frame GPU cost that cannot change a single pixel. */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+
+    -webkit-mask-image: linear-gradient(
+      rgb(0, 0, 0) 0px,
+      rgba(0, 0, 0, 0.92) 38%,
+      rgba(0, 0, 0, 0)
+    );
+    mask-image: linear-gradient(
+      rgb(0, 0, 0) 0px,
+      rgba(0, 0, 0, 0.92) 38%,
+      rgba(0, 0, 0, 0)
+    );
   }
 
   /* ─── Orbital Node ─── */
@@ -505,11 +627,40 @@ html:not(.js) [data-reveal] {
 }
 
 /* Press feedback on the pointer-down, not the release. Waiting for `click`
-   to show that something was pressed is what makes an interface feel dead. */
-@media (hover: hover) {
-  :where(a, button, [role="button"]):active {
-    transform: scale(0.985);
-  }
+   to show that something was pressed is what makes an interface feel dead.
+
+   THIS USED TO BE WRAPPED IN @media (hover: hover), which meant it applied
+   only to devices that CANNOT be pressed with a finger. Every control on the
+   site except the two hero buttons gave a touch user no acknowledgement at all
+   until the navigation completed. That is the exact inversion of the rule the
+   comment above states, and touch is where press feedback matters most,
+   because there is no cursor and no hover to confirm the target was hit.
+
+   On the sticky-hover question, which is presumably what the media query was
+   guarding against: it does not apply here. Sticky hover is a property of
+   :hover, where a tap leaves the hovered style latched on until the next tap
+   elsewhere. :active is a different state with a different lifecycle. It is
+   set while the pointer is down and cleared on release, on touch cancel, and
+   on scroll start, which is the browser's own behaviour and the reason a press
+   that turns into a scroll does not leave the control stuck small. No :hover
+   rule is touched by this change, so nothing that could latch has been
+   unlocked.
+
+   The tap highlight is suppressed in the same rule rather than separately: on
+   touch the default is a grey box over the whole control, which on a
+   monochrome site reads as a rendering fault and would fight the scale instead
+   of reinforcing it. The scale IS the feedback now, so the highlight goes.
+   Several components already set this individually; this makes it the floor.
+
+   1.5% is deliberately small. It has to register as pressure rather than as
+   movement, and it is well under the threshold that would make this worth
+   suppressing under reduced motion. */
+:where(a, button, [role="button"]) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(a, button, [role="button"]):active {
+  transform: scale(0.985);
 }
 
 /* The theme-transition block below sets a 0.3s transition on background,
@@ -692,7 +843,7 @@ html:not(.js) [data-reveal] {
   --dir-bg: #FFFFFF;
   --dir-ink: #0A0A0A;
   --dir-dim: #6B6B6B;
-  --dir-faint: #9A9A9A;
+  --dir-faint: #767676;
   --dir-line: rgba(10, 10, 10, 0.10);
   --dir-line-strong: rgba(10, 10, 10, 0.16);
   /* No longer an accent at all. Ink, like everything else: the status dot
@@ -792,4 +943,88 @@ html:not(.js) [data-reveal] {
     animation: none;
   }
   .js [data-map-reveal] { opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   prefers-reduced-transparency
+   ═══════════════════════════════════════════════════════════════════════════
+   Until now this site answered this preference with nothing at all: measured
+   at zero occurrences across every file. It matters here for exactly one
+   surface. `.site-nav-backdrop` is a 20px backdrop-filter band across the top
+   of every page, and a backdrop-filter is precisely the thing this preference
+   is about: page content stays legible THROUGH the bar, which is the effect
+   some readers find unusable.
+
+   The bar's design intent is that it is transparent at every scroll depth so
+   it reads as part of the page. That intent describes the DEFAULT. A reader
+   who has asked their operating system for less transparency has asked for the
+   opposite, and honouring that is not a violation of the intent.
+
+   So: no blur, a solid ground, and a hairline so the band still has a defined
+   bottom edge once it is opaque. The mask goes too. It exists to fade the blur
+   out over the lower 60% of the band, and a fade is a gradient of exactly the
+   see-through-ness being switched off; keeping it would leave the bottom half
+   of the bar transparent. Height drops to the bar itself for the same reason,
+   since 140% only ever existed to give the fade somewhere to happen.
+
+   The opacity ramp in Navbar.tsx is untouched and still applies, so the solid
+   band arrives on the same scroll as the blur used to. */
+@media (prefers-reduced-transparency: reduce) {
+  .site-nav-backdrop {
+    height: 100%;
+    background: var(--background);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   prefers-contrast
+   ═══════════════════════════════════════════════════════════════════════════
+   Also previously unhandled, also measured at zero occurrences.
+
+   Handled by re-pointing the tokens rather than by writing new rules, because
+   every surface and hairline on the site already resolves through these five
+   variables. One block therefore reaches the whole site, and a component added
+   later inherits the behaviour without knowing this block exists.
+
+   The ink itself does not move: --text-primary is #0A0A0A on #FFFFFF at
+   19.8:1 and there is nowhere further to go. What moves is everything that was
+   deliberately faint.
+
+     --text-secondary  #6B6B6B  5.33:1 -> #4A4A4A  8.86:1
+     --text-muted      #767676  4.54:1 -> #5E5E5E  6.49:1
+
+   --text-muted used to be the important one here: it was #9A9A9A at 2.81:1
+   and failed AA outright, so this block was the only place it passed. The
+   default has since been fixed to #767676 at 4.54:1, so this is now what it
+   should always have been, a further step for a reader who asked for one,
+   rather than the only correct value on the site.
+
+   Borders roughly triple. At 0.10 and 0.16 alpha they are suggestions, and the
+   preference explicitly wants defined borders rather than implied edges. */
+@media (prefers-contrast: more) {
+  :root,
+  .dark {
+    --text-secondary: #4A4A4A;
+    --text-muted: #5E5E5E;
+    --border: rgba(10, 10, 10, 0.32);
+    --border-strong: rgba(10, 10, 10, 0.55);
+    --accent-surface: rgba(10, 10, 10, 0.12);
+  }
+
+  /* Same reasoning as the block above: a frosted bar is a low-contrast bar,
+     because what shows through it is arbitrary page content. */
+  .site-nav-backdrop {
+    height: 100%;
+    background: var(--background);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+    border-bottom: 1px solid var(--border-strong);
+  }
 }

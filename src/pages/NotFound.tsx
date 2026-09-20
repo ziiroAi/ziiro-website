@@ -140,7 +140,7 @@ const NotFound = () => {
               beside a 52px button. The span keeps the underline tight to the
               text while the anchor owns a 44px target around it. */}
           <Link
-            to="/contact"
+            to="/book-a-call"
             className="group flex min-h-[44px] items-center font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
             <span

@@ -1,12 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import {
-  animate,
-  createAnimatable,
-  createTimeline,
-  cubicBezier,
-  stagger,
-} from "animejs";
+import { createAnimatable, createTimeline, cubicBezier } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
 import SectionHeader from "@/shared/ui/section-header";
@@ -21,26 +15,25 @@ import {
   TRAVEL,
 } from "@/shared/motion/tokens";
 import TextReveal from "@/shared/motion/TextReveal";
+import TextFill from "@/shared/motion/TextFill";
+import GridLift from "@/shared/motion/GridLift";
 import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/shared/ui/dot-glyph";
 
-const words = [
-  {
-    num: "01",
-    word: "Leverage",
-    meaning:
-      "A force multiplier, not a replacement. We amplify the people, processes, and data you already have.",
-  },
-  {
-    num: "02",
-    word: "AI",
-    meaning: "Our core tool, stated plainly. No hiding behind jargon.",
-  },
-  {
-    num: "03",
-    word: "Anywhere",
-    meaning: "Any industry. Any function. Any process. We're not niche-locked.",
-  },
-];
+/**
+ * Mission answers one question: why the numbers come first.
+ *
+ * It is also the only full explanation of the brand line anywhere on the site.
+ * Everything else this page used to carry had a better home and has gone to it:
+ * the four-step method and the three stages to /products, the process detail to
+ * /docs, who we work with to /who-we-are. What is left is belief and the line,
+ * because no other page is allowed to explain either.
+ *
+ * The brand line reads "Leverage AI Anywhere. Anywhere AI creates measurable
+ * leverage. Not AI everywhere." That is a claim about discipline, not reach.
+ * The older reading, "any industry, any function, any process", said only that
+ * we are not niche-locked, which is not a differentiator and is not true to how
+ * the work is actually scoped. Do not restore it.
+ */
 
 const beliefs: {
   num: string;
@@ -51,77 +44,35 @@ const beliefs: {
 }[] = [
   {
     num: "01",
-    name: "Start with numbers. Always.",
-    desc: "Every engagement begins with understanding operations, not pitching solutions.",
+    name: "Start with numbers.",
+    desc: "Understand the operation before recommending technology.",
     glyph: "bars",
     figCaption: "Numbers first",
   },
   {
     num: "02",
     name: "AI is the mechanism, not the value.",
-    desc: "The value is hours recovered, money saved, growth unlocked. AI is just how we get there.",
+    desc: "The value is time recovered, money saved or growth unlocked.",
     glyph: "loops",
     figCaption: "The mechanism, not the value",
   },
   {
     num: "03",
-    name: "Show, don't tell.",
-    // "Every case study has ROI" was here and had to go: there are no case
-    // studies on this site, so it was a client claim nothing could back.
-    desc: "A before and after with real data beats any paragraph of promises. Every recommendation carries the arithmetic that produced it.",
-    glyph: "path",
-    figCaption: "Proof over promises",
-  },
-  {
-    num: "04",
     name: "Simple beats clever.",
-    desc: "If a spreadsheet fix saves more than an AI system, we'll tell you. We recommend what works, even if it's simpler and cheaper than expected.",
+    desc: "If the right solution does not need AI, do not use AI.",
     glyph: "clusters",
     figCaption: "The simpler fix",
   },
-  {
-    num: "05",
-    name: "Build what you preach.",
-    desc: "We run our own company on the same systems we build for clients. If we wouldn't use it ourselves, we won't sell it to you.",
-    glyph: "agents",
-    figCaption: "Our own medicine",
-  },
 ];
 
-/**
- * What we decline, and why.
- *
- * This replaced a four-card "What We Do" (Understand, Identify, Build,
- * Measure). That was capability, and capability is the one thing this page is
- * not for: it restated /who-we-are's process and pre-empted the three stages
- * /products sells, which is a large part of why four pages read the same.
- *
- * Refusal is the thing only this page can carry, and nothing on the site said
- * it out loud before. Each of these is a decline the rest of the site already
- * commits to somewhere, written here as the situation rather than the
- * principle, so it does not simply re-say the five beliefs above it.
- */
-const refusals = [
-  {
-    num: "01",
-    name: "A build with no baseline",
-    desc: "If nobody can say what the process costs today, nobody can prove what it saved later. We map it and price it first, or we don't quote it.",
-  },
-  {
-    num: "02",
-    name: "Automation that moves a bottleneck",
-    desc: "Speeding up a step that was never the constraint relocates the queue and bills you for the privilege. We look for the constraint before we touch anything.",
-  },
-  {
-    num: "03",
-    name: "AI where arithmetic would do",
-    desc: "When a changed rule or a spreadsheet recovers more hours than a system would, that is the recommendation. It is cheaper than us, and we say so.",
-  },
-  {
-    num: "04",
-    name: "Work the numbers don't support",
-    desc: "Sometimes the diagnosis says the return isn't there. Then we stop and tell you, which is the entire reason for diagnosing first.",
-  },
+/** Where we look, as the six words the section closes on. */
+const CAPABILITIES = [
+  "Sales",
+  "Operations",
+  "Finance",
+  "Marketing",
+  "Customer",
+  "Management",
 ];
 
 type Animatable = ReturnType<typeof createAnimatable>;
@@ -132,7 +83,6 @@ const ms = (seconds: number) => Math.round(seconds * 1000);
 
 export default function Mission() {
   const heroRef = useRef<HTMLElement>(null);
-  const wordsRef = useRef<HTMLDivElement>(null);
   const beliefsRef = useRef<HTMLDivElement>(null);
   const titleAnims = useRef<Animatable[]>([]);
   const energyAnim = useRef<Animatable | null>(null);
@@ -183,33 +133,6 @@ export default function Mission() {
     };
   }, []);
 
-  // The three tagline words rise in with a stagger the first time seen.
-  useEffect(() => {
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const list = wordsRef.current;
-    if (!list) return;
-    const rows = list.querySelectorAll<HTMLElement>("[data-word-row]");
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        io.disconnect();
-        animate(rows, {
-          opacity: [0, 1],
-          // TRAVEL.line rather than TRAVEL.reveal: these are display words at
-          // 4.4rem, and the distance a block travels reads relative to its
-          // own size.
-          y: [TRAVEL.line, 0],
-          delay: stagger(ms(STAGGER.card)),
-          duration: reduced ? 0 : MS.reveal,
-          ease: cubicBezier(...EASE_OUT_EXPO),
-        });
-      },
-      { threshold: 0.15 },
-    );
-    io.observe(list);
-    return () => io.disconnect();
-  }, []);
-
   // Hover-follow on belief titles + glyph energy modulation.
   useEffect(() => {
     const root = beliefsRef.current;
@@ -254,8 +177,8 @@ export default function Mission() {
   return (
     <div className="relative">
       <SEO
-        title="Our Mission: What We Believe and What We Turn Down"
-        description="Why Ziiro exists: the AI industry sells transformation and rarely checks whether it paid. The five principles we work by, and the four kinds of work we decline."
+        title="Our Mission: Why the Numbers Come First"
+        description="Ziiro exists to make AI economically useful. The three principles we work by, and what Leverage AI Anywhere actually means."
         canonical="/mission"
       />
 
@@ -313,71 +236,16 @@ export default function Mission() {
             titleA="Make AI useful."
             titleB="Nothing else."
           />
-          {/* Two columns that are always in view together, so they reveal from
-              one trigger with STAGGER.card between them. Two independent
-              triggers on a single row fire at whatever moment each column
-              happens to cross the threshold, which reads as a stutter. */}
-          <MotionReveal
-            stagger={STAGGER.card}
-            className="mt-10 grid gap-10 md:grid-cols-2"
-          >
-            <MotionRevealItem>
-              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                Not flashy. Not theoretical. Not "transformative" in a pitch
-                deck. Every business has processes bleeding money and time.
-                Most don't know which ones. Most AI consultants don't ask.
-              </p>
-            </MotionRevealItem>
-            <MotionRevealItem>
-              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                We start where others skip: the business intelligence layer. We
-                map how a company actually operates: where the hours go, where
-                the money leaks, where the bottlenecks compound. Only then do we
-                build. And we only build what the numbers prove is worth
-                building.
-              </p>
-            </MotionRevealItem>
-          </MotionReveal>
-          <MotionReveal delay={STAGGER.card}>
-            <p className="mt-12 max-w-3xl font-display text-xl font-semibold leading-relaxed text-[var(--text-primary)] md:text-2xl">
-              Help businesses leverage AI anywhere it creates real, measurable
-              value, and nowhere it doesn't.
+          <MotionReveal>
+            <p className="mt-10 max-w-3xl font-display text-xl font-semibold leading-relaxed text-[var(--text-primary)] md:text-2xl">
+              Ziiro exists to make AI economically useful. We understand how a
+              business operates, identify where AI can create measurable
+              leverage, and build only when the numbers justify it.
             </p>
           </MotionReveal>
-        </div>
-      </section>
 
-      {/* ── 02 · Why we exist ── */}
-      <section className="pb-24 md:pb-32">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <SectionHeader
-            index="02"
-            label="Why We Exist"
-            meta="The problem"
-            titleA="The AI industry"
-            titleB="has a problem."
-          />
-          <MotionReveal
-            stagger={STAGGER.card}
-            className="mt-10 grid gap-10 md:grid-cols-2"
-          >
-            <MotionRevealItem>
-              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                Everyone's selling "AI transformation." Nobody's asking the
-                basic question: does this actually make you money?
-              </p>
-            </MotionRevealItem>
-            <MotionRevealItem>
-              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                We watched businesses spend lakhs on chatbots they didn't need,
-                dashboards nobody opened, and automations that moved the
-                bottleneck instead of removing it. The technology wasn't the
-                problem. The understanding was.
-              </p>
-            </MotionRevealItem>
-          </MotionReveal>
-
-          {/* The page's statement: scroll-scrubbed word-by-word reveal */}
+          {/* The page's thesis, and the one line the rest of the site defers to
+              on why measurement comes before building. */}
           <TextReveal
             text="AI without business intelligence is expensive guessing."
             as="h2"
@@ -391,23 +259,22 @@ export default function Mission() {
         </div>
       </section>
 
-      {/* ── 03 · What we believe ── */}
+      {/* ── 02 · What we believe ── */}
       <section className="pb-24 md:pb-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <SectionHeader
-            index="03"
+            index="02"
             label="What We Believe"
-            meta="05 principles"
-            titleA="Five principles."
+            meta="03 principles"
+            titleA="Three principles."
             titleB="No exceptions."
           />
 
           <div ref={beliefsRef} className="mt-16 border-t border-[var(--border)]">
-            {/* No index delay here, unlike the four-across grids below. These
-                rows are tall enough that each one crosses the viewport on its
-                own, so a growing delay would not read as a cascade — it would
-                just make the fifth row take a quarter of a second to notice it
-                had been scrolled to. */}
+            {/* No index delay: these rows are tall enough that each one crosses
+                the viewport on its own, so a growing delay would not read as a
+                cascade, only as the last row being slow to notice it had been
+                scrolled to. */}
             {beliefs.map((p, i) => (
               <MotionReveal key={p.num}>
                 <div
@@ -462,165 +329,63 @@ export default function Mission() {
         </div>
       </section>
 
-      {/* ── 04 · What we turn down ── */}
+      {/* ── 03 · Leverage AI Anywhere ── */}
       <section className="pb-24 md:pb-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <SectionHeader
-            index="04"
-            label="What We Turn Down"
-            meta="04 declines"
-            titleA="The work we"
-            titleB="say no to."
+            index="03"
+            label="Leverage AI Anywhere"
+            meta="The line"
+            titleA="Leverage AI Anywhere."
+            titleB="Not AI everywhere."
           />
-          {/* One viewport trigger for the whole row, not four. Four cards that
-              sit side by side each firing on their own arrive at slightly
-              different times depending on where the row happens to stop, which
-              reads as jitter; a parent stagger makes it one deliberate sweep. */}
-          <MotionReveal
-            stagger={STAGGER.card}
-            className="mt-16 grid grid-cols-1 border-t border-[var(--border)] sm:grid-cols-2 lg:grid-cols-4"
-          >
-            {refusals.map((s) => (
-              <MotionRevealItem key={s.num}>
-                <div className="h-full border-b border-[var(--border)] px-0 py-10 sm:pr-8 lg:border-b-0 lg:py-12">
-                  <p className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                    {s.num}
-                  </p>
-                  <h3
-                    className="mt-4 font-display font-semibold text-[var(--text-primary)]"
-                    style={{ fontSize: "1.35rem", letterSpacing: "-0.02em" }}
-                  >
-                    {s.name}
-                  </h3>
-                  <p className="mt-4 text-sm leading-relaxed text-[var(--text-secondary)]">
-                    {s.desc}
-                  </p>
-                </div>
-              </MotionRevealItem>
-            ))}
-          </MotionReveal>
-        </div>
-      </section>
-
-      {/* ── 05 · Who we serve ── */}
-      <section className="pb-24 md:pb-32">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <SectionHeader
-            index="05"
-            label="Who We Serve"
-            meta="5–500 people"
-            titleA="Industries don't limit us."
-            titleB="Processes do."
-          />
-          <MotionReveal
-            stagger={STAGGER.card}
-            className="mt-10 grid gap-10 md:grid-cols-2"
-          >
-            <MotionRevealItem>
-              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                Businesses with 5 to 500 people who know they should be using
-                AI but don't know where to start, or tried and got burned.
-              </p>
-            </MotionRevealItem>
-            <MotionRevealItem>
-              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                We start with SMBs (₹50L–5Cr revenue) where the impact is
-                immediate and measurable. As we grow, we scale to mid-market
-                companies ready for full operational transformation. If your
-                business runs on repeatable operations, there's something we
-                can improve.
-              </p>
-            </MotionRevealItem>
-          </MotionReveal>
-        </div>
-      </section>
-
-      {/* ── 06 · The approach: the tagline, word by word ── */}
-      <section className="pb-24 md:pb-32">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <SectionHeader
-            index="06"
-            label="Our Approach"
-            meta="03 words"
-            titleA="Leverage AI Anywhere,"
-            titleB="word by word."
-          />
-
-          <div ref={wordsRef} className="mt-16">
-            {words.map((w) => (
-              <div
-                key={w.num}
-                data-word-row
-                className="grid grid-cols-12 items-baseline gap-4 border-t border-[var(--border)] py-10 md:py-14"
-                style={{ opacity: 0 }}
-              >
-                <span className="col-span-2 font-mono text-sm text-[var(--text-secondary)] md:col-span-1">
-                  {w.num}
-                </span>
-                <span
-                  className="col-span-10 font-display font-semibold text-[var(--text-primary)] md:col-span-5"
-                  style={{
-                    fontSize: "clamp(2.4rem, 5.5vw, 4.4rem)",
-                    letterSpacing: "-0.03em",
-                    lineHeight: 1.04,
-                  }}
-                >
-                  {w.word}
-                </span>
-                <p className="col-span-10 col-start-3 max-w-md leading-relaxed text-[var(--text-secondary)] md:col-span-5 md:col-start-8">
-                  {w.meaning}
-                </p>
-              </div>
-            ))}
-            <div className="border-t border-[var(--border)]" />
-          </div>
-
-          <MotionReveal>
-            <p className="mt-12 max-w-2xl leading-relaxed text-[var(--text-secondary)]">
-              The tagline isn't marketing. It's how we operate. We look at
-              every function of a business (marketing, sales, operations,
-              legal, accounts, HR, management) and find where AI creates
-              leverage. Then we build it.
+          <MotionReveal className="mt-10">
+            <p className="max-w-3xl font-display text-xl font-semibold leading-relaxed text-[var(--text-primary)] md:text-2xl">
+              Anywhere AI creates measurable leverage.
             </p>
           </MotionReveal>
-        </div>
-      </section>
 
-      {/* ── 07 · The Ziiro standard ── */}
-      <section className="pb-24 md:pb-32">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <MotionReveal>
-            <div className="border-t border-[var(--border)] pt-6">
-              <div className="flex items-center justify-between gap-4">
-                <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                  Sec. 07 / The Ziiro Standard
-                </p>
-                <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
-                  [ The bar ]
-                </p>
-              </div>
-            </div>
-          </MotionReveal>
-
-          <TextReveal
-            text="Could a random AI consultant have done this?"
-            as="h2"
-            className="mt-10 max-w-4xl font-display font-semibold text-[var(--text-primary)]"
+          {/* The page's one Text Fill, and the line the human picked for it.
+              It reads as grey and fills to ink as you scroll, which is the
+              motion system's "this is an important principle". The sentence
+              that used to sit here carried the same idea plus a list of the
+              six functions, and that list is the row at the bottom of this
+              section, so it was being said twice. */}
+          <TextFill
+            text="Anywhere doesn't mean everywhere. We use AI wherever the numbers justify it."
+            as="p"
+            className="mt-8 max-w-2xl font-display font-semibold text-[var(--text-primary)]"
             style={{
-              fontSize: "clamp(2rem, 4.4vw, 3.8rem)",
-              letterSpacing: "-0.03em",
-              lineHeight: 1.08,
+              fontSize: "clamp(1.35rem, 2.4vw, 1.9rem)",
+              letterSpacing: "-0.02em",
+              lineHeight: 1.3,
             }}
           />
 
-          <MotionReveal>
-            <p className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
-              We ask it before we publish anything, recommend anything, or
-              build anything. If the answer is yes, we haven't gone deep
-              enough. Our work should show its depth: process maps, real
-              numbers, specific frameworks.
-            </p>
+          {/* Grid Lift, immediately under the line, because it IS the line:
+              an even field of information that only becomes structure where
+              attention falls on it. No caption and no cards around it, since
+              explaining an interaction that demonstrates itself would be the
+              one thing that breaks it. Decorative, so the section's meaning
+              survives without it for a crawler or a reader who never hovers. */}
+          <GridLift className="mt-14" />
+
+          {/* The section closes on where we look, as six words rather than six
+              paragraphs. Wraps on a phone rather than scrolling sideways. */}
+          <MotionReveal delay={STAGGER.card}>
+            <ul className="mt-14 flex flex-wrap items-center gap-x-5 gap-y-4 border-t border-[var(--border)] pt-8 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
+              {CAPABILITIES.map((c, i) => (
+                <li key={c} className="flex items-center gap-5">
+                  {i > 0 && (
+                    <span
+                      aria-hidden
+                      className="inline-block h-1 w-1 shrink-0 rounded-full bg-[var(--text-muted)]"
+                    />
+                  )}
+                  {c}
+                </li>
+              ))}
+            </ul>
           </MotionReveal>
         </div>
       </section>
@@ -643,17 +408,13 @@ export default function Mission() {
               >
                 <SplitHeadline lead="Let's find your" tail="biggest leak." />
               </h2>
-              <p className="mx-auto mt-6 max-w-md text-sm text-[var(--text-secondary)]">
-                An hourly strategy consultation. We'll show you where the hours
-                and money are going.
-              </p>
               <div className="mt-12">
                 {/* The site's house curve, applied inline because Tailwind's
                     `transition-opacity` ships its own timing function and,
                     being a class, outranks the zero-specificity :where() rule
                     in index.css that puts everything else on expo-out. */}
                 <Link
-                  to="/contact"
+                  to="/book-a-call"
                   className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
                   style={{
                     transitionDuration: `${DURATION.micro}s`,

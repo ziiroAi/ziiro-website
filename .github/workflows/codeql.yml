@@ -57,10 +57,12 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           # The default suite plus its lower severity and precision queries. The
-          # codebase is small enough that the extra findings stay reviewable, and
-          # api/send-contact.ts builds HTML out of submitted input, which is the
-          # one place those queries earn their keep. Drop this line to go back to
-          # the default suite.
+          # codebase is small enough that the extra findings stay reviewable.
+          # This was originally chosen for api/send-contact.ts, which built an
+          # HTML email out of submitted input; that endpoint has since been
+          # deleted, so the suite is now kept for the client-side code rather
+          # than for any server input path. Drop this line to go back to the
+          # default suite.
           queries: security-extended
 
       - name: Perform CodeQL analysis

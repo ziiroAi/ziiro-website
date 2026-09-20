@@ -104,7 +104,7 @@ export default function DotArtSection() {
             An hourly consultation. No pitch.
           </p>
           <Link
-            to="/contact"
+            to="/book-a-call"
             className="pointer-events-auto mt-10 rounded-full bg-[var(--text-primary)] px-8 py-3.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
           >
             Book your call

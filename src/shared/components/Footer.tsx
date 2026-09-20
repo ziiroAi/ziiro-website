@@ -21,27 +21,76 @@ const micro = (properties: string) => ({
   transitionTimingFunction: CSS_EASE.out,
 });
 
+/**
+ * The footer is now the site's main wayfinding surface, so the grouping has to
+ * earn that. The navigation was cut to three items plus the booking call to
+ * action, which means every other route on the site is reachable from here and
+ * nowhere else.
+ *
+ * WHAT CHANGED AND WHY. The old heads had stopped describing their contents:
+ * "Company" held Pricing and FAQ, which are commercial and support, while
+ * "Explore" mixed the offer (Products, Docs) with the company (Mission, Who We
+ * Are). Grouped by what a reader is trying to DO instead:
+ *
+ *   Start here    the commercial path, in the order it is walked
+ *   How it works  the reference material, for someone not ready to talk yet
+ *   Company       who we are, and how to reach us about anything else
+ *   Trust         can this company be trusted with our data and our systems
+ *
+ * ORDERING IS DELIBERATE. Book a Call is the primary conversion route on the
+ * site and it sits first in the first column, which is where a reader looks
+ * first. It was missing from the footer entirely until now.
+ *
+ * BOOK A CALL VERSUS CONTACT. These are different jobs and the split is
+ * structural rather than decorative: Book a Call is "I want to explore working
+ * with Ziiro" and lives with Pricing under Start here; Contact is "I have
+ * something to ask" and lives with Careers under Company. Putting them in one
+ * column under one head is what made them look interchangeable. Do not merge
+ * them back.
+ *
+ * Home is not listed. The wordmark above links to it, which is where a reader
+ * looks for it, and a "Home" row in a footer is a row that says nothing.
+ */
 const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
   {
-    head: "Explore",
+    head: "Start here",
     links: [
-      { label: "Who We Are", to: "/who-we-are" },
-      { label: "Watch", to: "/watch/how-ziiro-works" },
-      { label: "Mission", to: "/mission" },
+      { label: "Book a Call", to: "/book-a-call" },
+      { label: "Pricing", to: "/pricing" },
       { label: "Products", to: "/products" },
+    ],
+  },
+  {
+    head: "How it works",
+    links: [
       { label: "Docs", to: "/docs" },
+      { label: "FAQ", to: "/faq" },
+      { label: "Watch", to: "/watch/how-ziiro-works" },
     ],
   },
   {
     head: "Company",
     links: [
-      { label: "Pricing", to: "/pricing" },
+      { label: "Mission", to: "/mission" },
+      { label: "Who We Are", to: "/who-we-are" },
+      { label: "Careers", to: "/careers" },
       { label: "Contact", to: "/contact" },
     ],
   },
   {
-    head: "Legal",
+    // Was "Legal", which was accurate for two documents and wrong the moment a
+    // third joined them: the security page is engineering practice, not a
+    // policy. "Trust" covers all three honestly and is also the word an
+    // enterprise buyer or a security reviewer scans a footer for.
+    head: "Trust",
     links: [
+      // First, above the two a reviewer already expects to find. This is the
+      // one they are hunting for, and "Security architecture" rather than a
+      // bare "Security" is deliberate: sitting between Privacy and Terms, one
+      // word would read as a third policy. The label has to say that what is
+      // behind it is due-diligence material, written as engineering practice
+      // rather than as certifications the company does not hold.
+      { label: "Security architecture", to: "/security" },
       { label: "Privacy", to: "/privacy" },
       { label: "Terms", to: "/terms" },
     ],
@@ -161,7 +210,7 @@ export default function Footer() {
           {/* ─── Link columns ─── */}
           <nav
             aria-label="Footer"
-            className="grid grid-cols-2 gap-x-10 gap-y-12 sm:grid-cols-3 md:gap-x-16 lg:gap-x-20"
+            className="grid grid-cols-2 gap-x-10 gap-y-12 md:gap-x-12 lg:grid-cols-4 lg:gap-x-16"
           >
             {COLUMNS.map((col) => (
               <div key={col.head}>

@@ -14,7 +14,11 @@ import Mission from "@/pages/Mission";
 import WhoWeAre from "@/pages/WhoWeAre";
 import Products from "@/pages/Products";
 import Docs from "@/pages/Docs";
+import Careers from "@/pages/Careers";
+import Faq from "@/pages/Faq";
+import BookACall from "@/pages/BookACall";
 import Watch from "@/pages/Watch";
+import Security from "@/pages/Security";
 import NotFound from "@/pages/NotFound";
 import { videos, watchPath } from "@/features/watch/videos";
 
@@ -24,6 +28,7 @@ import { videos, watchPath } from "@/features/watch/videos";
 const routes: Record<string, ComponentType> = {
   "/": Index,
   "/contact": Contact,
+  "/security": Security,
   "/privacy": Privacy,
   "/terms": Terms,
   "/pricing": Pricing,
@@ -31,6 +36,9 @@ const routes: Record<string, ComponentType> = {
   "/who-we-are": WhoWeAre,
   "/products": Products,
   "/docs": Docs,
+  "/careers": Careers,
+  "/faq": Faq,
+  "/book-a-call": BookACall,
   // Watch pages are registered by exact path so this stays a flat lookup; the
   // page reads its slug from the router location, not from route params.
   ...Object.fromEntries(videos.map((v) => [watchPath(v.slug), Watch])),

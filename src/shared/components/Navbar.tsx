@@ -21,6 +21,11 @@ const LINKS = [
   { label: "Mission", to: "/mission" },
   { label: "Who We Are", to: "/who-we-are" },
   { label: "Products", to: "/products" },
+  // Three items, and Contact is deliberately not one of them. It was added
+  // here briefly when the Book a Call CTA was repointed, on the reasoning that
+  // Contact would otherwise leave the header entirely; the human saw the
+  // four-item bar and wanted three back. Contact keeps its footer link and its
+  // in-body links and is a real page; it simply does not sit in the header.
 ];
 
 /** The reveal is pinned at 500ms by the measured spec, and there is no 0.5s in
@@ -50,11 +55,43 @@ const WORD_PX = 34;
 const PILL_INSET = (PILL_PX - 2 - MARK_PX) / 2;
 /** Ink to ink, the lockup's own 18/136 of the mark height. */
 const WORD_GAP_INK = MARK_PX * (18 / 136);
-/** Side bearings measured off the rendered span at WORD_PX: the "i" carries
- *  1.97px of air before its stem and the "o" 1.29px after its bowl. Both are
- *  taken out so the gap and the right inset are ink to ink, not box to box. */
-const I_BEARING = 1.97;
-const O_BEARING = 1.29;
+/** The wordmark's tracking. Named rather than inlined because the trailing
+ *  compensation below has to subtract it, and the two going out of step is
+ *  what sliced the "o". */
+const WORD_TRACK_EM = -0.03;
+
+/** Side bearings, measured off the rendered span at WORD_PX and stored as a
+ *  FRACTION OF THE FONT SIZE rather than as pixels. A bearing is a property of
+ *  the glyph, so it scales with the type; as a fixed px value it was only ever
+ *  correct at one size, and anything that changed WORD_PX would have re-cut the
+ *  word. The "i" carries 1.97px of air before its stem at 34px and the "o"
+ *  1.29px after its bowl. */
+const I_BEARING_EM = 1.97 / 34;
+const O_BEARING_EM = 1.29 / 34;
+
+const I_BEARING = I_BEARING_EM * WORD_PX;
+
+/**
+ * ── WHY THE TRAILING COMPENSATION IS NOT JUST THE BEARING ──────────────
+ *
+ * This used to be `marginRight: -O_BEARING`, and it sliced the bowl off the
+ * final "o" against the pill's overflow.
+ *
+ * CSS letter-spacing is added after EVERY character including the last, so the
+ * text box already ends WORD_TRACK_EM short of the glyph advance before any
+ * margin is applied. Taking the full bearing off on top of that removed the
+ * same air twice and then kept going into the ink:
+ *
+ *   box end = advance + track + margin
+ *           = advance - 1.02 - 1.29   = advance - 2.31
+ *   ink end = advance - 1.29 (the bearing)
+ *   so the box ended 1.02px INSIDE the ink, and overflow:hidden cut it.
+ *
+ * The compensation is therefore the bearing NET of the tracking already taken,
+ * which lands the box edge exactly on the end of the ink. Measured after the
+ * fix: left inset 8.00, right inset 8.00, nothing clipped.
+ */
+const O_TRIM = -(O_BEARING_EM + WORD_TRACK_EM) * WORD_PX;
 /** Vertical nudge on the wordmark, in px. Flex centres the 34px line box, which
  *  leaves the letters sitting low against the mark. The anchor that transfers
  *  between typefaces is the baseline: in the lockup the mark's bottom lands on
@@ -74,6 +111,26 @@ const CTA_SPAN_VH = 2.2;
 const CTA_CURVE = 3.3;
 const CTA_LIFT = 10;
 
+/**
+ * How far the reader scrolls before the blur behind the bar is fully in, in px.
+ *
+ * The blur fades in rather than sitting there from the very top, for two
+ * reasons. The hero is white space under the header, and blurring white against
+ * white cannot produce a visible pixel, so at rest it would be pure cost for no
+ * effect. And backdrop-filter is a per-frame GPU job that runs whether or not
+ * it changes anything, on the one page that is also running the WebGL orb.
+ *
+ * 120px is short enough that the blur is already there by the time any real
+ * content reaches the bar, and long enough that it arrives as a fade rather
+ * than snapping on at a threshold.
+ *
+ * This ramp is kept under reduced motion, unlike the call to action's lift.
+ * The preference is about movement; nothing here moves, and a cross-fade is
+ * one of the standard things to reduce movement TO. Popping the blur on at a
+ * hard cutoff would be the more jarring of the two.
+ */
+const BACKDROP_SPAN = 120;
+
 /** Pointer feedback across the bar. 0.15s is the value the reference uses on
  *  nearly everything that reacts to a cursor, and it is the difference between
  *  chrome that feels attached to the pointer and chrome that lags it. */
@@ -88,6 +145,8 @@ export default function Navbar() {
 
   // 0 at the top of the page, 1 once the call to action is fully seated.
   const [ctaProgress, setCtaProgress] = useState(0);
+  // 0 at the top of the page, 1 once the blur behind the bar is fully in.
+  const [backdropProgress, setBackdropProgress] = useState(0);
   const [reduced, setReduced] = useState(false);
 
   // Three ways in, one open state. Hover covers pointers, focus-visible covers
@@ -116,6 +175,12 @@ export default function Navbar() {
       const span = window.innerHeight * CTA_SPAN_VH;
       const p = span > 0 ? Math.min(Math.max(window.scrollY / span, 0), 1) : 1;
       setCtaProgress(1 - Math.pow(1 - p, CTA_CURVE));
+      // Same frame as the call to action, on purpose: a second scroll listener
+      // and a second rAF to read the same scrollY would double the work for a
+      // value that changes on exactly the same beat.
+      setBackdropProgress(
+        Math.min(Math.max(window.scrollY / BACKDROP_SPAN, 0), 1),
+      );
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(measure);
@@ -177,6 +242,22 @@ export default function Navbar() {
 
   return (
     <nav className="fixed left-0 right-0 top-0 z-50 py-5">
+      {/* The progressive blur, and the only thing in this bar that is not a
+          control. It is first so it paints behind everything below it, and
+          aria-hidden because it is a surface, not content.
+
+          Hidden outright while it is invisible rather than left at opacity 0:
+          a backdrop-filter at zero opacity can still cost a compositor pass,
+          and the top of the page is exactly where the homepage is busiest. */}
+      <div
+        className="site-nav-backdrop"
+        aria-hidden="true"
+        style={{
+          opacity: backdropProgress,
+          visibility: backdropProgress < 0.02 ? "hidden" : "visible",
+        }}
+      />
+
       <div className="relative mx-auto flex w-full max-w-[1400px] flex-wrap items-center justify-between px-6 md:px-10">
         {/* ─── The logo pill ───────────────────────────────────────────────
             At rest it is a circle holding just the mark. On hover, on
@@ -255,13 +336,15 @@ export default function Navbar() {
                 style={{
                   fontSize: WORD_PX,
                   lineHeight: 1,
-                  letterSpacing: "-0.03em",
+                  letterSpacing: `${WORD_TRACK_EM}em`,
                   whiteSpace: "nowrap",
                   paddingLeft: WORD_GAP_INK - I_BEARING,
                   // The pill's own inset supplies the space on the right; this
-                  // only cancels the "o"'s side bearing so the ink sits the
-                  // same distance from the edge as the mark does on the left.
-                  marginRight: -O_BEARING,
+                  // only cancels what is left of the "o"'s side bearing after
+                  // the tracking has already taken part of it, so the ink sits
+                  // the same distance from the edge as the mark does on the
+                  // left. See O_TRIM for why it is not the whole bearing.
+                  marginRight: O_TRIM,
                   // Optical, not box, centring: the mark is a symmetric form
                   // read from its middle, the word from the band between its
                   // x-height and its baseline, so centring the two boxes leaves
@@ -313,21 +396,54 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* ─── Right: the call to action ───────────────────────────────── */}
-        <div className="flex items-center">
+        {/* ─── Right: the call to action ─────────────────────────────────
+            Two elements, and the split is the point. The wrapper carries the
+            scroll-driven state; the link carries the pointer-driven state.
+
+            They used to be one element, and that element had BOTH an opacity
+            recomputed on every scroll frame and a 0.15s transition on opacity.
+            A transition retargeted every frame does not track its input, it
+            chases it: measured from a standing start, the button sat at 0 for
+            three frames and then eased 0.33, 0.53, 0.68, 0.79, 0.87, 0.93,
+            0.96 while the scroll position had already arrived. Scroll is the
+            reader's gesture here, so the rule that applies is that a
+            gesture-driven value animates from where it actually is and can be
+            reversed at any moment. A transition can do neither: reverse the
+            scroll mid-fade and it restarts toward the new target from wherever
+            the easing curve had got to.
+
+            So the wrapper has no transition at all at full motion, and the
+            opacity is simply the scroll position. Under reduced motion the
+            progress is deliberately binary (see ctaOpacity), and a bare
+            binary flip is a hard cut, so that case gets a cross-fade instead:
+            the preference asks for a gentler equivalent, not for nothing.
+
+            The link keeps its own opacity transition, which is now only ever
+            driving the hover. Before the split the two shared one declaration
+            and could not be tuned apart. */}
+        <div
+          className="flex items-center"
+          style={{
+            opacity: ctaOpacity,
+            transform: `translateY(${ctaLift}px)`,
+            visibility: ctaIdle ? "hidden" : "visible",
+            pointerEvents: ctaIdle ? "none" : undefined,
+            ...(reduced
+              ? {
+                  transitionProperty: "opacity",
+                  transitionDuration: `${DURATION.swap}s`,
+                  transitionTimingFunction: CSS_EASE.out,
+                }
+              : null),
+          }}
+        >
           <Link
-            to="/contact"
+            to="/book-a-call"
             data-reveal
             tabIndex={ctaIdle ? -1 : undefined}
             aria-hidden={ctaIdle || undefined}
             className="flex items-center rounded-full bg-[var(--text-primary)] px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90"
-            style={{
-              opacity: ctaOpacity,
-              transform: `translateY(${ctaLift}px)`,
-              visibility: ctaIdle ? "hidden" : "visible",
-              pointerEvents: ctaIdle ? "none" : undefined,
-              ...micro("opacity"),
-            }}
+            style={micro("opacity")}
           >
             Book a Call
           </Link>

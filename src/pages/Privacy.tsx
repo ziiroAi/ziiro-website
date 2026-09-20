@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { animate, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
@@ -309,6 +310,17 @@ const Privacy = () => {
                 <a href="mailto:govind@ziiro.work" className={emailClass}>
                   govind@ziiro.work
                 </a>
+                .
+              </p>
+              {/* The companion page. This policy states what is collected and
+                  why; the security page states which controls are actually in
+                  place around it, and is explicit about the ones that are not. */}
+              <p>
+                For how that information is protected, which controls are in
+                place today and which are honestly not established, see{" "}
+                <Link to="/security" className={emailClass}>
+                  Security and Trust
+                </Link>
                 .
               </p>
             </LegalSection>

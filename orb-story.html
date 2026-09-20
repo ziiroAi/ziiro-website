@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>StatefulOrb states</title>
+  </head>
+  <body>
+    <!--
+      Dev-only story page for the orb. vite.config.ts sets no
+      build.rollupOptions.input, so Vite builds index.html alone and this file
+      never reaches production. It exists so all seven states can be seen side
+      by side at both sizes and on both grounds in one screenshot.
+    -->
+    <div id="orb-story"></div>
+    <script type="module" src="/src/dev/orb-story.tsx"></script>
+  </body>
+</html>

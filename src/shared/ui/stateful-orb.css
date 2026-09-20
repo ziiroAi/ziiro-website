@@ -1,0 +1,168 @@
+/**
+ * StatefulOrb motion.
+ *
+ * Seven public states, one object. The body is identical in every state and at
+ * every size; what changes is the mark laid over it and how quickly that mark
+ * moves. That is deliberate: the orb has to stay recognisably the hero orb, so
+ * states are expressed by what is happening ON the object rather than by
+ * changing the object.
+ *
+ * All motion is CSS, not rAF, so several orbs on a page cost the main thread
+ * nothing while they idle. The component pauses the whole subtree by setting
+ * `data-orb-running="false"`, which is what takes an off-screen orb or one on a
+ * hidden tab down to zero work.
+ *
+ * Durations are deliberately not round multiples of each other. The brief asks
+ * for slightly imperfect organic movement rather than a mechanical loop, and
+ * near-coprime periods are what stop two layers re-synchronising into a beat.
+ */
+
+[data-orb-running="false"] *,
+[data-orb-running="false"] {
+  animation-play-state: paused !important;
+}
+
+/* ── The body, under every state ─────────────────────────────────────────
+   A slow breath and a drifting silhouette, both carried over from the hero
+   orb's poster so this reads as the same object. Faster states add their own
+   mark rather than speeding the body up. */
+@keyframes orb-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+@keyframes orb-morph {
+  0%,
+  100% {
+    border-radius: 52% 48% 47% 53% / 49% 51% 49% 51%;
+  }
+  50% {
+    border-radius: 47% 53% 52% 48% / 53% 47% 51% 49%;
+  }
+}
+
+@keyframes orb-halo {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.78;
+    transform: scale(1.07);
+  }
+}
+
+/* ── listening: context arriving and being taken in ──────────────────── */
+@keyframes orb-intake {
+  0% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  22% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+}
+
+/* ── searching: a sweep around the limb ──────────────────────────────── */
+@keyframes orb-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── connecting: chords drawing between rim nodes, nodes waking ──────── */
+@keyframes orb-draw {
+  0% {
+    stroke-dashoffset: 130;
+    opacity: 0.12;
+  }
+  45% {
+    opacity: 1;
+  }
+  72% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.18;
+  }
+}
+
+@keyframes orb-node {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+
+/* ── reasoning: satellites drawing in to an answer, then releasing ───── */
+@keyframes orb-converge {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  55% {
+    transform: scale(0.26);
+    opacity: 1;
+  }
+}
+
+/* ── working: a steady mechanical pass around the rim ─────────────────── */
+@keyframes orb-work {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── complete: the ring closes once and stays closed ─────────────────── */
+
+/* A single settling pulse, run once rather than looped: "complete" is a
+   destination, and anything that loops here would read as still working. */
+@keyframes orb-settle {
+  0% {
+    transform: scale(1.14);
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Not slower. Off. The word carries the state for these readers, and an
+     indicator that still drifts is still a problem for the people this query
+     exists to protect. The body keeps its shading and its silhouette, so the
+     orb stays recognisably the same object; it simply holds still. */
+  .stateful-orb,
+  .stateful-orb * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -198,6 +198,39 @@ export default function DotArt3D() {
     resize();
     window.addEventListener("resize", resize);
 
+    /* ── Guards, ported from CoreOrb ───────────────────────────────────────
+       This scene had none of them. It is the largest moving surface on the
+       site, roughly a full viewport of particles, and it rendered forever:
+       scrolled past, in a background tab, and for a reader who has asked the
+       operating system for less motion. CoreOrb next door already carried all
+       four guards and was the source this was ported from, so this is that
+       pattern rather than a new one.
+
+       `reduced` is read live rather than once, because the preference can
+       change while the page is open and the scene's whole character depends
+       on it.
+
+       These sit HERE, above the pointer and scroll handlers, rather than down
+       with the loop they belong to: `onScroll` reads `running` and is called
+       once immediately, so declaring them later put them in the temporal dead
+       zone and threw on mount. `let` is not hoisted the way `function` is. */
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let reduced = motionQuery.matches;
+    let running = false;
+    let visible = document.visibilityState === "visible";
+    let onScreen = true;
+    // `time` and `raf` live up here for the same reason: `update()` reads both
+    // and `onScroll` can call it before the loop section is reached.
+    let time = 0;
+    let raf = 0;
+    /* `update()` also reads state declared further down (the formation buffer
+       indices), and `onScroll` is invoked once during setup, before any of it
+       exists. Hoisting each variable as it turns up is whack-a-mole and only
+       fails at runtime, since a temporal dead zone is invisible to tsc and to
+       eslint. So drawing is gated on the whole effect having finished instead:
+       nothing renders until `ready`, which is set on the last line of setup. */
+    let ready = false;
+
     // --- Pointer ---
     let mouseX = 0.5; // parallax (neutral center default)
     let mouseY = 0.5;
@@ -206,6 +239,10 @@ export default function DotArt3D() {
     let rippleStrength = 0;
 
     function onMouseMove(e: MouseEvent) {
+      // Parallax is ambient motion the reader did not ask for, so it is the
+      // first thing reduced motion switches off. Gated here rather than by not
+      // binding the listener, because the preference can change at runtime.
+      if (reduced) return;
       const rect = container!.getBoundingClientRect();
       mouseX = (e.clientX - rect.left) / rect.width;
       mouseY = 1 - (e.clientY - rect.top) / rect.height;
@@ -221,6 +258,9 @@ export default function DotArt3D() {
     }
 
     function onClick() {
+      // The ripple needs the loop to decay it, and under reduced motion there
+      // is no loop. It is decoration either way, so it simply does not fire.
+      if (reduced) return;
       rippleStrength = 1.0;
       program.uniforms.uRippleOrigin.value = [
         (mouseX * 2 - 1) * 45,
@@ -248,6 +288,10 @@ export default function DotArt3D() {
         Math.min(SCENE_COUNT - 1, Math.round(scrollTarget * SEGMENTS)),
       );
       setSceneIdx((prev) => (prev === idx ? prev : idx));
+      // A parked scene still has to follow the scroll, the same way CoreOrb's
+      // does. This is the reduced-motion path: no loop, one frame per scroll
+      // event, so the formation still resolves as the reader moves.
+      if (ready && !running && visible && onScreen) update();
     }
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
@@ -275,18 +319,29 @@ export default function DotArt3D() {
       }
     }
 
-    // --- Animation loop ---
-    let time = 0;
-    let raf = 0;
-
+    // --- Animation loop --- (state declared above, with the guards)
     function update() {
-      time += 0.016;
-      // Scroll only sets the destination; the world glides toward it
-      scrollProgress += (scrollTarget - scrollProgress) * 0.035;
+      /* Reduced motion gets a static resolved state, not a blank frame: the
+         formation is drawn, at the scroll position the reader is actually at,
+         and simply does not move on its own. What stops is the ambient part,
+         the perpetual dolly and orbit and sway, and the pointer parallax. The
+         parallax is the reason this matters more here than anywhere else on
+         the site: a large field of dots that shifts with the cursor is the
+         textbook vestibular trigger the preference exists for.
+
+         Freezing `time` is what does most of it. Every ambient term is a sine
+         or cosine of `time`, so holding it still collapses them all to a
+         constant rather than needing each one switched off by hand. */
+      if (!reduced) time += 0.016;
+      // Scroll only sets the destination; the world glides toward it. Under
+      // reduced motion there is no loop to glide in, so it snaps: the reader's
+      // own scroll is still the input, it just arrives without the easing.
+      if (reduced) scrollProgress = scrollTarget;
+      else scrollProgress += (scrollTarget - scrollProgress) * 0.035;
 
       const u = program.uniforms;
       u.uTime.value = time;
-      u.uMouse.value = [hoverX, hoverY, 0];
+      u.uMouse.value = reduced ? [-10, -10, 0] : [hoverX, hoverY, 0];
 
       rippleStrength *= 0.96;
       u.uRipple.value = rippleStrength;
@@ -343,13 +398,64 @@ export default function DotArt3D() {
       // handover has nothing to hand over to — and a near-white dot on white
       // paper is simply not there. uColor is set once, at build.
       renderer.render({ scene, camera });
-      raf = requestAnimationFrame(update);
+      // Only re-arms while the loop is meant to be running, so a single
+      // on-demand frame drawn by sync() or onScroll cannot restart it.
+      if (running) raf = requestAnimationFrame(update);
     }
 
-    raf = requestAnimationFrame(update);
+    const start = () => {
+      if (running) return;
+      running = true;
+      raf = requestAnimationFrame(update);
+    };
+    const stop = () => {
+      running = false;
+      cancelAnimationFrame(raf);
+    };
+
+    /** Run only when the scene is on screen, in a visible tab, and the reader
+     *  has not asked for reduced motion. Otherwise park it, and if it is
+     *  parked but still on screen, draw exactly one frame so what is on the
+     *  canvas is the current scroll position rather than a stale one. */
+    const sync = () => {
+      if (visible && onScreen && !reduced) {
+        start();
+        return;
+      }
+      if (running) stop();
+      if (ready && visible && onScreen) update();
+    };
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        onScreen = entry.isIntersecting;
+        sync();
+      },
+      { rootMargin: "120px" },
+    );
+    io.observe(section);
+
+    const onVisibility = () => {
+      visible = document.visibilityState === "visible";
+      sync();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    const onMotionChange = () => {
+      reduced = motionQuery.matches;
+      sync();
+    };
+    motionQuery.addEventListener("change", onMotionChange);
+
+    // Setup is complete: everything update() reads now exists.
+    ready = true;
+    sync();
 
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVisibility);
+      motionQuery.removeEventListener("change", onMotionChange);
       window.removeEventListener("resize", resize);
       window.removeEventListener("scroll", onScroll);
       container.removeEventListener("mousemove", onMouseMove);

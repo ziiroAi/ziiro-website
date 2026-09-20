@@ -44,9 +44,25 @@ export default {
       letterSpacing: {
         tight: "-0.015em",
       },
+      // Only what src/shared/ui/{tooltip,toast,sonner}.tsx actually paints
+      // with. Each entry here is a live dependency of one of those three, so
+      // removing one silently renders a toast or tooltip invisible rather than
+      // breaking the build. The matching variables live in src/index.css under
+      // "Toast and tooltip tokens", and the two lists have to stay in step.
+      //
+      // `card`, `input`, `secondary.foreground`, `accent` and the whole
+      // `sidebar` group were removed with their variables: no component used
+      // the classes and nothing read the variables. `accent-foreground` was
+      // never defined in the CSS at all, so `hsl(var(--accent-foreground))`
+      // could only ever have resolved to an invalid colour.
+      //
+      // NOTE: `background`, `foreground` and `border` point at site tokens
+      // that are hex and rgba, not HSL triplets, so `hsl(var(--background))`
+      // does not parse. See the note in the worker log; left as found rather
+      // than changed, because fixing it alters how the toast renders and that
+      // is a behaviour change, not cleanup.
       colors: {
         border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
@@ -56,7 +72,6 @@ export default {
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
@@ -66,27 +81,9 @@ export default {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
         },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
-        sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
-          foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
         },
       },
       borderRadius: {
