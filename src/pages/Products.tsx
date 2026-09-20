@@ -8,6 +8,7 @@ import {
   stagger,
 } from "animejs";
 import SEO from "@/shared/components/SEO";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 import { serviceCatalogSchema } from "@/shared/components/seo-schema";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import {
@@ -321,11 +322,10 @@ export default function Products() {
               lineHeight: 1.04,
             }}
           >
-            Diagnose. Build. Optimize.
-            <br />
-            <span className="text-[var(--text-secondary)]">
-              Everything we make sits in one of these three.
-            </span>
+            <SplitHeadline
+              lead="Diagnose. Build. Optimize."
+              tail="Everything we make sits in one of these three."
+            />
           </h1>
           <p
             data-hero-sub
@@ -525,11 +525,10 @@ export default function Products() {
                   lineHeight: 1.04,
                 }}
               >
-                That is what gets built.
-                <br />
-                <span className="text-[var(--text-secondary)]">
-                  Scoping it is one page over.
-                </span>
+                <SplitHeadline
+                  lead="That is what gets built."
+                  tail="Scoping it is one page over."
+                />
               </h2>
               <p className="mx-auto mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]">
                 Pricing covers what a stage costs to engage and what sets its

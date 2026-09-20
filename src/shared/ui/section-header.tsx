@@ -1,5 +1,6 @@
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import { STAGGER } from "@/shared/motion/tokens";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 
 /**
  * Shared editorial section header: hairline rule, dot marker, mono
@@ -62,19 +63,23 @@ export default function SectionHeader({
             lineHeight: 1.04,
           }}
         >
-          {titleA}
-          {titleB && (
-            <>
-              <br />
-              {/* The second line is the quieter half of the pairing, and it
-                  says so in ink rather than in hue. This used to be painted
-                  with the duotone through background-clip: text, which is why
-                  every section title on the site read orange-to-violet, and
-                  why the line needed padding underneath to stop the clip
-                  eating its descenders. A plain colour needs neither. */}
-              <span className="text-[var(--text-secondary)]">{titleB}</span>
-            </>
-          )}
+          {/* The two lines go through SplitHeadline so one real space joins
+              them in the text stream. Inlined here, `{titleA}<br /><span>
+              {titleB}</span>` put nothing between the two text runs: <br>
+              contributes no characters, so textContent came back glued, as in
+              "The model isn'tthe advantage." It looked correct, because block
+              layout does not care, but every consumer that reads text rather
+              than pixels got the words run together, and this one component
+              sits behind roughly two dozen section headings.
+
+              The second line is the quieter half of the pairing, and it says so
+              in ink rather than in hue: SplitHeadline paints it
+              --text-secondary, the same as the span this replaced. That used to
+              be a duotone through background-clip: text, which is why every
+              section title on the site read orange-to-violet, and why the line
+              needed padding underneath to stop the clip eating its descenders.
+              A plain colour needs neither. */}
+          {titleB ? <SplitHeadline lead={titleA} tail={titleB} /> : titleA}
         </h2>
       </MotionRevealItem>
       )}

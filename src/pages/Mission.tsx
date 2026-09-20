@@ -8,6 +8,7 @@ import {
   stagger,
 } from "animejs";
 import SEO from "@/shared/components/SEO";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 import SectionHeader from "@/shared/ui/section-header";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import {
@@ -279,9 +280,7 @@ export default function Mission() {
               lineHeight: 1.04,
             }}
           >
-            We don't sell AI.
-            <br />
-            <span className="text-[var(--text-secondary)]">We sell results.</span>
+            <SplitHeadline lead="We don't sell AI." tail="We sell results." />
           </h1>
           {/* Belief, not capability. This page used to open by naming the
               category Ziiro belongs to, which is the same sentence /, /who-we-are
@@ -642,9 +641,7 @@ export default function Mission() {
                   lineHeight: 1.04,
                 }}
               >
-                Let's find your
-                <br />
-                <span className="text-[var(--text-secondary)]">biggest leak.</span>
+                <SplitHeadline lead="Let's find your" tail="biggest leak." />
               </h2>
               <p className="mx-auto mt-6 max-w-md text-sm text-[var(--text-secondary)]">
                 An hourly strategy consultation. We'll show you where the hours

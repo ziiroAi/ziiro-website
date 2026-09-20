@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createTimeline, stagger } from "animejs";
 
+import { HEADLINE_LINE_GAP } from "@/shared/components/SplitHeadline";
 import IntelligenceOrb from "./IntelligenceOrb";
 import HeroActions from "./HeroActions";
 import ScrollIndicator from "./ScrollIndicator";
@@ -117,9 +118,33 @@ export default function Hero() {
             {EYEBROW}
           </p>
 
-          {/* One h1, two tones of one family. The sr-only tail keeps the full
-              sentence a crawler used to get from the old hidden h1, without
-              hiding anything a sighted visitor needs. */}
+          {/* One h1, two tones of one family.
+
+              The two lines are separate block spans because each one is
+              animated on its own, so they need the `data-hero-*` hooks
+              individually and cannot come from <SplitHeadline>. What they do
+              borrow from it is HEADLINE_LINE_GAP: without a real character
+              between the spans, textContent ran the lines together and the
+              highest-value string on the site read "Your businessjust run
+              better." to Google, to a screen reader and to any answer engine.
+              White space between block boxes is discarded by block layout, so
+              the gap costs nothing on screen.
+
+              The sr-only tail that used to sit here is gone. It read "Business
+              intelligence and agentic AI systems for founder-led teams." and
+              dated from a time when the visible h1 carried no real copy, so a
+              crawler needed the sentence from somewhere. That is no longer
+              true: the h1 says something now. Keeping it meant the h1's text
+              and its accessible name disagreed with what is on screen, which
+              is the pattern hidden-heading-text guidance exists to discourage,
+              and it was the reason the home h1 alone ran on past its tagline.
+              It also still sold "business intelligence" and "agentic systems",
+              the separately-named services the site has since collapsed into
+              Diagnose, Build and Optimize, so it was quietly contradicting
+              /products from inside a hidden element. The positioning it
+              carried lives in the support paragraph below and in the meta
+              description, both of which a crawler reads and a visitor can
+              see. */}
           {/* Tracking and weight are both set for Helvetica Neue, which is what
               font-display resolves to now. -0.035em and font-bold were tuned
               for Instrument Sans and are wrong for this face twice over:
@@ -144,6 +169,7 @@ export default function Hero() {
             >
               {HEADLINE_LEAD}
             </span>
+            {HEADLINE_LINE_GAP}
             <span
               data-hero-reveal
               data-hero-line
@@ -151,10 +177,6 @@ export default function Hero() {
               style={{ color: "var(--text-secondary)" }}
             >
               {HEADLINE_TAIL}
-            </span>
-            <span className="sr-only">
-              {" "}
-              Business intelligence and agentic AI systems for founder-led teams.
             </span>
           </h1>
 

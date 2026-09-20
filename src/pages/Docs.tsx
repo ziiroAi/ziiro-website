@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import SEO from "@/shared/components/SEO";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 import { faqPageSchema } from "@/shared/components/seo-schema";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import { CSS_EASE, DURATION, STAGGER } from "@/shared/motion/tokens";
@@ -184,9 +185,7 @@ export default function Docs() {
                   className="mt-10 font-display font-semibold text-[var(--text-primary)]"
                   style={{ fontSize: "clamp(2.6rem, 6vw, 4.8rem)", letterSpacing: "-0.03em", lineHeight: 1.04 }}
                 >
-                  Documentation.
-                  <br />
-                  <span className="text-[var(--text-secondary)]">How Ziiro works.</span>
+                  <SplitHeadline lead="Documentation." tail="How Ziiro works." />
                 </h1>
               </MotionRevealItem>
 

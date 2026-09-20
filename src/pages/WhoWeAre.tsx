@@ -2,6 +2,7 @@ import { useEffect, useRef, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 import { createTimeline, cubicBezier, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 import SectionHeader from "@/shared/ui/section-header";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import { EASE_IN_OUT, EASE_OUT_EXPO, MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
@@ -139,11 +140,7 @@ export default function WhoWeAre() {
               lineHeight: 1.04,
             }}
           >
-            A small team you call
-            <br />
-            <span className="text-[var(--text-secondary)]">
-              when AI has to pay for itself.
-            </span>
+            <SplitHeadline lead="A small team you call" tail="when AI has to pay for itself." />
           </h1>
           {/* Who you are actually hiring. This opened with "We're Ziiro, a
               business-intelligence-first AI consultancy", which is the same

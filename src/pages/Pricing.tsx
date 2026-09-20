@@ -6,6 +6,7 @@ import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import TextReveal from "@/shared/motion/TextReveal";
 import { MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import SEO from "@/shared/components/SEO";
+import SplitHeadline from "@/shared/components/SplitHeadline";
 import {
   faqPageSchema,
   serviceCatalogSchema,
@@ -280,11 +281,7 @@ export default function Pricing() {
               lineHeight: 1.04,
             }}
           >
-            One rate is published.
-            <br />
-            <span className="text-[var(--text-secondary)]">
-              The rest is scoped.
-            </span>
+            <SplitHeadline lead="One rate is published." tail="The rest is scoped." />
           </h1>
 
           <p
@@ -564,11 +561,10 @@ export default function Pricing() {
                   lineHeight: 1.04,
                 }}
               >
-                Still not sure which stage?
-                <br />
-                <span className="text-[var(--text-secondary)]">
-                  That is what the hour is for.
-                </span>
+                <SplitHeadline
+                  lead="Still not sure which stage?"
+                  tail="That is what the hour is for."
+                />
               </h2>
             </MotionRevealItem>
 
