@@ -33,8 +33,9 @@ import ScrollScene, { SectionSeam } from "@/shared/motion/ScrollScene";
  *
  * "How does it work?" (HowItWorks) and "Why not an agency / hire / GPT?"
  * (WhyDifferent) were cut from this page on the owner's instruction. The
- * five-step engagement they carried is still written out at /who-we-are#process
- * and in /docs; the four-ways comparison is not on the site any more. Both
+ * five-step engagement they carried is still written out in /docs, as the
+ * stage arc at #lifecycle and the phase-by-phase method at #diagnose; the
+ * four-ways comparison is not on the site any more. Both
  * components are left in the tree unused, at
  * src/features/home/sections/HowItWorks.tsx and .../WhyDifferent.tsx.
  * SystemDirectory is now the only numbered section header on the page, so its

@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { animate, createAnimatable, createTimeline, cubicBezier, stagger } from "animejs";
 import { ArrowUpRight } from "lucide-react";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
+import Beam from "@/shared/motion/Beam";
 import {
   CSS_EASE,
   DURATION,
@@ -12,7 +13,10 @@ import {
   TRAVEL,
   VIEWPORT,
 } from "@/shared/motion/tokens";
-import { INTERIM_BOOKING_URL, MIN_SESSION_MINUTES } from "@/features/pricing/entities/rates";
+import {
+  INTERIM_BOOKING_URL,
+  MIN_SESSION_MINUTES,
+} from "@/features/pricing/entities/rates";
 import { useMarket } from "@/features/pricing/hooks/useMarket";
 
 /** The house expo-out, handed to anime.js. Built from the token control points
@@ -70,17 +74,29 @@ const investmentRow =
 const rowLabel =
   "shrink-0 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]";
 
-type MarketSource = ReturnType<typeof useMarket>["source"];
-
-/** Tells the visitor where the rate on screen came from. The visitor's IP alone
- *  decides the market, so the note names a place only once the lookup has found
- *  one. While the lookup is in flight (and in the prerendered HTML) the rate is
- *  hidden, so the note says so rather than claiming a location it does not know
- *  yet. */
-function regionNote(source: MarketSource, resolving: boolean, label: string): string {
-  if (source === "geo") return `[ ${label} · DETECTED FROM YOUR IP ]`;
-  return resolving ? "[ DETECTING YOUR REGION ]" : "[ REGION NOT DETECTED ]";
-}
+/**
+ * ── CURRENCY: DETECTED, NOT ASKED ─────────────────────────────────────
+ *
+ * The rate shown is the visitor's own, worked out silently. There is nothing
+ * on screen about currency or region: no label, no selector, no wording about
+ * where the visitor is or how we know.
+ *
+ * Two things have been removed from this spot, and neither should come back:
+ *
+ *   1. "[ INDIA · DETECTED FROM YOUR IP ]" above the rate, and
+ *      "[ DETECTING YOUR REGION ]" while the lookup ran. Accurate and
+ *      well-meant, but telling visitors you have identified their location
+ *      reads as surveillance even when it is harmless.
+ *   2. A USD / INR button pair that replaced it. If the region is already
+ *      detected, asking the visitor to pick a currency undoes the point of
+ *      detecting it: it makes them do work the page has already done, and it
+ *      re-raises the question of how the page knew which button to preselect.
+ *      One correct number, shown without comment, is the whole feature.
+ *
+ * The lookup itself is a separate question from the copy. Hosting, CDN and
+ * infrastructure still receive IPs, and the Privacy Policy must keep
+ * disclosing that accurately whatever this page does or does not say.
+ */
 
 /** Same arrow as the homepage's closing CTA: it travels TRAVEL.nudge and the
  *  link holds still, so the target never moves out from under the cursor.
@@ -113,32 +129,29 @@ function Arrow({ nudge }: { nudge: boolean }) {
   );
 }
 
-/** What the client walks away with. Generic outcomes only: nothing here
- *  promises a result the session cannot control.
+/** What the client walks away with. Three blocks, a label and one line each.
+ *  This was three headed paragraphs; the information is unchanged and the
+ *  prose around it is gone, because the page already shows the price, the
+ *  duration and the deliverables and did not need to argue for them.
  *
- *  Confirm with business before adding specifics: turnaround times, written
- *  reports or recaps, document formats and follow-up calls all stay out of
- *  this list until the business has agreed to deliver them. */
+ *  Generic outcomes only: nothing here promises a result the session cannot
+ *  control. Confirm with the business before adding specifics: turnaround
+ *  times, written reports or recaps, document formats and follow-up calls all
+ *  stay out of this list until the business has agreed to deliver them. */
 const deliverables = [
-  {
-    title: "A prioritised list of automations",
-    detail:
-      "The agents, workflows and loops worth building for your business, ranked in the order we would build them.",
-  },
-  {
-    title: "Rough sizing for each one",
-    detail:
-      "The hours each one could plausibly give back, set against the effort to build it, so you can weigh them side by side.",
-  },
-  {
-    title: "A recommended next step",
-    detail:
-      "One clear move to make next: build it with us, hand it to your team, or let it wait.",
-  },
+  { title: "Priority opportunities", detail: "Ranked in the order we would build them." },
+  { title: "Rough ROI and effort sizing", detail: "Hours back, set against effort to build." },
+  { title: "One recommended next move", detail: "Build it, hand it over, or let it wait." },
 ];
 
 const Contact = () => {
-  const { market, source, resolving } = useMarket();
+  // Detection is the only source of the rate now, so the market it returns is
+  // the market shown. Nothing on the page can override it.
+  const { market, resolving } = useMarket();
+
+  // The rate stays hidden until there is a real one to show: the default
+  // market is not the visitor's, so it must never flash before theirs lands.
+  const rateHidden = resolving;
 
   const rootRef = useRef<HTMLDivElement>(null);
   const valueRef = useRef<HTMLElement>(null);
@@ -146,6 +159,9 @@ const Contact = () => {
   const emailAnims = useRef<ReturnType<typeof createAnimatable>[]>([]);
   const ctaArrowAnim = useRef<ReturnType<typeof createAnimatable> | null>(null);
   const reduced = useRef(false);
+  /** Pointer is over the book button, so the card's beam picks up. State
+   *  rather than a ref because the beam is rendered, not animated by hand. */
+  const [ctaHot, setCtaHot] = useState(false);
 
   // Sequenced entrance: label -> headline -> sub -> investment -> direct lines
   useEffect(() => {
@@ -222,10 +238,12 @@ const Contact = () => {
 
   const ctaEnter = () => {
     if (reduced.current) return;
+    setCtaHot(true);
     ctaArrowAnim.current?.x(TRAVEL.nudge);
     ctaArrowAnim.current?.y(-TRAVEL.nudge);
   };
   const ctaLeave = () => {
+    setCtaHot(false);
     ctaArrowAnim.current?.x(0);
     ctaArrowAnim.current?.y(0);
   };
@@ -234,7 +252,9 @@ const Contact = () => {
     <div ref={rootRef} className="relative" style={{ zIndex: 1 }}>
       <SEO
         title="Book a Consultation: 60-Minute Minimum, Paid"
-        description="Book the session. One hour minimum, billed at your region's rate, no pitch. You leave with the bottlenecks named and the roadmap in your hands."
+        // No mention of region here either: a meta description is rendered
+        // copy, it just renders in a search result instead of on the page.
+        description="Book the session. Paid, one hour minimum, no pitch. You leave with the priority opportunities ranked, rough sizing for each, and one recommended next move."
         canonical="/contact"
       />
 
@@ -271,9 +291,23 @@ const Contact = () => {
             className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]"
             style={{ opacity: 0 }}
           >
-            A paid, one-hour consultation with our team. Bring the tasks that
-            eat your week, and we&apos;ll work out which agents, automations
-            and workflows are worth building, and in what order.
+            Bring the work that eats your week. We&apos;ll identify where AI can create
+            measurable leverage, what is worth building and what should come first.
+          </p>
+
+          {/* The brand line, as a reminder only. Mission is where the idea is
+              explained; this is the one-line version a visitor needs at the
+              moment they are deciding to book, and it must not grow into a
+              second explainer. */}
+          <p
+            data-rise
+            data-reveal
+            className="mt-8 max-w-xl border-l border-[var(--border-strong)] pl-5 text-sm leading-relaxed text-[var(--text-secondary)]"
+            style={{ opacity: 0 }}
+          >
+            <span className="font-medium text-[var(--text-primary)]">Leverage AI Anywhere.</span>{" "}
+            Anywhere doesn&apos;t mean everywhere. We look across your operation and use AI only
+            where the numbers justify it.
           </p>
         </header>
 
@@ -282,11 +316,27 @@ const Contact = () => {
             for keyboard and screen-reader order; from lg up the grid places it
             in the right-hand column. */}
         <div className="grid grid-cols-1 gap-16 pb-20 pt-16 lg:grid-cols-12">
+          {/* The one beam on this page, and one of only two on the site. This
+              is the booking card, the single most important thing a visitor
+              can act on, so it carries a slow low beam at rest and picks up
+              while the pointer is over the book button. Alive, not insistent.
+
+              The grid placement lives on the wrapper rather than the card,
+              because the wrapper is the grid item once the beam mounts. The
+              card keeps its own look, and `md` traces the full rounded border
+              it already has. */}
+          <Beam
+            className="lg:col-span-6 lg:col-start-7 lg:row-start-1"
+            size="md"
+            radius={16}
+            strength={ctaHot ? 0.46 : 0.2}
+            duration={ctaHot ? 5 : 9}
+          >
           <section
             data-rise
             data-reveal
             aria-labelledby="investment-heading"
-            className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-8 md:p-10 lg:col-span-6 lg:col-start-7 lg:row-start-1"
+            className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-8 md:p-10"
             style={{ opacity: 0 }}
           >
             <h2
@@ -296,11 +346,10 @@ const Contact = () => {
               <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
               {"( YOUR INVESTMENT )"}
             </h2>
-            <p className="mt-3 text-balance font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-              {regionNote(source, resolving, market.label)}
-            </p>
-
-            {/* Two rows, label then value (see investmentRow). */}
+            {/* Two rows, label then value (see investmentRow). The heading
+                above used to be followed by a currency selector; the rows now
+                sit directly under it, so the spacing that separated the two
+                moves here. */}
             <dl className="mt-8 border-t border-[var(--border)]">
               <div className={investmentRow}>
                 <dt className={rowLabel}>Hourly Rate</dt>
@@ -312,10 +361,10 @@ const Contact = () => {
                     aria-busy holds the announcement until the real rate is in. */}
                 <dd
                   aria-live="polite"
-                  aria-busy={resolving}
+                  aria-busy={rateHidden}
                   data-reveal
                   className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1"
-                  style={{ ...revealTransition, opacity: resolving ? 0 : 1 }}
+                  style={{ ...revealTransition, opacity: rateHidden ? 0 : 1 }}
                 >
                   <span
                     className="font-display font-semibold text-[var(--text-primary)]"
@@ -350,18 +399,11 @@ const Contact = () => {
               <p
                 data-reveal
                 className="mt-3 text-sm leading-relaxed text-[var(--text-secondary)]"
-                style={{ ...revealTransition, opacity: resolving ? 0 : 1 }}
+                style={{ ...revealTransition, opacity: rateHidden ? 0 : 1 }}
               >
                 {market.note}
               </p>
             )}
-
-            <p className="mt-6 text-sm leading-relaxed text-[var(--text-secondary)]">
-              You&apos;re not paying for an hour of conversation. You&apos;re
-              investing in the analysis and expertise we bring to how your
-              business actually runs, and you take away recommendations and a
-              clear direction you can act on.
-            </p>
 
             <a
               href={INTERIM_BOOKING_URL}
@@ -379,16 +421,24 @@ const Contact = () => {
               <span className="sr-only"> (opens in a new tab)</span>
             </a>
 
-            {/* Assurance, deliberately conditional: it asks the client to raise
-                it before the call ends and names no remedy. The exact guarantee
-                (refund, credit, follow-up session, and on what conditions) is
-                pending business confirmation. Do not harden this copy until the
-                business has agreed it. */}
-            <p className="mt-4 text-balance text-center text-xs leading-relaxed text-[var(--text-secondary)]">
-              If the session doesn&apos;t give you a clear next step, tell us
-              before you leave the call and we&apos;ll make it right.
-            </p>
+            {/* THE GUARANTEE LINE IS DELIBERATELY ABSENT. IT NEEDS THE HUMAN.
+
+                This card used to close with "If the session doesn't give you a
+                clear next step, tell us before you leave the call and we'll
+                make it right." It named no remedy and no condition, so it
+                promised nothing while sounding like a promise, which is the
+                worst of both. The alternative on the table is a real policy,
+                "Clear-next-step guarantee: if we cannot identify a useful next
+                step during the session, you don't pay", and that is a refund
+                commitment the business has not agreed to and we cannot invent
+                on its behalf.
+
+                So it is removed rather than reworded. To restore it, get the
+                policy confirmed first (what the remedy is, who judges it, and
+                by when it must be raised), then write that. Do not reinstate
+                the old wording. */}
           </section>
+          </Beam>
 
           <div
             data-rise
@@ -435,67 +485,42 @@ const Contact = () => {
           aria-labelledby="value-heading"
           className="grid grid-cols-1 gap-12 border-t border-[var(--border)] pb-28 pt-16 lg:grid-cols-12 lg:gap-16"
         >
-          <div data-value-rise data-reveal className="lg:col-span-5" style={{ opacity: 0 }}>
-            <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-              {"( DELIVERABLES )"}
-            </p>
+          <div data-value-rise data-reveal className="lg:col-span-4" style={{ opacity: 0 }}>
             <h2
               id="value-heading"
-              className="mt-8 font-display font-semibold text-[var(--text-primary)]"
-              style={{
-                fontSize: "clamp(1.9rem, 3.6vw, 3rem)",
-                letterSpacing: "-0.03em",
-                lineHeight: 1.08,
-              }}
+              className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]"
             >
-              <SplitHeadline
-                lead="Value of your investment."
-                tail="What you leave the hour with."
-              />
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
+              {"( YOU LEAVE WITH )"}
             </h2>
           </div>
 
-          <div className="lg:col-span-6 lg:col-start-7">
-            <ol className="border-t border-[var(--border)]">
-              {deliverables.map((d, i) => (
-                <li
-                  key={d.title}
-                  data-value-rise
-                  data-reveal
-                  className="flex gap-5 border-b border-[var(--border)] py-6"
-                  style={{ opacity: 0 }}
+          {/* Three blocks side by side from sm up, a label and one line each.
+              This was three headed paragraphs plus a closing claim about the
+              hour being worth more than it costs; the claim is gone because it
+              was ours to make and nothing could back it. */}
+          <ol className="grid gap-px overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--border)] sm:grid-cols-3 lg:col-span-8">
+            {deliverables.map((d, i) => (
+              <li
+                key={d.title}
+                data-value-rise
+                data-reveal
+                className="bg-[var(--background)] p-6"
+                style={{ opacity: 0 }}
+              >
+                <span
+                  aria-hidden="true"
+                  className="font-mono text-[10px] tracking-[0.2em] text-[var(--text-muted)]"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="shrink-0 pt-1 font-mono text-[10px] tracking-[0.2em] text-[var(--text-muted)]"
-                  >
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div>
-                    <p className="font-medium text-[var(--text-primary)]">{d.title}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
-                      {d.detail}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-            <p
-              data-value-rise
-              data-reveal
-              className="mt-10 max-w-lg font-display font-medium text-[var(--text-primary)]"
-              style={{
-                fontSize: "clamp(1.15rem, 1.6vw, 1.35rem)",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.35,
-                opacity: 0,
-              }}
-            >
-              We aim for the plan you leave with to be worth more than the hour
-              you invest in it.
-            </p>
-          </div>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <p className="mt-3 font-medium text-[var(--text-primary)]">{d.title}</p>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">
+                  {d.detail}
+                </p>
+              </li>
+            ))}
+          </ol>
         </section>
 
         {/* ─── Client voices: disabled for now ───
@@ -510,6 +535,15 @@ const Contact = () => {
 
             It is a pointer rather than the testimonials themselves: they live
             on Who We Are, and one place keeps two copies from drifting apart.
+
+            BEFORE RE-ENABLING, FIX THE LINK. The anchor below is
+            /who-we-are#testimonials and there is no longer an element with
+            that id: the testimonials mount on Who We Are is commented out too,
+            so uncommenting this section as it stands ships a broken link. It
+            stays written down rather than corrected because there is nothing
+            correct to point it at yet. Testimonials are deliberately hidden in
+            production until there are real ones, so restoring the anchor is
+            part of restoring the testimonials, not a separate fix.
 
         <section aria-label="Client testimonials" className="pb-24 md:pb-32">
           <MotionReveal className="flex flex-col items-start justify-between gap-5 border-t border-[var(--border)] pt-10 md:flex-row md:items-center">

@@ -65,9 +65,15 @@ export const PHASES: Phase[] = [
   },
 ];
 
-/** The engagement's terms, as the Process page stated them. */
+/** The engagement's terms, as the Process page stated them.
+ *
+ *  The duration is 1-3 weeks, not the 2-3 this said until now. Pricing's
+ *  Diagnose span and the timeline FAQ both say 1-3, and this entity renders on
+ *  /docs and /who-we-are, so the old figure was the site contradicting itself
+ *  on three pages. Keep all four in step: this line, Pricing's `span`, the
+ *  timeline answer in pricing/entities/faqs.ts, and anything that quotes them. */
 export const PROCESS_TERMS = [
-  "Duration: 2-3 weeks",
+  "Duration: 1-3 weeks",
   "Scope: Fixed",
   "Obligation: None",
 ];

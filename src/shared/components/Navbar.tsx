@@ -357,21 +357,54 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* ─── Right: the call to action ───────────────────────────────── */}
-        <div className="flex items-center">
+        {/* ─── Right: the call to action ─────────────────────────────────
+            Two elements, and the split is the point. The wrapper carries the
+            scroll-driven state; the link carries the pointer-driven state.
+
+            They used to be one element, and that element had BOTH an opacity
+            recomputed on every scroll frame and a 0.15s transition on opacity.
+            A transition retargeted every frame does not track its input, it
+            chases it: measured from a standing start, the button sat at 0 for
+            three frames and then eased 0.33, 0.53, 0.68, 0.79, 0.87, 0.93,
+            0.96 while the scroll position had already arrived. Scroll is the
+            reader's gesture here, so the rule that applies is that a
+            gesture-driven value animates from where it actually is and can be
+            reversed at any moment. A transition can do neither: reverse the
+            scroll mid-fade and it restarts toward the new target from wherever
+            the easing curve had got to.
+
+            So the wrapper has no transition at all at full motion, and the
+            opacity is simply the scroll position. Under reduced motion the
+            progress is deliberately binary (see ctaOpacity), and a bare
+            binary flip is a hard cut, so that case gets a cross-fade instead:
+            the preference asks for a gentler equivalent, not for nothing.
+
+            The link keeps its own opacity transition, which is now only ever
+            driving the hover. Before the split the two shared one declaration
+            and could not be tuned apart. */}
+        <div
+          className="flex items-center"
+          style={{
+            opacity: ctaOpacity,
+            transform: `translateY(${ctaLift}px)`,
+            visibility: ctaIdle ? "hidden" : "visible",
+            pointerEvents: ctaIdle ? "none" : undefined,
+            ...(reduced
+              ? {
+                  transitionProperty: "opacity",
+                  transitionDuration: `${DURATION.swap}s`,
+                  transitionTimingFunction: CSS_EASE.out,
+                }
+              : null),
+          }}
+        >
           <Link
             to="/contact"
             data-reveal
             tabIndex={ctaIdle ? -1 : undefined}
             aria-hidden={ctaIdle || undefined}
             className="flex items-center rounded-full bg-[var(--text-primary)] px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90"
-            style={{
-              opacity: ctaOpacity,
-              transform: `translateY(${ctaLift}px)`,
-              visibility: ctaIdle ? "hidden" : "visible",
-              pointerEvents: ctaIdle ? "none" : undefined,
-              ...micro("opacity"),
-            }}
+            style={micro("opacity")}
           >
             Book a Call
           </Link>

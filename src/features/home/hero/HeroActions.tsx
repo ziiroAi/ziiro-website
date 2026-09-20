@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 
 import { CSS_EASE, DURATION, TRAVEL } from "@/shared/motion/tokens";
+import ArrowFillLink from "@/shared/ui/arrow-fill-link";
 
 /**
  * The two things a visitor can do from the hero. Both already exist on the
@@ -114,29 +115,17 @@ export default function HeroActions() {
       {/* This used to be an in-page hash to #how-it-works, with a click
           handler routing the travel through Lenis so a native jump couldn't
           fight the smooth scroller. That section is gone from the homepage, so
-          the hash had nothing to land on; the process it described is written
-          out phase by phase at /who-we-are#process, which is the closest
-          surviving target and what the label already promises. A cross-page
-          hash needs no Lenis interception — App's ScrollToTop owns landing on
-          a hash after a route change — so the handler went with it. */}
-      <Link
-        to="/who-we-are#process"
-        className={`${base} border hover:border-[var(--text-primary)] focus-visible:border-[var(--text-primary)]`}
-        style={{
-          ...micro,
-          borderColor: "var(--border-strong)",
-          color: "var(--text-primary)",
-          background: "var(--background)",
-          ["--tw-ring-offset-color" as string]: "var(--background)",
-          ["--tw-ring-color" as string]: "var(--text-primary)",
-        }}
-      >
-        See how it works
-        <Arrow
-          className="group-hover:translate-y-[var(--nudge)] group-hover:rotate-90 group-focus-visible:translate-y-[var(--nudge)] group-focus-visible:rotate-90"
-          style={nudge}
-        />
-      </Link>
+          the hash had nothing to land on.
+          It then pointed at /who-we-are#process, and Job 8 deleted the
+          seven-step section that owned that anchor, so it broke a second time.
+          The engagement now runs end to end at /docs#lifecycle: CONSULT,
+          DIAGNOSE, BUILD, OPTIMIZE with a line each, which is exactly what
+          this label promises. The phase-by-phase detail underneath it is a
+          level deeper, at /docs#diagnose.
+          A cross-page hash needs no Lenis interception, because App's
+          ScrollToTop owns landing on a hash after a route change, so the
+          handler went with it. */}
+      <ArrowFillLink to="/docs#lifecycle">See how it works</ArrowFillLink>
     </div>
   );
 }

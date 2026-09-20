@@ -28,8 +28,9 @@ export default function ScrollIndicator() {
    *
    * The target was #how-it-works until that section was cut from the homepage.
    * It is #systems now — the directory, which is the next anchored block down.
-   * Deliberately NOT repointed to /who-we-are#process the way the hero's
-   * "See how it works" button was: this is a scroll cue, and a cue that says
+   * Deliberately NOT repointed off the page the way the hero's "See how it
+   * works" button was, which now goes to /docs#lifecycle: this is a scroll
+   * cue, and a cue that says
    * the page continues below has to continue below. Sending it to another page
    * would make the one control whose entire meaning is "keep scrolling" the
    * one that leaves.

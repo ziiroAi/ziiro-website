@@ -22,14 +22,26 @@ interface Particle {
 const CELL = 7; // sampling resolution (px per cell)
 const DURATION = 850; // assembly duration (ms), per particle
 const MAX_DELAY = 320; // latest a particle starts moving (ms)
-const HOLD = 350; // beat to actually read the finished wordmark (ms)
+const HOLD = 140; // beat to actually read the finished wordmark (ms)
 /**
  * Never hide before the wordmark has finished assembling, plus a beat to see
  * it. Derived rather than hardcoded: the last particle starts at MAX_DELAY and
  * takes DURATION to land, so anything shorter fades the logo out mid-assembly
  * and the visitor never sees it resolve.
+ *
+ * HOLD was 350ms, which put the floor at 1520ms and, with the 500ms fade, just
+ * over two seconds of scroll-locked overlay on a first visit even when fonts
+ * resolved instantly. That is latency sitting directly on the reader's path
+ * for a decoration. The assembly itself is the only part that is load-bearing,
+ * because fading mid-assembly looks broken, so the beat after it is what gets
+ * cut rather than the animation.
+ *
+ * Under reduced motion there is no assembly to wait for at all: every particle
+ * is drawn at its landed position from the first frame, so the whole
+ * DURATION + MAX_DELAY is dead time and the floor is the beat alone.
  */
 const MIN_VISIBLE = DURATION + MAX_DELAY + HOLD;
+const MIN_VISIBLE_REDUCED = HOLD;
 const FADE = 500; // fade-out duration (ms)
 const FONT_CAP = 400; // never wait longer than this on fonts before dismissing
 
@@ -181,12 +193,17 @@ export default function Preloader() {
     ]);
     const ready = Promise.all([
       fontsReady,
-      new Promise((res) => setTimeout(res, MIN_VISIBLE)),
+      new Promise((res) =>
+        setTimeout(res, reduced ? MIN_VISIBLE_REDUCED : MIN_VISIBLE),
+      ),
     ]);
 
     let fadeTimer: ReturnType<typeof setTimeout>;
     let removeTimer: ReturnType<typeof setTimeout>;
-    ready.then(() => {
+
+    /** Start the fade now, whatever the clock says. Guarded by fadeStarted so
+     *  the timer and a skip cannot both run it. */
+    const dismiss = () => {
       if (fadeStarted) return;
       fadeStarted = true;
       setFading(true);
@@ -194,7 +211,30 @@ export default function Preloader() {
         cancelAnimationFrame(raf);
         setGone(true);
       }, FADE + 40);
-    });
+    };
+
+    ready.then(dismiss);
+
+    /* Skippable, which is the part that actually matters. The overlay locks
+       scroll and is aria-hidden, so before this there was no way past it at
+       all: a reader who did not want the animation waited it out.
+
+       Any deliberate input dismisses it, and the set is chosen to cover every
+       way someone signals "I want the page". `wheel` and `touchstart` are the
+       important ones, because a reader whose first instinct is to scroll is
+       exactly the one being held up, and the scroll lock means their gesture
+       would otherwise do nothing at all. Both are passive: this only listens,
+       it never blocks the gesture.
+
+       No skip BUTTON, deliberately. A visible control would need focus, a
+       label and a tab stop on an element that is aria-hidden and gone within
+       two seconds, which is more interface than the problem deserves. Making
+       every input work is the same affordance without the furniture. */
+    const skip = () => dismiss();
+    window.addEventListener("keydown", skip);
+    window.addEventListener("pointerdown", skip);
+    window.addEventListener("wheel", skip, { passive: true });
+    window.addEventListener("touchstart", skip, { passive: true });
 
     const onResize = () => {
       W = window.innerWidth;
@@ -214,6 +254,10 @@ export default function Preloader() {
       clearTimeout(fadeTimer);
       clearTimeout(removeTimer);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("keydown", skip);
+      window.removeEventListener("pointerdown", skip);
+      window.removeEventListener("wheel", skip);
+      window.removeEventListener("touchstart", skip);
       document.body.style.overflow = prevOverflow;
     };
   }, []);

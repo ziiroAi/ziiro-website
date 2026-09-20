@@ -13,7 +13,7 @@ when the math doesn't support it.
 
 ## Start here
 - [Ziiro AI](https://ziiro.work): AI that has to pay for itself. The agent directory behind the work — the jobs, agents and departments we actually run — and the ask: an hourly consultation.
-- [Contact](https://ziiro.work/contact): Book a paid AI strategy consultation, billed hourly with a 60-minute minimum, at rates set by region (India, United States, and a global rate). We identify your operational bottlenecks, estimate the ROI of automating them, show where AI actually creates value, and say what shouldn't be automated. No pitch, and you keep the roadmap. aniket@ziiro.work · govind@ziiro.work · Haryana, India · worldwide.
+- [Contact](https://ziiro.work/contact): Book a paid AI strategy consultation, billed hourly with a 60-minute minimum, at rates set by region (India, United States, and a global rate). We identify your operational bottlenecks, estimate the ROI of automating them, show where AI actually creates value, and say what shouldn't be automated. No pitch, and you keep the roadmap. aniket@ziiro.work · govind@ziiro.work · India · worldwide.
 
 ## Watch
 - [How Ziiro works, in full](https://ziiro.work/watch/how-ziiro-works): An eight-minute screen-share walkthrough of the whole business in the order you'd actually ask about it: what we do and what we deliberately don't, how an engagement runs start to finish, what you invest and how scope gets set, and where your data goes and who can see it.
@@ -29,6 +29,7 @@ when the math doesn't support it.
 ## Company
 - [Who We Are](https://ziiro.work/who-we-are): Who you are actually hiring and how an engagement runs. The operators who do the work, what we help with, the process phase by phase from understanding how the business runs to a prioritized roadmap, why work with us, and how to reach the team directly. An eight-minute screen-share walkthrough of how Ziiro works end to end (what we do, how we work, what you invest, where your data goes), and the eight-layer stack we build on, in which the reasoning model is one interchangeable layer rather than the advantage.
 - [Mission](https://ziiro.work/mission): Why the company exists and what it refuses to do. We don't sell AI, we sell results, and AI without business intelligence is expensive guessing. Five principles we work by, and four kinds of work we turn down: a build with no baseline, automation that moves a bottleneck instead of removing it, AI where arithmetic would do, and work the numbers don't support.
+- [Careers](https://ziiro.work/careers): There are no open roles. Why the page is empty (a hire is a system and the numbers do not currently clear), an honest guess at what the first role would be when it opens, an operations analyst or a systems engineer, what earns a reply in the meantime, and the two published addresses to write to. No application form and no applicant tracker.
 
 ## Optional
 - [Privacy Policy](https://ziiro.work/privacy): What we collect, how we use it, and how to have it deleted. Your numbers are never sold or passed on.

@@ -39,11 +39,15 @@ The company direction is agentic AI consultancy and productized systems for lean
 | Layer | Technology |
 |---|---|
 | Frontend | React + Vite + TypeScript |
-| Styling | Tailwind CSS + shadcn/ui |
-| Backend / DB | Supabase (Postgres + Edge Functions) |
-| Email | Resend API |
-| SEO | react-helmet-async + JSON-LD schema |
+| Styling | Tailwind CSS, with CSS custom properties for the palette |
+| UI primitives | Radix, for the toast and tooltip only |
+| Server | One Vercel Edge Function in `api/`, for geo lookup. No database |
+| SEO | react-helmet-async + JSON-LD schema, prerendered at build time |
 | Deployment | Vercel + custom domain (ziiro.work) |
+
+The site started as a shadcn scaffold and no longer uses it: there is no
+`src/components/ui`, no shadcn CLI config, and the component library is the
+project's own under `src/shared` and `src/features`.
 
 ---
 
@@ -51,15 +55,13 @@ The company direction is agentic AI consultancy and productized systems for lean
 
 ```bash
 # Clone the repo
-git clone https://github.com/Govind0404/ziiro-ai-vision.git
-cd ziiro-ai-vision
+git clone https://github.com/ziiroAi/ziiro-website.git
+cd ziiro-website
 
 # Install dependencies
 npm install
 
-# Set up environment variables
-cp .env.example .env
-# Fill in your Supabase and Resend keys in .env
+# No environment variables are needed. See .env.example for why.
 
 # Start the dev server
 npm run dev
@@ -71,13 +73,11 @@ The app runs at `http://localhost:8081` by default.
 
 ## Environment Variables
 
-```env
-VITE_SUPABASE_URL=https://your-project-id.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
-VITE_SUPABASE_PROJECT_ID=your_project_id
-```
+There are none. `api/geo.ts` reads a header Vercel sets for it and takes no
+configuration, and the client bundle reads no environment variables at all.
 
-> `RESEND_API_KEY` and `SUPABASE_ACCESS_TOKEN` are only needed for deploying Supabase Edge Functions; they never go in the frontend bundle.
+The `RESEND_*` and `TEAM_INBOX` vars documented here previously were read by
+`api/send-contact.ts`, which has been deleted. See `.env.example`.
 
 ---
 
@@ -87,7 +87,7 @@ VITE_SUPABASE_PROJECT_ID=your_project_id
 |---|---|
 | `/` | Home: agentic systems positioning, how it works, strategic focus, CTA |
 | `/services` | All 5 agentic offers with orbital diagram |
-| `/contact` | Contact form (sends email notification via Resend) |
+| `/contact` | Booking card: rate, what the hour covers, and a link out to Calendly |
 | `/privacy` | Privacy Policy |
 | `/terms` | Terms & Conditions |
 

@@ -69,11 +69,11 @@ Worth saying plainly, so you can judge severity before spending a weekend on thi
 - There are no user accounts, no login, and no passwords.
 - The site takes no payments. Booking goes to Calendly and anything payment related happens there, on their domain.
 - There is no database. The site stores nothing about visitors, and it sets no analytics or tracking cookies.
-- `POST /api/send-contact` forwards a submission to a team mailbox through Resend and keeps no copy of it.
+- The site sends no email. There is one endpoint, and it does not take submissions of any kind.
 - `GET /api/geo` returns a two-letter country code read from a Vercel request header, for regional pricing. It stores nothing.
 - Server secrets live in Vercel environment variables and are not part of the client bundle.
 
-So the data at risk is contact submissions in transit to email, and not much else. The classes we care most about are anything that changes what visitors see, anything that reaches our build or deploy pipeline, and anything that exposes those submissions or our sending credentials.
+So there is very little data at risk: the site collects nothing from visitors and stores nothing about them. The classes we care most about are anything that changes what visitors see and anything that reaches our build or deploy pipeline.
 
 ## Safe harbour
 

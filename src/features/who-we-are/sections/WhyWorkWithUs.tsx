@@ -3,40 +3,31 @@ import { STAGGER } from "@/shared/motion/tokens";
 import SectionHeader from "@/shared/ui/section-header";
 
 /**
- * Why work with us: how we approach the work, what we are good at, and what
- * sets us apart. Nothing here is new: every line is lifted from copy the site
- * already publishes, so change them together.
- *  - Numbers first, Simple beats clever, The mechanism, We use what we build:
- *    the Mission page's principles 01, 04, 02 and 05.
- *  - You keep the work, and the header: the retired Process page.
- *  - Model-agnostic: the "What Powers Ziiro" stack, which now runs as the
- *    section directly below this one rather than on the home page. Keep the
- *    two in step: this states the claim, that one is the evidence for it.
+ * Three differentiators, down from six.
+ *
+ * The other three were not weak, they were someone else's. "Simple beats
+ * clever" and "The mechanism, not the value" are two of the three principles
+ * /mission now owns outright, and repeating them here is the duplication this
+ * job exists to remove. "We use what we build" made a claim the site cannot
+ * evidence anywhere. "You keep the work" survives as a clause in the origin
+ * section rather than as a card of its own.
+ *
+ * What is left is the three the brief specifies, and each says something no
+ * other page says: the order of work, who does it, and what is actually the
+ * advantage.
  */
 const reasons = [
   {
     label: "Numbers first",
-    body: "Every engagement begins with understanding operations, not pitching solutions.",
+    body: "We understand the economics before recommending the system.",
   },
   {
-    label: "Simple beats clever",
-    body: "If a spreadsheet fix saves more than an AI system, we'll tell you. We recommend what works, even if it's simpler and cheaper than expected.",
+    label: "Built by the people who scope it",
+    body: "No sales-team-to-junior-team handoff. The person who maps your process is the person who ships it.",
   },
   {
-    label: "The mechanism, not the value",
-    body: "The value is hours recovered, money saved, growth unlocked. AI is just how we get there.",
-  },
-  {
-    label: "We use what we build",
-    body: "We run our own company on the same systems we build for clients. If we wouldn't use it ourselves, we won't sell it to you.",
-  },
-  {
-    label: "Model-agnostic",
-    body: "GPT, Claude, Gemini. Interchangeable by design, and never the differentiator.",
-  },
-  {
-    label: "You keep the work",
-    body: "Even if we recommend building nothing, the process maps, the baselines and the ROI math stay yours.",
+    label: "Model agnostic",
+    body: "The model is replaceable. Your workflow, business context and system design are the advantage.",
   },
 ];
 
@@ -44,18 +35,21 @@ export default function WhyWorkWithUs({ index }: { index: string }) {
   return (
     <section className="pb-24 md:pb-32">
       <div className="mx-auto max-w-7xl px-6 md:px-10">
+        {/* The sub is gone and the title no longer says "the people who scope
+            it are the people who build it": that is now one of the three cards
+            below, and the section was making the same point three times over,
+            in the title, the sub and a card. */}
         <SectionHeader
           index={index}
           label="Why Work With Us"
-          meta="No handoffs"
-          titleA="The people who scope it"
-          titleB="are the people who build it."
-          sub="We stay small on purpose. No account layers, no handoff to a junior after the pitch: the person who maps your process is the person who ships the system."
+          meta="03 reasons"
+          titleA="Three things"
+          titleB="that actually differ."
         />
 
         <MotionReveal
           stagger={STAGGER.card}
-          className="mt-16 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+          className="mt-14 grid grid-cols-1 gap-4 md:grid-cols-3"
         >
           {reasons.map((r) => (
             <MotionRevealItem key={r.label}>

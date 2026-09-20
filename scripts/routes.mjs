@@ -85,6 +85,15 @@ export const routes = [
     fallback: "2026-09-16",
   },
   {
+    path: "/careers",
+    sources: ["src/pages/Careers.tsx"],
+    // There is nothing to apply for, so nothing here goes stale on a schedule.
+    // It changes when the hiring position changes, which is not a cadence.
+    changefreq: "yearly",
+    priority: "0.4",
+    fallback: "2026-09-20",
+  },
+  {
     path: "/privacy",
     sources: ["src/pages/Privacy.tsx"],
     changefreq: "yearly",

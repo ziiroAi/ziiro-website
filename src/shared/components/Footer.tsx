@@ -37,6 +37,7 @@ const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
     links: [
       { label: "Pricing", to: "/pricing" },
       { label: "Contact", to: "/contact" },
+      { label: "Careers", to: "/careers" },
     ],
   },
   {

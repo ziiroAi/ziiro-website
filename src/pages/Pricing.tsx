@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { animate, createAnimatable, createTimeline, stagger } from "animejs";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
-import TextReveal from "@/shared/motion/TextReveal";
 import { MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
@@ -11,71 +10,72 @@ import {
   faqPageSchema,
   serviceCatalogSchema,
 } from "@/shared/components/seo-schema";
-import { PRICING_FAQS as faqs } from "@/features/pricing/entities/faqs";
+import { PRICING_PAGE_FAQS as faqs } from "@/features/pricing/entities/faqs";
+import { MARKETS, MIN_SESSION_MINUTES } from "@/features/pricing/entities/rates";
 
-/** How you engage, in order. The two-part model this page exists to explain:
- *  one published rate for the hour, then a scope. Without these three steps
- *  the hourly rate and the absence of project prices read as two unrelated
- *  pricing models rather than one sequence. */
+/**
+ * The consultation rate, built from the pricing entity rather than typed here,
+ * so this page cannot drift from Contact or from rates.ts.
+ *
+ * Both currencies are shown side by side. The rates are set per market and are
+ * deliberately NOT conversions of each other, so there is no single number to
+ * print; showing both is also the one presentation that needs no region
+ * detection, which is the thing Contact just removed from view. A visitor reads
+ * their own currency without the page telling them where they are.
+ */
+const HOURLY = `${MARKETS.GLOBAL.display} / ${MARKETS.IN.display}`;
+const MIN_HOURS = MIN_SESSION_MINUTES / 60;
+
+/** The four questions this page exists to answer, in the order a buyer asks
+ *  them: what the first conversation costs, how a project is priced, what
+ *  determines the scope, and when the number is known. Steps 01 to 03 answer
+ *  the first, second and fourth; the stage rows below answer the third.
+ *
+ *  This used to be "the hour / the scope / the stage" with the rate pushed off
+ *  to Contact. A pricing page that will not say a price is a pricing page a
+ *  reader has to leave, so the figure is stated here. */
 const howItRuns = [
   {
-    step: "The hour",
-    line: "A paid consultation with a one hour minimum, at the rate shown on Contact. You bring the work that eats your week. You leave with a direction whether or not you go further.",
+    step: "Consultation",
+    line: `${HOURLY} an hour, ${MIN_HOURS} hour minimum. We work out what is worth pursuing, and you leave with a direction either way.`,
   },
   {
-    step: "The scope",
-    line: "We write down which stage you need and what it has to cover, and set the price for that stage. You see the number before any of it starts.",
+    step: "Scope",
+    line: "We agree the stage, the systems or processes included, the integrations, the expected output and the timeline.",
   },
   {
-    step: "The stage",
-    line: "Work runs against that scope. If the scope has to change, it is re-quoted before the work happens rather than invoiced after it.",
+    step: "Quote",
+    line: "One scope, one project price, agreed before work starts. A change of scope is re-quoted, never invoiced after the fact.",
   },
 ];
 
-/** The same three stages Products.tsx sets out, read here as units of scope
- *  rather than as a catalogue of what gets built. Nothing else on this page is
- *  presented as a separate thing to buy. Spans are the ranges the site has
- *  always published, re-mapped onto the stage that absorbed them. */
+/** The same three stages Products.tsx sets out, carrying ONLY what moves their
+ *  price. What each stage actually produces is Products' job and is not
+ *  repeated here: this page used to re-list all fourteen deliverables, which is
+ *  most of the Products page restated under a different heading.
+ *
+ *  Spans are the ranges the site publishes. Diagnose says 1 to 3 weeks, which
+ *  is the figure Docs now uses too; the two pages disagreed before. */
 const stages = [
   {
     name: "Diagnose",
     desc: "Find out what is worth building",
-    covers: [
-      "Process and role mapping",
-      "KPI baselines taken before anything changes",
-      "ROI models for each candidate system",
-      "Priority matrix and build roadmap",
-      "A written spec for the first system",
-    ],
     scopedBy:
-      "How many processes are in scope, and how much of the operation is already written down.",
+      "The number of processes in scope, and how complex they are.",
     span: "Typical span: 1 to 3 weeks",
   },
   {
     name: "Build",
     desc: "Ship it into the operation",
-    covers: [
-      "Agent design and deployment",
-      "Integration with the stack you already run",
-      "Dashboard and control panel",
-      "Access, handover and documentation",
-      "An agreed acceptance check before it is called done",
-    ],
     scopedBy:
-      "How many workflows the system touches, and how reachable your existing tools are.",
+      "Workflows, integrations, and how complex the system has to be.",
     span: "Typical span: 4 to 12 weeks",
   },
   {
     name: "Optimize",
     desc: "Keep it earning after launch",
-    covers: [
-      "Outcome tracking against the Diagnose baselines",
-      "Test loops and auto-tuning",
-      "Learning reports on an agreed cadence",
-      "Adjustments as the operation changes",
-    ],
     scopedBy:
-      "The cadence you want, and how many live systems are under measurement.",
+      "How many systems are live under measurement, and at what cadence.",
     span: "Runs in cycles, not to a finish date",
   },
 ];
@@ -289,18 +289,9 @@ export default function Pricing() {
             style={{ opacity: 0 }}
             className="mt-6 max-w-xl leading-relaxed text-[var(--text-secondary)]"
           >
-            The consultation is billed by the hour with a one hour minimum, at
-            the rate on{" "}
-            <Link
-              to="/contact"
-              className="text-[var(--text-primary)] underline underline-offset-4"
-            >
-              Contact
-            </Link>
-            . Project work is quoted after that hour, one stage at a time, once
-            we know what the stage has to cover. That is the entire model: a
-            published rate, then a scope. There is no price list, because there
-            is no standard project.
+            {HOURLY} an hour for the consultation, {MIN_HOURS} hour minimum.
+            Project work is quoted after it, one stage at a time. There is no
+            price list, because there is no standard project.
           </p>
 
           <div
@@ -366,7 +357,7 @@ export default function Pricing() {
             <div className="flex items-center justify-between border-t border-[var(--border)] pt-6">
               <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                Sec. 02 / What a stage covers
+                Sec. 02 / What sets the price
               </p>
               <p className="hidden font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)] md:block">
                 [ 03 Stages ]
@@ -388,7 +379,7 @@ export default function Pricing() {
                   {String(i + 1).padStart(2, "0")}
                 </span>
 
-                <div className="col-span-10 md:col-span-5">
+                <div className="col-span-10 md:col-span-9">
                   <h2
                     data-stage-title
                     className="font-display font-semibold text-[var(--text-primary)]"
@@ -409,7 +400,7 @@ export default function Pricing() {
                   <p className="mt-8 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
                     [ Scoped by ]
                   </p>
-                  <p className="mt-3 max-w-sm text-sm leading-relaxed text-[var(--text-secondary)]">
+                  <p className="mt-3 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]">
                     {stage.scopedBy}
                   </p>
                   <p className="mt-6 font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
@@ -417,50 +408,8 @@ export default function Pricing() {
                   </p>
                 </div>
 
-                <div className="col-span-12 md:col-span-5 md:col-start-8">
-                  <p className="mb-4 font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                    [ Covers ]
-                  </p>
-                  <ul>
-                    {stage.covers.map((item, j) => (
-                      <li
-                        key={item}
-                        className="flex items-baseline gap-5 border-b border-[var(--border)] py-3.5 text-sm text-[var(--text-secondary)] last:border-b-0"
-                      >
-                        <span className="shrink-0 font-mono text-[10px] tracking-[0.2em] text-[var(--text-muted)]">
-                          {String(i + 1).padStart(2, "0")}.{j + 1}
-                        </span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
               </article>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Framing statement: scroll-scrubbed word reveal ── */}
-      <section className="pb-28">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <div className="border-t border-[var(--border)] pt-6">
-            <MotionReveal>
-              <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
-                ( Framing )
-              </p>
-            </MotionReveal>
-            <TextReveal
-              text="One published rate for the hour. One agreed scope for the stage. No packages in between."
-              as="h2"
-              className="mt-10 max-w-4xl font-display font-semibold text-[var(--text-primary)]"
-              style={{
-                fontSize: "clamp(1.9rem, 4vw, 3.4rem)",
-                letterSpacing: "-0.03em",
-                lineHeight: 1.15,
-              }}
-            />
           </div>
         </div>
       </section>

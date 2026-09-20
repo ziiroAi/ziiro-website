@@ -7,8 +7,6 @@ export interface VideoEntry {
   /** Page <title> and meta description for the watch page. */
   seoTitle: string;
   seoDescription: string;
-  /** One line under the player, before the longer description. */
-  summary: string;
   /** What the video actually covers, in order. Text near the player is a
    *  ranking signal, and it's what a visitor scans before spending 8 minutes. */
   covers: string[];
@@ -41,12 +39,13 @@ export const videos: VideoEntry[] = [
     seoTitle: "How Ziiro Works: A Full 8-Minute Walkthrough",
     seoDescription:
       "An eight-minute screen-share walkthrough of how Ziiro works end to end: what we build, how an engagement runs, what you invest, and where your data goes.",
-    summary:
-      "Eight minutes, one screen share, no slides. The whole business explained in the order you'd actually ask about it.",
+    // Three topics, not four. "What you invest and how scope gets set" is gone
+    // from this list because the video's own description already says it and
+    // Pricing is where the answer actually lives; four scannable lines under a
+    // player is one more than anyone reads before pressing play.
     covers: [
       "What we do, and what we deliberately don't",
       "How an engagement runs, start to finish",
-      "What you invest and how scope gets set",
       "Where your data goes and who can see it",
     ],
   },

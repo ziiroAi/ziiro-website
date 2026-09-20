@@ -2,6 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import SEO from "@/shared/components/SEO";
 import MotionReveal from "@/shared/motion/MotionReveal";
 import VslPlayer, { videoObjectSchema } from "@/shared/ui/vsl-player";
+import ArrowFillLink from "@/shared/ui/arrow-fill-link";
 import { videoBySlug, watchPath } from "@/features/watch/videos";
 import NotFound from "@/pages/NotFound";
 
@@ -24,7 +25,7 @@ export default function Watch() {
 
   if (!video) return <NotFound />;
 
-  const { vsl, seoTitle, seoDescription, summary, covers } = video;
+  const { vsl, seoTitle, seoDescription, covers } = video;
   const path = watchPath(video.slug);
 
   return (
@@ -60,12 +61,16 @@ export default function Watch() {
             {vsl.title}
           </h1>
 
-          <p className="mt-6 max-w-2xl leading-relaxed text-[var(--text-secondary)]">
-            {summary}
-          </p>
-
           {/* Player: as high as it can sit under the heading, full container
-              width, no interaction required to make it exist. */}
+              width, no interaction required to make it exist.
+
+              The one-line summary that used to sit between the h1 and the
+              player is gone. It restated the description below in shorter
+              words, so the page opened by saying the same thing twice and
+              pushed the player down a paragraph to do it. The description
+              stays: it is the richer text, it is what the VideoObject schema
+              carries, and Google wants descriptive copy adjacent to the
+              player, not above it. */}
           <div className="mt-10">
             <VslPlayer vsl={vsl} label="Watch" mode="embed" />
           </div>
@@ -94,33 +99,25 @@ export default function Watch() {
             </ul>
           </section>
 
+          {/* One primary action and one secondary. This used to offer three
+              equally-weighted links in a sentence (consultation, who we are,
+              the process), which is three ways of saying "go somewhere else"
+              and no way of saying which. Someone who just watched eight
+              minutes either wants to talk or wants to read. */}
           <MotionReveal>
             <section className="mb-24 mt-14 border-t border-[var(--border)] pt-10 md:mb-32">
               <p className="max-w-2xl leading-relaxed text-[var(--text-secondary)]">
-                If that made sense, the next step is your numbers rather than
-                ours.{" "}
+                If that made sense, the next step is your numbers rather than ours.
+              </p>
+              <div className="mt-8 flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-8">
                 <Link
                   to="/contact"
-                  className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
+                  className="inline-flex items-center justify-center rounded-full bg-[var(--text-primary)] px-8 py-4 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-90"
                 >
-                  Book a consultation
+                  Book a strategy session
                 </Link>
-                , read{" "}
-                <Link
-                  to="/who-we-are"
-                  className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
-                >
-                  who we are
-                </Link>
-                , or see{" "}
-                <Link
-                  to="/who-we-are#process"
-                  className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
-                >
-                  the process
-                </Link>{" "}
-                step by step.
-              </p>
+                <ArrowFillLink to="/docs">Prefer reading? Explore Docs</ArrowFillLink>
+              </div>
             </section>
           </MotionReveal>
         </div>

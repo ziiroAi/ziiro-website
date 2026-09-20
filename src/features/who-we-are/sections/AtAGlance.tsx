@@ -2,19 +2,21 @@ import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import { STAGGER } from "@/shared/motion/tokens";
 
 /**
- * The company in three lines, for the reader who wants the facts next to the
- * story. A block inside the page's Who We Are section, not a section of its
- * own. Every line restates something the site already publishes (the
- * Organization data in index.html), so keep them in step. What we build is not
- * here because the next section is about exactly that.
+ * The company in four rows, for the reader who wants the facts next to the
+ * story. Every line restates something the site already publishes (the
+ * Organization data in index.html), so keep them in step.
+ *
+ * "Based in" says India, not "Haryana, India". The state was doing no
+ * commercial work: nothing on the site sells to Haryana specifically, and the
+ * extra precision only narrows a company that says in the next row that it
+ * works with teams worldwide. Reverse it only if Haryana starts mattering
+ * commercially.
  */
 const facts = [
-  // Was "What we are: A business-intelligence-first AI consultancy." That is
-  // the exact sentence three other pages were also opening with, and naming the
-  // category says less than naming the act. This states what actually happens.
-  { term: "What we do", detail: "Measure an operation, then automate the part worth automating." },
-  { term: "Who we work with", detail: "Startups and founder-led teams." },
-  { term: "Where we are", detail: "Haryana, India, working with teams worldwide." },
+  { term: "What", detail: "Business-intelligence-first AI consultancy." },
+  { term: "Built for", detail: "Founder-led businesses." },
+  { term: "Based in", detail: "India." },
+  { term: "Working with", detail: "Teams worldwide." },
 ];
 
 export default function AtAGlance() {
@@ -28,7 +30,7 @@ export default function AtAGlance() {
           </h3>
         </MotionRevealItem>
 
-        <dl className="mt-10 grid grid-cols-1 gap-x-10 gap-y-10 sm:grid-cols-3">
+        <dl className="mt-10 grid grid-cols-1 gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
           {facts.map((f) => (
             <MotionRevealItem key={f.term} className="border-t border-[var(--border)] pt-6">
               <dt className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-secondary)]">

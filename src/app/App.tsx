@@ -23,12 +23,13 @@ const Mission = lazy(() => import("@/pages/Mission"));
 const WhoWeAre = lazy(() => import("@/pages/WhoWeAre"));
 const Products = lazy(() => import("@/pages/Products"));
 const Docs = lazy(() => import("@/pages/Docs"));
+const Careers = lazy(() => import("@/pages/Careers"));
 const Watch = lazy(() => import("@/pages/Watch"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 /**
  * Every page opens from the top, with no inherited scroll positions, unless the
- * URL names a section (`/who-we-are#process`). Then it opens on that section.
+ * URL names a section (`/docs#diagnose`). Then it opens on that section.
  *
  * This goes through `scrollTo` rather than `window.scrollTo` because Lenis is
  * driving the scroller: a raw `window.scrollTo` sets the document position
@@ -195,6 +196,7 @@ export function AppRoutes() {
       <Route path="/who-we-are" element={<WhoWeAre />} />
       <Route path="/products" element={<Products />} />
       <Route path="/docs" element={<Docs />} />
+      <Route path="/careers" element={<Careers />} />
       {/* One watch page per video: Google only indexes a video that owns its URL. */}
       <Route path="/watch/:slug" element={<Watch />} />
       <Route path="/privacy" element={<Privacy />} />

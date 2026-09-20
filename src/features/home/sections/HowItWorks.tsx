@@ -163,12 +163,12 @@ export default function HowItWorks() {
             same thing. */}
         <MotionReveal>
           <p className="mt-14 max-w-[52ch] text-sm leading-relaxed text-[var(--text-secondary)]">
-            The same five steps, written out phase by phase, are in{" "}
+            The method behind those steps, phase by phase, is in the{" "}
             <Link
-              to="/who-we-are#process"
+              to="/docs#diagnose"
               className="text-[var(--text-primary)] underline underline-offset-4 transition-opacity hover:opacity-70"
             >
-              our process
+              Diagnose methodology
             </Link>
             . What they end up building is on the{" "}
             <Link
