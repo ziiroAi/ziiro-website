@@ -35,7 +35,7 @@ const micro = (properties: string) => ({
  *   Start here    the commercial path, in the order it is walked
  *   How it works  the reference material, for someone not ready to talk yet
  *   Company       who we are, and how to reach us about anything else
- *   Legal         unchanged
+ *   Trust         can this company be trusted with our data and our systems
  *
  * ORDERING IS DELIBERATE. Book a Call is the primary conversion route on the
  * site and it sits first in the first column, which is where a reader looks
@@ -78,8 +78,19 @@ const COLUMNS: { head: string; links: { label: string; to: string }[] }[] = [
     ],
   },
   {
-    head: "Legal",
+    // Was "Legal", which was accurate for two documents and wrong the moment a
+    // third joined them: the security page is engineering practice, not a
+    // policy. "Trust" covers all three honestly and is also the word an
+    // enterprise buyer or a security reviewer scans a footer for.
+    head: "Trust",
     links: [
+      // First, above the two a reviewer already expects to find. This is the
+      // one they are hunting for, and "Security architecture" rather than a
+      // bare "Security" is deliberate: sitting between Privacy and Terms, one
+      // word would read as a third policy. The label has to say that what is
+      // behind it is due-diligence material, written as engineering practice
+      // rather than as certifications the company does not hold.
+      { label: "Security architecture", to: "/security" },
       { label: "Privacy", to: "/privacy" },
       { label: "Terms", to: "/terms" },
     ],

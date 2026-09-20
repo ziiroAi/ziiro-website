@@ -26,15 +26,23 @@ import {
  * a security page a reviewer stops believing, and every flourish here would be
  * decorating claims that are mostly "not established".
  *
- * WHAT MAKES THIS PAGE UNUSUAL: most of it says no. That is the point. The
- * site is a static marketing site with two edge functions and no database, so
- * the honest posture is a short list of real controls and a long list of
- * things we will not assert. A reviewer reads an absent topic as evasion, so
- * every topic is present and carries its status, including the ones where the
- * status is that we hold no evidence.
+ * ITS SUBJECT, after a correction that changed it: the systems Ziiro builds
+ * FOR CLIENTS, not ziiro.work. This page used to describe response headers,
+ * static analysis and the contact endpoint, which is the security of a
+ * brochure. A CTO evaluating us cares what happens to their data inside a
+ * system we build and operate. The website material was not too long, it was
+ * the wrong subject, and it is gone rather than shortened.
+ *
+ * THE TENSE IS THE HONESTY. Every statement is either how a system IS
+ * DESIGNED or what is AGREED PER ENGAGEMENT. Neither is a certification we do
+ * not hold, and neither is a present-tense claim about a fleet of running
+ * environments nobody can show you. If a sentence here starts wanting to say
+ * "all our systems do X", the status is wrong rather than the wording.
  *
  * THE RULE, enforced in the entity file rather than trusted here: anything
- * marked Implemented carries a source a reviewer could check. See
+ * marked Implemented carries a source a reviewer could check. Nothing on this
+ * page currently claims it, and the legend prints that count so the absence is
+ * stated rather than left to be noticed. See
  * features/security/entities/posture.ts, which throws in development if that
  * invariant is ever broken.
  *
@@ -85,6 +93,28 @@ function Row({ item }: { item: PostureItem }) {
       <p className="mt-2.5 max-w-2xl leading-relaxed text-[var(--text-secondary)]">
         {item.detail}
       </p>
+      {/* Conditions sit directly under the offer they qualify, never in a
+          subsection elsewhere. For the BAA in particular, the conditions are
+          what make the offer credible to a buyer who knows what one obliges;
+          an unconditional version would be the overstatement this page exists
+          to avoid. */}
+      {item.conditions && (
+        <div className="mt-4 max-w-2xl border-l border-[var(--border-strong)] pl-5">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-[var(--text-muted)]">
+            Conditions
+          </p>
+          <ul className="mt-2.5 space-y-2">
+            {item.conditions.map((c) => (
+              <li
+                key={c}
+                className="text-sm leading-relaxed text-[var(--text-secondary)]"
+              >
+                {c}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {item.source && (
         <p className="mt-2.5 max-w-2xl font-mono text-[10px] uppercase leading-relaxed tracking-[0.18em] text-[var(--text-muted)]">
           Checkable at: {item.source}
@@ -95,14 +125,14 @@ function Row({ item }: { item: PostureItem }) {
 }
 
 export default function Security() {
-  const implemented = countBy("implemented");
+  const design = countBy("design");
   const notEstablished = countBy("not-established");
 
   return (
     <div className="relative">
       <SEO
         title="Security and Trust"
-        description="What is actually in place on ziiro.work, what is not, and how engagement controls scale with the data involved. Written to survive a security questionnaire rather than to pass a skim."
+        description="How Ziiro designs, builds and runs systems that handle client data: model security, agent permissions, isolation between clients, and what is agreed before regulated work starts. Written as engineering practice, not as certifications we do not hold."
         canonical="/security"
       />
 
@@ -136,9 +166,10 @@ export default function Security() {
             <MotionRevealItem>
               <p className="mt-6 max-w-2xl leading-relaxed text-[var(--text-secondary)]">
                 We design around controlled access, data minimisation, secure
-                infrastructure, traceability and clear ownership. What follows
-                is which of those is in place today and which is not, stated
-                plainly enough to survive a security questionnaire.
+                infrastructure, traceability and clear ownership. This page is
+                about the systems we build for you, not about this website, and
+                it is written in the tense that can be kept: how systems are
+                designed, and what is agreed before work starts.
               </p>
             </MotionRevealItem>
           </MotionReveal>
@@ -161,32 +192,44 @@ export default function Security() {
               </h2>
               <div className="mt-6 grid gap-8 md:grid-cols-2">
                 <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                  ziiro.work is a static site with two edge functions, no
-                  database, no accounts and no payments. That sets a real
-                  ceiling on what can honestly be claimed, so{" "}
+                  There are three kinds of security statement, and only one of
+                  them is honest here. A certification claim needs an issuing
+                  body, and we hold none. A present-tense claim about every
+                  running environment needs a fleet nobody can show you. What
+                  is left is{" "}
                   <span className="text-[var(--text-primary)]">
-                    {implemented} statements below are marked Implemented and
-                    carry a source you can check yourself
+                    how systems are designed and what is agreed per engagement
                   </span>
-                  , and {notEstablished} are marked Not established, meaning we
-                  hold no evidence either way and will not assert one.
+                  , which is checkable when you engage us. {design} statements
+                  below are written that way.
                 </p>
                 <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                  Nothing here carries a tick, a certification badge or a
-                  percentage. A topic we cannot answer is shown with that
-                  answer rather than left out, because an absent topic reads as
-                  evasion to anyone doing this properly. If a line matters to
-                  your decision, ask and we will answer it directly.
+                  {notEstablished} more are marked Not established, meaning we
+                  hold no evidence either way and will not assert one.{" "}
+                  <span className="text-[var(--text-primary)]">
+                    Nothing on this page is marked Implemented
+                  </span>
+                  , because that status is reserved for something you could
+                  verify today without engaging us, and an architecture is
+                  verified inside an engagement rather than on a web page.
+                  Nothing carries a tick or a badge.
                 </p>
               </div>
 
-              {/* The legend. Implemented is the only filled chip on the page. */}
-              <dl className="mt-10 flex flex-wrap gap-x-8 gap-y-4">
+              {/* The legend, with a count beside each status.
+                  The count is the honest part: it makes an unused status
+                  visibly zero instead of leaving a reader to assume the page
+                  is full of them. Implemented reads 0, which is the single
+                  most useful number on the page. */}
+              <dl className="mt-10 grid gap-x-10 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
                 {(Object.keys(STATUS_META) as Status[]).map((s) => (
-                  <div key={s} className="flex items-center gap-3">
+                  <div key={s} className="flex items-start gap-3">
                     <dt className="sr-only">{STATUS_META[s].label}</dt>
                     <StatusChip status={s} />
-                    <dd className="max-w-[22ch] text-xs leading-relaxed text-[var(--text-muted)]">
+                    <dd className="text-xs leading-relaxed text-[var(--text-muted)]">
+                      <span className="font-mono text-[var(--text-secondary)]">
+                        {String(countBy(s)).padStart(2, "0")}
+                      </span>{" "}
                       {STATUS_META[s].note}
                     </dd>
                   </div>
@@ -269,27 +312,30 @@ export default function Security() {
                 id="data-flow"
                 className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]"
               >
-                ( Where data actually goes )
+                ( How client data moves )
               </h2>
               <div className="mt-8 grid gap-10 md:grid-cols-2 md:gap-16">
                 <div>
                   <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                    Two paths exist on this site and this is both of them. A
-                    contact submission is forwarded to a team mailbox and no
-                    copy is kept. A country code is read off a request header so
-                    the right rate is shown, and nothing is stored.
+                    The shape of every system we build. Data is minimised and
+                    redacted before it goes anywhere, the action is checked
+                    against what the agent is scoped to do, and only then does
+                    anything reach a model. What comes back is validated by
+                    ordinary code, and by a person where the action is
+                    irreversible or externally visible.
                   </p>
                   <p className="mt-6 max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                    There is no third path. No database sits behind either one,
-                    no account exists to attach anything to, and no part of this
-                    site sends what you type to a model. The diagram is small
-                    because the system is.
+                    The point of drawing it this way is that the model sits in
+                    the middle of the path rather than at the end of it. It is
+                    one component, and the only stage that leaves your
+                    boundary. Permission, context, validation, logging and
+                    human control are supplied by the system around it.
                   </p>
                   <p className="mt-6 max-w-lg text-sm leading-relaxed text-[var(--text-muted)]">
-                    This draws the website, not an engagement. What an
-                    engagement's architecture looks like is decided per contract,
-                    and drawing one here would show a system nobody has audited
-                    as though it were running.
+                    This is how systems are designed. It is not a picture of a
+                    certified running deployment, and no box in it has been
+                    audited by anyone outside Ziiro. What your engagement
+                    actually does is written into your engagement.
                   </p>
                 </div>
                 <DataFlow />
@@ -312,7 +358,7 @@ export default function Security() {
                 id="posture"
                 className="font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]"
               >
-                ( The detail )
+                ( The architecture )
               </h2>
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-[var(--text-muted)]">
                 [ {String(SECTIONS.length).padStart(2, "0")} sections /{" "}
