@@ -141,7 +141,7 @@ export default function FinalCta() {
                   className="group inline-flex min-h-[52px] items-center justify-center gap-2.5 rounded-full bg-[var(--text-primary)] px-8 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-85"
                   style={micro}
                 >
-                  Book your strategy session
+                  Book a call
                   <Arrow nudge={!shouldReduce} />
                 </Link>
                 <p className="mt-5 text-xs leading-relaxed text-[var(--text-secondary)]">

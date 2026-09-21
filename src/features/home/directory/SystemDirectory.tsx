@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import SectionHeader from "@/shared/ui/section-header";
-import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import ScrollScene from "@/shared/motion/ScrollScene";
 import EcosystemMap, { ALL, type Selection } from "./EcosystemMap";
 import FlowView from "./FlowView";
@@ -16,7 +15,6 @@ import {
   DURATION,
   EASE_OUT_EXPO,
   MS,
-  STAGGER,
 } from "@/shared/motion/tokens";
 
 /**
@@ -37,9 +35,44 @@ import {
  * hub selects that system, clicking the core selects them all, clicking an
  * agent node opens its row, and opening a row lights its node.
  *
- * The section opens on "all" — every system at equal weight, with the right
- * column listing all seven — because that is the honest first answer to "what
- * has been built". A visitor narrows from there.
+ * ── ONE CONCEPT, ONE INTERACTION ──────────────────────────────────────────
+ *
+ * This section used to offer the same conceptual selection in three separate
+ * places. All three are gone, and the map is the single way to choose:
+ *
+ *   1. A chip bar above the map, "All systems" plus one chip per system. Every
+ *      one of those chips duplicated a hub node sitting a few hundred pixels
+ *      below it. Removed.
+ *   2. An index of all seven systems filling the right column whenever nothing
+ *      was selected, each row selecting the same system its hub node does.
+ *      Removed on desktop, replaced by one line saying how to drive the graph.
+ *      It SURVIVES on mobile, where there is no graph to drive and it is the
+ *      only way to reach a system at all.
+ *   3. The "All systems" reset. Removed. Clicking the focused system's own node
+ *      again returns to the overview, so deselection happens where selection
+ *      happened. The phone keeps a scoped Back control, because it has no node
+ *      to click twice.
+ *
+ * ── THE DETAIL/FLOW BUG, AND WHY MOVING THE CONTROL IS THE FIX ────────────
+ *
+ * Detail and Flow used to be a global control in that same row, present even
+ * with nothing selected. In that state it was broken, and not subtly: with no
+ * system selected, PipelinePanel and FlowView BOTH fell back to rendering the
+ * same AllSystemsIndex. So pressing Flow re-keyed the Crossfade, played the
+ * fade, and produced byte-identical content. It looked like a refresh that
+ * failed to load, and it only began working after the reader selected a system
+ * by some other means.
+ *
+ * It was never a stale closure or a state read before its re-render. It was a
+ * control offered in a state where both of its options were defined to produce
+ * the same output. So the fix is not a forced re-render, it is scope: the
+ * toggle now mounts inside the right column and only when a system is
+ * selected, which is also exactly what the review asked for. A state where the
+ * control does nothing no longer exists.
+ *
+ * The section still opens on "all", every system at equal weight, because that
+ * is the honest first answer to "what has been built". A visitor narrows from
+ * there by clicking the map.
  *
  * Desktop and mobile render different trees on purpose. A radial graph at
  * 360px wide is unreadable, so the phone gets the intelligence mark, then the
@@ -80,9 +113,19 @@ export default function SystemDirectory() {
   const pipeline = selectedId === ALL ? null : findPipeline(selectedId);
 
   // A different system is a different set of agents, so a selection can't
-  // survive the switch — it would open an unrelated agent in the same slot.
+  // survive the switch: it would open an unrelated agent in the same slot.
+  //
+  // CLICKING THE SELECTED SYSTEM AGAIN RETURNS TO THE OVERVIEW, which is what
+  // replaced the "All systems" reset control. The node that focused a system is
+  // the node that unfocuses it, so deselection is where selection was rather
+  // than at an unrelated chip somewhere else on the page. The agent nodes in
+  // EcosystemMap already worked exactly this way, so this makes the section
+  // consistent with itself rather than introducing a new idea.
+  //
+  // ALL stays a direct set, never a toggle: the core node means "show me
+  // everything", and a core that deselected back to itself would do nothing.
   const select = (id: Selection) => {
-    setSelectedId(id);
+    setSelectedId((prev) => (id !== ALL && prev === id ? ALL : id));
     setActiveAgentId(null);
   };
 
@@ -139,78 +182,9 @@ export default function SystemDirectory() {
           </p>
         </ScrollScene>
 
-        {/* ── Controls ── */}
-        <ScrollScene exitTo={1}>
-          <div className="mt-14 flex flex-col gap-6 border-t border-[var(--dir-line)] pt-6 lg:flex-row lg:items-center lg:justify-between">
-            {/* The chips arrive one after another rather than as a block, on
-                the tight step, so the row reads as a list resolving. */}
-            <div role="group" aria-label="Choose a system">
-              <MotionReveal
-                stagger={STAGGER.tight}
-                // gap-y-8, not gap-y-3: each chip grows its hit area 16px past
-                // its ink (see SystemChip), so wrapped rows 12px apart would
-                // have overlapping targets and a tap near the join would land
-                // on whichever chip won the stacking order. 32px is exactly
-                // the two halves, so the rows meet without overlapping.
-                className="flex flex-wrap gap-x-7 gap-y-8"
-              >
-                <MotionRevealItem as="span">
-                  <SystemChip
-                    label="All systems"
-                    marker="all"
-                    active={selectedId === ALL}
-                    onClick={() => select(ALL)}
-                  />
-                </MotionRevealItem>
-                {PIPELINES.map((p) => (
-                  <MotionRevealItem as="span" key={p.id}>
-                    <SystemChip
-                      label={p.name}
-                      marker={p.status === "active" ? "live" : "build"}
-                      active={p.id === selectedId}
-                      onClick={() => select(p.id)}
-                    />
-                  </MotionRevealItem>
-                ))}
-              </MotionReveal>
-            </div>
-
-            {/* Chooses what the right column shows. The map is not one of the
-                options: it is always there. Hidden on a phone, where the
-                stacked layout shows both. */}
-            <div
-              role="group"
-              aria-label="Choose what the right column shows"
-              className="hidden shrink-0 items-center gap-5 lg:flex"
-            >
-              {RIGHT_VIEWS.map((v) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  aria-pressed={view === v.id}
-                  onClick={() => setView(v.id)}
-                  className="relative rounded-sm font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
-                  style={{
-                    letterSpacing: "0.24em",
-                    color: view === v.id ? "var(--dir-ink)" : "var(--dir-faint)",
-                    transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
-                  }}
-                >
-                  {v.label}
-                  <span
-                    aria-hidden="true"
-                    className="absolute -bottom-1.5 left-0 block h-px w-full"
-                    style={{
-                      background: "var(--dir-ink)",
-                      opacity: view === v.id ? 1 : 0,
-                      transition: `opacity ${MS.micro}ms ${CSS_EASE.out}`,
-                    }}
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-        </ScrollScene>
+        {/* The control row that used to sit here is gone, both halves of it.
+            See the note at the top of this file for what each one was and why
+            neither survived. */}
 
         {isWide ? (
           <div className="mt-14 grid grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)] items-start gap-16">
@@ -231,7 +205,7 @@ export default function SystemDirectory() {
                   color: "var(--dir-faint)",
                 }}
               >
-                Click a system · the core selects all
+                Click a system · click it again to return
               </p>
             </div>
 
@@ -239,22 +213,33 @@ export default function SystemDirectory() {
                 arrives. The agent is deliberately not in the key: opening an
                 agent row must not re-fade the panel that row lives in. */}
             <div className="min-w-0">
-              <Crossfade id={`${view}:${selectedId}`}>
-                {view === "detail" ? (
-                  <PipelinePanel
-                    pipeline={pipeline}
-                    activeAgentId={activeAgentId}
-                    onAgentSelect={setActiveAgentId}
-                    onSelect={select}
+              {pipeline ? (
+                <>
+                  <ViewToggle
+                    view={view}
+                    onChange={setView}
+                    systemName={pipeline.name}
                   />
-                ) : (
-                  <FlowView
-                    pipeline={pipeline}
-                    activeAgentId={activeAgentId}
-                    onSelect={select}
-                  />
-                )}
-              </Crossfade>
+                  <Crossfade id={`${view}:${selectedId}`}>
+                    {view === "detail" ? (
+                      <PipelinePanel
+                        pipeline={pipeline}
+                        activeAgentId={activeAgentId}
+                        onAgentSelect={setActiveAgentId}
+                        onSelect={select}
+                      />
+                    ) : (
+                      <FlowView
+                        pipeline={pipeline}
+                        activeAgentId={activeAgentId}
+                        onSelect={select}
+                      />
+                    )}
+                  </Crossfade>
+                </>
+              ) : (
+                <DirectoryHint />
+              )}
             </div>
           </div>
         ) : (
@@ -267,6 +252,14 @@ export default function SystemDirectory() {
             <Crossfade id={selectedId} className="space-y-12">
               {pipeline ? (
                 <>
+                  {/* THE ONE CONTROL THAT SURVIVED, and only here. There is no
+                      graph at this width, so the phone has no node to click a
+                      second time: without this there is no way back to the
+                      list at all. The brief allows a Back action at 390 for
+                      exactly this reason. It is scoped to the selection rather
+                      than standing as a permanent reset, so it does not
+                      reintroduce the control that was removed. */}
+                  <BackToSystems onClick={() => select(ALL)} />
                   <PipelineIdentity pipeline={pipeline} />
                   <FlowView
                     pipeline={pipeline}
@@ -280,6 +273,13 @@ export default function SystemDirectory() {
                   />
                 </>
               ) : (
+                /* The list SURVIVES on mobile, and only on mobile. Item 7
+                   removes it because the visualisation already offers the same
+                   selection, but at this width there is no visualisation: the
+                   radial graph is desktop-only and MobileCore above is a mark,
+                   not a control. Remove this and a phone cannot reach a system
+                   at all. It gives a capability that is not available
+                   immediately adjacent, which is the test. */
                 <PipelinePanel pipeline={null} onSelect={select} />
               )}
             </Crossfade>
@@ -291,72 +291,118 @@ export default function SystemDirectory() {
 }
 
 /**
- * One selector chip: a status marker and a label.
+ * Detail and Flow, for the system that is currently focused.
  *
- * The marker never implies a system ships when it doesn't — an in-build system
- * stays hollow even while it is the one selected. "All systems" carries the
- * ink marker rather than the live one, because it is a scope, not a status.
+ * It sits INSIDE the right column, above the content it governs, and it is
+ * mounted only when a system is selected. That placement is the whole fix: as
+ * a global control in the row above, it existed in a state where both its
+ * options rendered the same thing, so pressing it crossfaded the column and
+ * changed nothing. See the bug note at the top of this file.
+ *
+ * It names the system it belongs to, so a reader can tell it governs the
+ * selection rather than the section.
  */
-function SystemChip({
-  label,
-  marker,
-  active,
-  onClick,
+function ViewToggle({
+  view,
+  onChange,
+  systemName,
 }: {
-  label: string;
-  marker: "all" | "live" | "build";
-  active: boolean;
-  onClick: () => void;
+  view: RightView;
+  onChange: (v: RightView) => void;
+  systemName: string;
 }) {
-  const filled = active && marker !== "build";
+  return (
+    <div
+      className="mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 border-b pb-4"
+      style={{ borderColor: "var(--dir-line)" }}
+    >
+      <p
+        className="font-mono text-[10px] uppercase"
+        style={{ letterSpacing: "0.18em", color: "var(--dir-faint)" }}
+      >
+        {systemName}
+      </p>
+      <div
+        role="group"
+        aria-label={`Choose what to show for ${systemName}`}
+        className="flex shrink-0 items-center gap-5"
+      >
+        {RIGHT_VIEWS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            aria-pressed={view === v.id}
+            onClick={() => onChange(v.id)}
+            className="relative -my-3 rounded-sm py-3 font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
+            style={{
+              letterSpacing: "0.24em",
+              color: view === v.id ? "var(--dir-ink)" : "var(--dir-faint)",
+              transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
+            }}
+          >
+            {v.label}
+            <span
+              aria-hidden="true"
+              className="absolute bottom-1.5 left-0 block h-px w-full"
+              style={{
+                background: "var(--dir-ink)",
+                opacity: view === v.id ? 1 : 0,
+                transition: `opacity ${MS.micro}ms ${CSS_EASE.out}`,
+              }}
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
+/**
+ * What the right column says before anything is selected: one line telling the
+ * reader how to drive the graph, and nothing else.
+ *
+ * This replaced a full index of all seven systems. That list was a second way
+ * to do what the hub nodes beside it already do, and it was also half of the
+ * Detail/Flow bug, because both views fell back to rendering it.
+ */
+function DirectoryHint() {
+  return (
+    <div
+      className="border-t pt-6"
+      style={{ borderColor: "var(--dir-line)" }}
+    >
+      <p
+        className="font-mono text-[10px] uppercase"
+        style={{ letterSpacing: "0.24em", color: "var(--dir-faint)" }}
+      >
+        No system selected
+      </p>
+      <p
+        className="mt-4 max-w-[38ch] text-[15px] leading-relaxed"
+        style={{ color: "var(--dir-dim)" }}
+      >
+        Select a system on the map to see what it is made of and how it runs.
+        Click it again to come back here.
+      </p>
+    </div>
+  );
+}
+
+/** The phone's way back to the list, because a phone has no node to re-click. */
+function BackToSystems({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
-      aria-pressed={active}
       onClick={onClick}
-      // The chip's ink is 15px tall, which is not a tap target. `py-4` takes
-      // the button to 47px and `-my-4` gives the padding back to the layout,
-      // so the row sits exactly where it did and only the hit area grows.
-      // The wrapper's gap-y is set to match — see the note there.
-      className="group -my-4 flex items-center gap-2.5 rounded-sm py-4 font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
+      className="-my-3 flex items-center gap-2.5 rounded-sm py-3 font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
       style={{
         letterSpacing: "0.2em",
-        color: active ? "var(--dir-ink)" : "var(--dir-faint)",
+        color: "var(--dir-faint)",
         transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
       }}
     >
-      <span
-        aria-hidden="true"
-        className="block h-[5px] w-[5px] rounded-full"
-        style={{
-          // Named property rather than `all`, which would also ease the
-          // hairline outline below and leave a grey frame around the marker
-          // for the length of the swap.
-          transition: `background-color ${MS.micro}ms ${CSS_EASE.out}`,
-          background: filled
-            ? marker === "live"
-              ? "var(--dir-live)"
-              : "var(--dir-ink)"
-            : "transparent",
-          border: marker === "build" ? "1px solid var(--dir-line-strong)" : "none",
-          // The live marker used to carry a 10px bloom of its own colour. A
-          // bloom is light spilling past an edge, which needs a dark ground to
-          // spill onto; on paper it is a 5px dot inside a smudge. The dot is
-          // the accent, and that is enough to say live on white.
-          outline:
-            filled || marker === "build"
-              ? "none"
-              : "1px solid var(--dir-line-strong)",
-          outlineOffset: "-1px",
-        }}
-      />
-      <span
-        className="group-hover:text-[var(--dir-ink)]"
-        style={{ transition: `color ${MS.micro}ms ${CSS_EASE.out}` }}
-      >
-        {label}
-      </span>
+      <span aria-hidden="true">&larr;</span>
+      All systems
     </button>
   );
 }

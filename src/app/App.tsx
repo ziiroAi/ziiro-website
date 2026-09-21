@@ -11,10 +11,21 @@ import Preloader from "@/shared/components/Preloader";
 import PageAtmosphere from "@/shared/components/PageAtmosphere";
 import SmoothScroll, { easeInOutCubic, headerOffset, scrollTo } from "@/shared/motion/SmoothScroll";
 import ScrollProgress from "@/shared/motion/ScrollProgress";
-import Index from "@/pages/Index";
 
-// Secondary routes are code-split so they don't ship in the homepage's
-// critical bundle. Each loads on demand when its route is visited.
+/**
+ * EVERY route is code-split, the homepage included. It used to be imported
+ * eagerly here, on the reasoning that it is the common entry point, but an
+ * eager import does not mean "loaded first on /", it means "loaded on ALL of
+ * them": the homepage and everything it reaches (the WebGL hero, the system
+ * directory, the dot-art engine) were linked into the shared entry chunk and
+ * therefore downloaded and executed by /pricing and /docs, which never render
+ * a single pixel of it. A static text page was paying for a shader stack.
+ *
+ * Splitting it costs `/` one extra request for its own chunk, which is
+ * preloaded next to the entry rather than serialised behind it, and saves
+ * every other route the whole homepage.
+ */
+const Index = lazy(() => import("@/pages/Index"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));

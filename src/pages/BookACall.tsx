@@ -16,7 +16,11 @@ import {
   STAGGER,
   TRAVEL,
 } from "@/shared/motion/tokens";
-import { INTERIM_BOOKING_URL, MARKETS, MIN_SESSION_MINUTES } from "@/features/pricing/entities/rates";
+import {
+  INTERIM_BOOKING_URL,
+  MINIMUM_ENGAGEMENT,
+  PUBLISHED_RATE,
+} from "@/features/pricing/entities/rates";
 import { useMarket } from "@/features/pricing/hooks/useMarket";
 
 /**
@@ -46,11 +50,9 @@ import { useMarket } from "@/features/pricing/hooks/useMarket";
 const ms = (seconds: number) => Math.round(seconds * 1000);
 
 /** Derived from the one constant in rates.ts, so changing the minimum there can
- *  never leave this row saying something else. */
-const minimumEngagement =
-  MIN_SESSION_MINUTES % 60 === 0
-    ? { amount: MIN_SESSION_MINUTES / 60, unit: MIN_SESSION_MINUTES === 60 ? "hour" : "hours" }
-    : { amount: MIN_SESSION_MINUTES, unit: "minutes" };
+ *  never leave this row saying something else. The derivation itself moved into
+ *  that file, because /pricing was doing the same arithmetic separately. */
+const minimumEngagement = MINIMUM_ENGAGEMENT;
 
 /**
  * Both published rates, in the same order and from the same source Pricing
@@ -67,7 +69,7 @@ const minimumEngagement =
  * citability fix. It is one sentence rather than a copy of Pricing, because
  * the model, the stages and the scoping still belong to that page.
  */
-const PUBLISHED_HOURLY = `${MARKETS.GLOBAL.display} / ${MARKETS.IN.display}`;
+const PUBLISHED_HOURLY = PUBLISHED_RATE;
 
 const investmentRow =
   "flex flex-col gap-2 border-b border-[var(--border)] py-5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6";

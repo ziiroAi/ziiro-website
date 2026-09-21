@@ -60,16 +60,28 @@ import { IDENTITIES } from "./heroContent";
  * its own box and the blur — which spreads far past that box — is clipped to
  * it. The result is a hard rectangle around the orb, visible on device.
  */
-/** How far the orb shrinks while hovered. This is the animation that used to
- *  fire on click; it fires on hover now, and on nothing else.
+/**
+ * THE ORB NO LONGER CHANGES SIZE, ON HOVER OR ON ANYTHING ELSE.
  *
- *  It briefly also turned the orb on its Y axis. The human did not want the
- *  tilt, so the engaged state is the shrink alone and the silhouette stays a
- *  circle. The perspective that made the turn readable went with it — the
- *  rotateY was the only 3D transform in this component, and every CSS
- *  animation the orb uses is either flat or a translate3d with a zero Z, which
- *  a perspective cannot affect. */
-const HOVER_SHRINK = 0.06;
+ * It used to shrink 6% while engaged. That is gone: no shrink, no grow, no
+ * pulse in overall size. The object's silhouette is now constant, and the
+ * response lives entirely in the ring on its surface.
+ *
+ * Removing it also removes the ROOT CAUSE of a flicker fixed earlier. The
+ * bloom and halo hang outside the hit box, and while they scaled with the
+ * pointer they pulled their own edge out from under a resting cursor: hover
+ * in, shrink, hover out, grow, measured at 20 to 26 flips per second. Those
+ * layers are still pointer-events-none, which is the belt to this braces, and
+ * they must stay that way: it is what keeps the hit region the one box that
+ * never moves.
+ *
+ * The tilt stays gone too. The human rejected it explicitly, and nothing here
+ * should reintroduce a rotateY or the perspective that made it readable.
+ */
+
+/** How long the bloom takes to come up under the pointer. Matched to the
+ *  shader's own build-in so the two arrive together. */
+const DURATION_MS = 260;
 
 export default function IntelligenceOrb() {
   const coreRef = useRef<CoreOrbHandle>(null);
@@ -77,8 +89,8 @@ export default function IntelligenceOrb() {
   const [failed, setFailed] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
 
-  /** Hovered or keyboard-focused. One boolean with a transition between its two
-   *  ends, which is all the gesture is. */
+  /** Hovered or keyboard-focused. It drives the RING now, not a size change:
+   *  the main effect comes up on hover rather than waiting for a click. */
   const [engaged, setEngaged] = useState(false);
   const engage = useCallback(() => setEngaged(true), []);
   const release = useCallback(() => setEngaged(false), []);
@@ -126,6 +138,11 @@ export default function IntelligenceOrb() {
    * the shader's own energy decay, so the two settle together.
    */
   const flareRef = useRef<HTMLDivElement>(null);
+  /** The bloom's resting lift while engaged. Well under the click pulse, so a
+   *  click still reads as an event on top of a state. */
+  const HOVER_BLOOM = 0.16;
+  /** Read by the imperative flare, which runs outside React's render. */
+  const engagedRef = useRef(false);
 
   const flare = useCallback(() => {
     const el = flareRef.current;
@@ -136,8 +153,31 @@ export default function IntelligenceOrb() {
     // the browser coalesces both writes and nothing animates.
     void el.offsetHeight;
     el.style.transition = `opacity ${reducedMotion ? 600 : 1500}ms cubic-bezier(0.22, 1, 0.36, 1)`;
-    el.style.opacity = "0";
+    // Back to the hover rest level rather than to nothing: the pointer may
+    // still be on the orb, and dropping the bloom to zero under it would
+    // leave the ring lit with no glow around it, which is the two-objects
+    // problem this layer exists to prevent.
+    el.style.opacity = engagedRef.current && !reducedMotion ? String(HOVER_BLOOM) : "0";
   }, [reducedMotion]);
+
+  /**
+   * HOVER IS THE MAIN EFFECT NOW.
+   *
+   * The ring used to come up only on click, so an orb under the pointer sat
+   * inert. `setHover` holds the shader at its sustained level and the bloom
+   * lifts with it, because a sharp object that responds while the glow around
+   * it does not reads as two objects rather than one.
+   *
+   * Nothing here changes the orb's SIZE. That is the point of the item.
+   */
+  useEffect(() => {
+    engagedRef.current = engaged;
+    coreRef.current?.setHover(engaged && !reducedMotion);
+    const el = flareRef.current;
+    if (!el) return;
+    el.style.transition = `opacity ${DURATION_MS}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+    el.style.opacity = engaged && !reducedMotion ? String(HOVER_BLOOM) : "0";
+  }, [engaged, reducedMotion]);
 
   const onActivate = useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -192,7 +232,7 @@ export default function IntelligenceOrb() {
       // being over ANY DESCENDANT of it, not just over the box itself. The
       // decorative layers below are drawn at -inset-22% and -inset-26%, so they
       // hang ~22% of the orb's width outside this box — and they sit inside
-      // [data-orb-turn], which is the thing that scales. So a pointer resting
+      // [data-orb-turn]. Nothing scales any more, so this is now defence in
       // on the outer edge of the glow was still "inside" this box, engaging it,
       // which shrank the glow out from under the pointer, which fired leave,
       // which grew it back. The exact loop the paragraph above is about, one
@@ -209,22 +249,10 @@ export default function IntelligenceOrb() {
       onFocus={onFocus}
       onBlur={release}
     >
-      {/* The one element the hover gesture moves, and all it does is shrink —
-          the animation that used to fire on click. A CSS transition between two
-          states is also what makes it reverse smoothly and stay interruptible
-          — leaving mid-arrival retargets the same transform from wherever it
-          is rather than queueing a separate exit. */}
-      <div
-        data-orb-turn
-        className="absolute inset-0"
-        style={{
-          transform:
-            reducedMotion || !engaged ? "none" : `scale(${1 - HOVER_SHRINK})`,
-          transition: reducedMotion
-            ? "none"
-            : "transform 620ms cubic-bezier(0.22, 1, 0.36, 1)",
-        }}
-      >
+      {/* Was the element the hover gesture scaled. It scales nothing now and
+          is kept only as the layer wrapper; see the note at the top of this
+          file for why the size change is gone and must not come back. */}
+      <div data-orb-turn className="absolute inset-0">
       {/* Ambient bloom, outside the morphing pair so its cycle drifts against
           theirs instead of pumping with them. */}
       {/* Ambient bloom, outside the morphing pair so its cycle drifts against

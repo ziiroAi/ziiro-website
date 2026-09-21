@@ -14,7 +14,16 @@ import WhyWorkWithUs from "@/features/who-we-are/sections/WhyWorkWithUs";
  * ── WHO WE ARE ────────────────────────────────────────────────────────
  * One question: who you are actually hiring.
  *
- * Shape: hero, origin, at a glance, three differentiators, CTA.
+ * Shape: hero, at a glance, origin, three differentiators, CTA.
+ *
+ * THE ORDER IS THE POINT, and it used to be the other way round. The review
+ * said this page reads as a wall: not too long, but concentrated, with no way
+ * in. Two things were true. The only scannable content, the four facts, sat
+ * third, behind two paragraphs of prose; and scanning the large type returned
+ * four display headlines that carry voice but not one fact about the company.
+ * So the facts moved above the narrative and the narrative grew two headings.
+ * Nothing was shortened. The page is deliberately quieter than /products and
+ * /mission, which is its job: it is the human page.
  *
  * The content brief also called for a TEAM section here, and one was built and
  * then removed at the human's request. There is deliberately nothing about
@@ -40,6 +49,13 @@ import WhyWorkWithUs from "@/features/who-we-are/sections/WhyWorkWithUs";
 /** The motion tokens are in seconds, because framer-motion is. anime.js counts
  *  in milliseconds, so every token that reaches it goes through this. */
 const ms = (seconds: number) => Math.round(seconds * 1000);
+
+/** The house micro-heading: mono, uppercase, wide tracking, accent dot. Same
+ *  treatment the differentiator cards use, so the two labelled paragraphs in
+ *  the origin section read as part of the same system rather than as a new
+ *  voice introduced halfway down the page. */
+const kicker =
+  "flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]";
 
 export default function WhoWeAre() {
   const heroRef = useRef<HTMLElement>(null);
@@ -145,6 +161,9 @@ export default function WhoWeAre() {
         </div>
       </header>
 
+      {/* ── The four facts, before the story that explains them ── */}
+      <AtAGlance />
+
       {/* ── 01 · The origin ── */}
       <section className="pb-24 md:pb-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
@@ -156,9 +175,19 @@ export default function WhoWeAre() {
             titleB="the usual order."
           />
 
-          <MotionReveal stagger={STAGGER.card} className="mt-10 grid gap-10 md:grid-cols-2">
+          {/* Two named ideas, not one slab. The prose is unchanged to the
+              word; what changed is that each paragraph now has a heading above
+              it, so the block has somewhere to enter. At 390 these two
+              paragraphs used to stack into a single fourteen-line run of grey
+              with no break in it anywhere, which is the "wall" the review is
+              actually describing. */}
+          <MotionReveal stagger={STAGGER.card} className="mt-12 grid gap-12 md:grid-cols-2 md:gap-x-16">
             <MotionRevealItem>
-              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
+              <h3 className={kicker}>
+                <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
+                The pattern we kept seeing
+              </h3>
+              <p className="mt-5 max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 We kept seeing businesses buy AI before understanding the
                 problem. Systems were being built before anyone had measured
                 whether the problem was worth solving. Ziiro was built to
@@ -166,7 +195,11 @@ export default function WhoWeAre() {
               </p>
             </MotionRevealItem>
             <MotionRevealItem>
-              <p className="max-w-lg leading-relaxed text-[var(--text-secondary)]">
+              <h3 className={kicker}>
+                <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
+                How we work instead
+              </h3>
+              <p className="mt-5 max-w-lg leading-relaxed text-[var(--text-secondary)]">
                 So an engagement starts with the operation, not the tooling, and
                 you keep the process maps and the roadmap whatever you decide to
                 build at the end of it. The principles behind that live on{" "}
@@ -180,8 +213,6 @@ export default function WhoWeAre() {
               </p>
             </MotionRevealItem>
           </MotionReveal>
-
-          <AtAGlance />
         </div>
       </section>
 

@@ -54,6 +54,22 @@ export default function Preloader() {
   // same session skips it, so the preloader never re-gates paint/LCP again.
   const [gone, setGone] = useState(() => {
     if (typeof window === "undefined") return true; // never render server-side
+    /**
+     * HOMEPAGE ONLY. This is a brand entrance, and it costs the reader an
+     * opaque full-screen overlay for MIN_VISIBLE + FADE before they can read
+     * anything. That is a fair trade on `/`, where the wordmark assembling
+     * IS the first impression, and a bad one on any route someone arrived at
+     * to read something specific: a cold landing on /pricing or /docs was
+     * measured holding the page behind this overlay from ~470ms to ~2300ms,
+     * which is the "renders blank or takes far too long" bug.
+     *
+     * Deep links are how those routes are actually reached, so the overlay
+     * there is pure latency in front of the exact sentence the visitor came
+     * for. Gated on the ENTRY path: an in-app navigation to `/` later does
+     * not re-trigger it, because App mounts once and this initialiser runs
+     * once, which is the existing behaviour and the intended one.
+     */
+    if (window.location.pathname !== "/") return true;
     try {
       return sessionStorage.getItem("ziiro-preloaded") === "1";
     } catch {

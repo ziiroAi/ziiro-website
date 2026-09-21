@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   NEVER HAND-WRITE A VENDOR PREFIX IN THIS FILE.
+
+   Write the standard property alone. The build adds the prefixes, and it is
+   better at it than we are.
+
+   This is not style advice, it is a bug that shipped. Vite 8 minifies CSS with
+   Lightning CSS, which treats `backdrop-filter` and `-webkit-backdrop-filter`
+   as ONE logical property and applies the cascade to them: when both are
+   written out, the LAST one wins and the other is dropped from the output.
+
+     standard only              ->  -webkit-backdrop-filter; backdrop-filter
+     standard first, then -webkit ->  -webkit-backdrop-filter          (!)
+     -webkit- first, then standard ->  -webkit-backdrop-filter; backdrop-filter
+
+   The navbar blur was authored standard-first, so production shipped only the
+   webkit prefix and the blur was dead in every non-Safari browser while working
+   perfectly in dev, where nothing is minified. The same file proved the rule:
+   `mask-image`, which happened to be authored webkit-first, survived intact.
+
+   Two exceptions remain in this file and they are safe: -webkit-font-smoothing
+   and -webkit-tap-highlight-color have no standard counterpart, so there is no
+   pair for the cascade to collapse.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @layer base {
   /* ═══════════════════════════════════════════════════════════════════════
      THE PALETTE — one ground, and it is white
@@ -200,7 +225,6 @@
   .liquid-glass {
     background: var(--glass-bg);
     backdrop-filter: blur(var(--glass-blur)) saturate(1.8);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.8);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--glass-shadow), var(--glass-inset-highlight);
@@ -210,7 +234,6 @@
   .liquid-glass-strong {
     background: var(--glass-bg);
     backdrop-filter: blur(60px) saturate(2);
-    -webkit-backdrop-filter: blur(60px) saturate(2);
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-lg);
     box-shadow: var(--glass-shadow), var(--glass-inset-highlight);
@@ -278,7 +301,6 @@
   .nav-glass {
     background: var(--glass-bg);
     backdrop-filter: blur(40px) saturate(1.6);
-    -webkit-backdrop-filter: blur(40px) saturate(1.6);
     border-bottom: 1px solid var(--glass-border);
   }
 
@@ -305,7 +327,6 @@
     @apply px-8 py-3 font-semibold transition-all duration-300;
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--border);
     border-radius: 50px;
     color: var(--text-primary);
@@ -349,11 +370,6 @@
     );
     background-size: 22px 22px;
     opacity: 0.06;
-    -webkit-mask-image: radial-gradient(
-      ellipse at center,
-      rgb(0, 0, 0) 55%,
-      rgba(0, 0, 0, 0) 100%
-    );
     mask-image: radial-gradient(
       ellipse at center,
       rgb(0, 0, 0) 55%,
@@ -411,26 +427,46 @@
     /* Mandatory. Without it this invisible 112px band sits over the top of
        every page and eats clicks on anything near the top. */
     pointer-events: none;
-    background: transparent;
 
     /* No saturate(). The reference pairs blur with saturate(1.08) to stop
        colour going flat behind frosted glass; this site is monochrome, and
        scaling the saturation of a grey pixel returns the same grey, so it
        would be a per-frame GPU cost that cannot change a single pixel. */
     backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
 
-    -webkit-mask-image: linear-gradient(
-      rgb(0, 0, 0) 0px,
-      rgba(0, 0, 0, 0.92) 38%,
-      rgba(0, 0, 0, 0)
-    );
+    /* ITEM 13, restrained glassmorphism, and the emphasis is on restrained.
+       Blur alone does not make text readable over moving content: it smears
+       what is behind without lowering its contrast, so a dark block sliding
+       under the bar still fights the links. A thin wash of the page's own
+       ground does that work, and 58% is deliberately weak enough that the bar
+       still reads as part of the page rather than as a card sitting on it.
+
+       color-mix rather than a Tailwind alpha modifier, which emits nothing on
+       a var() colour. */
+    background: color-mix(in srgb, var(--background) 58%, transparent);
+
     mask-image: linear-gradient(
       rgb(0, 0, 0) 0px,
       rgba(0, 0, 0, 0.92) 38%,
       rgba(0, 0, 0, 0)
     );
   }
+  /* The fine border item 13 asks for, as its own element rather than a border
+     on the band above: that band is 140% tall and masked to fade out, so a
+     border on it would fade out with it and never actually draw. This sits on
+     the header's own bottom edge and carries the same scroll-driven opacity,
+     so the separation arrives exactly when there is content behind it to
+     separate from. */
+  .site-nav-edge {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 1px;
+    pointer-events: none;
+    background: var(--border);
+  }
+
 
   /* ─── Orbital Node ─── */
   .orbital-node {
@@ -974,8 +1010,6 @@ html:not(.js) [data-reveal] {
     height: 100%;
     background: var(--background);
     backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    -webkit-mask-image: none;
     mask-image: none;
     border-bottom: 1px solid var(--border);
   }
@@ -1022,8 +1056,6 @@ html:not(.js) [data-reveal] {
     height: 100%;
     background: var(--background);
     backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    -webkit-mask-image: none;
     mask-image: none;
     border-bottom: 1px solid var(--border-strong);
   }

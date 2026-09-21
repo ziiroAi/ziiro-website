@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 
 import {
   scrollTo,
@@ -17,8 +17,48 @@ import { CSS_EASE, DURATION } from "@/shared/motion/tokens";
  * add to white — it would have rendered as a smudge travelling down a hairline.
  * So the point is now the ink itself and the glow is gone; the rail is a
  * border-token hairline, and the contrast between them is what the eye tracks.
+ *
+ * IT BELONGS TO THE TOP OF THE PAGE AND NOWHERE ELSE. It sits inside the hero
+ * section, so it has never floated down the page, but it also used to hold
+ * full strength right up until the hero scrolled off. A cue has done its whole
+ * job the moment the reader scrolls, so it now fades out over the first short
+ * stretch of movement and is gone well before the hero is.
+ *
+ * Once faded it is made properly absent rather than merely invisible: an
+ * invisible link that still takes clicks and still answers a screen reader is
+ * a trap sitting over the page.
  */
+
+/** How far the reader scrolls before the cue is fully gone, in px. Short on
+ *  purpose: this is "you have started", not "you have arrived". */
+const FADE_OVER = 140;
 export default function ScrollIndicator() {
+  /** 1 at the very top, 0 once the reader has scrolled FADE_OVER. Starts at 1
+   *  so the prerendered markup and the first paint both show the cue. */
+  const [visible, setVisible] = useState(1);
+
+  useEffect(() => {
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const p = Math.min(Math.max(window.scrollY / FADE_OVER, 0), 1);
+      setVisible(1 - p);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  // Below this it is invisible anyway, and an invisible control that still
+  // takes clicks and answers a screen reader is worse than no control.
+  const idle = visible < 0.02;
+
   /**
    * The href stays real — shareable, middle-clickable, and something a crawler
    * can follow — but the click is handed to Lenis. A native hash jump moves the
@@ -76,8 +116,18 @@ export default function ScrollIndicator() {
       data-hero-scroll
       href="#systems"
       onClick={onActivate}
+      tabIndex={idle ? -1 : undefined}
+      aria-hidden={idle || undefined}
       className="group inline-flex flex-col items-center gap-3 rounded-[10px] px-3 py-2 focus-visible:outline-none focus-visible:ring-1"
-      style={{ ["--tw-ring-color" as string]: "var(--text-primary)" }}
+      style={{
+        ["--tw-ring-color" as string]: "var(--text-primary)",
+        // Opacity follows scroll directly, with no transition on it: the value
+        // IS the scroll position, and a transition on a scrubbed property
+        // chases its input instead of tracking it.
+        opacity: visible,
+        visibility: idle ? "hidden" : "visible",
+        pointerEvents: idle ? "none" : undefined,
+      }}
     >
       <span
         className="font-mono text-[10px] font-bold uppercase text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] group-focus-visible:text-[var(--text-primary)]"

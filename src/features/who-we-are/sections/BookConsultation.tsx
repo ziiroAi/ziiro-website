@@ -56,7 +56,7 @@ export default function BookConsultation() {
                 className="inline-block rounded-full bg-[var(--text-primary)] px-8 py-3.5 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] transition-opacity hover:opacity-85"
                 style={microTransition}
               >
-                Book a consultation
+                Book a call
               </Link>
             </div>
           </MotionRevealItem>

@@ -42,11 +42,36 @@ const BRAND_FILM: VslConfig = {
   runtime: "40 sec",
 };
 
+/**
+ * How tall the film is allowed to be, as a fraction of the viewport, and the
+ * 16:9 the frame actually holds. The cap is applied as a max WIDTH, because the
+ * frame is `aspect-video w-full` and width is the only thing it reads: a width
+ * of `H * 16/9` is the same statement as a height of H.
+ *
+ * ITEM 4, PART ONE. The frame used to be sized by width alone, so how much of
+ * the screen the film owned was a side effect of how wide the browser happened
+ * to be. On a short laptop the 16:9 frame came out 741px tall in a 700px
+ * viewport, so the hero above and the directory below were both in view while
+ * the film played, all three competing. Tying the height to the viewport
+ * instead means the film owns the screen at every shape.
+ *
+ * On a phone the arithmetic changes nothing: 74svh of a 844px viewport asks for
+ * a 1110px wide frame and there are 342px, so width still governs and the
+ * section keeps its ordinary padding rather than opening a void around a small
+ * video.
+ */
+const FILM_MAX_VH = 74;
+const FILM_MAX_WIDTH = `calc(${FILM_MAX_VH}svh * 16 / 9)`;
+
 export default function BrandFilm() {
   return (
-    <section className="relative">
-      <div className="mx-auto max-w-[1400px] px-6 py-24 md:px-10 md:py-32">
-        <VslPlayer vsl={BRAND_FILM} label="The film" mode="autoplay" />
+    // svh, not vh: on mobile browsers vh is the tallest the viewport ever gets,
+    // so a vh-sized section is taller than the screen while the toolbar is out.
+    <section className="relative flex items-center py-24 md:min-h-[100svh] md:py-0">
+      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-10">
+        <div className="mx-auto w-full" style={{ maxWidth: FILM_MAX_WIDTH }}>
+          <VslPlayer vsl={BRAND_FILM} label="The film" mode="autoplay" />
+        </div>
       </div>
     </section>
   );
