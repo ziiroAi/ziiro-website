@@ -210,7 +210,13 @@ export function AllSystemsIndex({ onSelect }: { onSelect?: (id: string) => void 
               </span>
 
               <span className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 pl-7">
-                <span className="text-[12px]" style={{ color: "var(--dir-faint)" }}>
+                {/* 13px at phone width. The tagline is the only thing that says
+                    what a system actually does, so a reader reads it; the 10px
+                    mono row beside it is a micro-label and stays as it is. */}
+                <span
+                  className="text-[13px] md:text-[12px]"
+                  style={{ color: "var(--dir-faint)" }}
+                >
                   {system.tagline}
                 </span>
                 <span

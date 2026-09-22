@@ -11,12 +11,12 @@ import {
   RISK_BANDS,
   RISK_MODEL_RULE,
   SECTIONS,
-  SECURITY_CONTACTS,
   STATUS_META,
   countBy,
   type PostureItem,
   type Status,
 } from "@/features/security/entities/posture";
+import { CONTACT_EMAIL, mailto } from "@/shared/lib/contact";
 
 /**
  * ── SECURITY AND TRUST ────────────────────────────────────────────────
@@ -137,7 +137,7 @@ export default function Security() {
       />
 
       {/* ── Hero ── */}
-      <header className="pt-32 pb-12">
+      <header className="clears-nav-page [--nav-clear:8rem] pb-12">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <MotionReveal stagger={STAGGER.line}>
             <MotionRevealItem>
@@ -226,7 +226,10 @@ export default function Security() {
                   <div key={s} className="flex items-start gap-3">
                     <dt className="sr-only">{STATUS_META[s].label}</dt>
                     <StatusChip status={s} />
-                    <dd className="text-xs leading-relaxed text-[var(--text-muted)]">
+                    {/* 13px at phone width. These eight notes are what the
+                        status words actually mean, so on a due-diligence page
+                        they are load-bearing prose, not a caption. */}
+                    <dd className="text-[13px] leading-relaxed text-[var(--text-muted)] md:text-xs">
                       <span className="font-mono text-[var(--text-secondary)]">
                         {String(countBy(s)).padStart(2, "0")}
                       </span>{" "}
@@ -431,25 +434,32 @@ export default function Security() {
                     A questionnaire, a DPA, a BAA, or subprocessor detail
                   </h3>
                   <p className="mt-3 max-w-lg leading-relaxed text-[var(--text-secondary)]">
-                    Email either address below with what you need and the
+                    Email the address below with what you need and the
                     deadline you are working to. We will answer question by
                     question, and where the answer is that something is not in
                     place we will say so rather than leaving a blank. That is
                     faster for you than a document that has to be corrected
                     later.
                   </p>
-                  <ul className="mt-6 flex flex-col gap-2">
-                    {SECURITY_CONTACTS.map((email) => (
-                      <li key={email}>
-                        <a
-                          href={`mailto:${email}`}
-                          className="inline-flex min-h-[44px] items-center font-mono text-sm tracking-wide text-[var(--text-primary)] underline decoration-[color:var(--border-strong)] underline-offset-4 transition-opacity hover:opacity-70"
-                        >
-                          {email}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* One address, so no list. The <ul>, the <li> and the map
+                      over SECURITY_CONTACTS existed only because there were two
+                      addresses; `flex-col gap-2` was the space between them.
+                      The `mt-6` moved onto the anchor, which is inline-flex and
+                      takes a vertical margin, so the rendered position is
+                      unchanged.
+
+                      THERE IS STILL NO security@ ALIAS on any domain. That note
+                      used to live beside SECURITY_CONTACTS in posture.ts; it
+                      moved here with the address it is about. Printing one
+                      would send a vulnerability report into a void, so if one
+                      is ever created, change it in SECURITY.md and in
+                      shared/lib/contact.ts together. */}
+                  <a
+                    href={mailto()}
+                    className="mt-6 inline-flex min-h-[44px] items-center font-mono text-sm tracking-wide text-[var(--text-primary)] underline decoration-[color:var(--border-strong)] underline-offset-4 transition-opacity hover:opacity-70"
+                  >
+                    {CONTACT_EMAIL}
+                  </a>
                 </div>
 
                 <div>
@@ -459,7 +469,7 @@ export default function Security() {
                   <p className="mt-3 max-w-lg leading-relaxed text-[var(--text-secondary)]">
                     Private vulnerability reporting is enabled on our
                     repository, and the published security policy sets out what
-                    is in scope and what to expect. Either address above also
+                    is in scope and what to expect. The address above also
                     reaches a person directly.
                   </p>
                   <p className="mt-6 max-w-lg text-sm leading-relaxed text-[var(--text-muted)]">

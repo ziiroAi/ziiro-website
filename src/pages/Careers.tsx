@@ -14,6 +14,7 @@ import {
   STAGGER,
   TRAVEL,
 } from "@/shared/motion/tokens";
+import { CONTACT_EMAIL } from "@/shared/lib/contact";
 
 /**
  * Careers, with nothing to apply for.
@@ -33,21 +34,28 @@ import {
  *      is the same test /products applies to a client's automation. That makes
  *      the page consistent rather than clever.
  *
- * Every figure below is checkable from the site itself: zero openings, three
- * stages, two published addresses. Nothing here invents a headcount, a funding
- * position, a salary band or a client.
+ * Every figure below is checkable from the site itself: zero openings and
+ * three stages. Nothing here invents a headcount, a funding position, a salary
+ * band or a client.
  *
  * There is no form because there is no form endpoint anywhere on this site any
  * more, and a fake one that silently dropped a real application would be worse
  * than a mailto.
  */
 
-/** Big figures, small labels, the site's existing device. All three are facts a
- *  reader can verify on the site rather than claims about the company. */
+/** Big figures, small labels, the site's existing device. Both are facts a
+ *  reader can verify on the site rather than claims about the company.
+ *
+ *  There were three. The third read "02 / Inboxes that reach a person", which
+ *  stopped being true when the site collapsed to the single published address:
+ *  a page whose whole argument is that every number on it is checkable cannot
+ *  carry one that the footer disproves. Counting to one is not a figure worth
+ *  setting in 5rem type either, so it is removed rather than rewritten as 01;
+ *  the closing section already says "One inbox." in words, which is the right
+ *  register for it. */
 const FIGURES = [
   { figure: "00", label: "Open roles" },
   { figure: "03", label: "Stages we sell" },
-  { figure: "02", label: "Inboxes that reach a person" },
 ];
 
 /** A guess at where the pressure lands first, labelled as a guess in the
@@ -89,7 +97,7 @@ const EARNS_A_REPLY = [
   },
 ];
 
-const EMAILS = ["aniket@ziiro.work", "govind@ziiro.work"];
+const EMAILS = [CONTACT_EMAIL];
 
 /** The motion tokens are in seconds, because framer-motion is. anime.js counts
  *  in milliseconds, so every token that reaches it goes through this. */
@@ -149,12 +157,12 @@ export default function Careers() {
     <div className="relative">
       <SEO
         title="Careers: No Openings, and Why"
-        description="We are not hiring today. What we would hire for when that changes, what earns a reply in the meantime, and the two inboxes that reach a person."
+        description="We are not hiring today. What we would hire for when that changes, what earns a reply in the meantime, and the address that reaches a person."
         canonical="/careers"
       />
 
       {/* ── Page hero: the joke, once ── */}
-      <header ref={heroRef} className="pt-36 pb-20">
+      <header ref={heroRef} className="clears-nav-page pb-20">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <p
             data-hero-label
@@ -237,12 +245,17 @@ export default function Careers() {
             </MotionRevealItem>
           </MotionReveal>
 
-          {/* Big figures, small labels. Three facts, all checkable on this
+          {/* Big figures, small labels. Two facts, both checkable on this
               site, which is the whole point of putting numbers on a page that
-              could so easily have had none. */}
+              could so easily have had none.
+
+              sm:grid-cols-2, not the 3 this had: the column count is the data's
+              count. Leaving it at 3 with two entries would have left a dead
+              third cell and thrown the row off centre at every width above the
+              phone breakpoint. */}
           <MotionReveal
             stagger={STAGGER.card}
-            className="mt-16 grid grid-cols-1 gap-x-10 gap-y-10 border-t border-[var(--border)] pt-10 sm:grid-cols-3"
+            className="mt-16 grid grid-cols-1 gap-x-10 gap-y-10 border-t border-[var(--border)] pt-10 sm:grid-cols-2"
           >
             {FIGURES.map((f) => (
               <MotionRevealItem key={f.label}>
@@ -345,7 +358,7 @@ export default function Careers() {
         </div>
       </section>
 
-      {/* ── Closing: two real inboxes, no form ── */}
+      {/* ── Closing: one real inbox, no form ── */}
       <section className="pb-36">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <MotionReveal stagger={STAGGER.line}>
@@ -369,14 +382,14 @@ export default function Careers() {
               >
                 <SplitHeadline
                   lead="There is no form."
-                  tail="There are two people."
+                  tail="A person reads it."
                 />
               </h2>
             </MotionRevealItem>
 
             <MotionRevealItem>
               <p className="mx-auto mt-6 max-w-xl text-center leading-relaxed text-[var(--text-secondary)]">
-                Write to either of us. Tell us what you have built and what it
+                Write to us. Tell us what you have built and what it
                 was worth, and say what you would want to do here. If there is
                 nothing open we will say that too, and we will keep the note.
               </p>
@@ -405,7 +418,7 @@ export default function Careers() {
 
             <MotionRevealItem>
               <p className="mt-10 text-center font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
-                [ No form. No applicant tracker. Two inboxes. ]
+                [ No form. No applicant tracker. One inbox. ]
               </p>
             </MotionRevealItem>
 

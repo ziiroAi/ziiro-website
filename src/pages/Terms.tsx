@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { animate, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
+import { CONTACT_EMAIL, mailto } from "@/shared/lib/contact";
 
 /** Small dot marker for editorial list items, same language as the dot world. */
 const Dot = () => (
@@ -127,7 +128,7 @@ const Terms = () => {
       <div className="min-h-screen pb-28">
         <div className="mx-auto max-w-3xl px-6 md:px-10">
           {/* ─── Page hero ─── */}
-          <header ref={heroRef} className="pt-36 pb-16">
+          <header ref={heroRef} className="clears-nav-page pb-16">
             <div
               data-hero-line
               style={{ opacity: 0 }}
@@ -284,7 +285,7 @@ const Terms = () => {
                 These Terms are governed by the laws of India, without regard to
                 conflict of law principles, and any disputes arising from these Terms
                 shall be subject to the exclusive jurisdiction of courts located in
-                Uttar Pradesh, India.
+                New Delhi, India.
               </p>
             </LegalSection>
 
@@ -298,18 +299,16 @@ const Terms = () => {
 
             <LegalSection index="12" title="Contact">
               <p className="font-semibold text-[var(--text-primary)]">Ziiro AI</p>
-              <div className="space-y-2">
-                <p>
-                  <a href="mailto:govind@ziiro.work" className={emailTargetClass}>
-                    <span className={emailLabelClass}>govind@ziiro.work</span>
-                  </a>
-                </p>
-                <p>
-                  <a href="mailto:aniket@ziiro.work" className={emailTargetClass}>
-                    <span className={emailLabelClass}>aniket@ziiro.work</span>
-                  </a>
-                </p>
-              </div>
+              {/* The `space-y-2` wrapper is gone: it spaced two addresses and
+                  there is one. LegalSection's `space-y-4` already separates
+                  this from the name above, so nothing moves. The span inside
+                  the anchor stays, it carries the underline while the anchor
+                  carries the 44px tap target. */}
+              <p>
+                <a href={mailto()} className={emailTargetClass}>
+                  <span className={emailLabelClass}>{CONTACT_EMAIL}</span>
+                </a>
+              </p>
             </LegalSection>
 
             <div className="border-t border-[var(--border)] pt-6">

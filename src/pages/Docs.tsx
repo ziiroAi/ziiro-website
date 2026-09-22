@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
@@ -17,6 +17,7 @@ import {
   type MethodBlock,
 } from "@/features/who-we-are/entities/phases";
 import { videos, watchPath } from "@/features/watch/videos";
+import { CONTACT_EMAIL } from "@/shared/lib/contact";
 
 /**
  * Docs: the reference page, for someone who already knows what Ziiro is.
@@ -161,8 +162,9 @@ const PHASE_STATE: Record<string, OrbState> = {
   "07": "complete",
 };
 
-/** Copied from src/pages/Contact.tsx (emails). */
-const EMAILS = ["aniket@ziiro.work", "govind@ziiro.work"];
+/** The one published address, from the shared constant rather than a fourth
+ *  hand-copied array. */
+const EMAILS = [CONTACT_EMAIL];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -379,8 +381,41 @@ export default function Docs() {
    *  one state orb in that section. Set from the native <details> toggle
    *  event, never from a timer. */
   // Seeded with the phase that renders open, so the orb agrees with the DOM on
-  // first paint rather than claiming Ready beside an already-open row.
-  const [openPhase, setOpenPhase] = useState<string | null>(PHASES[0]?.num ?? null);
+  // first paint rather than claiming Ready beside an already-open row. Nothing
+  // renders open now until `wide` says so, so the honest seed is null.
+  const [openPhase, setOpenPhase] = useState<string | null>(null);
+
+  /**
+   * PAGE LENGTH AT PHONE WIDTH. Phase 01 used to render open on every device,
+   * and measured at 390 that one row is 628px, which is three quarters of a
+   * screen on a page that is already ten screens tall. Its argument was that a
+   * fully folded accordion makes the reader take on trust that anything is
+   * inside it; that argument is worth 628px on a desktop column and is not
+   * worth it on a phone, where the six collapsed summaries are already the
+   * whole width of the screen and obviously a list.
+   *
+   * SERVER RENDERS IT CLOSED, and desktop opens it here. That direction is
+   * deliberate: the reverse (render open, close on phones) would have shifted
+   * 628px of layout out from under a phone reader after hydration, which item
+   * 20 forbids. This way the phone never moves at all, and the desktop change
+   * lands roughly a thousand pixels below the fold at scroll zero, so nobody
+   * sees it move either. It also means a crawler and a no-JS reader get the
+   * folded page, which is what they got before for six rows out of seven, and
+   * <details> keeps every word in the HTML regardless.
+   */
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const sync = () => {
+      setWide(mq.matches);
+      // Keep the orb agreeing with the DOM: if the first row is about to open,
+      // it is the open phase; the toggle handler owns it from there.
+      setOpenPhase((cur) => (cur === null && mq.matches ? PHASES[0]?.num ?? null : cur));
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   const walkthrough = videos[0];
 
@@ -399,7 +434,7 @@ export default function Docs() {
               page, and a full-height display hero was pushing the first real
               section most of a screen down, which is a large part of why a
               1,600 word document looked like an empty one on arrival. */}
-          <header className="pt-32 pb-10">
+          <header className="clears-nav-page [--nav-clear:8rem] pb-10">
             <MotionReveal stagger={STAGGER.line}>
               <MotionRevealItem className="flex items-center justify-between gap-4">
                 <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
@@ -576,12 +611,13 @@ export default function Docs() {
                           )}
                         </>
                       }
-                      // One row open on arrival, not none and not all. The
-                      // brief for this page asked for an accordion rather than
-                      // fifty lines of open text, so the page still folds; it
-                      // just stops making the reader take it on trust that
-                      // there is anything folded.
-                      defaultOpen={i === 0}
+                      // One row open on arrival on DESKTOP, not none and not
+                      // all. The brief for this page asked for an accordion
+                      // rather than fifty lines of open text, so the page still
+                      // folds; it just stops making the reader take it on trust
+                      // that there is anything folded. On a phone it stays
+                      // folded: see the note on `wide` for the 628px reason.
+                      defaultOpen={wide && i === 0}
                       // Rows are independent, so several can be open at once.
                       // The orb follows the one most recently opened, and only
                       // falls back to Ready when the row it is currently

@@ -95,7 +95,12 @@ type PanelAnimation = ReturnType<typeof animate>;
 const ms = (seconds: number) => Math.round(seconds * 1000);
 
 export default function Pricing() {
-  const [openFaq, setOpenFaq] = useState<number>(-1);
+  /** ITEM 20. This was a single index, so the FAQ was exclusive: opening
+   *  "02 What's the typical timeline?" closed row 01 above it and the control
+   *  the reader had just clicked jumped up by that panel's height. Measured
+   *  -77.5px at 1440 and -123px at 390, on rows 02 and 03 both. Independent
+   *  rows remove the cause: nothing above the clicked control changes. */
+  const [openFaq, setOpenFaq] = useState<ReadonlySet<number>>(() => new Set());
 
   const heroRef = useRef<HTMLDivElement>(null);
   const stagesRef = useRef<HTMLDivElement>(null);
@@ -104,7 +109,7 @@ export default function Pricing() {
   const faqPanelAnims = useRef<(PanelAnimation | null)[]>([]);
   const titleAnims = useRef<Animatable[]>([]);
   const plusAnims = useRef<Animatable[]>([]);
-  const openRef = useRef(-1);
+  const openRef = useRef<ReadonlySet<number>>(new Set());
   const reduced = useRef(false);
 
   // Hero entrance: label -> headline -> sub -> hairline, sequenced on a timeline
@@ -206,35 +211,36 @@ export default function Pricing() {
   }, []);
 
   const toggleFaq = (i: number) => {
-    const prev = openRef.current;
-    const next = prev === i ? -1 : i;
+    const next = new Set(openRef.current);
+    const isOpening = !next.has(i);
+    if (isOpening) next.add(i);
+    else next.delete(i);
     openRef.current = next;
     setOpenFaq(next);
 
-    faqPanelRefs.current.forEach((el, j) => {
-      if (!el) return;
-      const isOpening = j === next;
-      const isClosing = j === prev && prev !== next;
-      if (!isOpening && !isClosing) return;
+    // Only the clicked row animates now. It used to walk every panel to find
+    // the one it had just closed as a side effect; with independent rows there
+    // is no side effect to find, which is the whole point of the change.
+    const el = faqPanelRefs.current[i];
+    if (!el) return;
 
-      // Interruption-safe: cancel any in-flight animation, pin current height
-      // before measuring. Height is the one property this page animates
-      // outside transform and opacity, because an accordion has no fixed
-      // target box to scale toward; the badge below runs on the same
-      // DURATION.swap so panel and badge read as one event.
-      faqPanelAnims.current[j]?.cancel();
-      const from = el.getBoundingClientRect().height;
-      el.style.height = `${from}px`;
-      faqPanelAnims.current[j] = animate(el, {
-        height: `${isOpening ? el.scrollHeight : 0}px`,
-        duration: reduced.current ? 0 : MS.swap,
-        ease: "out(4)",
-        onComplete: () => {
-          if (isOpening) el.style.height = "auto";
-        },
-      });
-      plusAnims.current[j]?.rotate(isOpening ? 45 : 0);
+    // Interruption-safe: cancel any in-flight animation, pin current height
+    // before measuring. Height is the one property this page animates
+    // outside transform and opacity, because an accordion has no fixed
+    // target box to scale toward; the badge below runs on the same
+    // DURATION.swap so panel and badge read as one event.
+    faqPanelAnims.current[i]?.cancel();
+    const from = el.getBoundingClientRect().height;
+    el.style.height = `${from}px`;
+    faqPanelAnims.current[i] = animate(el, {
+      height: `${isOpening ? el.scrollHeight : 0}px`,
+      duration: reduced.current ? 0 : MS.swap,
+      ease: "out(4)",
+      onComplete: () => {
+        if (isOpening) el.style.height = "auto";
+      },
     });
+    plusAnims.current[i]?.rotate(isOpening ? 45 : 0);
   };
 
   const stageEnter = (i: number) => titleAnims.current[i]?.x(TRAVEL.nudge);
@@ -265,7 +271,7 @@ export default function Pricing() {
       />
 
       {/* ── Page hero ── */}
-      <header ref={heroRef} className="pt-36 pb-16">
+      <header ref={heroRef} className="clears-nav-page pb-16">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <p
             data-hero-el
@@ -441,7 +447,7 @@ export default function Pricing() {
 
           <div ref={faqListRef} className="mt-12 max-w-3xl">
             {faqs.map((f, i) => {
-              const isOpen = openFaq === i;
+              const isOpen = openFaq.has(i);
               return (
                 <div
                   key={f.q}

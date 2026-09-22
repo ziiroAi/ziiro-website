@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { createAnimatable, createTimeline, cubicBezier } from "animejs";
 import SEO from "@/shared/components/SEO";
+import { CONTACT_EMAIL } from "@/shared/lib/contact";
 import SplitHeadline from "@/shared/components/SplitHeadline";
 import { CSS_EASE, DURATION, EASE_OUT_EXPO, MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 
@@ -16,7 +17,7 @@ import { CSS_EASE, DURATION, EASE_OUT_EXPO, MS, STAGGER, TRAVEL } from "@/shared
  * visitor, which is the exact thing this split exists to stop.
  *
  * So this page answers one question: I have something to ask Ziiro. It is a
- * form, two email addresses and a response expectation. That is the whole page,
+ * form, one email address and a response expectation. That is the whole page,
  * and the restraint is the design rather than a gap in it.
  *
  * NO ORB, NO SHADER, NO CANVAS, and no decorative motion. The only movement is
@@ -34,7 +35,9 @@ const expoOut = cubicBezier(...EASE_OUT_EXPO);
 
 const RISE_STAGGER_MS = Math.round(STAGGER.card * 1000);
 
-const emails = ["aniket@ziiro.work", "govind@ziiro.work"];
+/** One address now, kept as an array because the hover animation below is
+ *  built by index off the rendered [data-email-link] nodes. */
+const emails = [CONTACT_EMAIL];
 
 /**
  * Why someone is writing. Exactly the six from the brief, in that order, and
@@ -65,7 +68,7 @@ const ENDPOINT = "/api/send-contact";
  * in production. It is read at build time, not at runtime, so setting it
  * requires a redeploy. When it is absent, as it is in local development, the
  * widget does not render, no third-party script is fetched, and a submission
- * fails the server's check and lands in the error state with the two email
+ * fails the server's check and lands in the error state with the email
  * addresses beside it. That is deliberate: a contact form that silently
  * pretends to send is worse than one that says it could not.
  */
@@ -196,7 +199,7 @@ const Contact = () => {
    *
    * The endpoint is being restored and hardened by another worker in parallel,
    * so it may legitimately 404 for a window. That is handled the same as any
-   * other failure: the form says so and the two email addresses are sitting
+   * other failure: the form says so and the email address is sitting
    * directly beside it, unaffected, so the page is never a dead end.
    */
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -255,7 +258,7 @@ const Contact = () => {
         {/* ─── Hero ───
             Short, and deliberately not a statement of philosophy. Mission owns
             why Ziiro works the way it does; this page owns "send it over". */}
-        <header className="border-b border-[var(--border)] pb-14 pt-36">
+        <header className="border-b border-[var(--border)] pb-14 clears-nav-page">
           <p
             data-rise
             data-reveal
@@ -407,13 +410,39 @@ const Contact = () => {
               <div ref={widgetHost} className="mt-8 empty:mt-0" />
 
               <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
+                {/* THE LABEL SWAPS BUT THE BUTTON DOES NOT RESIZE.
+                    "Sending" is shorter than "Send message", and this button
+                    sizes to its content, so swapping the text used to shrink
+                    the primary control at the exact moment it was clicked.
+                    Review item 20 names an inserted loading state as one of
+                    the things that may never make the interface jump.
+
+                    Both labels are stacked in the same grid cell, so the
+                    button is always as wide as the longest of them and the
+                    swap is opacity alone. This also survives either label
+                    being reworded later, which a min-width would not. The
+                    hidden one is taken out of the accessibility tree so the
+                    name is whichever is actually showing. */}
                 <button
                   type="submit"
                   disabled={status === "sending"}
                   className="rounded-full bg-[var(--text-primary)] px-8 py-4 font-mono text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90 disabled:opacity-60"
                   style={{ transitionProperty: "opacity", transitionDuration: `${DURATION.micro}s`, transitionTimingFunction: CSS_EASE.out }}
                 >
-                  {status === "sending" ? "Sending" : "Send message"}
+                  <span className="grid place-items-center">
+                    <span
+                      style={{ gridArea: "1 / 1", opacity: status === "sending" ? 0 : 1 }}
+                      aria-hidden={status === "sending"}
+                    >
+                      Send message
+                    </span>
+                    <span
+                      style={{ gridArea: "1 / 1", opacity: status === "sending" ? 1 : 0 }}
+                      aria-hidden={status !== "sending"}
+                    >
+                      Sending
+                    </span>
+                  </span>
                 </button>
 
                 {/* One live region for the whole form, polite, so a screen

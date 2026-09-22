@@ -59,10 +59,35 @@
     <meta name="twitter:image" content="https://ziiro.work/og-image.png" />
 
     <!-- Favicon: the Z mark on the brand's white ground. SVG where it is
-         supported, PNG and ICO behind it for everything else. -->
+         supported, PNG and ICO behind it for everything else.
+
+         GOOGLE IGNORES THE SVG, so the two rasters decide the icon next to
+         ziiro.work in search results. Google Search Central lists the formats
+         it takes and SVG is not among them: "Google Search supports the
+         following favicon file formats: BMP, GIF, ICO, PNG, JPEG, PPM, and
+         TIFF."
+
+         THE SIZE RULE, CORRECTED. An earlier version of this comment said
+         Google "wants a square whose side is a MULTIPLE OF 48" and treated
+         the old 128x128 PNG as failing it. That rule is not in Google's
+         documentation and the claim was wrong. What the documentation says is:
+         "Your favicon must be a square (1:1 aspect ratio) that's at least
+         8x8px. While the minimum size requirement is 8x8px, we recommend using
+         a favicon that's larger than 48x48px so that it looks good on various
+         surfaces." 128x128 already met that. 192 is kept because it is square
+         and comfortably above the recommended floor, not because 128 was
+         broken.
+
+         So the rule to hold to is the documented one: keep these SQUARE and
+         keep them well above 48x48. If a sizes attribute and the file it
+         points at ever disagree, the attribute is the lie.
+
+         Composition is 37.23% ink, taken from the supplied artwork; see the
+         note in public/favicon.svg, which is the source the other two are
+         rasterised from. -->
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="icon" href="/favicon.png" type="image/png" sizes="128x128" />
+    <link rel="icon" href="/favicon.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- JSON-LD Structured Data (static so non-JS crawlers ingest it) -->
@@ -85,7 +110,7 @@
           "image": "https://ziiro.work/og-image.png",
           "description": "Ziiro AI is an AI consultancy that works in three stages: Diagnose maps how an operation actually runs and prices the opportunity, Build ships agents into it, and Optimize keeps them measured and tuned.",
           "slogan": "We don't sell AI. We sell results.",
-          "email": "govind@ziiro.work",
+          "email": "contact@ziiroai.com",
           "areaServed": "Worldwide",
           "knowsAbout": [
             "Operations mapping",
@@ -102,15 +127,8 @@
           "contactPoint": [
             {
               "@type": "ContactPoint",
-              "contactType": "sales",
-              "email": "govind@ziiro.work",
-              "url": "https://ziiro.work/contact",
-              "availableLanguage": ["English"]
-            },
-            {
-              "@type": "ContactPoint",
               "contactType": "customer support",
-              "email": "aniket@ziiro.work",
+              "email": "contact@ziiroai.com",
               "url": "https://ziiro.work/contact",
               "availableLanguage": ["English"]
             }

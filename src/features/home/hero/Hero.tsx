@@ -97,7 +97,12 @@ export default function Hero() {
     >
       <div
         data-hero-column
-        className="relative z-10 mx-auto grid min-h-[100svh] w-full max-w-[1200px] grid-cols-1 items-center gap-y-12 px-6 pb-20 pt-24 md:px-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.88fr)] lg:gap-x-12 lg:pb-28 lg:pt-32"
+        // `clears-nav` replaces `pt-24 lg:pt-32`. Those were 96px and 128px,
+        // and 96 does not clear a navbar that is 112px tall once its links
+        // wrap at 390. The class reserves the header's measured height plus a
+        // gap, so desktop keeps exactly the 128px it had and the phone stops
+        // rendering the eyebrow underneath the nav links. See index.css.
+        className="clears-nav relative z-10 mx-auto grid min-h-[100svh] w-full max-w-[1200px] grid-cols-1 items-center gap-y-12 px-6 pb-20 md:px-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.88fr)] lg:gap-x-12 lg:pb-28"
       >
         {/* ── Left: the argument ───────────────────────────────────────── */}
         <div className="flex flex-col items-start text-left">

@@ -64,7 +64,7 @@ const NotFound = () => {
   }, []);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--background)] px-6 pb-16 pt-28">
+    <main className="flex min-h-screen items-center justify-center bg-[var(--background)] px-6 pb-16 clears-nav-page [--nav-clear:7rem]">
       <SEO
         title="Page Not Found"
         description="This Ziiro AI page does not exist or has moved. Head back to the homepage, or find our products, pricing, process and contact details in the navigation."

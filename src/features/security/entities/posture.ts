@@ -504,13 +504,13 @@ export const SECTIONS: PostureSection[] = [
         topic: "Security questionnaire, DPA or subprocessor detail",
         status: "available",
         detail:
-          "Send it to either address below and we will answer question by question. Where the answer is that something is not in place, it will say so rather than leave a blank, which is faster for you than a document corrected later.",
+          "Send it to the address below and we will answer question by question. Where the answer is that something is not in place, it will say so rather than leave a blank, which is faster for you than a document corrected later.",
       },
       {
         topic: "A dedicated security alias",
         status: "in-progress",
         detail:
-          "A role-based address for security correspondence does not exist yet, so this page deliberately does not print one. An address that bounces is worse than no address at all, so the two published addresses are used everywhere instead.",
+          "A role-based address for security correspondence does not exist yet, so this page deliberately does not print one. An address that bounces is worse than no address at all, so the published contact address is used everywhere instead.",
       },
     ],
   },
@@ -570,12 +570,19 @@ export const RISK_BANDS: RiskBand[] = [
 export const RISK_MODEL_RULE =
   "What an engagement touches decides what it needs. A system reading public marketing copy is not built like one handling health records, and the controls for any particular engagement are written into its contract rather than promised in advance on a web page.";
 
-/** The two published addresses. Deliberately the real ones.
+/* SECURITY_CONTACTS was here: a one-element array holding the published
+ * address, mapped into a <ul> by Security.tsx. With a single address the list
+ * and the array were both wrapping one item, and the address was defined here
+ * as well as in shared/lib/contact.ts, which is the duplication that file was
+ * created to end.
  *
- *  There is no security@ziiro.work mailbox. It does not exist, so printing it
- *  would send a vulnerability report into a void. When the alias is created,
- *  swap it in here and in SECURITY.md together. */
-export const SECURITY_CONTACTS = ["aniket@ziiro.work", "govind@ziiro.work"];
+ * The page now reads CONTACT_EMAIL from shared/lib/contact.ts, the same import
+ * Privacy and Terms use, so the address has exactly one definition site. This
+ * file stays a pure data module with no imports, which is why the constant was
+ * removed rather than re-pointed at the shared one.
+ *
+ * The note about there being no security@ alias moved to Security.tsx, beside
+ * the address it is about. */
 
 /**
  * When this page was last checked.

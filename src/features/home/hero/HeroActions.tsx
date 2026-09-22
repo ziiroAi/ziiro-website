@@ -76,8 +76,13 @@ const nudge: CSSProperties = {
 // `active:` is deliberately the press state rather than an onClick handler:
 // it engages on pointer-down and releases on pointer-up, which is the moment
 // the visitor is asking to be acknowledged.
+//
+// No `active:scale-` here. It used to carry one, duplicating the global press
+// rule in index.css, and review item 20 rules out a scale change because it
+// alters the control's box on click. The global rule now presses with opacity
+// and these buttons inherit it, so this only has to not fight it.
 const base =
-  "group inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-6 text-[14px] font-medium tracking-[-0.005em] active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+  "group inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-6 text-[14px] font-medium tracking-[-0.005em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
 
 export default function HeroActions() {
   return (
