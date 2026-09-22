@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { createTimeline, stagger } from "animejs";
 
 import { HEADLINE_LINE_GAP } from "@/shared/components/SplitHeadline";
-import IntelligenceOrb from "./IntelligenceOrb";
+import HalfBrain from "./HalfBrain";
 import HeroActions from "./HeroActions";
 import ScrollIndicator from "./ScrollIndicator";
 import {
@@ -64,7 +64,6 @@ export default function Hero() {
       0,
     )
       .add(q("[data-hero-eyebrow]"), { opacity: [0, 1], y: [10, 0], duration: 620 }, 60)
-      .add(q("[data-hero-glow]"), { opacity: [0, 1], scale: [0.72, 1], duration: 1600 }, 120)
       .add(
         q("[data-hero-line]"),
         {
@@ -78,9 +77,7 @@ export default function Hero() {
       )
       .add(q("[data-hero-support]"), { opacity: [0, 1], y: [14, 0], duration: 700 }, 560)
       .add(q("[data-hero-actions]"), { opacity: [0, 1], y: [14, 0], duration: 700 }, 720)
-      .add(q("[data-hero-orb-label]"), { opacity: [0, 1], y: [10, 0], duration: 620 }, 800)
       .add(q("[data-hero-trust]"), { opacity: [0, 1], y: [10, 0], duration: 600 }, 880)
-      .add(q("[data-hero-orb-word]"), { opacity: [0, 1], y: [14, 0], duration: 760 }, 920)
       .add(q("[data-hero-scroll]"), { opacity: [0, 1], duration: 700 }, 1100);
 
     return () => {
@@ -210,7 +207,7 @@ export default function Hero() {
 
         {/* ── Right: the object ────────────────────────────────────────── */}
         <div className="flex w-full justify-center lg:justify-end">
-          <IntelligenceOrb />
+          <HalfBrain />
         </div>
       </div>
 
