@@ -194,7 +194,7 @@ export default function Mission() {
       />
 
       {/* ── Page hero ── */}
-      <header ref={heroRef} className="pt-36 pb-20">
+      <header ref={heroRef} className="clears-nav-page pb-20">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <p
             data-hero-label
@@ -415,8 +415,8 @@ export default function Mission() {
 
           THE DWELL IS LAYOUT, NOT SCROLL-JACKING, which this site forbids.
           The section is simply taller than its content and the content is
-          sticky inside it, so the ask holds in view for about half a screen
-          of scrolling before the footer arrives. Nothing intercepts the
+          sticky inside it, so the ask holds in view for about a screen and a
+          half of scrolling before the footer arrives. Nothing intercepts the
           wheel, nothing is pinned by script, and the reader can keep
           scrolling at any moment at their own speed. Under reduced motion the
           extra height is dropped entirely and it becomes an ordinary section,
@@ -425,7 +425,7 @@ export default function Mission() {
           It also sits clear of the Text Fill and the Grid Lift above: both
           are scroll-driven inside the previous section and neither reads
           anything this does. ── */}
-      <section className="pb-24 md:pb-32">
+      <section className={reducedMotion ? "pb-24 md:pb-32" : undefined}>
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           {/* The extra height belongs HERE, on the sticky element's own
               containing block, and getting that wrong is worth a note.
@@ -436,25 +436,83 @@ export default function Mission() {
               ask scrolled away normally and the section's extra height became
               half a screen of empty white before the footer. Which is the exact
               gap this was meant to remove. Every measurement still passed, and
-              only the screenshot showed it. */}
-          <div style={{ minHeight: reducedMotion ? undefined : "150vh" }}>
-            <div className="sticky top-0 flex min-h-screen flex-col justify-center">
+              only the screenshot showed it.
+
+              ── ITEM 11, SECOND PASS. Removing the card was necessary and not
+              sufficient: the close still read as a separate object, for two
+              reasons a screenshot showed and no measurement did.
+
+              ONE, IT SPOKE A DIFFERENT LANGUAGE. Sections 01, 02 and 03 each
+              open with a hairline and "Sec. NN / Label". The close opened with
+              nothing, so it arrived as an unannounced slab of white with a
+              sentence in it. It now carries the same header as its three
+              siblings, in the eyebrow-only mode SectionHeader already supports,
+              which makes it the page's fourth section rather than an appendix.
+              That is the cheapest possible way to belong: no new furniture, the
+              component the rest of the page already uses.
+
+              TWO, IT ENDED ON A VOID. The child was `min-h-screen` inside
+              150vh, so it released half a screen before the section did: the
+              ask slid up under the navbar and roughly 350px of white arrived
+              before the footer. The child is now exactly `h-screen` and the
+              section carries no trailing padding, so the container's last
+              screenful IS the ask, and the footer begins at the moment the hold
+              ends rather than after a gap. Dwell is the 75vh difference.
+
+              Still layout and not scroll-jacking: nothing intercepts the wheel,
+              nothing is pinned by script, and the reader can leave at any time.
+              Under reduced motion the extra height and the sticky both drop and
+              this becomes an ordinary section, which is the required
+              alternative.
+
+              ── ITEM 12, THIRD PASS. The mechanism was right and the DOSE was
+              wrong, which is why it kept measuring as fixed and kept being
+              reported as broken.
+
+              At 175vh the stick range is 75vh, 675px on a 900px viewport. I
+              drove the ending with real wheel events through Lenis at a
+              trackpad cadence instead of jumping the scroll position, and one
+              firm flick carries roughly 1200px. So the hold was smaller than a
+              single gesture: the reader arrived on flick N and was past it on
+              flick N+1, and the ask sat still for one frame between two
+              swipes, which is indistinguishable from having simply stopped
+              scrolling. Pixels were measured; gestures are what is spent.
+
+              240vh puts the stick range at 140vh, about 1260px, which outlasts
+              one flick and releases on the second. Same number as the dwell
+              that now closes the home page, for the same measured reason. ── */}
+          <div style={{ minHeight: reducedMotion ? undefined : "240vh" }}>
+            <div
+              className={
+                reducedMotion
+                  ? "flex flex-col justify-center"
+                  : "sticky top-0 flex h-screen flex-col justify-center py-24"
+              }
+            >
+            {/* Beat zero: the page's own section grammar, so the conclusion is
+                visibly continuous with the argument instead of dropped under
+                it. Eyebrow only, no display title: the ask below is already
+                this section's headline and a second one would be the "two
+                elements saying the same thing" the review is about. */}
+            <SectionHeader index="04" label="How We Start" meta="The first step" />
             <MotionReveal>
               {/* Beat one: the argument's last word, in the page's own voice
                   rather than a label announcing a call to action. */}
-              <p className="max-w-2xl font-display text-xl font-semibold leading-relaxed text-[var(--text-primary)] md:text-2xl">
+              <p className="mt-12 max-w-2xl font-display text-xl font-semibold leading-relaxed text-[var(--text-primary)] md:text-2xl">
                 Every engagement starts the same way. We find what the work is
                 costing you before anyone builds anything.
               </p>
 
-              {/* Beat two: the anticipation. A rule that is the only thing
-                  between the statement and the ask, so the pause is
-                  structural and costs no extra words. */}
-              <div className="mt-14 h-px w-full bg-[var(--border)] md:mt-20" />
+              {/* Beat two: the anticipation. Short rather than full width: the
+                  section header above now owns the full-width hairline, and two
+                  rules at the same scale read as two boundaries instead of one
+                  boundary and one beat. It marks the pause without claiming to
+                  divide anything. */}
+              <div className="mt-12 h-px w-16 bg-[var(--text-primary)] md:mt-16" />
 
               {/* Beat three: the ask. */}
               <h2
-                className="mt-14 max-w-3xl font-display font-semibold text-[var(--text-primary)] md:mt-20"
+                className="mt-12 max-w-3xl font-display font-semibold text-[var(--text-primary)] md:mt-16"
                 style={{
                   fontSize: "clamp(2.4rem, 5vw, 4.3rem)",
                   letterSpacing: "-0.03em",

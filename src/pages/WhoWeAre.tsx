@@ -123,7 +123,7 @@ export default function WhoWeAre() {
       />
 
       {/* ── Page hero ── */}
-      <header ref={heroRef} className="pt-36">
+      <header ref={heroRef} className="clears-nav-page">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <p
             data-hero-label

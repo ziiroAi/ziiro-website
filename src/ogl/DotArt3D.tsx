@@ -37,9 +37,9 @@ function smooth01(t: number): number {
 // boundary it can land on.
 // zf scales the fitted base distance; x/y are world offsets.
 const CAM_KEYS = [
-  { x: 0, y: 0, zf: 0.85 },   // face to face with the sphere
-  { x: 0, y: 0, zf: 1.4 },    // wide on the burst universe
-  { x: 0, y: 3, zf: 1.7 },    // spline tail: drifting further out
+  { x: 0, y: 0, zf: 0.85 }, // face to face with the sphere
+  { x: 0, y: 0, zf: 1.4 }, // wide on the burst universe
+  { x: 0, y: 3, zf: 1.7 }, // spline tail: drifting further out
 ];
 
 // Catmull-Rom through the keys: velocity stays continuous across scene
@@ -73,27 +73,81 @@ const WINDS: [number, number, number, number][] = [
   [0, 0, 0, 26], // the sphere explodes into the universe
 ];
 
-export default function DotArt3D() {
+/**
+ * The scroll length of the journey itself, sticky screen included. The
+ * formation resolves across `JOURNEY_VH - 100` of scrolling, and anything
+ * appended past it is dwell rather than journey.
+ */
+const JOURNEY_VH = 300;
+
+interface DotArt3DProps {
+  /**
+   * Extra height appended to the section AFTER the formation has resolved.
+   * The canvas stays pinned across it, so the finished sculpture holds on
+   * screen instead of the page running out at the exact pixel it lands.
+   * Zero restores the original behaviour, which is the reduced-motion path.
+   */
+  dwellVh?: number;
+  /**
+   * Called once if the scene cannot be built at all. The parent uses it to stop
+   * reserving scroll length for a journey that is not going to happen.
+   */
+  onFail?: () => void;
+}
+
+export default function DotArt3D({ dwellVh = 0, onFail }: DotArt3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const [sceneIdx, setSceneIdx] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  // Read through a ref so an inline arrow prop can never tear the scene down
+  // and rebuild it. Same reason CoreOrb does it next door.
+  const onFailRef = useRef(onFail);
+  onFailRef.current = onFail;
 
   useEffect(() => {
     const container = containerRef.current;
     const section = sectionRef.current;
     if (!container || !section) return;
 
+    /* Nothing below this line may assume a context exists.
+       WITHOUT THIS THE WHOLE SITE DIES, not just the globe. Measured with
+       Chrome started with --disable-3d-apis: `new Renderer` threw
+       "Cannot set properties of null (setting 'renderer')", the throw escaped
+       the effect, React unmounted the tree, and the home page went from 2287
+       characters, 3 h2 and 8 root children to 0, 0 and 0. This is the last
+       thing before the footer, so it took the footer with it.
+       Real visitors reach that path with GPU blocklists, hardware acceleration
+       switched off, some privacy extensions, locked-down builds and old
+       devices. The error boundary in DotArtSection is the backstop; this is
+       the fix.
+
+       ogl throws rather than returning a null context, but it does so a line
+       AFTER assigning it, so both have to be guarded. */
+    const bail = () => {
+      setFailed(true);
+      onFailRef.current?.();
+    };
+
+    let renderer: Renderer;
+    try {
+      renderer = new Renderer({
+        alpha: true,
+        antialias: true,
+        premultipliedAlpha: true,
+        dpr: Math.min(window.devicePixelRatio || 1, 2),
+      });
+      if (!renderer.gl) throw new Error("no webgl context");
+    } catch {
+      bail();
+      return;
+    }
+
     const mobile = isMobile();
     const COUNT = mobile ? 6000 : 12000;
     const dotSize = mobile ? 1.6 : 2.2; // radius px -> diameters ~1.3-5.6px
 
-    // --- Renderer (premultiplied pipeline for correct compositing) ---
-    const renderer = new Renderer({
-      alpha: true,
-      antialias: true,
-      premultipliedAlpha: true,
-      dpr: Math.min(window.devicePixelRatio, 2),
-    });
     const gl = renderer.gl;
     gl.clearColor(0, 0, 0, 0);
     gl.enable(gl.BLEND);
@@ -108,8 +162,7 @@ export default function DotArt3D() {
 
     // --- Billboard quad ---
     const quadVerts = new Float32Array([
-      -1, -1, 1, -1, 1, 1,
-      -1, -1, 1, 1, -1, 1,
+      -1, -1, 1, -1, 1, 1, -1, -1, 1, 1, -1, 1,
     ]);
 
     // --- Instance buffers ---
@@ -138,44 +191,66 @@ export default function DotArt3D() {
       seeds[i] = (i / COUNT) * 0.8 + rand() * 0.2;
     }
 
-    const geometry = new Geometry(gl, {
-      position: { size: 2, data: quadVerts },
-      aFrom: { size: 3, data: fromPositions, instanced: 1 },
-      aTo: { size: 3, data: toPositions, instanced: 1 },
-      aSizeFrom: { size: 1, data: fromSizes, instanced: 1 },
-      aSizeTo: { size: 1, data: toSizes, instanced: 1 },
-      aFlowFrom: { size: 1, data: fromFlows, instanced: 1 },
-      aFlowTo: { size: 1, data: toFlows, instanced: 1 },
-      aSeed: { size: 1, data: seeds, instanced: 1 },
-    });
-    (geometry as unknown as { instancedCount: number }).instancedCount = COUNT;
+    /* A context is not enough. This shader is far larger than CoreOrb's and
+       the geometry is instanced, so two more things can fail on hardware that
+       reports WebGL: the program can fail to compile or link, and WebGL1
+       without ANGLE_instanced_arrays cannot draw this at all. Both throw, and
+       an unguarded throw here reaches React the same way the null context did.
+       The canvas is already in the DOM by this point, so it has to come back
+       out before bailing or an empty one is left behind. */
+    let geometry: Geometry;
+    let program: Program;
+    let mesh: Mesh;
+    try {
+      geometry = new Geometry(gl, {
+        position: { size: 2, data: quadVerts },
+        aFrom: { size: 3, data: fromPositions, instanced: 1 },
+        aTo: { size: 3, data: toPositions, instanced: 1 },
+        aSizeFrom: { size: 1, data: fromSizes, instanced: 1 },
+        aSizeTo: { size: 1, data: toSizes, instanced: 1 },
+        aFlowFrom: { size: 1, data: fromFlows, instanced: 1 },
+        aFlowTo: { size: 1, data: toFlows, instanced: 1 },
+        aSeed: { size: 1, data: seeds, instanced: 1 },
+      });
+      (geometry as unknown as { instancedCount: number }).instancedCount =
+        COUNT;
 
-    const program = new Program(gl, {
-      vertex: dotArtVertex,
-      fragment: dotArtFragment,
-      uniforms: {
-        uTime: { value: 0 },
-        uMorph: { value: 0 },
-        uDotSize: { value: dotSize },
-        uResolution: { value: [container.clientWidth, container.clientHeight] },
-        uMouse: { value: [-10, -10, 0] }, // parked off-screen until a real pointer moves
-        uRipple: { value: 0 },
-        uRippleOrigin: { value: [0, 0, 0] },
-        uPulse: { value: 0 },
-        uCloth: { value: 0 },
-        uBreath: { value: 0 },
-        uCollapse: { value: 0 },
-        uWind: { value: [0, 0, 0] },
-        uWindRadial: { value: 0 },
-        uColor: { value: INK },
-      },
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
-    });
+      program = new Program(gl, {
+        vertex: dotArtVertex,
+        fragment: dotArtFragment,
+        uniforms: {
+          uTime: { value: 0 },
+          uMorph: { value: 0 },
+          uDotSize: { value: dotSize },
+          uResolution: {
+            value: [container.clientWidth, container.clientHeight],
+          },
+          uMouse: { value: [-10, -10, 0] }, // parked off-screen until a real pointer moves
+          uRipple: { value: 0 },
+          uRippleOrigin: { value: [0, 0, 0] },
+          uPulse: { value: 0 },
+          uCloth: { value: 0 },
+          uBreath: { value: 0 },
+          uCollapse: { value: 0 },
+          uWind: { value: [0, 0, 0] },
+          uWindRadial: { value: 0 },
+          uColor: { value: INK },
+        },
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+      });
 
-    const mesh = new Mesh(gl, { geometry, program, mode: gl.TRIANGLES });
-    mesh.setParent(scene);
+      mesh = new Mesh(gl, { geometry, program, mode: gl.TRIANGLES });
+      mesh.setParent(scene);
+    } catch {
+      if (container.contains(gl.canvas as HTMLCanvasElement)) {
+        container.removeChild(gl.canvas as HTMLCanvasElement);
+      }
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+      bail();
+      return;
+    }
 
     // --- Camera distance that frames the artwork with margin ---
     const tanHalf = Math.tan((FOV * Math.PI) / 360);
@@ -279,7 +354,13 @@ export default function DotArt3D() {
 
     function onScroll() {
       const rect = section!.getBoundingClientRect();
-      const range = section!.offsetHeight - window.innerHeight;
+      /* Derived from JOURNEY_VH rather than from the section's own height,
+         which is the whole point: the section is now TALLER than the journey
+         so the finished sculpture can hold. Measuring the element would fold
+         that dwell back into the progress and simply spread the morph out
+         again, which is not the same thing at all. Identical to the old
+         `offsetHeight - innerHeight` whenever no dwell is appended. */
+      const range = window.innerHeight * (JOURNEY_VH / 100 - 1);
       const raw = range > 0 ? -rect.top / range : 0;
       scrollTarget = Math.max(0, Math.min(1, raw));
 
@@ -314,7 +395,14 @@ export default function DotArt3D() {
       attrs.aSizeTo.data.set(formations[toIdx].sizes);
       attrs.aFlowFrom.data.set(formations[fromIdx].flows);
       attrs.aFlowTo.data.set(formations[toIdx].flows);
-      for (const k of ["aFrom", "aTo", "aSizeFrom", "aSizeTo", "aFlowFrom", "aFlowTo"]) {
+      for (const k of [
+        "aFrom",
+        "aTo",
+        "aSizeFrom",
+        "aSizeTo",
+        "aFlowFrom",
+        "aFlowTo",
+      ]) {
         attrs[k].needsUpdate = true;
       }
     }
@@ -468,11 +556,18 @@ export default function DotArt3D() {
     };
   }, []);
 
+  /* No context, no journey. Reserving 300vh of scroll to animate something
+     that cannot be drawn is three screens of empty white, so the section goes
+     away entirely and DotArtSection closes the page on the ask alone, which is
+     static markup that was already in the prerendered HTML and needs no
+     context of any kind. */
+  if (failed) return null;
+
   return (
     <section
       ref={sectionRef}
       className="relative w-full"
-      style={{ height: "300vh" }}
+      style={{ height: `${JOURNEY_VH + dwellVh}vh` }}
     >
       <div className="sticky top-0 left-0 w-full h-screen overflow-hidden">
         <div ref={containerRef} className="absolute inset-0" />
@@ -489,11 +584,11 @@ export default function DotArt3D() {
               className="font-mono text-[11px] uppercase tracking-[0.35em]"
               style={{ color: "var(--text-muted)" }}
             >
-              {String(sceneIdx + 1).padStart(2, "0")} / {FORMATION_LABELS[sceneIdx]}
+              {String(sceneIdx + 1).padStart(2, "0")} /{" "}
+              {FORMATION_LABELS[sceneIdx]}
             </motion.div>
           </AnimatePresence>
         </div>
-
       </div>
     </section>
   );

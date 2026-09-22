@@ -338,29 +338,67 @@ function CapabilityStack({
   reduced: boolean;
 }) {
   // Zero, not null: one row is always open, so the block never renders as an
-  // empty frame and the prerendered HTML always shows a real sentence.
-  const [open, setOpen] = useState(0);
+  // empty frame and the prerendered HTML always shows a real sentence. That is
+  // about the DEFAULT and the prerendered state, and a set seeded with {0}
+  // keeps both.
+  //
+  // ── ITEM 20, THE CLICK-INDUCED SHIFT ──────────────────────────────
+  // This was `useState(0)` with `setOpen(i)`: exclusive, and with no way to
+  // close a row. So opening row 03 closed row 00, row 00 is ABOVE it, and the
+  // button the reader had just clicked slid up by the height of the panel that
+  // collapsed. Measured on the rendered page: 03 ROI model -49.7px, 04 Role map
+  // -45.5px, 05 Build roadmap -49.0px, every one of them upward, under the
+  // cursor, immediately after the click that caused it.
+  //
+  // Rows are independent now, which removes the cause rather than compensating
+  // for it: nothing above the clicked control changes, so the control does not
+  // move. Content below it moves, which is what opening a disclosure means and
+  // is not what item 20 is about. Scroll compensation was the other candidate
+  // and is wrong here, because the panel animates grid-template-rows over
+  // DURATION.swap, so at commit time nothing has moved yet and there is no
+  // delta to compensate; you would have to chase the transition frame by frame.
+  // This is also what the Docs accordion already does.
+  const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set([0]));
+  const toggle = (i: number) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(i)) next.add(i);
+      return next;
+    });
 
   return (
     <ul className="border-t border-[var(--border)]">
       {items.map((c, i) => {
-        const isOpen = open === i;
+        const isOpen = open.has(i);
         return (
           <li key={c.name} className="border-b border-[var(--border)]">
+            {/* OPENS ON CLICK ONLY, and that is a layout-stability fix.
+                It used to open on mouseenter and on focus as well. Each row's
+                panel collapses from 1fr to 0fr, so opening one closes another
+                and every row below the change moves. Measured on the built
+                page: pointing at a row moved the rows under it by 61px, which
+                means the row a reader was aiming at slid out from under the
+                cursor before they got there, and tabbing through the list made
+                it jump on every step. Review item 20 rules that out.
+
+                Click is also the honest trigger: the control reports
+                aria-expanded, so it should change only when the reader asks
+                it to. */}
             <button
               type="button"
-              onMouseEnter={() => setOpen(i)}
-              onFocus={() => setOpen(i)}
-              onClick={() => setOpen(i)}
+              onClick={() => toggle(i)}
               aria-expanded={isOpen}
               aria-controls={`${idBase}-cap-${i}`}
-              className="flex w-full items-center gap-4 py-3.5 text-left"
+              // The row no longer opens on hover, so it has to say it is a
+              // control some other way. Colour and cursor only: both are free
+              // of layout, which is the whole point of the change above.
+              className="group flex w-full cursor-pointer items-center gap-4 py-3.5 text-left"
             >
               <span className="w-6 shrink-0 font-mono text-[10px] tracking-[0.2em] text-[var(--text-muted)]">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <span
-                className={`flex-1 font-mono text-[11px] font-bold uppercase tracking-[0.25em] ${
+                className={`flex-1 font-mono text-[11px] font-bold uppercase tracking-[0.25em] group-hover:text-[var(--text-primary)] ${
                   isOpen
                     ? "text-[var(--text-primary)]"
                     : "text-[var(--text-secondary)]"
@@ -524,9 +562,23 @@ export default function Products() {
   //
   // THIS IS THE PAGE'S ONE "CURRENT STAGE". Three things read it and two write
   // it: the magnet tabs and the self-qualification list both set it, and the
-  /** Which stage card has its detail open. Null is all closed, which is the
-   *  resting state: the point of the card is that the detail is optional. */
-  const [openDetail, setOpenDetail] = useState<number | null>(null);
+  /** Which stage cards have their detail open. Empty is all closed, which is
+   *  the resting state: the point of the card is that the detail is optional.
+   *
+   *  ITEM 20. This was a single `number | null`, so opening stage 02's "How it
+   *  runs" closed stage 01's, and stage 01 is above it in a sticky stack: the
+   *  "Hide how it runs" control moved -14.7px and its neighbour -13.3px on the
+   *  click that opened it. Per-card now, so one card's disclosure cannot move
+   *  another card's. */
+  const [openDetail, setOpenDetail] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
+  const toggleDetail = (i: number) =>
+    setOpenDetail((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(i)) next.add(i);
+      return next;
+    });
 
   /**
    * ── WHERE THE SELECTION COMES FROM NOW (review item 17) ──
@@ -606,7 +658,19 @@ export default function Products() {
   /** Which self-qualifying statement is open. Independent of the stage the
    *  reader is scrolled to: it used to drive that too, so opening a row at the
    *  bottom of the page silently re-beamed a card at the top. */
-  const [openEntry, setOpenEntry] = useState(0);
+  /** ITEM 20. Exclusive before, and with no close: clicking "02 I already know
+   *  what to build." closed row 01 above it and the clicked control jumped
+   *  -136.5px. Independent rows, seeded with {0} so the prerendered page still
+   *  answers one of the three questions. */
+  const [openEntry, setOpenEntry] = useState<ReadonlySet<number>>(
+    () => new Set([0]),
+  );
+  const toggleEntry = (i: number) =>
+    setOpenEntry((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(i)) next.add(i);
+      return next;
+    });
 
   useEffect(() => {
     const m = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -751,7 +815,7 @@ export default function Products() {
       />
 
       {/* ---- Page hero ---- */}
-      <section ref={heroRef} className="pt-36 pb-20">
+      <section ref={heroRef} className="clears-nav-page pb-20">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <p
             data-hero-label
@@ -867,8 +931,8 @@ export default function Products() {
                 <StageCard
                   stage={stage}
                   index={i}
-                  expanded={openDetail === i}
-                  onToggle={() => setOpenDetail(openDetail === i ? null : i)}
+                  expanded={openDetail.has(i)}
+                  onToggle={() => toggleDetail(i)}
                   reduced={reduced}
                   energy={energies.current[i]}
                 />
@@ -919,7 +983,7 @@ export default function Products() {
               the one thing the page still owes them by this point. */}
           <MotionReveal stagger={STAGGER.card} className="mt-14 max-w-3xl">
             {entryPoints.map((e, i) => {
-              const isOpen = openEntry === i;
+              const isOpen = openEntry.has(i);
               return (
                 <MotionRevealItem key={e.stage}>
                   <div className="border-t border-[var(--border)] last:border-b last:border-[var(--border)]">
@@ -931,8 +995,14 @@ export default function Products() {
                       // not asked for anything. That is the layout shift item 19
                       // reports, and it is worse than the click-induced kind
                       // item 20 bans because it needs no click at all.
-                      onFocus={() => setOpenEntry(i)}
-                      onClick={() => setOpenEntry(i)}
+                      //
+                      // And no onFocus either, which that pass left behind. It
+                      // is the same defect through the keyboard: measured on
+                      // the built page, tabbing onto a row moved the rows below
+                      // it by 136px, so the list jumped on every step of a tab
+                      // through it. Click is the only trigger now, for pointer
+                      // and keyboard alike.
+                      onClick={() => toggleEntry(i)}
                       aria-expanded={isOpen}
                       aria-controls={`entry-panel-${i}`}
                       className="flex w-full items-baseline gap-5 py-6 text-left"

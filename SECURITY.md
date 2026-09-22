@@ -8,13 +8,13 @@ Report it privately. Please do not open a public issue, and please do not post d
 
 Two ways to reach us:
 
-1. **Email** aniket@ziiro.work or govind@ziiro.work, with "Security" in the subject line.
+1. **Email** contact@ziiroai.com, with "Security" in the subject line.
 2. **GitHub private vulnerability reporting.** If it is enabled on this repository, use the "Report a vulnerability" button on the Security tab. The report stays private to the maintainers.
 
 <!--
 TODO (maintainers), contact address:
-The two addresses above are the ones already published on the site, so they are
-known to be real and read. There is no security@ziiro.work mailbox as far as
+The address above is the one published on the site, so it is known to be the
+right destination. There is still no security@ alias on any domain as far as
 this file's author could confirm. If you want that dedicated address, create or
 alias it at the mail provider FIRST, check that someone actually reads it, and
 only then swap it in here. Do not publish an address that does not deliver.

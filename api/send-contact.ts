@@ -51,7 +51,7 @@ export const config = { runtime: "edge" };
  * The answer when the message could not be sent, whoever is at fault.
  *
  * The point of this form is not losing an enquiry, so a failure must not be a
- * dead end. The visitor is told plainly and handed the two published addresses,
+ * dead end. The visitor is told plainly and handed the published address,
  * which the endpoint returns rather than the form hard-coding a second copy.
  * Nothing internal crosses into this: no stack, no provider body, no variable
  * name, which the security review verified and this must not undo.

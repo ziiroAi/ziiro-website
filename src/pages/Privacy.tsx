@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { animate, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
+import { CONTACT_EMAIL, mailto } from "@/shared/lib/contact";
 
 /** Small dot marker for editorial list items, same language as the dot world. */
 const Dot = () => (
@@ -128,7 +129,7 @@ const Privacy = () => {
       <div className="min-h-screen pb-28">
         <div className="mx-auto max-w-3xl px-6 md:px-10">
           {/* ─── Page hero ─── */}
-          <header ref={heroRef} className="pt-36 pb-16">
+          <header ref={heroRef} className="clears-nav-page pb-16">
             <div
               data-hero-line
               style={{ opacity: 0 }}
@@ -307,8 +308,8 @@ const Privacy = () => {
                 services, comply with legal obligations, resolve disputes, and enforce
                 agreements. You may request deletion of your data at any time by
                 contacting{" "}
-                <a href="mailto:govind@ziiro.work" className={emailClass}>
-                  govind@ziiro.work
+                <a href={mailto()} className={emailClass}>
+                  {CONTACT_EMAIL}
                 </a>
                 .
               </p>
@@ -352,18 +353,19 @@ const Privacy = () => {
 
             <LegalSection index="09" title="Contact">
               <p className="font-semibold text-[var(--text-primary)]">Ziiro AI</p>
-              <div className="space-y-2">
-                <p>
-                  <a href="mailto:govind@ziiro.work" className={emailTargetClass}>
-                    <span className={emailLabelClass}>govind@ziiro.work</span>
-                  </a>
-                </p>
-                <p>
-                  <a href="mailto:aniket@ziiro.work" className={emailTargetClass}>
-                    <span className={emailLabelClass}>aniket@ziiro.work</span>
-                  </a>
-                </p>
-              </div>
+              {/* The `space-y-2` wrapper that used to sit here is gone. It
+                  existed to space TWO stacked addresses; with one there is
+                  nothing to space, and LegalSection's own `space-y-4` already
+                  separates this from the name above it, so the rendered gap is
+                  unchanged. The span inside the anchor is NOT a wrapper and
+                  stays: the anchor carries the 44px tap target and the span
+                  carries the underline, which is what keeps the rule under the
+                  text instead of at the bottom of the target box. */}
+              <p>
+                <a href={mailto()} className={emailTargetClass}>
+                  <span className={emailLabelClass}>{CONTACT_EMAIL}</span>
+                </a>
+              </p>
             </LegalSection>
 
             <div className="border-t border-[var(--border)] pt-6">

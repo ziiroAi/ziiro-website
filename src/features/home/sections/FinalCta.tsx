@@ -85,13 +85,34 @@ export default function FinalCta() {
           duration={DURATION.statement}
           className="rounded-3xl border border-[var(--border-strong)] px-7 py-14 md:px-16 md:py-20"
         >
+          {/* ITEM 10, JAKOB'S LAW, APPLIED TO THE WHOLE CLOSING MOMENT.
+              This eyebrow read "Hourly business intelligence session", which
+              names the offer in words no visitor arrives already knowing.
+              "Strategy session" is the term people search for and the one the
+              review itself suggests. "Hourly" stays: how this is billed is a
+              commercial position (review item 21) and not mine to change. */}
           <p className="mb-8 flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)]" />
-            Hourly business intelligence session
+            Hourly strategy session
           </p>
 
+          {/* The headline was "One focused hour. / Then you'll know the
+              number." A duration is not an offer and "the number" is a riddle,
+              so the closing moment stated neither an action nor an outcome and
+              left the button to do all the work alone.
+
+              It states the outcome plainly now, and the button beneath states
+              the action, which is the division the review asks for: surrounding
+              copy carries the personality, the control names the deed. Both
+              halves are backed by the list directly below rather than being
+              claims on their own: "what to automate first" is the bottleneck
+              line, "what it will save you" is the ROI line. */}
+          {/* max-w-4xl, not the 3xl this had: the old headline was four words
+              and never tested the measure. A lead long enough to say something
+              wrapped inside 3xl and orphaned "first." onto a line of its own,
+              which the screenshot caught and no check would have. */}
           <h2
-            className="max-w-3xl font-display font-semibold text-[var(--text-primary)]"
+            className="max-w-4xl font-display font-semibold text-[var(--text-primary)]"
             style={{
               fontSize: "clamp(2.2rem, 5vw, 4rem)",
               letterSpacing: "-0.03em",
@@ -99,8 +120,8 @@ export default function FinalCta() {
             }}
           >
             <SplitHeadline
-              lead="One focused hour."
-              tail="Then you'll know the number."
+              lead="Know what to automate first."
+              tail="And what it will save you."
             />
           </h2>
 
@@ -144,7 +165,11 @@ export default function FinalCta() {
                   Book a call
                   <Arrow nudge={!shouldReduce} />
                 </Link>
-                <p className="mt-5 text-xs leading-relaxed text-[var(--text-secondary)]">
+                {/* 13px at phone width, not 12. This is two real sentences, not
+                    a micro-label, and reading copy under 13px on a phone is the
+                    thing the mobile pass flagged. Desktop keeps 12px, where the
+                    viewing distance and the column width both earn it. */}
+                <p className="mt-5 text-[13px] leading-relaxed text-[var(--text-secondary)] md:text-xs">
                   You leave with the roadmap whether or not you hire us to
                   build it.{" "}
                   <Link
