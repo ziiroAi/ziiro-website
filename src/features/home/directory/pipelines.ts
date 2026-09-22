@@ -525,13 +525,29 @@ export const PIPELINES: Pipeline[] = [
     ],
   },
 
-  /* ─── In build ─────────────────────────────────────────────────────────
-     Back Office and Deals are scaffolds. The other five departments each run
-     a Ziiro pipeline that exists; these two are here so the map shows the
-     shape of a business rather than only the parts already automated, and
-     they carry status "in-build" so every count that says "runs today"
-     excludes them. Replace their steps and agents with the real ones —
-     nothing else in the section needs touching. */
+  /* ─── Back Office and Deals ────────────────────────────────────────────
+     THIS COMMENT IS DELIBERATELY NOT DELETED, and the warning in it is only
+     half retired. Read it before trusting the two departments below.
+
+     Both used to carry status "in-build", and this note said they were
+     scaffolds: present so the map showed the shape of a business rather than
+     only the automated parts, excluded from every count that says "runs
+     today", with the instruction "replace their steps and agents with the
+     real ones". The human has now confirmed all seven departments are
+     working, so the status on both is "active" and they are counted.
+
+     WHAT THAT CONFIRMATION DID AND DID NOT COVER. It settles whether the
+     pipelines run. It does not, by itself, tell us that the step names, agent
+     names, capability lists and counts written below were replaced with the
+     real ones, and this section publishes every one of those as fact: the
+     panel prints the step sequence, the agent roster and the job totals, and
+     the headline figure at the top of the section is computed from them.
+
+     So if those were still the placeholder values from when this was a
+     scaffold, the section now states them as things that run today. Someone
+     who knows these two pipelines should read their steps and agents once and
+     confirm. That is a content check, not a code change, and nothing here
+     needs touching if they are already right. */
   {
     id: "back-office",
     name: "Back Office",
@@ -540,7 +556,7 @@ export const PIPELINES: Pipeline[] = [
     tagline: "Outcome reporting pipeline",
     purpose:
       "Take the numbers a business already produces and turn them into the same report, on time, without anyone assembling it by hand.",
-    status: "in-build",
+    status: "active",
     trigger: "A reporting period closing",
     outputs: ["Period report", "Metric history"],
     integrations: ["Business data", "Metric store", "LLM reasoning"],
@@ -780,7 +796,7 @@ export const PIPELINES: Pipeline[] = [
     tagline: "Pipeline progression",
     purpose:
       "Keep every live opportunity moving: replies read and routed, calls prepared and summarised, next actions never left to memory.",
-    status: "in-build",
+    status: "active",
     trigger: "A reply landing, or a call finishing",
     outputs: ["Routed reply", "Call summary", "Next action"],
     integrations: ["Email / messaging", "Call transcription", "CRM"],

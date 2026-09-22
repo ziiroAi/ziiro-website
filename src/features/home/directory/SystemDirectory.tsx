@@ -429,11 +429,19 @@ function DirectorySummary() {
         >
           The whole system
         </h3>
+        {/* The "in build" half is printed ONLY when something is in build.
+            With every department running it would otherwise read
+            "07 ACTIVE · 00 IN BUILD", which states a cohort that does not
+            exist and contradicts the sentence below it. The conditional is
+            not cosmetic: it is what keeps this line true in both states, and
+            it restores itself the moment a department goes back to
+            "in-build" in pipelines.ts. */}
         <p
           className="font-mono text-[10px] uppercase tabular-nums"
           style={{ letterSpacing: "0.18em", color: "var(--dir-faint)" }}
         >
-          {pad(DIRECTORY_STATS.live)} active · {pad(inBuild)} in build
+          {pad(DIRECTORY_STATS.live)} active
+          {inBuild > 0 ? ` · ${pad(inBuild)} in build` : ""}
         </p>
       </div>
 
@@ -444,12 +452,21 @@ function DirectorySummary() {
         className="mt-5 max-w-[46ch] text-[15px] leading-relaxed"
         style={{ color: "var(--dir-dim)" }}
       >
-        <Figure>{DIRECTORY_STATS.live}</Figure> of the{" "}
-        <Figure>{DIRECTORY_STATS.departments}</Figure> departments run today,
-        and <Figure>{inBuild}</Figure> are still in build. Each one is a
-        workflow: agents carry the steps, and an agent's capabilities are the
-        outermost dots on the map, so the picture and these totals describe the
-        same structure.
+        {inBuild > 0 ? (
+          <>
+            <Figure>{DIRECTORY_STATS.live}</Figure> of the{" "}
+            <Figure>{DIRECTORY_STATS.departments}</Figure> departments run
+            today, and <Figure>{inBuild}</Figure> are still in build.
+          </>
+        ) : (
+          <>
+            All <Figure>{DIRECTORY_STATS.departments}</Figure> departments run
+            today.
+          </>
+        )}{" "}
+        Each one is a workflow: agents carry the steps, and an agent's
+        capabilities are the outermost dots on the map, so the picture and
+        these totals describe the same structure.
       </p>
 
       <dl className="mt-9 grid grid-cols-2 gap-x-8 gap-y-7 sm:grid-cols-3">
