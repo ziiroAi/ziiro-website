@@ -10,10 +10,13 @@ import { useEffect, useRef } from "react";
  * as light on black reads as a stain on white, so both hues are gone and what
  * is left is a neutral unevenness in the sheet.
  *
- * It is also off by default: `--page-atmosphere` is 0 in the palette, and this
- * component does no scroll work at all while it is. The layer stays because a
- * white page can still want its paper lit, and it is now drawn so that raising
- * that token gives light rather than a colour cast.
+ * It is also off by default: `--page-atmosphere` is 0 in the palette, and while
+ * it is, this component renders nothing the compositor has to keep: no
+ * will-change, no drift animations, and the whole layer is taken out of the box
+ * tree. It used to only skip the scroll work, which read as free and was not;
+ * see the note in the effect. The layer stays because a white page can still
+ * want its paper lit, and it is drawn so that raising that token gives light
+ * rather than a colour cast.
  *
  * Fixed rather than per-section on purpose: the shading stays put while content
  * moves over it, which reads as depth rather than as decoration attached to
@@ -55,12 +58,17 @@ const POOLS = [
   { rate: -0.07, lead: 0.9, spread: 0.42, base: 0.35, peak: 1 },
 ] as const;
 
+/** The drift keyframe each pool runs, applied only once the field is live.
+ *  Index-matched to POOLS. The keyframes themselves live in index.css. */
+const POOL_DRIFT = ["hero-drift-a", "hero-drift-b", "hero-drift-a"] as const;
+
 export default function PageAtmosphere() {
   const poolRefs = useRef<(HTMLDivElement | null)[]>([]);
   const fieldRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const root = rootRef.current;
 
     // Nothing is visible while the palette keeps the field at zero, and a
     // scroll listener that moves an invisible layer is pure cost on every page
@@ -68,7 +76,45 @@ export default function PageAtmosphere() {
     const level = getComputedStyle(document.documentElement)
       .getPropertyValue("--page-atmosphere")
       .trim();
-    if (level !== "" && Number(level) === 0) return;
+    const live = !(level !== "" && Number(level) === 0);
+
+    // ── WHY THIS DOES MORE THAN RETURN EARLY NOW ──────────────────────
+    //
+    // The early return already stopped the scroll work, and that was read as
+    // "this costs nothing while it is off". It was not true. `--page-atmosphere`
+    // is 0 in the palette and is not overridden anywhere, so this layer is
+    // invisible on every route at every width; but the three pools still
+    // carried `will-change: transform, opacity` and still ran their 27s and 34s
+    // keyframes. `will-change` is a promise to the compositor, and it is kept
+    // whether or not the pixels can be seen: three promoted layers, 658px,
+    // 675px and 506px across, each behind a 70-80px blur, animating forever
+    // behind every page. At 390 the largest is wider than the screen.
+    //
+    // So the pools now render inert and are only armed here, when the token
+    // says the field is actually on. Nothing about the live behaviour changes:
+    // raise the token and the classes, the will-change and the scroll work all
+    // come back together. What changes is that "off" now means off.
+    if (!live) {
+      // Not display:none. The grain plate and the pools are already invisible;
+      // this just tells the browser it has nothing here worth a layer.
+      if (root) root.style.display = "none";
+      return;
+    }
+
+    // Reduced motion keeps the field but not the movement, so it stays inert
+    // too: the static gradients are the whole point for this reader, and
+    // arming will-change for transforms that are never going to run would be
+    // the same waste in a quieter costume. index.css already zeroes the drift
+    // animations here; not adding them at all is the same picture for less.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    if (fieldRef.current) fieldRef.current.style.willChange = "transform";
+    for (let i = 0; i < POOLS.length; i++) {
+      const el = poolRefs.current[i];
+      if (!el) continue;
+      el.style.willChange = "transform, opacity";
+      el.classList.add(POOL_DRIFT[i]);
+    }
 
     let raf = 0;
     let last = -1;
@@ -126,42 +172,42 @@ export default function PageAtmosphere() {
 
   return (
     <div
+      ref={rootRef}
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
       style={{ opacity: "var(--page-atmosphere, 1)" }}
     >
-      <div ref={fieldRef} className="absolute inset-0" style={{ willChange: "transform" }}>
+      {/* No will-change here either, for the same reason as the pools: the
+          effect adds it when the field is actually live. */}
+      <div ref={fieldRef} className="absolute inset-0">
         {/* Each pool is the page's own ink at a few percent, not a hue. On
             paper that is the difference between a sheet that is lit unevenly
             and a sheet someone has spilled something on. */}
         <div
           ref={pool(0)}
-          className="hero-drift-a absolute left-[-14%] top-[-6%] h-[78vh] w-[78vh] rounded-full"
+          className="absolute left-[-14%] top-[-6%] h-[78vh] w-[78vh] rounded-full"
           style={{
             background:
               "radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--text-primary) 4%, transparent) 0%, transparent 70%)",
             filter: "blur(70px)",
-            willChange: "transform, opacity",
           }}
         />
         <div
           ref={pool(1)}
-          className="hero-drift-b absolute right-[-16%] top-[30%] h-[80vh] w-[80vh] rounded-full"
+          className="absolute right-[-16%] top-[30%] h-[80vh] w-[80vh] rounded-full"
           style={{
             background:
               "radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--text-primary) 4%, transparent) 0%, transparent 70%)",
             filter: "blur(70px)",
-            willChange: "transform, opacity",
           }}
         />
         <div
           ref={pool(2)}
-          className="hero-drift-a absolute bottom-[-14%] left-1/3 h-[60vh] w-[60vh] rounded-full"
+          className="absolute bottom-[-14%] left-1/3 h-[60vh] w-[60vh] rounded-full"
           style={{
             background:
               "radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--text-primary) 3%, transparent) 0%, transparent 68%)",
             filter: "blur(80px)",
-            willChange: "transform, opacity",
           }}
         />
       </div>

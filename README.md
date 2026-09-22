@@ -95,7 +95,7 @@ The `RESEND_*` and `TEAM_INBOX` vars documented here previously were read by
 
 ## Contact
 
-**Email:** govind@ziiro.work · aniket@ziiro.work  
+**Email:** contact@ziiroai.com  
 **X / Twitter:** [@ziir0ai](https://x.com/ziir0ai)  
 **LinkedIn:** [Ziiro AI](https://www.linkedin.com/company/zirroai/)  
 **Instagram:** [@ziiroai](https://www.instagram.com/ziiroai)

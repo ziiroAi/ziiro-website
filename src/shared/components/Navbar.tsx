@@ -24,10 +24,22 @@ import { scrollTo } from "@/shared/motion/SmoothScroll";
  * verified against the BUILT output, not the dev server, because that is
  * exactly how this shipped broken the first time.
  *
- * The surface is three restrained parts and no more: a 20px blur, a thin wash
- * of the page's own ground so contrast actually drops behind the links, and a
- * hairline on the bar's bottom edge. It is not a glass card and must not
- * become one. All three fade in together on the same scroll progress.
+ * The surface is two restrained parts and no more: a 20px blur and a thin wash
+ * of the page's own ground so contrast actually drops behind the links. Both
+ * fade in together on the same scroll progress. It is not a glass card and
+ * must not become one.
+ *
+ * THERE IS NO HAIRLINE. A third part used to sit here, a 1px edge on the bar's
+ * bottom added for review item 13's "fine border". The human saw it on the page
+ * and asked for it gone, with the blur alone doing the separating, so it was
+ * removed rather than hidden. Checked against the BUILT output with body copy,
+ * a heading and the dot-art particle field scrolled under the bar: the blur
+ * carries it on its own at 20px.
+ *
+ * The one place an edge survives is the two accessibility blocks in index.css.
+ * Both answer a reader who asked for less transparency or more contrast by
+ * turning the backdrop solid and switching the blur OFF, so there the border is
+ * the only thing left to define the bar's bottom. Do not remove those with this.
  *
  * The logo pill and the three links are there from the first paint. The call to
  * action is the only thing that arrives later, rising in continuously as the
@@ -65,7 +77,25 @@ const REVEAL_MS = 500;
  * the mark and breaking the word in two.
  */
 const MARK_PX = 24;
-const PILL_PX = 40;
+/**
+ * 44, not 40, and the reason is touch rather than taste.
+ *
+ * At 40x40 the logo was the smallest standalone control on the site and sat
+ * under the 44px target guidance on both axes. Raising it here is the whole
+ * fix, because PILL_INSET below is DERIVED from this number: the inset
+ * recomputes from 7 to 9, the pill stays a circle, and the mark stays 24px, so
+ * the lockup's measured geometry is untouched.
+ *
+ * The bar gets 4px taller as a result. Nothing downstream cares any more,
+ * because the bar publishes its real height as `--nav-h` and layout reads that
+ * instead of assuming 80.
+ *
+ * The hit area could not be faked here the way it is on the links. This anchor
+ * carries `overflow: hidden`, which the wordmark's 0fr-to-1fr reveal depends
+ * on, and that clips any pseudo-element used to extend the target past the
+ * box. Growing the box was the honest option.
+ */
+const PILL_PX = 44;
 const WORD_PX = 34;
 /** Pill inset, left and right, chosen so the resting pill is a circle:
  *  2 borders + 2 insets + the mark = PILL_PX. */
@@ -173,6 +203,7 @@ export default function Navbar() {
   const [pinned, setPinned] = useState(false);
   const revealed = hovered || focused || pinned;
 
+  const navRef = useRef<HTMLElement>(null);
   const logo = useRef<HTMLAnchorElement>(null);
   // Read once in an effect rather than per event: whether the device can hover
   // decides whether a tap on the logo reveals or navigates.
@@ -241,6 +272,45 @@ export default function Navbar() {
   }, [pathname]);
 
   /**
+   * ── THE BAR PUBLISHES ITS OWN HEIGHT AS `--nav-h` ─────────────────────
+   *
+   * At 390 the three links do not fit beside the logo, so they wrap onto a
+   * second row and this bar becomes 112px tall instead of 80. Nothing
+   * downstream knew that. The hero reserved a fixed 96px of top padding,
+   * which clears an 80px bar and not a 112px one, so on the home page the
+   * eyebrow pill sat inside the navbar and underneath the wrapped links.
+   *
+   * Any fixed number here would be wrong again the moment the bar changes:
+   * a fourth link, a longer word, a larger tap target, a different font all
+   * move it. So the bar measures itself and writes the result to the root
+   * element, and layout that has to clear the header reads `--nav-h` instead
+   * of guessing. See `.clears-nav` in index.css.
+   *
+   * ResizeObserver rather than a resize listener, because the height changes
+   * when the links WRAP, which is a layout event and not necessarily a
+   * viewport one: a font finishing loading re-wraps the row at a viewport
+   * width that never changed.
+   *
+   * This is layout, not decoration, so it must not wait for the blur or the
+   * reveal. It runs on mount and writes a real number before first paint of
+   * anything that depends on it.
+   */
+  useEffect(() => {
+    const bar = navRef.current;
+    if (!bar) return;
+    const publish = () => {
+      const h = Math.round(bar.getBoundingClientRect().height);
+      if (h > 0) document.documentElement.style.setProperty("--nav-h", `${h}px`);
+    };
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(bar);
+    return () => {
+      ro.disconnect();
+    };
+  }, []);
+
+  /**
    * Reduced motion gets the end state, not a slower version of the movement:
    * the call to action simply appears once the reader is properly into the
    * page, with no lift and no fade.
@@ -258,7 +328,7 @@ export default function Navbar() {
   });
 
   return (
-    <nav className="fixed left-0 right-0 top-0 z-50 py-5">
+    <nav ref={navRef} className="fixed left-0 right-0 top-0 z-50 py-5">
       {/* The progressive blur, and the only thing in this bar that is not a
           control. It is first so it paints behind everything below it, and
           aria-hidden because it is a surface, not content.
@@ -274,17 +344,12 @@ export default function Navbar() {
           visibility: backdropProgress < 0.02 ? "hidden" : "visible",
         }}
       />
-      {/* The hairline, on the same scroll progress as the surface behind it.
-          Separate from the band above because that band is masked to fade
-          downward, and a border on it would fade out before it ever drew. */}
-      <div
-        className="site-nav-edge"
-        aria-hidden="true"
-        style={{
-          opacity: backdropProgress,
-          visibility: backdropProgress < 0.02 ? "hidden" : "visible",
-        }}
-      />
+      {/* There is no hairline under the bar. A `.site-nav-edge` div used to sit
+          here on the same scroll progress as the band above, and the blur does
+          the separating alone now. `backdropProgress` stays because it drives
+          that band; it was never the edge's own. The two accessibility blocks
+          in index.css still draw a real border-bottom, and must: they switch
+          the blur off, so there they are the only thing defining the edge. */}
 
       <div className="relative mx-auto flex w-full max-w-[1400px] flex-wrap items-center justify-between px-6 md:px-10">
         {/* ─── The logo pill ───────────────────────────────────────────────
@@ -470,7 +535,11 @@ export default function Navbar() {
             data-reveal
             tabIndex={ctaIdle ? -1 : undefined}
             aria-hidden={ctaIdle || undefined}
-            className="flex items-center rounded-full bg-[var(--text-primary)] px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90"
+            // `min-h-[44px]`: this measured 123x36, under the touch guidance on
+            // its short axis. The padding stays as it was and the minimum does
+            // the work, so the pill keeps its proportions and simply stops
+            // being too short to hit. Same idiom the rest of the site uses.
+            className="flex min-h-[44px] items-center rounded-full bg-[var(--text-primary)] px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90"
             style={micro("opacity")}
           >
             Book a Call

@@ -2,8 +2,9 @@ import { Link } from "react-router-dom";
 import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import { CSS_EASE, DURATION, STAGGER } from "@/shared/motion/tokens";
 import SplitHeadline from "@/shared/components/SplitHeadline";
+import { CONTACT_EMAIL } from "@/shared/lib/contact";
 
-const emails = ["aniket@ziiro.work", "govind@ziiro.work"];
+const emails = [CONTACT_EMAIL];
 
 /** Links here only change colour or opacity, at the house micro duration. The
  *  curve is applied inline because Tailwind's transition utilities ship their
@@ -91,7 +92,10 @@ export default function BookConsultation() {
 
           {/* Handing over your numbers is the scary part; answer it here. */}
           <MotionRevealItem>
-            <p className="mx-auto mt-10 max-w-md text-xs leading-relaxed text-[var(--text-secondary)]">
+            {/* 13px at phone width: this is the answer to "is my data safe",
+                which is the one line on this page a nervous reader actually
+                stops on. It was 12px, under the readable floor for prose. */}
+            <p className="mx-auto mt-10 max-w-md text-[13px] leading-relaxed text-[var(--text-secondary)] md:text-xs">
               Your numbers stay yours. Nothing you share gets sold or passed on, and you can have it
               deleted whenever you ask.{" "}
               <Link

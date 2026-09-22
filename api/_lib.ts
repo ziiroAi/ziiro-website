@@ -124,12 +124,24 @@ export const jsonResponse = (req: Request, body: Record<string, unknown>, status
   });
 
 /**
- * The two published addresses a visitor is pointed at when we cannot send for
- * them. These are already public on the site; they are here so the endpoint can
- * hand them back rather than the form hard-coding a second copy that drifts.
+ * The published address a visitor is pointed at when we cannot send for them.
+ * Already public on the site; it is here so the endpoint can hand it back
+ * rather than the form hard-coding a second copy that drifts.
  * NOT the same thing as TEAM_INBOX, which is where submissions are delivered.
+ *
+ * One address now, not two. It was aniket@ziiro.work and govind@ziiro.work,
+ * and the whole site has moved to the single contact@ziiroai.com. The mail
+ * domain is ziiroai.com and the site domain is ziiro.work; that is deliberate
+ * and not a typo to be helpfully corrected.
+ *
+ * STILL AN ARRAY, on purpose. It is serialised straight into the failure
+ * response as `fallbackEmails`, so the type is the endpoint's public contract.
+ * Collapsing it to a bare string would be an unannounced breaking change to
+ * every current and future client for no gain, and a one-element array is the
+ * honest shape for "the addresses we publish" when today there happens to be
+ * one. Adding a second later is then a data change rather than an API change.
  */
-export const PUBLIC_CONTACT_EMAILS = ["aniket@ziiro.work", "govind@ziiro.work"];
+export const PUBLIC_CONTACT_EMAILS = ["contact@ziiroai.com"];
 
 /**
  * ── LOGGING POLICY, read before adding a field ──
@@ -268,7 +280,7 @@ export const clientIp = (req: Request) =>
 /**
  * Sends one email through Resend. Throws on a non-2xx response so the caller
  * returns a 500. `from` defaults to Resend's shared sandbox sender; set a
- * RESEND_FROM env var to a verified-domain address (e.g. "Ziiro <hello@ziiro.work>")
+ * RESEND_FROM env var to a verified-domain address (e.g. "Ziiro AI <contact@ziiroai.com>")
  * for reliable delivery to arbitrary recipients.
  */
 export const sendResendEmail = async (opts: {
@@ -322,4 +334,35 @@ export const sendResendEmail = async (opts: {
 };
 
 export const resendFrom = () => process.env.RESEND_FROM || "Ziiro AI <onboarding@resend.dev>";
+
+/**
+ * Where submissions are DELIVERED, which is not the same question as which
+ * address the site publishes. Read the next paragraph before changing it.
+ *
+ * ── THE DELIVERY ADDRESS IS AN ENV VAR, NOT A CODE CHANGE ──
+ *
+ * The address above went to contact@ziiroai.com with the rest of the site. This
+ * default deliberately did NOT, and moving it is a one-line dashboard action
+ * rather than a commit: set TEAM_INBOX=contact@ziiroai.com in Vercel, once that
+ * mailbox exists and its domain can actually receive mail.
+ *
+ * Doing it here instead would be the worst available option, because of how
+ * this endpoint fails. If mail is addressed to a mailbox that does not exist
+ * yet, or to a domain with no MX record, Resend accepts the send and the
+ * bounce happens later and elsewhere. The visitor is told their message was
+ * sent. The logging policy above forbids recording any submitted field, which
+ * is correct and must stay, so there is no copy of what they wrote anywhere.
+ * Every enquiry in that window is lost silently and unrecoverably.
+ *
+ * So this default stays a mailbox that is known to work. Its entire job is to
+ * be the thing that catches mail when TEAM_INBOX is unset or misspelled, and a
+ * brand new address on a freshly pointed domain is the one value that cannot do
+ * that job. Same reasoning as the rate-limit note above: the control that
+ * actually decides this lives in the platform, not in this file.
+ *
+ * Consequence to be aware of while the two differ: the site publishes
+ * contact@ziiroai.com and, absent TEAM_INBOX, form submissions land in the
+ * Gmail account. Both are monitored inboxes, nothing is dropped, but whoever
+ * watches one should know about the other.
+ */
 export const teamInbox = () => process.env.TEAM_INBOX || "ziiro.work@gmail.com";

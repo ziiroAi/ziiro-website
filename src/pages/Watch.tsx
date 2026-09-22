@@ -42,7 +42,7 @@ export default function Watch() {
         ]}
       />
 
-      <article className="pt-36">
+      <article className="clears-nav-page">
         <div className="mx-auto max-w-4xl px-6 md:px-10">
           <p className="mb-8 flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />

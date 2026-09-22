@@ -168,7 +168,7 @@ export default function Faq() {
       />
 
       {/* ── Page hero ── */}
-      <header ref={heroRef} className="pt-36 pb-16">
+      <header ref={heroRef} className="clears-nav-page pb-16">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <p
             data-hero-label

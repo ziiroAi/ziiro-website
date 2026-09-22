@@ -45,9 +45,18 @@ import {
  *      below it. Removed.
  *   2. An index of all seven systems filling the right column whenever nothing
  *      was selected, each row selecting the same system its hub node does.
- *      Removed on desktop, replaced by one line saying how to drive the graph.
- *      It SURVIVES on mobile, where there is no graph to drive and it is the
- *      only way to reach a system at all.
+ *      Removed on desktop. It SURVIVES on mobile, where there is no graph to
+ *      drive and it is the only way to reach a system at all.
+ *
+ *      WHAT REPLACED IT, and this is a correction to the first attempt. That
+ *      removal left the column carrying a single line of instruction, which
+ *      threw away something the list had been doing incidentally: answering
+ *      "what is all of this" before you pick a part of it. The column now
+ *      shows DirectorySummary, the whole directory in totals. The distinction
+ *      that matters is selection, not content: the index was seven buttons
+ *      duplicating seven hub nodes, and the summary names no system and offers
+ *      no selection. It informs. The instruction line is still there, as a
+ *      footnote beneath it rather than as the whole column.
  *   3. The "All systems" reset. Removed. Clicking the focused system's own node
  *      again returns to the overview, so deselection happens where selection
  *      happened. The phone keeps a scoped Back control, because it has no node
@@ -238,7 +247,7 @@ export default function SystemDirectory() {
                   </Crossfade>
                 </>
               ) : (
-                <DirectoryHint />
+                <DirectorySummary />
               )}
             </div>
           </div>
@@ -357,33 +366,135 @@ function ViewToggle({
   );
 }
 
+/** Two digits, so 07 and 48 line up in a column. Matches the panel's own. */
+const pad = (n: number) => String(n).padStart(2, "0");
+
 /**
- * What the right column says before anything is selected: one line telling the
- * reader how to drive the graph, and nothing else.
+ * The whole system in totals, counted off the pipeline data.
  *
- * This replaced a full index of all seven systems. That list was a second way
- * to do what the hub nodes beside it already do, and it was also half of the
- * Detail/Flow bug, because both views fell back to rendering it.
+ * Deliberately the SAME six figures, in the same order and the same grid, that
+ * PipelineDetail shows for one system. One system and all seven are then the
+ * same shape at two scales, and selecting a department reads as zooming rather
+ * than as swapping to an unrelated panel.
+ *
+ * Integrations and outputs are counted DISTINCT rather than summed. Two
+ * departments connecting to the same tool are one integration, and adding the
+ * per-system counts reports 32 where the truth is 21.
+ *
+ * Nothing here is typed. A new department, agent or step in pipelines.ts moves
+ * every one of these numbers on its own.
  */
-function DirectoryHint() {
+const SYSTEM_TOTALS = (() => {
+  const steps = PIPELINES.flatMap((p) => p.steps);
+  return [
+    { label: "Steps", value: steps.length },
+    { label: "Automated", value: steps.filter((s) => s.automated).length },
+    { label: "Agents", value: DIRECTORY_STATS.agents },
+    {
+      label: "Capabilities",
+      value: PIPELINES.reduce(
+        (n, p) => n + p.agents.reduce((m, a) => m + a.capabilities.length, 0),
+        0,
+      ),
+    },
+    { label: "Integrations", value: new Set(PIPELINES.flatMap((p) => p.integrations)).size },
+    { label: "Outputs", value: new Set(PIPELINES.flatMap((p) => p.outputs)).size },
+  ];
+})();
+
+/**
+ * What the right column shows before anything is selected: the whole system,
+ * summarised.
+ *
+ * THIS IS NOT THE LIST THAT WAS REMOVED, and the difference is the point. The
+ * removed index was seven clickable rows, one per system, which duplicated the
+ * hub nodes sitting beside it: a second way to do the same selection. This
+ * names no system and offers no selection at all. It says what the directory
+ * is made of in aggregate and how the parts relate, which is the one thing the
+ * graph cannot express, because a picture of seven hubs cannot tell you that
+ * forty of forty-eight steps run unattended.
+ *
+ * The hint survives, but as a footnote under the overview rather than as the
+ * entire content of the column.
+ */
+function DirectorySummary() {
+  const inBuild = DIRECTORY_STATS.departments - DIRECTORY_STATS.live;
+
   return (
-    <div
-      className="border-t pt-6"
-      style={{ borderColor: "var(--dir-line)" }}
-    >
+    <div className="border-t pt-6" style={{ borderColor: "var(--dir-line)" }}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
+        <h3
+          className="font-mono text-[10px] font-bold uppercase"
+          style={{ letterSpacing: "0.24em", color: "var(--dir-ink)" }}
+        >
+          The whole system
+        </h3>
+        <p
+          className="font-mono text-[10px] uppercase tabular-nums"
+          style={{ letterSpacing: "0.18em", color: "var(--dir-faint)" }}
+        >
+          {pad(DIRECTORY_STATS.live)} active · {pad(inBuild)} in build
+        </p>
+      </div>
+
+      {/* The counts are interpolated rather than written out, for the same
+          reason every other figure in this section is: a number spelled into a
+          sentence is a number that goes stale silently. */}
       <p
-        className="font-mono text-[10px] uppercase"
-        style={{ letterSpacing: "0.24em", color: "var(--dir-faint)" }}
-      >
-        No system selected
-      </p>
-      <p
-        className="mt-4 max-w-[38ch] text-[15px] leading-relaxed"
+        className="mt-5 max-w-[46ch] text-[15px] leading-relaxed"
         style={{ color: "var(--dir-dim)" }}
       >
-        Select a system on the map to see what it is made of and how it runs.
-        Click it again to come back here.
+        <Figure>{DIRECTORY_STATS.live}</Figure> of the{" "}
+        <Figure>{DIRECTORY_STATS.departments}</Figure> departments run today,
+        and <Figure>{inBuild}</Figure> are still in build. Each one is a
+        workflow: agents carry the steps, and an agent's capabilities are the
+        outermost dots on the map, so the picture and these totals describe the
+        same structure.
       </p>
+
+      <dl className="mt-9 grid grid-cols-2 gap-x-8 gap-y-7 sm:grid-cols-3">
+        {SYSTEM_TOTALS.map((c) => (
+          <div
+            key={c.label}
+            className="border-t pt-4"
+            style={{ borderColor: "var(--dir-line)" }}
+          >
+            <dt
+              className="font-mono text-[9px] uppercase"
+              style={{ letterSpacing: "0.24em", color: "var(--dir-faint)" }}
+            >
+              {c.label}
+            </dt>
+            <dd
+              className="mt-2.5 font-display font-semibold tabular-nums"
+              style={{
+                fontSize: "34px",
+                lineHeight: 1,
+                letterSpacing: "-0.04em",
+                color: "var(--dir-ink)",
+              }}
+            >
+              {pad(c.value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      {/* The rule sits on the wrapper and the measure on the text. Both on one
+          element and the hairline stops where the paragraph does, which reads
+          as a broken border rather than as a divider. */}
+      <div
+        className="mt-10 border-t pt-5"
+        style={{ borderColor: "var(--dir-line)" }}
+      >
+        <p
+          className="max-w-[42ch] text-[13px] leading-relaxed"
+          style={{ color: "var(--dir-faint)" }}
+        >
+          Click a system on the map to see what it is made of and how it runs.
+          Click it again to come back here.
+        </p>
+      </div>
     </div>
   );
 }
