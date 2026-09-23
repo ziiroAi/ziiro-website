@@ -673,6 +673,49 @@
   }
 }
 
+/* The half-brain's size (HalfBrain.tsx). `--brain-h` is the image box. The
+   image is cropped to its visible pixels, and the brain body fills about 98%
+   of that height.
+
+   Stacked, below lg, it is simply a width: 92vw at 390 is 359px tall (205px
+   wide), capped at 440px so a tablet does not get a poster.
+
+   Beside the copy it is sized off the viewport, about 720px at 1440x900. That
+   is ~705px of visible brain, inside the 650-750 the brief asks for. The
+   column only has 100svh less its padding to give it (nav + 3rem above, 7rem
+   below), so the margin-block hands the difference back: the box's margin
+   height always equals the room the row has. The row therefore never grows,
+   the hero stays one screen tall, and the extra height spills symmetrically
+   into the padding: 32px each way at 1440x900. That still leaves the top of
+   the brain ~20px below the navbar. It
+   reads `--nav-h` exactly as `.clears-nav` does, so when the navbar publishes
+   its real height, the padding and this margin move together. 71vw keeps the
+   width inside the right column at 1024.
+
+   Short viewports mirror the max-height: 800px block below. What actually
+   applies there, measured in the built CSS, is that block's 88px top padding
+   and lg:pb-28's 7rem bottom: the utility outranks that block's 2.5rem. So the
+   row has 100svh - 200px, and the box takes exactly that. Nothing spills, the
+   box's top sits at 88px clear of the navbar, and the hero is one screen tall.
+   Only the 440px floor can make it spill, on desktops under 640px tall. */
+[data-brain-scope] {
+  --brain-h: min(92vw, 440px);
+}
+
+@media (min-width: 1024px) {
+  [data-brain-scope] {
+    --brain-h: clamp(440px, min(calc(100svh - 180px), 71vw), 750px);
+    margin-block: calc((100svh - var(--nav-h, 84px) - 10rem - var(--brain-h)) / 2);
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 800px) {
+  [data-brain-scope] {
+    --brain-h: clamp(440px, calc(100svh - 200px), 750px);
+    margin-block: calc((100svh - 200px - var(--brain-h)) / 2);
+  }
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    SMOOTH SCROLL
    ──────────────────────────────────────────────────────────────────────────
