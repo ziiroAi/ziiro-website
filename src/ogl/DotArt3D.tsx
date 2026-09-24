@@ -102,7 +102,7 @@ export default function DotArt3D({ dwellVh = 0, onFail }: DotArt3DProps) {
   const [failed, setFailed] = useState(false);
 
   // Read through a ref so an inline arrow prop can never tear the scene down
-  // and rebuild it. Same reason CoreOrb does it next door.
+  // and rebuild it. The retired WebGL hero orb did the same, for the same reason.
   const onFailRef = useRef(onFail);
   onFailRef.current = onFail;
 
@@ -191,7 +191,7 @@ export default function DotArt3D({ dwellVh = 0, onFail }: DotArt3DProps) {
       seeds[i] = (i / COUNT) * 0.8 + rand() * 0.2;
     }
 
-    /* A context is not enough. This shader is far larger than CoreOrb's and
+    /* A context is not enough. This shader is far larger than the retired hero orb's and
        the geometry is instanced, so two more things can fail on hardware that
        reports WebGL: the program can fail to compile or link, and WebGL1
        without ANGLE_instanced_arrays cannot draw this at all. Both throw, and
@@ -273,13 +273,13 @@ export default function DotArt3D({ dwellVh = 0, onFail }: DotArt3DProps) {
     resize();
     window.addEventListener("resize", resize);
 
-    /* ── Guards, ported from CoreOrb ───────────────────────────────────────
+    /* ── Guards, ported from the retired WebGL hero orb ─────────────────────
        This scene had none of them. It is the largest moving surface on the
        site, roughly a full viewport of particles, and it rendered forever:
        scrolled past, in a background tab, and for a reader who has asked the
-       operating system for less motion. CoreOrb next door already carried all
-       four guards and was the source this was ported from, so this is that
-       pattern rather than a new one.
+       operating system for less motion. The hero orb this site used to open
+       with already carried all four guards and was the source this was ported
+       from, so this is that pattern rather than a new one.
 
        `reduced` is read live rather than once, because the preference can
        change while the page is open and the scene's whole character depends
@@ -369,8 +369,8 @@ export default function DotArt3D({ dwellVh = 0, onFail }: DotArt3DProps) {
         Math.min(SCENE_COUNT - 1, Math.round(scrollTarget * SEGMENTS)),
       );
       setSceneIdx((prev) => (prev === idx ? prev : idx));
-      // A parked scene still has to follow the scroll, the same way CoreOrb's
-      // does. This is the reduced-motion path: no loop, one frame per scroll
+      // A parked scene still has to follow the scroll, as the retired hero
+      // orb's did. This is the reduced-motion path: no loop, one frame per scroll
       // event, so the formation still resolves as the reader moves.
       if (ready && !running && visible && onScreen) update();
     }

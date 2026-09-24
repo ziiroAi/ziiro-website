@@ -351,7 +351,7 @@ export default function Navbar() {
           in index.css still draw a real border-bottom, and must: they switch
           the blur off, so there they are the only thing defining the edge. */}
 
-      <div className="relative mx-auto flex w-full max-w-[1400px] flex-wrap items-center justify-between px-6 md:px-10">
+      <div className="relative mx-auto flex w-full flex-wrap items-center justify-between px-6 md:px-10">
         {/* ─── The logo pill ───────────────────────────────────────────────
             At rest it is a circle holding just the mark. On hover, on
             focus-visible, or on a tap where there is no hover to be had, the

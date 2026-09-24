@@ -47,3 +47,7 @@ dist-ssr/
 # Agent fleet scratch (cmux workers)
 .team/
 .agents/
+
+# Agent tool state (oh-my-claudecode). Holds local command lines and paths;
+# it can appear at any depth, including inside src/.
+.omc/
