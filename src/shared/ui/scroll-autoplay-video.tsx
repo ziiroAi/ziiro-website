@@ -226,7 +226,7 @@ export default function ScrollAutoplayVideo({
     // Wait for the page to finish loading, then for the main thread to go
     // quiet, before any of this is allowed to ask for bytes. A reader who
     // scrolls during load simply gets playback a beat later, which is a much
-    // better trade than a 5 MB file racing the hero for bandwidth.
+    // better trade than a 30 MB film racing the hero for bandwidth.
     // requestIdleCallback where it exists (everything current), a short timer
     // where it does not. Either way the point is the same: after the load.
     const idle = typeof window.requestIdleCallback === "function";
