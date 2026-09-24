@@ -28,15 +28,26 @@
 
          What is left has to be fetched because nothing local can stand in:
          Space Mono for the tracked uppercase micro-labels, and Instrument
-         Serif, upright and italic, for the pull-quote figures. -->
+         Serif, upright and italic, for the pull-quote figures.
+
+         The homepage hero adds one more, scoped to the hero's orbit labels
+         only (font-hero-mono in tailwind), so no other page changes.
+         JetBrains Mono won a measured bake-off against the reference; it is
+         variable, so one latin woff2 covers 400 and 500. Families stay
+         alphabetical in this URL: css2 answers 400 to an out-of-order list.
+
+         The homepage's one preload, the brain image, is not here: this
+         template is shared by every route and no other route uses it.
+         HeroStage emits it through Helmet, so it lands in the homepage's
+         prerendered head only. -->
     <link
       rel="preload"
       as="style"
-      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
       onload="this.onload=null;this.rel='stylesheet'"
     />
     <noscript>
-      <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
     </noscript>
 
     <!-- Open Graph -->

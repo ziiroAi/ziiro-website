@@ -1,0 +1,53 @@
+/*
+ * BrainLayer. The brain is one raster lifted from the hero reference picture
+ * and recoloured orange at build time, with per-pixel opacity, so over white
+ * it shows the orange ramp exactly. No CSS filter: it would cost GPU on the
+ * rotating layer every frame.
+ *
+ * It is a single <img> and it is usually the page's LCP element; that is
+ * allowed. What keeps LCP time down is the asset: 97 KB, in the prerendered
+ * HTML, preloaded, fetchpriority="high", explicit dimensions.
+ */
+
+.brain-raster {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  contain: layout style;
+}
+
+.brain-raster-spin {
+  position: absolute;
+  inset: 0;
+  /* Anticlockwise, one turn per --brain-period (120s by default). Setting
+     --brain-period on the stage retimes both the brain and the orbit's
+     satellite drift, which reads the same property. */
+  animation: brain-raster-spin var(--brain-period, 120s) linear infinite;
+  will-change: transform;
+}
+
+.brain-raster:is([data-paused], [data-offscreen], [data-tab-hidden]) .brain-raster-spin {
+  animation-play-state: paused;
+}
+
+@keyframes brain-raster-spin {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* The static frame is the rest angle, 0deg, which is the reference. */
+@media (prefers-reduced-motion: reduce) {
+  .brain-raster-spin {
+    animation: none;
+    will-change: auto;
+  }
+}
+
+.brain-raster-spin img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}

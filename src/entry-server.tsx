@@ -55,7 +55,9 @@ export function render(url: string): { appHtml: string; head: string } {
       <Providers>
         <StaticRouter location={url}>
           <Navbar />
-          <Page />
+          <div className="site-sheet">
+            <Page />
+          </div>
           <Footer />
         </StaticRouter>
       </Providers>
