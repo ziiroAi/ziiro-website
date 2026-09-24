@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import { createTimeline, stagger } from "animejs";
 
 import { HEADLINE_LINE_GAP } from "@/shared/components/SplitHeadline";
-import HalfBrain from "./HalfBrain";
 import HeroActions from "./HeroActions";
+import HeroBrain from "./HeroBrain";
 import ScrollIndicator from "./ScrollIndicator";
 import {
   EYEBROW,
@@ -77,10 +77,9 @@ export default function Hero() {
       )
       .add(q("[data-hero-support]"), { opacity: [0, 1], y: [14, 0], duration: 700 }, 560)
       .add(q("[data-hero-actions]"), { opacity: [0, 1], y: [14, 0], duration: 700 }, 720)
-      .add(q("[data-hero-orb-label]"), { opacity: [0, 1], y: [10, 0], duration: 620 }, 800)
       .add(q("[data-hero-trust]"), { opacity: [0, 1], y: [10, 0], duration: 600 }, 880)
-      .add(q("[data-hero-orb-word]"), { opacity: [0, 1], y: [14, 0], duration: 760 }, 920)
-      // The annotation layer arrives once the brain has: arc, labels, captions.
+      // The department ring arrives once the brain has: its far half, its
+      // near half, then the departments.
       .add(q("[data-hero-annot]"), { opacity: [0, 1], duration: 900, delay: stagger(90) }, 1000)
       .add(q("[data-hero-scroll]"), { opacity: [0, 1], duration: 700 }, 1100);
 
@@ -210,8 +209,11 @@ export default function Hero() {
         </div>
 
         {/* ── Right: the object ────────────────────────────────────────── */}
-        <div className="flex w-full justify-center lg:justify-end">
-          <HalfBrain />
+        {/* A size container, because the brain's square is solved from this
+            column's width (index.css, [data-brain-stage]). Centred, because
+            the department labels overhang the square equally on both sides. */}
+        <div className="flex w-full justify-center [container-type:inline-size]">
+          <HeroBrain />
         </div>
       </div>
 

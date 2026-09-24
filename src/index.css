@@ -673,59 +673,255 @@
   }
 }
 
-/* The half-brain's size (HalfBrain.tsx). `--brain-h` is the image box. The
-   image is cropped to its visible pixels, and the brain body fills about 98%
-   of that height.
+/* The hero's brain (HeroBrain.tsx). `--stage` is the square the brain, its
+   still and the department ring share.
 
-   Stacked, below lg, it is simply a width: 92vw at 390 is 359px tall (205px
-   wide), capped at 440px so a tablet does not get a poster.
+   Stacked, below lg, the square is the column's width less 48px, capped at
+   300px, so the brain's 1.3x canvas stays inside the page's padding (382px
+   at 390). The department list runs under it: the stage is padded down by
+   one square so the list flows below.
 
-   Beside the copy it is sized off the viewport, about 720px at 1440x900. That
-   is ~705px of visible brain, inside the 650-750 the brief asks for. The
-   column only has 100svh less its padding to give it (nav + 3rem above, 7rem
-   below), so the margin-block hands the difference back: the box's margin
-   height always equals the room the row has. The row therefore never grows,
-   the hero stays one screen tall, and the extra height spills symmetrically
-   into the padding: 32px each way at 1440x900. That still leaves the top of
-   the brain ~20px below the navbar. It
-   reads `--nav-h` exactly as `.clears-nav` does, so when the navbar publishes
-   its real height, the padding and this margin move together. 71vw keeps the
-   width inside the right column at 1024.
-
-   Short viewports mirror the max-height: 800px block below. What actually
-   applies there, measured in the built CSS, is that block's 88px top padding
-   and lg:pb-28's 7rem bottom: the utility outranks that block's 2.5rem. So the
-   row has 100svh - 200px, and the box takes exactly that. Nothing spills, the
-   box's top sits at 88px clear of the navbar, and the hero is one screen tall.
-   Only the 440px floor can make it spill, on desktops under 640px tall. */
-[data-brain-scope] {
-  --brain-h: min(92vw, 440px);
+   Beside the copy, the ring's side labels overhang the square by up to
+   105px - 0.06 x --stage on each side: a ring radius of 0.44, a 14px gap, and
+   the widest name ("Intelligence", 97px) at the sides' 0.94 scale. The square
+   plus both overhangs must fit the column plus the room around it. That room
+   is 28px at 1024 (the page's 40px padding, less a margin), grows with the
+   margin outside the 1200px container, and is capped by the room on the
+   copy's side (~150px). Solved for the square, with 4px spare in the 214px:
+   (100cqw + 2 x room - 214px) / 0.88, which is 297px at 1024 and 460px from
+   1280. 100cqw is the right-hand column, which Hero.tsx makes a size
+   container. The height term keeps it inside short viewports. */
+[data-brain-stage] {
+  --stage: min(calc(100cqw - 48px), 300px);
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  padding-top: var(--stage);
 }
 
 @media (min-width: 1024px) {
-  [data-brain-scope] {
-    /* (100vw - 776px) * 2.2 is for the department labels (BrainAnnotations).
-       They hang about 0.45 x --brain-h + 110px left of the brain's box. Below
-       ~1150px wide the copy's widest line (the trust line, ~452px) is close
-       enough that a taller brain pushes them into it: at 1024x1366 "Back
-       Office" ran into the support copy. This keeps the leftmost label 24px
-       clear of it: 545px at 1024, and not binding above ~1150. */
-    --brain-h: clamp(440px, min(calc(100svh - 180px), 71vw, calc((100vw - 776px) * 2.2)), 750px);
-    margin-block: calc((100svh - var(--nav-h, 84px) - 10rem - var(--brain-h)) / 2);
-    /* A lane to the right of the cut edge for the "Your AI" identity and the
-       "From fragmented" caption (BrainAnnotations.tsx), which need ~150px of
-       page past the edge. The brain gives some of that itself: its box runs
-       0.0498 x --brain-h past the cut edge, and the column's 40px padding and
-       the outer margin give the rest. Where they fall short (below ~1350px
-       wide), the brain steps left by the difference: 83px at 1024, 0 at 1440. */
-    margin-right: max(0px, calc(150px - var(--brain-h) * 0.0498 - 40px - (100vw - min(100vw, 1200px)) / 2));
+  [data-brain-stage] {
+    --room: min(calc(28px + max(0px, (100vw - 1200px) / 2)), 150px);
+    --stage: clamp(280px, min(calc((100cqw + 2 * var(--room) - 214px) / 0.88), calc(100svh - 300px)), 460px);
+    width: var(--stage);
+    height: var(--stage);
+    padding-top: 0;
   }
 }
 
-@media (min-width: 1024px) and (max-height: 800px) {
-  [data-brain-scope] {
-    --brain-h: clamp(440px, min(calc(100svh - 200px), calc((100vw - 776px) * 2.2)), 750px);
-    margin-block: calc((100svh - 200px - var(--brain-h)) / 2);
+/* Every layer that lives in the square. */
+.brain-square {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--stage);
+  height: var(--stage);
+  margin-left: calc(var(--stage) / -2);
+}
+
+/* The still and the live canvas. Both are the scene on white, multiplied into
+   the page: the white drops out, so the ring's far half, which sits under
+   them, shows through, darkened where the glass is. They are 1.3 squares
+   across, because the fibres' cage is wider than the ring. The overhang is
+   within what the side labels already take, so it costs no layout. The
+   radial fade ends the cage's last strays before the edge instead of
+   cropping them on a line. */
+.brain-still,
+.brain-canvas-box {
+  position: absolute;
+  top: -15%;
+  left: -15%;
+  z-index: 2;
+  width: 130%;
+  height: 130%;
+  mix-blend-mode: multiply;
+  mask-image: radial-gradient(closest-side, #000 86%, transparent);
+  pointer-events: none;
+}
+
+.brain-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Tailwind's preflight caps every img at max-width: 100%, which would hold
+   the still to the square's width while its height takes the full 130%. */
+.brain-still { max-width: none; }
+
+.brain-still,
+.brain-canvas {
+  transition: opacity 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (min-width: 1024px) {
+  [data-live] .brain-still { opacity: 0; }
+}
+
+/* The ring's dots, in two halves: the far half under the brain, the near half
+   over it. Faint on the path, not the svg: the svg's own opacity belongs to
+   the entrance. */
+.brain-ring {
+  z-index: 1;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.brain-ring path {
+  fill: none;
+  stroke: #8e9ac0;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-opacity: 0.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.brain-ring-front { z-index: 3; }
+.brain-ring-front path { stroke-opacity: 0.8; }
+
+/* The brain's hit area: the fibre sphere. `pan-y` leaves vertical swipes to
+   the page on touch, so only a sideways drag turns the brain. */
+.brain-drag {
+  position: absolute;
+  inset: 9%;
+  z-index: 4;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.brain-drag[data-dragging] { cursor: grabbing; }
+
+/* The departments (DepartmentRing.tsx). Each is placed from two custom
+   properties the ring writes every frame, --s and --c: the sine and cosine of
+   its angle round the ring. --c is depth, 1 nearest. */
+.brain-depts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* The reference's marker: a white dot, a hairline blue ring, a blue core. */
+.brain-dept-node {
+  position: absolute;
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(51, 80, 255, 0.6);
+  transition: box-shadow 150ms ease-out;
+}
+
+.brain-dept-node::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #3350ff;
+  opacity: 0.8;
+  transition: inset 150ms ease-out, opacity 150ms ease-out;
+}
+
+.brain-dept:hover .brain-dept-node {
+  box-shadow: inset 0 0 0 1px #3350ff, 0 0 0 5px rgba(51, 80, 255, 0.14);
+}
+
+.brain-dept:hover .brain-dept-node::after {
+  inset: 2px;
+  opacity: 1;
+}
+
+/* Beside the copy: on the ring. The label sits outside its point, pushed
+   along the way out (right at the right, under at the front, over at the
+   back), so it never crosses the ring as it turns. */
+@media (min-width: 1024px) {
+  .brain-depts {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: var(--stage);
+    height: var(--stage);
+    margin-left: calc(var(--stage) / -2);
+    pointer-events: none;
+  }
+
+  .brain-dept {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 1;
+    opacity: calc(0.625 + 0.375 * var(--c));
+    transform:
+      translate(
+        calc(var(--stage) * var(--ring-rx) * var(--s)),
+        calc(var(--stage) * var(--ring-ry) * var(--c))
+      )
+      scale(calc(0.94 + 0.08 * var(--c)));
+    pointer-events: auto;
+  }
+
+  /* Over the brain's canvas and its hit area, or under the canvas. */
+  .brain-dept[data-front] { z-index: 5; }
+  .brain-dept:hover { opacity: 1; }
+
+  .brain-dept-node {
+    top: 0;
+    left: 0;
+    translate: -50% -50%;
+  }
+
+  .brain-dept-node-num { display: none; }
+
+  .brain-dept-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    white-space: nowrap;
+    text-align: center;
+    translate:
+      calc(-50% + 50% * var(--s) + 14px * var(--s))
+      calc(-50% + 50% * var(--c) + 12px * var(--c));
+  }
+
+  .brain-dept-num { display: block; }
+}
+
+/* Stacked: no room for names round the ring. The points stay on it, still,
+   with their numbers, and the names are a plain two-column list under the
+   square. The points hang off the stage, which is the positioned box here. */
+@media (max-width: 1023.98px) {
+  .brain-depts {
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+    justify-content: center;
+    gap: 8px 32px;
+    margin-top: 16px;
+  }
+
+  .brain-dept-node {
+    top: calc(var(--stage) * (0.5 + var(--ring-ry) * var(--c)));
+    left: calc(50% + var(--stage) * var(--ring-rx) * var(--s));
+    z-index: 1;
+    translate: -50% -50%;
+    opacity: calc(0.625 + 0.375 * var(--c));
+  }
+
+  .brain-dept[data-front] .brain-dept-node { z-index: 5; }
+
+  .brain-dept-node-num {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate:
+      calc(-50% + 50% * var(--s) + 11px * var(--s))
+      calc(-50% + 50% * var(--c) + 9px * var(--c));
+  }
+
+  .brain-dept-label {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
   }
 }
 
@@ -980,38 +1176,6 @@ html:not(.js) [data-reveal] {
 .hero-drift-b { animation: hero-drift-b 34s ease-in-out infinite; }
 .hero-scroll-dot { animation: hero-scroll-dot 2.8s cubic-bezier(0.5, 0, 0.5, 1) infinite; }
 
-/* The half-brain's annotation layer (BrainAnnotations.tsx).
-   One lap is 24s, top to bottom. The arm's ±68deg must match ARC_SPAN there,
-   and 24s must match LAP_S, which the per-node delays are computed from.
-   Linear on the arm, because a node's phase is where the light is at that
-   moment. The fade hides the jump from the bottom end back to the top. */
-@keyframes brain-orbit {
-  from { transform: rotate(68deg); }
-  to { transform: rotate(-68deg); }
-}
-
-@keyframes brain-orbit-light {
-  0%, 100% { opacity: 0; }
-  7%, 93% { opacity: 1; }
-}
-
-/* Peak at 0%: each element's negative delay puts 0% on the moment the light
-   reaches it. A ~1s rise, a ~1.4s fall, quiet in between. */
-@keyframes brain-pulse {
-  0%, 100% { opacity: 1; }
-  6%, 96% { opacity: 0.55; }
-}
-
-@keyframes brain-pulse-halo {
-  0%, 100% { opacity: 1; }
-  6%, 96% { opacity: 0; }
-}
-
-.brain-orbit-arm { animation: brain-orbit 24s linear infinite; }
-.brain-orbit-light { animation: brain-orbit-light 24s linear infinite; }
-.brain-pulse { animation: brain-pulse 24s ease-in-out infinite; }
-.brain-pulse-halo { animation: brain-pulse-halo 24s ease-in-out infinite; }
-
 /* Entrance staging. Hiding lives behind the `js` class set by the inline
    script in index.html, so the prerendered HTML a non-JS crawler receives has
    every word of the hero visible — the reveal only exists where it can run. */
@@ -1028,15 +1192,9 @@ html:not(.js) [data-reveal] {
   .hero-ring-slow,
   .hero-drift-a,
   .hero-drift-b,
-  .hero-scroll-dot,
-  .brain-orbit-arm,
-  .brain-orbit-light,
-  .brain-pulse,
-  .brain-pulse-halo {
+  .hero-scroll-dot {
     animation: none;
   }
-  /* Still means no travelling light at all, not a light parked at one end. */
-  .brain-orbit-light { display: none; }
   /* Nothing is going to animate it in, so it must not start hidden. */
   .js [data-hero-reveal] { opacity: 1; }
 }
