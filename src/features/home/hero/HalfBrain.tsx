@@ -1,3 +1,5 @@
+import BrainAnnotations, { type BrainCurve } from "./BrainAnnotations";
+
 /**
  * The hero's object: the mirrored half-brain, in place of IntelligenceOrb.
  *
@@ -42,6 +44,11 @@
  * Both loops are compositor-only and both stop under prefers-reduced-motion,
  * which index.css already handles. The glow then rests at its middle opacity.
  *
+ * BrainAnnotations draws the text layer around the brain inside the same float
+ * layer: the dotted arc, the department labels, the two captions and the
+ * rotating "Your AI". It shares the box, so it scales and floats with the
+ * image, and it reads its geometry from CURVE below.
+ *
  * To swap in a new render:
  * 1. Crop it to its visible pixels.
  * 2. Downscale it to about twice the tallest display height, with
@@ -62,13 +69,28 @@ const HEIGHT = 1440;
  *  cut edge at mid-height. Measured, not eyeballed. */
 const CORE = { x: 0.907, y: 0.493 };
 
+/** The curved side as fitted from the current image's alpha: a superellipse
+ *  (n 1.8, 14px rms at 1440 tall) centred on the cut edge. The annotation
+ *  arc is this curve pushed outward, so re-fit it along with CORE whenever the
+ *  image changes. */
+const CURVE: BrainCurve = {
+  cutX: 0.896,
+  centreY: 0.5019,
+  a: 0.4185,
+  b: 0.495,
+  aspect: WIDTH / HEIGHT,
+  core: CORE,
+};
+
 export default function HalfBrain() {
   return (
+    // Not aria-hidden as a whole any more: the annotation layer carries real
+    // text (the department list, the identity). The picture, the glow and the
+    // arc each hide themselves instead.
     <div
       data-hero-reveal
       data-hero-orb
       data-brain-scope
-      aria-hidden="true"
       className="pointer-events-none shrink-0 select-none"
       style={{ height: "var(--brain-h)" }}
     >
@@ -78,6 +100,7 @@ export default function HalfBrain() {
             spilled a visible blue cloud past the cut edge. Alpha runs 0.12 at the
             centre to 0 at the rim, and the breath scales it by 0.5-0.85. */}
         <div
+          aria-hidden="true"
           className="hero-glow-pulse absolute rounded-full"
           style={{
             left: `${CORE.x * 100}%`,
@@ -102,6 +125,7 @@ export default function HalfBrain() {
             className="relative block h-full w-auto"
           />
         </picture>
+        <BrainAnnotations curve={CURVE} />
       </div>
     </div>
   );
