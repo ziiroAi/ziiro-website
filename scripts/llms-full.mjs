@@ -34,7 +34,7 @@ import { routes } from "./routes.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const dist = resolve(root, "dist");
-const BASE_URL = "https://ziiro.work";
+const BASE_URL = "https://ziiroai.com";
 
 /** Below this a page is almost certainly an empty shell rather than content,
  *  and shipping that would tell an agent the site says nothing. */
@@ -234,7 +234,7 @@ if (problems.length) {
 
 const header = `# Ziiro AI, full site content
 
-> Every page of ziiro.work as markdown, generated at build time from the same
+> Every page of ziiroai.com as markdown, generated at build time from the same
 > prerendered HTML a crawler receives, so this file cannot drift from the site.
 > The link index is at ${BASE_URL}/llms.txt. Navigation and footer chrome is
 > omitted because it repeats on every page; nothing else is removed.

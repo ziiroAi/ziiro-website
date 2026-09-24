@@ -21,7 +21,7 @@ interface SEOProps {
   noindex?: boolean;
 }
 
-const BASE_URL = "https://ziiro.work";
+const BASE_URL = "https://ziiroai.com";
 /**
  * The share card: the mark and wordmark on the white ground, 1200x630 for the
  * 1.91:1 slot Facebook, LinkedIn, Slack and X all crop to. OG_W/OG_H are

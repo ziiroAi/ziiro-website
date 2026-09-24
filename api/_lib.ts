@@ -9,8 +9,8 @@
  */
 
 const allowedOrigins = new Set([
-  "https://ziiro.work",
-  "https://www.ziiro.work",
+  "https://ziiroai.com",
+  "https://www.ziiroai.com",
   "http://localhost:4173",
   "http://localhost:8081",
   "http://localhost:3000",
@@ -60,7 +60,7 @@ const disposableDomains = new Set([
  */
 export const corsHeaders = (req: Request): Record<string, string> => {
   const origin = req.headers.get("origin") ?? "";
-  const allowOrigin = allowedOrigins.has(origin) ? origin : "https://ziiro.work";
+  const allowOrigin = allowedOrigins.has(origin) ? origin : "https://ziiroai.com";
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     Vary: "Origin",
@@ -130,9 +130,9 @@ export const jsonResponse = (req: Request, body: Record<string, unknown>, status
  * NOT the same thing as TEAM_INBOX, which is where submissions are delivered.
  *
  * One address now, not two. It was aniket@ziiro.work and govind@ziiro.work,
- * and the whole site has moved to the single contact@ziiroai.com. The mail
- * domain is ziiroai.com and the site domain is ziiro.work; that is deliberate
- * and not a typo to be helpfully corrected.
+ * and the whole site has moved to the single contact@ziiroai.com. The site
+ * itself now lives on ziiroai.com too; ziiro.work only redirects here and is
+ * kept for outreach mail.
  *
  * STILL AN ARRAY, on purpose. It is serialised straight into the failure
  * response as `fallbackEmails`, so the type is the endpoint's public contract.

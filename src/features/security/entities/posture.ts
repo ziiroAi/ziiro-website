@@ -3,7 +3,7 @@
  *
  * WHAT THIS PAGE IS ABOUT, after a correction that changed its subject: the
  * security architecture Ziiro applies when it designs, builds and runs systems
- * FOR A CLIENT. It is not about ziiro.work. A CTO evaluating us does not care
+ * FOR A CLIENT. It is not about ziiroai.com. A CTO evaluating us does not care
  * what response headers a brochure sets; they care what happens to their data
  * inside a system we build and operate. The website-posture material that used
  * to live here was not too long, it was the wrong subject, and it is gone.

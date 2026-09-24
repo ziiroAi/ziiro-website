@@ -13,7 +13,7 @@
  * Nodes omit "@context" on purpose: SEO wraps an array of them in one @graph.
  */
 
-const BASE_URL = "https://ziiro.work";
+const BASE_URL = "https://ziiroai.com";
 /** Matches the Organization node @id in index.html's static @graph. */
 const ORGANIZATION_ID = `${BASE_URL}/#organization`;
 

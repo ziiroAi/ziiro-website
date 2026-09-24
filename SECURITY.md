@@ -1,6 +1,6 @@
 # Security Policy
 
-This covers [ziiro.work](https://ziiro.work), its subdomains, and the code in this repository.
+This covers [ziiroai.com](https://ziiroai.com), ziiro.work, their subdomains, and the code in this repository.
 
 ## Reporting a vulnerability
 
@@ -48,7 +48,7 @@ We do not run a bug bounty and we cannot pay for reports.
 
 **In scope**
 
-- ziiro.work and its subdomains.
+- ziiroai.com, ziiro.work and their subdomains.
 - The code in this repository, including the Vercel edge functions under `api/`.
 
 **Out of scope**
