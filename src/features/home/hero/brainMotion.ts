@@ -1,19 +1,16 @@
 /**
- * The brain's turn: one clock for the Spline scene and the department ring.
+ * The brain's turn: one clock for the Spline scene and the department orbit.
  *
- * Both read the same yaw in the same animation frame, so the ring can never
- * drift from the brain it circles. The scene's own baked motion is switched off
- * in SplineBrain for the same reason. This module owns the numbers and the
- * input, and knows nothing about Spline or the DOM it is drawn into.
+ * The brain reads its pose from here every animation frame, and HeroBrain
+ * scrubs the orbit from the same turn in the same frame, so the two cannot
+ * drift apart. The scene's own baked motion is switched off in SplineBrain for
+ * the same reason. This module owns the numbers and the input, and knows
+ * nothing about Spline or the DOM it is drawn into.
  *
- * - Auto-turn: one slow revolution about the vertical axis every LAP_S. It
- *   eases in from rest, so the brain starts from its still pose rather than
- *   jumping into motion.
+ * - Auto-turn: one slow revolution about the vertical axis per `lapS`.
  * - Drag: the pointer turns it (yaw, plus pitch clamped to ±PITCH_MAX). On
  *   release it keeps the flick's speed, then eases back into the auto-turn.
  * - Hover: a few degrees of tilt toward the cursor, eased.
- * - Hold: while a department label is hovered the turn eases to a stop, so the
- *   label stays under the pointer long enough to read.
  * - `animate: false` (prefers-reduced-motion): no auto-turn, no inertia, no
  *   hover tilt. A drag still turns it, and it stays where it is left.
  *
@@ -22,8 +19,12 @@
  */
 
 export interface BrainPose {
+  /** The brain's yaw, hover tilt included. */
   yaw: number;
   pitch: number;
+  /** The turn alone, without the hover tilt: what the orbit follows, so a
+   *  moving cursor does not nudge the departments back and forth. */
+  turn: number;
 }
 
 export interface BrainMotion {
@@ -31,8 +32,6 @@ export interface BrainMotion {
   start(): void;
   /** Stop the loop; the pose holds. */
   stop(): void;
-  /** Ease the auto-turn to a stop while true (a label is being read). */
-  hold(on: boolean): void;
   dispose(): void;
 }
 
@@ -42,6 +41,11 @@ interface Options {
   /** The element whose area gets the hover tilt. */
   stage: HTMLElement;
   startYaw: number;
+  /** One revolution of the auto-turn, in seconds. */
+  lapS: number;
+  /** Start already turning at the auto-turn's speed, rather than easing in
+   *  from rest: for taking over something that is already moving. */
+  startMoving?: boolean;
   /** false under prefers-reduced-motion. */
   animate: boolean;
   onFrame: (pose: BrainPose) => void;
@@ -49,15 +53,8 @@ interface Options {
 
 const deg = (d: number) => (d * Math.PI) / 180;
 
-/** One revolution, in seconds. The brief asks for 24-30: calm, but visibly
- *  turning. */
-const LAP_S = 28;
-const AUTO_RATE = (2 * Math.PI) / LAP_S;
 /** How quickly a flick's speed hands back to the auto-turn (time constant). */
 const SETTLE_S = 1.1;
-/** How quickly a hold brings it to rest. Short, so a hovered label drifts only
- *  a few pixels before it stops. */
-const HOLD_S = 0.3;
 /** Drag sensitivity: 400px of travel is half a turn. */
 const RAD_PER_PX = Math.PI / 400;
 const PITCH_MAX = deg(20);
@@ -80,17 +77,19 @@ export function createBrainMotion({
   surface,
   stage,
   startYaw,
+  lapS,
+  startMoving = false,
   animate,
   onFrame,
 }: Options): BrainMotion {
+  const autoRate = (2 * Math.PI) / lapS;
   let yaw = startYaw;
-  let yawRate = 0; // starts at rest and eases into the auto-turn
+  let yawRate = animate && startMoving ? autoRate : 0;
   let pitch = 0;
   let hoverYaw = 0;
   let hoverPitch = 0;
   let hoverYawTarget = 0;
   let hoverPitchTarget = 0;
-  let held = false;
 
   let drag: { id: number; x: number; y: number; t: number; rate: number } | null = null;
   let raf = 0;
@@ -98,7 +97,11 @@ export function createBrainMotion({
   let running = false;
 
   const emit = () =>
-    onFrame({ yaw: yaw + hoverYaw, pitch: clamp(pitch + hoverPitch, -PITCH_MAX, PITCH_MAX) });
+    onFrame({
+      yaw: yaw + hoverYaw,
+      pitch: clamp(pitch + hoverPitch, -PITCH_MAX, PITCH_MAX),
+      turn: yaw,
+    });
 
   const tick = (now: number) => {
     raf = requestAnimationFrame(tick);
@@ -107,8 +110,7 @@ export function createBrainMotion({
     const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
     last = now;
     if (!drag) {
-      const target = animate && !held ? AUTO_RATE : 0;
-      yawRate = approach(yawRate, target, dt, held ? HOLD_S : SETTLE_S);
+      yawRate = approach(yawRate, animate ? autoRate : 0, dt, SETTLE_S);
       yaw += yawRate * dt;
       if (animate) pitch = approach(pitch, 0, dt, PITCH_SETTLE_S);
     }
@@ -193,9 +195,6 @@ export function createBrainMotion({
       if (animate) start();
     },
     stop,
-    hold(on) {
-      held = on;
-    },
     dispose() {
       stop();
       surface.removeEventListener("pointerdown", onDown);

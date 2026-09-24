@@ -11,9 +11,17 @@ import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
  * eagerly-fetched `poster` attribute. A reader who never scrolls this far
  * downloads nothing but the markup.
  *
- * Phones get the 2.7 MB 720p encode instead of the 5.0 MB master. At this
- * frame's width on a phone the two are indistinguishable, and the master is
- * 2.3 MB of someone's data plan spent on pixels their screen cannot show.
+ * Wide screens get the master render itself, untouched: 1080p at 5.8 Mbps,
+ * 30 MB. The 0.86 Mbps cut that shipped before blocked up the film's pale
+ * gradients and softened its small type, and this film is the brand's first
+ * impression, so here quality wins over bytes. Phones get a 1080p x264
+ * re-encode of that master (CRF 18, veryslow): half the bytes at 15.7 MB, and
+ * at a phone's frame width the difference does not show (VMAF 96.9 against
+ * the master, 93.7 on its worst frame).
+ *
+ * A new encode gets a new file name. /media is served `immutable` for a year,
+ * so a file replaced under the same name would keep playing the old copy for
+ * everyone who has already seen it.
  *
  * It starts muted and it can always be stopped: WCAG 2.2.2 for the moving
  * picture, and plain manners for the sound. See scroll-autoplay-video.tsx for
@@ -25,12 +33,12 @@ import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
  * The schema belongs on /watch/<slug>, not on the home page.
  */
 
-/** Runtime is 40.2s; the encode is 1920x1080 H.264 with faststart. */
+/** Runtime is 40.2s; both encodes are 1920x1080 H.264 with faststart. */
 const BRAND_FILM: VslConfig = {
   source: {
     kind: "file",
-    src: "/media/ziiro-brand-anthem.mp4",
-    narrowSrc: "/media/ziiro-brand-anthem-720.mp4",
+    src: "/media/ziiro-brand-anthem-master.mp4",
+    narrowSrc: "/media/ziiro-brand-anthem-phone.mp4",
   },
   // The film's own opening line, not a claim written for it.
   title: "Running a business shouldn't mean drowning in it.",
@@ -38,7 +46,7 @@ const BRAND_FILM: VslConfig = {
     "A short film on what Ziiro builds and why: the manual work that piles up inside a growing business, and the systems we put in its place.",
   uploadDate: "2026-09-19",
   duration: "PT40S",
-  poster: "/media/ziiro-brand-anthem-poster.jpg",
+  poster: "/media/ziiro-brand-anthem-poster-1080.jpg",
   runtime: "40 sec",
 };
 

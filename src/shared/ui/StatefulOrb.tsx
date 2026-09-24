@@ -6,17 +6,18 @@ import "./stateful-orb.css";
  * StatefulOrb: the Ziiro orb, generalised.
  *
  * WHAT THIS IS AN EXTENSION OF, since that was the decision rather than a
- * preference. The hero orb at src/features/home/hero/IntelligenceOrb.tsx is
- * four layers: a CSS halo, a WebGL body from src/ogl/CoreOrb.tsx, a CSS poster
- * shaded with the same rig, and sharp HTML inside. Its own file describes the
- * poster as "not a placeholder", shaded so that "the handover from poster to
- * canvas is invisible". That poster is therefore already a faithful CSS
+ * preference. The homepage hero used to carry the canonical orb (it has since
+ * been retired from the hero; git history has it) as four layers: a CSS halo,
+ * a WebGL body, a CSS poster shaded with the same rig, and sharp HTML inside.
+ * That poster was built as "not a placeholder", shaded so that "the handover
+ * from poster to canvas is invisible", so it was already a faithful CSS
  * rendering of the canonical object, and it is what this component is built
  * from: the same radial shading, the same organic silhouette radii, the same
- * restrained halo.
+ * restrained halo. This component stands alone; nothing of the old hero orb
+ * is imported.
  *
  * WHY NOT THE WEBGL CORE ITSELF. Three findings from reading it, not taste:
- *   1. `CoreOrbHandle` exposes `pulse(client)` and the program's uniforms are
+ *   1. Its handle exposed only `pulse(client)` and the program's uniforms were
  *      iTime, uHover, uRot, uPulse, uScroll, uGlow and uInk. That is a hover
  *      and impulse rig with no notion of state, so seven states would mean new
  *      uniforms and new branches in a 219-line shader that the brief forbids
@@ -27,8 +28,7 @@ import "./stateful-orb.css";
  *      contexts in the low teens and start dropping the oldest.
  *   3. A 20px indicator cannot justify a shader, and the brief says so.
  * The visual identity is what has to be identical at every size, and building
- * on the poster rig is what delivers that at 20px and at 240px alike. The hero
- * orb is untouched by this file.
+ * on the poster rig is what delivers that at 20px and at 240px alike.
  *
  * REFERENCE, NOT APPEARANCE. libraries.dev informed the state vocabulary, the
  * timing feel and the accessibility shape. None of its visual treatment is
@@ -116,7 +116,8 @@ export default function StatefulOrb({
   /** What the live region currently holds. Lags `state` on purpose. */
   const [announced, setAnnounced] = useState(word);
 
-  // Stop rendering off screen or on a hidden tab, the way CoreOrb already does.
+  // Stop rendering off screen or on a hidden tab, as the retired WebGL hero orb
+  // did.
   // Paused animations are the browser doing no work at all, which is the point:
   // a page of orbs must cost nothing while the reader is elsewhere.
   useEffect(() => {

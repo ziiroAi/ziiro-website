@@ -530,32 +530,6 @@
   }
 
 
-  /* ─── Orbital Node ─── */
-  .orbital-node {
-    background: var(--neo-bg);
-    border-radius: 50%;
-    box-shadow:
-      4px 4px 10px var(--neo-shadow-dark),
-      -4px -4px 10px var(--neo-shadow-light);
-    border: 1px solid var(--border);
-    transition: all 0.3s ease;
-  }
-
-  .orbital-node:hover {
-    box-shadow:
-      6px 6px 14px var(--neo-shadow-dark),
-      -6px -6px 14px var(--neo-shadow-light),
-      0 0 20px var(--accent-surface);
-  }
-
-  .orbital-node-active {
-    box-shadow:
-      inset 3px 3px 6px var(--neo-shadow-dark),
-      inset -3px -3px 6px var(--neo-shadow-light),
-      0 0 24px var(--accent-surface);
-    border-color: var(--accent);
-  }
-
   /* ─── Utilities ─── */
   .text-balance {
     text-wrap: balance;
@@ -578,27 +552,12 @@
 /* ══════════════════════════════════════════════════════════════════════════
    HERO
    ──────────────────────────────────────────────────────────────────────────
-   This block used to paint the hero as its own near-black island. The site is
-   white now, so the --hero-* tokens have moved up to the palette above and
-   this scope inverts nothing. It is kept, rather than deleted, because the
-   markup still carries [data-hero-dark] and because re-asserting the values
-   here is a cheaper guarantee than trusting that nothing ever re-introduces a
-   dark rule for this selector.
+   The homepage hero's own rules live in the "HERO: CORE BRAIN" block further
+   down. What stays here is the page-wide grain plate, which PageAtmosphere
+   still draws. The old orb hero's scope, sizing and loops were removed with
+   the orb (git history has them).
    ══════════════════════════════════════════════════════════════════════════ */
 
-[data-hero-dark] {
-  --hero-bg: #FFFFFF;
-  --hero-ink: #0A0A0A;
-  --hero-dim: #6B6B6B;
-  --hero-faint: #9A9A9A;
-  --hero-line: rgba(10, 10, 10, 0.10);
-  /* There is no duotone left to re-assert. What were the warm and cool halves
-     are three steps of grey, so anything that modelled depth with hue now
-     models it with value. */
-  --hero-accent: #0A0A0A;
-  --hero-cool: #6B6B6B;
-  --hero-highlight: #9A9A9A;
-}
 
 /* One grain plate. Neutral turbulence, so it works as a tooth on paper the
    same way it worked as a grain on black; only the opacity it is drawn at
@@ -607,323 +566,87 @@
   --hero-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* The navbar used to invert when it was over a dark section. There are no
-   dark sections, so this class re-asserts the palette and is a no-op. Navbar
-   still toggles it; it simply has nothing left to change. */
-.nav-over-dark {
-  --text-primary: #0A0A0A;
-  --text-secondary: #6B6B6B;
-  --background: #FFFFFF;
-  --border: rgba(10, 10, 10, 0.10);
-  --border-strong: rgba(10, 10, 10, 0.16);
-  --neo-bg: #FFFFFF;
-  --neo-shadow-dark: #ECECEC;
-  --neo-shadow-light: #FFFFFF;
+
+/* The hero's glass brain (HeroBrain.tsx), HeroStage's brain layer. It fills
+   .cb-stage__brain, the 860 stage-unit square centred on the core C, and the
+   brain is drawn centred on C, so its far half is off the page.
+
+   The still and the live canvas cover the part of the stage the scene may
+   draw on: from 125 su (just inside the department arc, whose leftmost point
+   is at 130) to the stage's right edge, which is the screen's, over the brain
+   box's full height. That is 552 x 860 su, starting 72 su left of the box. C is
+   502 su in. Nothing is rendered for the far half of the brain.
+
+   Their fade is the union of two circles, so the fibres can reach out toward
+   the arc but never under a word:
+   - about C, solid to 370 su, gone by 400. The whole brain is inside 350, and
+     no label comes nearer C than 416;
+   - about the arc's centre T (535.4, 415.3), solid to 355 su, gone by 385. The
+     arc is at 405.6 and the nearest a label's text ever comes to T, at any
+     point of its flow, is 392 (the entering one, at the top rule). */
+.glass-brain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
 }
 
-/* The orb's size. Phones get a tighter cap than everything else: with Safari's
-   chrome showing, the usable height is nearer 650 than 844, and a cap loose
-   enough to keep the desktop orb generous pushes the buttons under the
-   toolbar. Below md the orb yields; from md up it does not. */
-[data-orb-scope] {
-  /* Divided by 1.22 because the orb also carries a margin-top of 22% of its
-     own width, reserving the bloom that is drawn outside its box — so a given
-     orb consumes 1.22x its size in the column. */
-  --orb: min(clamp(205px, 46vw, 520px), calc((100dvh - 400px) / 1.22));
-}
-
-@media (min-width: 768px) {
-  [data-orb-scope] {
-    /* Subtracting a fixed block from the viewport beats a vh fraction: what
-       actually has to fit under the orb is the eyebrow, two headline lines,
-       the support copy, the buttons, the trust line AND the scroll cue, and
-       that stack is a fixed height, not a proportion of the screen.
-       On a short viewport the orb yields first, which is the right way round.
-
-       The subtrahend is measured, not guessed. At 1440x900 the fixed stack is:
-
-         top padding            80   (md:pt-20, clearing the ~76px navbar)
-         eyebrow  40 margin +   17
-         headline 20 margin +  149
-         support  24 margin +   24
-         buttons  32 margin +   46
-         trust    20 margin +   15
-         scroll cue block       97   (md:pt-8 + label + rail)
-         bottom padding         32
-                               ----
-                               ~596
-
-       It was 450, which is why the cue sat 192px BELOW the fold on every
-       desktop size — the reserve had simply forgotten the cue and the eyebrow's
-       own gap.
-
-       Two things have moved since: the cue is now pinned to the section rather
-       than sitting in the column (so its ~97px leaves this sum, and the
-       column's bottom padding reserves its lane instead), and the top padding
-       grew to 104px to clear the navbar with a real gap rather than 3px.
-
-       The /1.22 is the orb's own margin-top, which reserves the bloom drawn
-       outside its box — see IntelligenceOrb. An orb therefore costs 1.22x its
-       width in the column, and solving for it is what keeps the glow clear of
-       the navbar at every size instead of only the small ones.
-
-       If you change any spacing in Hero.tsx or ScrollIndicator.tsx, re-measure
-       and move these with it. */
-    --orb: min(clamp(280px, 33vw, 520px), calc((100dvh - 600px) / 1.22));
-  }
-}
-
-/* The hero's brain (HeroBrain.tsx). `--stage` is the square the brain, its
-   still and the department ring share.
-
-   Stacked, below lg, the square is the column's width less 48px, capped at
-   300px, so the brain's 1.3x canvas stays inside the page's padding (382px
-   at 390). The department list runs under it: the stage is padded down by
-   one square so the list flows below.
-
-   Beside the copy, the ring's side labels overhang the square by up to
-   105px - 0.06 x --stage on each side: a ring radius of 0.44, a 14px gap, and
-   the widest name ("Intelligence", 97px) at the sides' 0.94 scale. The square
-   plus both overhangs must fit the column plus the room around it. That room
-   is 28px at 1024 (the page's 40px padding, less a margin), grows with the
-   margin outside the 1200px container, and is capped by the room on the
-   copy's side (~150px). Solved for the square, with 4px spare in the 214px:
-   (100cqw + 2 x room - 214px) / 0.88, which is 297px at 1024 and 460px from
-   1280. 100cqw is the right-hand column, which Hero.tsx makes a size
-   container. The height term keeps it inside short viewports. */
-[data-brain-stage] {
-  --stage: min(calc(100cqw - 48px), 300px);
-  position: relative;
-  isolation: isolate;
-  width: 100%;
-  padding-top: var(--stage);
-}
-
-@media (min-width: 1024px) {
-  [data-brain-stage] {
-    --room: min(calc(28px + max(0px, (100vw - 1200px) / 2)), 150px);
-    --stage: clamp(280px, min(calc((100cqw + 2 * var(--room) - 214px) / 0.88), calc(100svh - 300px)), 460px);
-    width: var(--stage);
-    height: var(--stage);
-    padding-top: 0;
-  }
-}
-
-/* Every layer that lives in the square. */
-.brain-square {
+.glass-brain-still,
+.glass-brain-canvas-box {
   position: absolute;
   top: 0;
-  left: 50%;
-  width: var(--stage);
-  height: var(--stage);
-  margin-left: calc(var(--stage) / -2);
+  left: calc(-72 / 860 * 100%);
+  width: calc(552 / 860 * 100%);
+  height: 100%;
+  mask-image:
+    radial-gradient(
+      circle calc(400 * var(--s, 1px)) at calc(502 / 552 * 100%) 50%,
+      #000 92.5%,
+      transparent
+    ),
+    radial-gradient(
+      circle calc(385 * var(--s, 1px)) at calc(410.4 / 552 * 100%) calc(430.3 / 860 * 100%),
+      #000 92.2%,
+      transparent
+    );
 }
 
-/* The still and the live canvas. Both are the scene on white, multiplied into
-   the page: the white drops out, so the ring's far half, which sits under
-   them, shows through, darkened where the glass is. They are 1.3 squares
-   across, because the fibres' cage is wider than the ring. The overhang is
-   within what the side labels already take, so it costs no layout. The
-   radial fade ends the cage's last strays before the edge instead of
-   cropping them on a line. */
-.brain-still,
-.brain-canvas-box {
-  position: absolute;
-  top: -15%;
-  left: -15%;
-  z-index: 2;
-  width: 130%;
-  height: 130%;
-  mix-blend-mode: multiply;
-  mask-image: radial-gradient(closest-side, #000 86%, transparent);
-  pointer-events: none;
-}
+/* Tailwind's preflight caps every img at max-width: 100%. */
+.glass-brain-still { max-width: none; }
 
-.brain-canvas {
+.glass-brain-canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-/* Tailwind's preflight caps every img at max-width: 100%, which would hold
-   the still to the square's width while its height takes the full 130%. */
-.brain-still { max-width: none; }
-
-.brain-still,
-.brain-canvas {
+.glass-brain-still,
+.glass-brain-canvas {
   transition: opacity 700ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @media (min-width: 1024px) {
-  [data-live] .brain-still { opacity: 0; }
+  .glass-brain[data-live] .glass-brain-still { opacity: 0; }
 }
 
-/* The ring's dots, in two halves: the far half under the brain, the near half
-   over it. Faint on the path, not the svg: the svg's own opacity belongs to
-   the entrance. */
-.brain-ring {
-  z-index: 1;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.brain-ring path {
-  fill: none;
-  stroke: #8e9ac0;
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-opacity: 0.4;
-  vector-effect: non-scaling-stroke;
-}
-
-.brain-ring-front { z-index: 3; }
-.brain-ring-front path { stroke-opacity: 0.8; }
-
-/* The brain's hit area: the fibre sphere. `pan-y` leaves vertical swipes to
-   the page on touch, so only a sideways drag turns the brain. */
-.brain-drag {
+/* The brain's hit area: a circle about C, 300 su across the radius, the
+   brain and the fibres nearest it. `pan-y` leaves vertical swipes to the page
+   on touch, so only a sideways drag turns the brain. */
+.glass-brain-drag {
   position: absolute;
-  inset: 9%;
-  z-index: 4;
+  inset: calc(50% - 300 / 860 * 100%);
   border-radius: 50%;
   cursor: grab;
   touch-action: pan-y;
+  pointer-events: auto;
 }
 
-.brain-drag[data-dragging] { cursor: grabbing; }
+.glass-brain-drag[data-dragging] { cursor: grabbing; }
 
-/* The departments (DepartmentRing.tsx). Each is placed from two custom
-   properties the ring writes every frame, --s and --c: the sine and cosine of
-   its angle round the ring. --c is depth, 1 nearest. */
-.brain-depts {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* The reference's marker: a white dot, a hairline blue ring, a blue core. */
-.brain-dept-node {
-  position: absolute;
-  display: block;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: inset 0 0 0 1px rgba(51, 80, 255, 0.6);
-  transition: box-shadow 150ms ease-out;
-}
-
-.brain-dept-node::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border-radius: 50%;
-  background: #3350ff;
-  opacity: 0.8;
-  transition: inset 150ms ease-out, opacity 150ms ease-out;
-}
-
-.brain-dept:hover .brain-dept-node {
-  box-shadow: inset 0 0 0 1px #3350ff, 0 0 0 5px rgba(51, 80, 255, 0.14);
-}
-
-.brain-dept:hover .brain-dept-node::after {
-  inset: 2px;
-  opacity: 1;
-}
-
-/* Beside the copy: on the ring. The label sits outside its point, pushed
-   along the way out (right at the right, under at the front, over at the
-   back), so it never crosses the ring as it turns. */
-@media (min-width: 1024px) {
-  .brain-depts {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    width: var(--stage);
-    height: var(--stage);
-    margin-left: calc(var(--stage) / -2);
-    pointer-events: none;
-  }
-
-  .brain-dept {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    z-index: 1;
-    opacity: calc(0.625 + 0.375 * var(--c));
-    transform:
-      translate(
-        calc(var(--stage) * var(--ring-rx) * var(--s)),
-        calc(var(--stage) * var(--ring-ry) * var(--c))
-      )
-      scale(calc(0.94 + 0.08 * var(--c)));
-    pointer-events: auto;
-  }
-
-  /* Over the brain's canvas and its hit area, or under the canvas. */
-  .brain-dept[data-front] { z-index: 5; }
-  .brain-dept:hover { opacity: 1; }
-
-  .brain-dept-node {
-    top: 0;
-    left: 0;
-    translate: -50% -50%;
-  }
-
-  .brain-dept-node-num { display: none; }
-
-  .brain-dept-label {
-    position: absolute;
-    top: 0;
-    left: 0;
-    white-space: nowrap;
-    text-align: center;
-    translate:
-      calc(-50% + 50% * var(--s) + 14px * var(--s))
-      calc(-50% + 50% * var(--c) + 12px * var(--c));
-  }
-
-  .brain-dept-num { display: block; }
-}
-
-/* Stacked: no room for names round the ring. The points stay on it, still,
-   with their numbers, and the names are a plain two-column list under the
-   square. The points hang off the stage, which is the positioned box here. */
-@media (max-width: 1023.98px) {
-  .brain-depts {
-    display: grid;
-    grid-template-columns: repeat(2, max-content);
-    justify-content: center;
-    gap: 8px 32px;
-    margin-top: 16px;
-  }
-
-  .brain-dept-node {
-    top: calc(var(--stage) * (0.5 + var(--ring-ry) * var(--c)));
-    left: calc(50% + var(--stage) * var(--ring-rx) * var(--s));
-    z-index: 1;
-    translate: -50% -50%;
-    opacity: calc(0.625 + 0.375 * var(--c));
-  }
-
-  .brain-dept[data-front] .brain-dept-node { z-index: 5; }
-
-  .brain-dept-node-num {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    translate:
-      calc(-50% + 50% * var(--s) + 11px * var(--s))
-      calc(-50% + 50% * var(--c) + 9px * var(--c));
-  }
-
-  .brain-dept-label {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
-}
+/* The orbit and the core are drawn over the brain, and neither is
+   interactive: let a drag through to the brain under them. */
+.cb-stage__orbit,
+.cb-stage__core { pointer-events: none; }
 
 /* ══════════════════════════════════════════════════════════════════════════
    SMOOTH SCROLL
@@ -1044,107 +767,10 @@ html:not(.js) [data-reveal] {
   transition-duration: 0.15s;
 }
 
-/* `.hero-core-button` and its focus ring used to sit here. IntelligenceOrb
-   stopped applying the class when the page went white, and draws the ring on
-   its own sibling element instead, so both rules were dead. See the comment at
-   IntelligenceOrb.tsx around line 449 for why. */
-
-/* Short viewports: the cue is the first thing to go.
-   
-   Below ~800px of height there is genuinely not enough room for a full-height
-   hero to hold the orb, the headline, the copy, both actions, the trust line
-   AND a scroll cue. Something has to yield, and the cue is the right thing:
-   it is decorative, the page it points at is the very next thing on screen,
-   and on a viewport this short the fact that the page scrolls is not exactly a
-   secret. Dropping it returns ~97px to the orb, which otherwise collapses to
-   around 120px — small enough that the role label inside it stops being
-   readable, which is a real loss rather than a cosmetic one.
-
-   The reserve drops to 500px in step, because that is the same fixed stack
-   with the cue's block taken out of it. */
-@media (max-height: 800px) {
-  [data-hero-scroll-slot] {
-    display: none;
-  }
-
-  /* And the hero stops insisting on a full screen.
-     
-     Forcing 100svh here is what was crushing the orb: solving a full-height
-     hero for orb + nav clearance + the whole copy stack at 720px of height
-     drove the orb down to under 100px, which is worse than the problem it was
-     avoiding. Below 800px the section is simply allowed to be its natural
-     height and the page scrolls a little, which is what the art direction asks
-     for on constrained screens anyway. The cue's lane comes back too, since the
-     cue is not drawn here. */
-  [data-hero-column] {
-    min-height: 0;
-    padding-top: 88px;
-    padding-bottom: 2.5rem;
-  }
-
-  [data-orb-scope] {
-    --orb: min(clamp(205px, 40vw, 420px), calc((100dvh - 470px) / 1.22));
-  }
-}
-
-/* ─── Atmospheric loops ───────────────────────────────────────────────────
-   All of these run on transform/opacity only, so they stay on the compositor
-   and never trigger layout. Periods are intentionally coprime-ish: the two
-   ring layers drift in and out of alignment instead of repeating on a beat,
-   which is where the "occasional brighter pass" comes from — no extra layer,
-   no timer.
-   ───────────────────────────────────────────────────────────────────────── */
-
-/* The orb's two blobs morph on cycles that don't divide into each other, so
-   the band changes shape and thickness at the same time and never repeats on
-   a beat you can count. */
-@keyframes hero-morph {
-  0%, 100% { border-radius: 41% 59% 63% 37% / 54% 42% 58% 46%; }
-  25% { border-radius: 64% 36% 38% 62% / 36% 64% 36% 64%; }
-  50% { border-radius: 37% 63% 57% 43% / 63% 45% 55% 37%; }
-  75% { border-radius: 57% 43% 36% 64% / 43% 60% 40% 57%; }
-}
-
-@keyframes hero-morph-inner {
-  0%, 100% { border-radius: 58% 42% 40% 60% / 44% 58% 42% 56%; }
-  30% { border-radius: 38% 62% 64% 36% / 61% 38% 62% 39%; }
-  60% { border-radius: 62% 38% 45% 55% / 37% 63% 37% 63%; }
-}
-
-/* The body turns and floats. Both are long enough that you never catch them
-   starting; together they're what separates a suspended object from a
-   decal. */
-/* The body wobbles too, far less than the halo. A rigid circle inside a
-   morphing ring reads as a still object with a moving frame; letting the body
-   follow makes the whole orb one moving thing. */
-@keyframes hero-morph-body {
-  0%, 100% { border-radius: 52% 48% 47% 53% / 49% 51% 49% 51%; }
-  33% { border-radius: 47% 53% 53% 47% / 53% 47% 53% 47%; }
-  66% { border-radius: 53% 47% 49% 51% / 47% 52% 48% 53%; }
-}
-
-@keyframes hero-sphere-spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes hero-float {
-  0%, 100% { transform: translate3d(0, -0.6%, 0); }
-  50% { transform: translate3d(0, 0.6%, 0); }
-}
-
-@keyframes hero-glow {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(1.05); }
-}
-
-@keyframes hero-spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes hero-spin-rev {
-  to { transform: rotate(-360deg); }
-}
-
+/* ─── Atmospheric drift ────────────────────────────────────────────────────
+   PageAtmosphere's pools drift on two long, coprime-ish periods, so the pair
+   takes minutes to return to the same relative shape. Transform only, so it
+   stays on the compositor. */
 @keyframes hero-drift-a {
   0%, 100% { transform: translate3d(0, 0, 0); }
   50% { transform: translate3d(3%, -2.5%, 0); }
@@ -1155,26 +781,8 @@ html:not(.js) [data-reveal] {
   50% { transform: translate3d(-3.5%, 3%, 0); }
 }
 
-@keyframes hero-scroll-dot {
-  0% { transform: translateY(-140%); opacity: 0; }
-  25% { opacity: 1; }
-  75% { opacity: 1; }
-  100% { transform: translateY(140%); opacity: 0; }
-}
-
-/* Long and coprime-ish: 19s against 23s means the pair takes minutes to
-   return to the same relative shape. */
-.hero-morph { animation: hero-morph 15s ease-in-out infinite; }
-.hero-morph-inner { animation: hero-morph-inner 18s ease-in-out infinite; }
-.hero-morph-body { animation: hero-morph-body 21s ease-in-out infinite; }
-.hero-sphere-spin { animation: hero-sphere-spin 44s linear infinite; }
-.hero-float { animation: hero-float 13s ease-in-out infinite; }
-.hero-glow-pulse { animation: hero-glow 9s ease-in-out infinite; }
-.hero-ring-fast { animation: hero-spin 17s linear infinite; }
-.hero-ring-slow { animation: hero-spin-rev 29s linear infinite; }
 .hero-drift-a { animation: hero-drift-a 27s ease-in-out infinite; }
 .hero-drift-b { animation: hero-drift-b 34s ease-in-out infinite; }
-.hero-scroll-dot { animation: hero-scroll-dot 2.8s cubic-bezier(0.5, 0, 0.5, 1) infinite; }
 
 /* Entrance staging. Hiding lives behind the `js` class set by the inline
    script in index.html, so the prerendered HTML a non-JS crawler receives has
@@ -1182,17 +790,8 @@ html:not(.js) [data-reveal] {
 .js [data-hero-reveal] { opacity: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-morph,
-  .hero-morph-inner,
-  .hero-morph-body,
-  .hero-sphere-spin,
-  .hero-float,
-  .hero-glow-pulse,
-  .hero-ring-fast,
-  .hero-ring-slow,
   .hero-drift-a,
-  .hero-drift-b,
-  .hero-scroll-dot {
+  .hero-drift-b {
     animation: none;
   }
   /* Nothing is going to animate it in, so it must not start hidden. */
@@ -1395,4 +994,430 @@ html:not(.js) [data-reveal] {
     mask-image: none;
     border-bottom: 1px solid var(--border-strong);
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HERO: "CORE BRAIN"
+   The stage, the frame and the strip are measured from the owner's reference
+   picture, a 1536x1024 composition: each such number is a reference pixel
+   times --u. On desktop the hero takes its VERTICAL layout from that picture
+   below the top rule (941u from the rule down), with the rule itself on the
+   navbar's bottom edge, and anchors HORIZONTALLY to the screen's edges: the
+   left column and the strip start at the navbar's gutter, and the stage,
+   whose right side is the brain's flat side, is flush with the right edge.
+   So the hero fills any width with no bars, and the brain always touches the
+   screen's right edge. The left column itself is main's original, in main's
+   own Tailwind classes (Hero.tsx); CSS here only places it.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* A metric-matched fallback for the orbit's labels: a local face resized and
+   re-metred until its advances and line box equal JetBrains Mono's (computed
+   with fontTools from the real file over the hero's own strings), so the swap
+   from fallback to web font moves no line and no box. */
+@font-face {
+  font-family: "JetBrains Mono Fallback";
+  src: local("Courier New"), local("CourierNewPSMT");
+  size-adjust: 99.98%;
+  ascent-override: 102.02%;
+  descent-override: 30%;
+  line-gap-override: 0%;
+}
+
+:root {
+  /* Sampled off the reference. Every grey in it is cool (blue above red),
+     which is most of why it reads as one system with the cobalt. */
+  --cb-ink: #0A0A0C;
+  /* The strip's grey figures. The reference
+     sets them lighter still (#878A9C to #9395A6, 2.96 to 3.42:1), which fails
+     AA for 11px text. So: match the reference's weight (500) but hold the
+     colour at the lightest value of the same hue that passes
+     4.5:1 on white. This is it, 4.59:1. */
+  --cb-muted: #727489;
+  /* Dark mono at weight 500 ([ 08 DEPARTMENTS ]): a step off pure ink so the
+     heavier stem holds the reference's tone. 16.1:1. */
+  --cb-ink-500: #202124;
+  --cb-rule: #E2E4EA;
+
+  /* One reference pixel. --vw is the layout width WITHOUT a classic scrollbar,
+     published by Hero.tsx; 100vw would include it and push the flush-right
+     brain ~15px under the scrollbar on Windows.
+     The height term fits the composition BELOW the reference's top rule
+     (1024 - 83 = 941u) into the viewport under the real navbar (--nav-h,
+     published by Navbar; 84px on desktop). The bar is a fixed height that
+     does not scale with --u, so the band above the rule is the bar itself,
+     not 83u (see the desktop block). The floor keeps a very short landscape
+     window from shrinking the poster into a postage stamp. */
+  --u: max(0.62px, min(calc(var(--vw, 100vw) / 1536), calc((100svh - var(--nav-h, 84px)) / 941)));
+}
+
+.cb-hero {
+  position: relative;
+  overflow-x: clip;
+  background: #FFFFFF;
+  color: var(--cb-ink);
+}
+
+.cb-rule {
+  position: absolute;
+  z-index: 1;
+  background: var(--cb-rule);
+  pointer-events: none;
+}
+
+/* Separators inside tracked mono lines get room of their own. The reference
+   spaces its middle dots wider than a word gap; the text node keeps its plain
+   " · " so the string reads the same to a crawler and a screen reader. */
+.cb-sep { padding-inline: var(--cb-sep-pad, 0.35em); }
+/* Where a separated line wraps (the stacked strip and footnote), it breaks at
+   a dot, never inside a phrase: "MAPPED ACROSS 30 / AGENTS" read as broken. */
+.cb-seg { white-space: nowrap; }
+
+.cb-strip-text {
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* ── The stage box. HeroStage draws in stage units; --s is one of them. ──
+   Its width is STAGE_W from orbit/geometry.ts, which HeroStage publishes as
+   --stage-w; the fallback is the current value, for a render without the
+   inline style. Every layout below pins its right edge to the screen's. */
+.cb-stage {
+  width: calc(var(--stage-w, 677) * var(--s));
+  height: calc(844 * var(--s));
+}
+.cb-stage__clip {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  /* Cut at the top, right and bottom edges only. The right cut is the brain's
+     flat side, and it lands exactly on the screen's right edge. The
+     department labels hang off the left of the ring and are counter-scaled
+     so they never drop under 10px, which pushes them up to ~88 su past the
+     stage's left edge at the smallest --u; a plain overflow: hidden cut them
+     ("PERATIONS" at 1024x768). The left allowance opens into the empty
+     gutter between the copy and the ring. The brain never reaches that side:
+     its box starts at 197 su. */
+  clip-path: inset(0 0 0 calc(-120 * var(--s)));
+}
+/* No line is drawn on the flat side. The reference had a dashed rule there,
+   but the flat side is now the screen's own edge, and a 1px dash on the glass
+   would read as a rendering glitch. */
+/* The brain and the core disc are placed from the core's own coordinates,
+   which HeroStage publishes from geometry.ts as --core-x / --core-y (stage
+   units). The brain is an 860 su square and the disc's box a 124 su square
+   (CoreDisc's viewBox), both centred on the core, so moving the core in
+   geometry.ts moves them with the threads and rings. The fallbacks are the
+   current contract, (627, 415), for a render without the inline style. */
+.cb-stage__brain {
+  position: absolute;
+  left: calc((var(--core-x, 627) - 430) * var(--s));
+  top: calc((var(--core-y, 415) - 430) * var(--s));
+  width: calc(860 * var(--s));
+  height: calc(860 * var(--s));
+}
+.cb-stage__orbit {
+  position: absolute;
+  inset: 0;
+}
+.cb-stage__core {
+  position: absolute;
+  z-index: 2;
+  left: calc((var(--core-x, 627) - 62) * var(--s));
+  top: calc((var(--core-y, 415) - 62) * var(--s));
+  width: calc(124 * var(--s));
+  height: calc(124 * var(--s));
+}
+
+/* ── Desktop: the reference's verticals, anchored to the screen's edges ──────
+   The composition spans the full layout width, not a 1536u box centred in it,
+   so a window wider than 3:2 (every laptop once the browser chrome takes its
+   height) no longer shows white bars. The frame sits at the navbar's own
+   gutter (40px, its md:px-10): the logo and "[ 08 DEPARTMENTS ]" share one
+   left edge, and the strip's figures end under the bar's CTA. The copy column
+   does not: it stands where main's hero put it, inside a centred 1200px
+   column. The rules run edge to edge; the stage is flush right.
+
+   VERTICALLY, the band above the top rule is the navbar's real height, not
+   the reference's 83u. The site's bar is a fixed 84px that does not scale,
+   so a rule at 83u would sit under it on a tall window and cross its pill on
+   a short one. Every vertical offset is therefore written as the bar's
+   height plus the reference distance below the rule:
+   `var(--nav-h) + (N - 83) * --u`. The rule then lies on the bar's bottom
+   edge at every size, and the whole hero (bar + 941u) still fits the
+   viewport. */
+@media (min-width: 1024px) and (min-aspect-ratio: 1/1) {
+  .cb-hero { height: calc(var(--nav-h, 84px) + 941 * var(--u)); }
+  /* 100% of the hero, which is the full layout width: the same length as
+     var(--vw), without depending on Hero.tsx having published it yet. */
+  .cb-comp {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .cb-rule--top,
+  .cb-rule--bottom {
+    left: 0;
+    right: 0;
+    height: 1px;
+  }
+  .cb-rule--top { top: var(--nav-h, 84px); }
+  .cb-rule--bottom { top: calc(var(--nav-h, 84px) + (927 - 83) * var(--u)); }
+
+  /* main's column, placed and nothing more: its type is main's own classes
+     in Hero.tsx, which do not scale with --u. It fills the band between the
+     rules (the bar's bottom edge to the bottom rule) and centres itself in
+     it, so its optical middle stays on the stage's however tall the window
+     is.
+
+     Horizontally it keeps main's position, the left edge of main's
+     `max-w-[1200px] px-10` column centred on the page: 196px on a 1512
+     laptop, 400px at 1920. That is the owner's call: only the logo goes to
+     the screen's edge. It never comes closer than the bar's 40px gutter.
+     100% is .cb-comp's width, the full layout width. */
+  .cb-copy {
+    position: absolute;
+    left: max(40px, calc((100% - 1200px) / 2 + 40px));
+    top: var(--nav-h, 84px);
+    height: calc((927 - 83) * var(--u));
+    justify-content: center;
+  }
+
+  .cb-stage {
+    /* Keep --s a length (px per stage unit); orbit/useStageScale.ts reads it. */
+    --s: var(--u);
+    position: absolute;
+    right: 0;
+    top: var(--nav-h, 84px);
+  }
+
+  .cb-strip {
+    position: absolute;
+    left: 40px;
+    right: 40px;
+    top: calc(var(--nav-h, 84px) + (954 - 83) * var(--u));
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .cb-strip-text {
+    font-size: max(10px, calc(11.25 * var(--u)));
+    line-height: 1;
+  }
+  .cb-strip-left { letter-spacing: 0.14em; }
+  .cb-strip-right { --cb-sep-pad: 0.6em; letter-spacing: 0.13em; }
+}
+
+/* ── Stacked: phones, tablets in portrait, narrow windows ──────────────── */
+@media not all and (min-width: 1024px) and (min-aspect-ratio: 1/1) {
+  .cb-hero { padding-top: calc(var(--nav-h, 116px) + 40px); }
+  .cb-comp { position: relative; }
+  /* .cb-comp starts below the hero's nav-clearing padding, so the rule is
+     placed back up into that padding: just under the bar, above the eyebrow. */
+  .cb-rule--top {
+    top: -40px;
+    left: 16px;
+    right: 16px;
+    height: 1px;
+  }
+  .cb-rule--bottom { display: none; }
+
+  /* The bar's gutter, 24px (40px from md, below). main's classes on the
+     column's elements carry its type sizes and margins. */
+  .cb-copy { padding-inline: 24px; }
+
+  /* Flush right, as on desktop: the brain's flat side is the screen's right
+     edge. The core disc's ring stays ~7 su inside it (the edge is 50 su right
+     of the core), so "CORE BRAIN" is whole at 360 and up; only the
+     disc's faint outer halo runs off, into the hero's overflow-x: clip. */
+  .cb-stage {
+    /* var(--vw), not 100vw, for the reason --u gives: a classic scrollbar
+       would make the stage wider than the page and clip its right edge. */
+    /* Keep --s a length (px per stage unit); orbit/useStageScale.ts reads it.
+       The 652 is the stage's old width, kept on purpose so the brain stays
+       the size it was; the 677 su stage is ~4% wider than the space and
+       reaches the right edge. */
+    --s: calc(min(var(--vw, 100vw) - 28px, 600px) / 652);
+    position: relative;
+    margin: 44px 0 0 auto;
+  }
+
+  .cb-strip {
+    margin-top: 28px;
+    padding: 20px 24px 32px;
+    border-top: 1px solid var(--cb-rule);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .cb-strip-text {
+    font-size: 10px;
+    line-height: 1.6;
+    letter-spacing: 0.14em;
+    white-space: normal;
+  }
+}
+
+/* Phones: the strip's figures become a small spec list, one per line, so no
+   dot is ever left hanging at the end of a wrapped line ("127 JOBS OF WORK ·").
+   The dots leave the layout but not the text: they are clipped rather than
+   removed, so a screen reader and a crawler still get "a · b · c" instead of
+   the segments run together. Tablets and desktop keep the one-line strip. */
+@media (max-width: 767.98px) {
+  .cb-strip-right { position: relative; }
+  .cb-strip-right .cb-seg { display: block; }
+  .cb-strip-right .cb-sep {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023.98px), (min-width: 768px) and (max-aspect-ratio: 1/1) {
+  .cb-copy { padding-inline: 40px; }
+  .cb-strip { padding-inline: 40px; flex-direction: row; justify-content: space-between; }
+  /* Keep --s a length (px per stage unit); orbit/useStageScale.ts reads it. */
+  .cb-stage { --s: calc(min(var(--vw, 100vw) - 24px, 587px) / 652); }
+  .cb-rule--top { left: 24px; right: 24px; }
+}
+
+/* The stage layers fade in on the hero timeline. Same gate as the column's
+   reveals: hidden only where JavaScript will bring them back, and never under
+   reduced motion, where the static frame IS the design. */
+.js [data-hero-stage-fade] { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .js [data-hero-stage-fade] { opacity: 1; }
+}
+
+/* Failsafe for everything the entrance hides. `.js` is set by the inline
+   script before the bundle loads; if the bundle then never runs (a network
+   error, a blocked script), nothing would ever reveal the support line, the
+   actions, the footnote, the strip, the orbit or the core. So at 3s a
+   zero-length CSS animation holds them at opacity 1 regardless. When the
+   entrance does run it is over by ~1.1s and ends at opacity 1 too, so the
+   failsafe changes nothing on screen; before its 3s delay it does not apply
+   at all. */
+.js [data-hero-reveal],
+.js [data-hero-stage-fade] {
+  animation: cb-reveal-failsafe 0s linear 3s forwards;
+}
+@keyframes cb-reveal-failsafe {
+  to { opacity: 1; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SITE FOOTER
+   After the owner's reference (the Fragment Studios footer): a flat orange
+   ground, black type, and a huge black name edge to edge along the bottom.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* The owner's two colours. Black on this orange is 5.2:1, so every footer
+     text is black; white on it would be 3.7:1 and fail AA. */
+  --footer-bg: #EF4824;
+  --footer-ink: #0B0E14;
+  /* The corner radius where the orange meets the page above: about 7% of the
+     width, as in the reference, held between a phone's 28px and 120px. */
+  --footer-r: clamp(28px, 7vw, 120px);
+}
+
+/* THE SHEET. Every page sits on one opaque white sheet with rounded bottom
+   corners, stacked above the footer, which is pinned behind it. Scrolling to
+   the end lifts the sheet off the footer, bottom edge first, so the first
+   thing uncovered is the wordmark, and the footer itself never moves.
+   `overflow: clip` cuts the last section's dots and canvas to the curve. It is
+   `clip` and not `hidden` on purpose: `hidden` would make the sheet a scroll
+   container, and every `position: sticky` scene inside (the DotArt screen)
+   would pin to the sheet instead of the viewport, i.e. never pin at all.
+   The z-index makes the sheet a stacking context. Nothing fixed lives inside
+   it: the preloader, the toasts and the page atmosphere are all mounted
+   outside the routes. */
+.site-sheet {
+  position: relative;
+  z-index: 1;
+  background: var(--background);
+  border-bottom-left-radius: var(--footer-r);
+  border-bottom-right-radius: var(--footer-r);
+  overflow: clip;
+}
+
+/* THE FOOTER, pinned. `sticky` with `bottom: 0` holds its bottom edge on the
+   viewport's bottom edge the whole way down the page, underneath the sheet,
+   until the document's end, where its own place in the flow catches up. It
+   starts one corner radius up, behind the sheet, and pads that back, so the
+   orange fills the sheet's cut-away corners and the page is exactly as tall
+   as before.
+   A footer taller than the screen cannot be pinned: its top would sit above
+   the viewport for good, links and all. Footer.tsx measures it and sets
+   `data-static`, which puts it back in the flow, where it simply scrolls.
+   The prerendered HTML ships pinned; the check runs on mount. */
+.site-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 0;
+  margin-top: calc(-1 * var(--footer-r));
+  padding-top: var(--footer-r);
+  background: var(--footer-bg);
+  color: var(--footer-ink);
+  /* Clips the wordmark sideways should a font ever run wide, so it can never
+     scroll the page. */
+  overflow-x: clip;
+}
+.site-footer[data-static] {
+  position: relative;
+}
+/* Pinned, the footer is on screen from the first frame, merely covered, and
+   the browser's largest-contentful-paint does not see covering: the wordmark
+   was reported as every page's LCP, ahead of the hero. So it waits at opacity
+   0 until the sheet's end is near (Footer.tsx sets data-shown). Only where
+   scripts run: without them nothing would ever show it, and a covered footer
+   is harmless there. */
+@media (scripting: enabled) {
+  .site-footer:not([data-shown]) {
+    opacity: 0;
+  }
+}
+
+/* THE WORDMARK. Its box is the full footer width and a size container, so
+   the name is sized in cqw, a fraction of that box, rather than in vw, which
+   would count a classic scrollbar. 31.7cqw is measured: "Ziiro AI" in
+   Helvetica Neue Bold at -0.045em sets its ink at 95% of the width at every
+   size, and the © takes the rest. Arial Bold, the Windows fallback, has the
+   same metrics.
+   `overflow: clip` is not decoration. At line-height 0.8 the font's descent
+   area hangs ~0.2em below the line box, and although nothing is drawn there
+   (the name has no descenders) it still counted as scrollable overflow and
+   left ~100px of blank page under the footer. Clipping the box to itself
+   removes it; the ink sits wholly inside the line box. */
+.site-footer__mark {
+  container-type: inline-size;
+  overflow: clip;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: clamp(64px, 10vw, 200px);
+  /* With the 0.8 line box the baseline already sits ~0.03em off the box's
+     bottom; this adds a hair more, close to the edge as in the reference. */
+  padding-bottom: 1cqw;
+  white-space: nowrap;
+  line-height: 0.8;
+}
+/* Tighter on a phone, so its footer fits the screen and can pin (see
+   .site-footer): 658px of footer at 390 wide, inside the ~664px an iPhone's
+   Safari shows with its bars out. The line box's own space above the caps
+   still keeps the name ~25px clear of the legal line. */
+@media (max-width: 639px) {
+  .site-footer__mark {
+    padding-top: 16px;
+  }
+}
+.site-footer__word {
+  font-size: 31.7cqw;
+  letter-spacing: -0.045em;
+}
+.site-footer__c {
+  font-size: 2.6cqw;
+  margin-left: 0.25cqw;
+  margin-bottom: 1.2cqw;
 }

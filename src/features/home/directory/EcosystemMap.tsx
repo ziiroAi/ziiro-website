@@ -139,6 +139,15 @@ const MAP_DEPTH_PX = -240;
  *  the brief asks for restraint. */
 const MAP_PERSPECTIVE_PX = 1400;
 
+/** The map's endless CSS animations (the yaw, the orbit, the core's breathing
+ *  and the selected spoke's dash) freeze while the wrapper carries
+ *  `data-map-paused`. They animate SVG, which Chrome cannot composite, so left
+ *  running offscreen they cost style, layout and a full-page repaint on every
+ *  frame while the reader is still on the hero. `animation-play-state` resumes
+ *  each one where it stopped. Scoped here so the component owns its pause. */
+const PAUSE_CSS =
+  "[data-map-paused] :is(.directory-yaw-front,.directory-yaw-back,.directory-orbit,.directory-core,.directory-flow){animation-play-state:paused}";
+
 export default function EcosystemMap({
   pipelines,
   selectedId = ALL,
@@ -276,6 +285,27 @@ export default function EcosystemMap({
     };
   }, []);
 
+  // Pause the endless animations whenever nobody can see them: offscreen or in
+  // a hidden tab. An attribute rather than state, so toggling it never
+  // re-renders the map's nodes.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    let onScreen = true;
+    const sync = () => wrap.toggleAttribute("data-map-paused", !onScreen || document.hidden);
+    const observer = new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting;
+      sync();
+    });
+    observer.observe(wrap);
+    document.addEventListener("visibilitychange", sync);
+    sync();
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, []);
+
   const origin = `${CENTRE.x}px ${CENTRE.y}px`;
 
   /** How lit a system is: every system equally in "all", otherwise the chosen
@@ -300,6 +330,7 @@ export default function EcosystemMap({
       className="relative w-full"
       style={{ perspective: `${MAP_PERSPECTIVE_PX}px` }}
     >
+      <style dangerouslySetInnerHTML={{ __html: PAUSE_CSS }} />
       <svg
         ref={svgRef}
         viewBox={`0 0 ${VIEW} ${VIEW}`}
