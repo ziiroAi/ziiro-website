@@ -451,6 +451,165 @@
       rgba(0, 0, 0, 0)
     );
   }
+  /* ─── The phone menu (below 640px) ────────────────────────────────────
+     `.site-menu` is the navbar's own link row, restyled. From 640 up none of
+     this applies and the row is exactly what it was; below 640 the element
+     becomes a full-screen white sheet under the bar (z-index -1 inside the
+     bar's isolated row, so the logo, call to action and burger stay on top).
+
+     Closed, it is `visibility: hidden`, which keeps the links out of the tab
+     order and the accessibility tree without removing them from the document
+     or the prerendered HTML. The visibility flip is delayed on close so the
+     fade can finish, and immediate on open so focus can move in at once.
+
+     Every clock is a custom property set by Navbar from the token file
+     (--menu-in, --menu-settle, --menu-out, --menu-ease, --menu-stagger,
+     --menu-travel), and Navbar sets them all to zero under reduced motion. The
+     reduced-motion block at the end of this section also backs that up here
+     for the one frame before the component mounts.
+
+     Rows are held apart by a --border hairline, the same line weight the
+     logo pill and the burger are drawn with. */
+  @media (max-width: 639.98px) {
+    .site-menu {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      display: flex;
+      flex-direction: column;
+      padding: calc(var(--nav-h, 84px) + 1.25rem) 1.5rem
+        calc(env(safe-area-inset-bottom, 0px) + 1.5rem);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      background: var(--background);
+      opacity: 0;
+      visibility: hidden;
+      transition:
+        opacity var(--menu-out, 0s) var(--menu-ease, ease),
+        visibility 0s linear var(--menu-out, 0s);
+    }
+
+    .site-menu[data-open="true"] {
+      opacity: 1;
+      visibility: visible;
+      transition:
+        opacity var(--menu-in, 0s) var(--menu-ease, ease),
+        visibility 0s;
+    }
+
+    /* Each row arrives a beat after the one above it, travelling up a short
+       distance and settling on the house expo-out. Leaving, they all go at
+       once and quickly: nobody wants to watch a menu put itself away. */
+    .site-menu-item {
+      opacity: 0;
+      transform: translateY(var(--menu-travel, 0px));
+      transition:
+        opacity var(--menu-out, 0s) var(--menu-ease, ease),
+        transform var(--menu-out, 0s) var(--menu-ease, ease);
+    }
+
+    .site-menu[data-open="true"] .site-menu-item {
+      opacity: 1;
+      transform: none;
+      transition:
+        opacity var(--menu-in, 0s) var(--menu-ease, ease)
+          calc(var(--i, 0) * var(--menu-stagger, 0s)),
+        transform var(--menu-settle, 0s) var(--menu-ease, ease)
+          calc(var(--i, 0) * var(--menu-stagger, 0s));
+    }
+
+    /* Large sans, the site's one face at display size: tight tracking and the
+       real Helvetica Neue Medium (font-semibold is mapped to 500). */
+    .site-menu-link {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.1rem 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-primary);
+      font-size: clamp(2.125rem, 9.6vw, 2.75rem);
+      font-weight: 500;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .site-menu-link:first-child {
+      border-top: 1px solid var(--border);
+    }
+
+    .site-menu-link:focus-visible,
+    .site-menu-cta:focus-visible {
+      outline: 2px solid var(--text-primary);
+      outline-offset: 4px;
+      border-radius: 6px;
+    }
+
+    /* The index, in the micro-label mono the rest of the site uses for
+       numbers. Muted, and ink on the page the reader is already on. Generated
+       content from `data-index`, with an empty alternative after the slash so
+       it stays out of the link's accessible name; the plain declaration first
+       is the fallback for engines without the alt syntax. */
+    .site-menu-link::after {
+      content: attr(data-index);
+      content: attr(data-index) / "";
+      font-family: "Space Mono", monospace;
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      color: var(--text-muted);
+    }
+
+    .site-menu-link[aria-current="page"]::after {
+      color: var(--text-primary);
+    }
+
+    /* The call to action sits at the foot of the sheet, in the thumb's reach
+       on a tall phone and never closer than 2rem to the last link on a short
+       one. It is the hero's own filled pill: ink ground, page-coloured text. */
+    .site-menu-foot {
+      margin-top: auto;
+      padding-top: 2rem;
+    }
+
+    .site-menu-cta {
+      display: flex;
+      min-height: 52px;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border-radius: 9999px;
+      background: var(--text-primary);
+      color: var(--background);
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.005em;
+    }
+
+    /* The row's call to action on a phone: always shown. Desktop fades it in
+       with scroll through inline styles, which is why these need !important;
+       on a phone that fade read as a washed-out grey button. While the menu
+       is open it steps aside, and the panel's own call to action takes over. */
+    .site-nav-cta {
+      opacity: 1 !important;
+      visibility: visible !important;
+      transform: none !important;
+      pointer-events: auto !important;
+    }
+
+    nav[data-menu-open] .site-nav-cta {
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .site-menu,
+    .site-menu-item {
+      transition: none !important;
+    }
+  }
+
   /* `.site-nav-edge` used to sit here: a 1px band at top 100%, carrying the
      same scroll-driven opacity as the blur, added for item 13's "fine border".
      The human has since seen it on the page and asked for it gone, with the
@@ -478,23 +637,20 @@
      this stays correct through a wrap, a fourth link, a bigger tap target or
      a font that loads late.
 
-     THE VALUES BELOW ARE A PRE-HYDRATION ESTIMATE AND NOTHING ELSE. They exist
+     THE VALUE BELOW IS A PRE-HYDRATION ESTIMATE AND NOTHING ELSE. It exists
      so the prerendered HTML reserves close to the right space before any
      JavaScript runs; the inline style Navbar sets on the root element outranks
-     them the moment it mounts. They are split at 640px because that is where
-     the three links stop fitting beside the logo and wrap onto their own row,
-     measured: 620 wraps, 640 does not. A single flat fallback is what produced
-     a 36px layout shift on the home hero at 390, reserving 112px on the server
-     and 148px a frame later. Do not treat these as the source of truth, and do
-     not let anything but the measurement depend on them being exact. */
-  :root {
-    --nav-h: 116px;
-  }
+     it the moment it mounts.
 
-  @media (min-width: 640px) {
-    :root {
-      --nav-h: 84px;
-    }
+     It used to be split at 640px, 116px below and 84px above, because under
+     640 the three links wrapped onto their own row. They no longer do: below
+     640 they live behind the burger, and the bar is one 84px row (20px padding
+     top and bottom around the 44px logo, call to action and burger) at every
+     width. A stale 116px here would reserve 32px too much on the server and
+     then shift the hero up a frame later. Do not treat this as the source of
+     truth, and do not let anything but the measurement depend on it. */
+  :root {
+    --nav-h: 84px;
   }
 
   /* THE HERO variant, for a full-viewport section that centres its own content.
