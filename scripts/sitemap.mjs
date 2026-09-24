@@ -15,7 +15,7 @@ import { routes } from "./routes.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
-const BASE_URL = "https://ziiro.work";
+const BASE_URL = "https://ziiroai.com";
 
 /**
  * Newest commit date across a route's source files, as YYYY-MM-DD.

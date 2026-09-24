@@ -7,10 +7,32 @@
       "has": [
         {
           "type": "host",
+          "value": "www.ziiroai.com"
+        }
+      ],
+      "destination": "https://ziiroai.com/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "ziiro.work"
+        }
+      ],
+      "destination": "https://ziiroai.com/$1",
+      "permanent": true
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
           "value": "www.ziiro.work"
         }
       ],
-      "destination": "https://ziiro.work/$1",
+      "destination": "https://ziiroai.com/$1",
       "permanent": true
     },
     {

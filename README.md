@@ -1,7 +1,7 @@
 # Ziiro AI: Agentic AI Systems
 
 > **Agentic AI systems for startups and solo founders.**  
-> Live at [ziiro.work](https://ziiro.work)
+> Live at [ziiroai.com](https://ziiroai.com)
 
 ---
 
@@ -43,7 +43,7 @@ The company direction is agentic AI consultancy and productized systems for lean
 | UI primitives | Radix, for the toast and tooltip only |
 | Server | One Vercel Edge Function in `api/`, for geo lookup. No database |
 | SEO | react-helmet-async + JSON-LD schema, prerendered at build time |
-| Deployment | Vercel + custom domain (ziiro.work) |
+| Deployment | Vercel + custom domain (ziiroai.com; ziiro.work redirects to it) |
 
 The site started as a shadcn scaffold and no longer uses it: there is no
 `src/components/ui`, no shadcn CLI config, and the component library is the

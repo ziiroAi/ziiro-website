@@ -27,7 +27,7 @@ import { CONTACT_EMAIL, mailto } from "@/shared/lib/contact";
  * decorating claims that are mostly "not established".
  *
  * ITS SUBJECT, after a correction that changed it: the systems Ziiro builds
- * FOR CLIENTS, not ziiro.work. This page used to describe response headers,
+ * FOR CLIENTS, not ziiroai.com. This page used to describe response headers,
  * static analysis and the contact endpoint, which is the security of a
  * brochure. A CTO evaluating us cares what happens to their data inside a
  * system we build and operate. The website material was not too long, it was

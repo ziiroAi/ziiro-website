@@ -39,7 +39,7 @@ export interface VslConfig {
   runtime?: string;
 }
 
-const BASE_URL = "https://ziiro.work";
+const BASE_URL = "https://ziiroai.com";
 
 /**
  * YouTube publishes derived stills at fixed paths. `maxresdefault` is the 1280w

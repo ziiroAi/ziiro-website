@@ -73,4 +73,4 @@ User-agent: *
 Allow: /
 
 # A plain-language summary of the site for LLMs lives at /llms.txt
-Sitemap: https://ziiro.work/sitemap.xml
+Sitemap: https://ziiroai.com/sitemap.xml
