@@ -15,14 +15,19 @@ import {
 } from "./heroContent";
 
 /**
- * The homepage opener, "Core Brain": built to the owner's reference picture,
- * a 1536x1024 composition, measured from it pixel by pixel.
+ * The homepage opener, "Core Brain". The right half, the frame and the strip
+ * are built to the owner's reference picture (a 1536x1024 composition); the
+ * left column is main's original argument, by the owner's request.
  *
- * On desktop the hero IS the picture. It is one 1536x1024 composition scaled
- * by a single unit (`--u` in index.css), so the argument on the left, the
- * brain on the right and the hairline frame around them keep their exact
- * relationships at any window size. Narrower or portrait screens get a
- * stacked layout: the copy, then the stage, then the strip.
+ * On desktop the stage takes the picture's verticals: every stage size is a
+ * reference pixel times one unit (`--u` in index.css), the top rule lies on
+ * the navbar's bottom edge, and the 941u below it are fitted to the rest of
+ * the viewport. Horizontally the hero spans the full window. The column, the
+ * strip and the bar's logo share one left edge (the bar's gutter), and the
+ * stage, whose right side is the brain's flat side, sits flush against the
+ * right edge. The column is centred between the two rules. Narrower or
+ * portrait screens get a stacked layout: the copy, then the stage (still
+ * flush right), then the strip.
  *
  * The old WebGL orb ("Your AI" and the cycling role word) and the scroll cue
  * are retired from here (git history has them). The roles the orb cycled now
@@ -67,6 +72,25 @@ const STRIP_RIGHT = `${pad2(DIRECTORY_STATS.jobs)} jobs of work · mapped across
 export default function Hero() {
   const rootRef = useRef<HTMLElement>(null);
 
+  /**
+   * `--vw`: the page width WITHOUT a classic scrollbar. The hero sizes itself
+   * in `--u`, a fraction of the width, and pins the stage to the right edge;
+   * `100vw` counts the scrollbar on Windows, which would push the flush-right
+   * brain ~15px under it. On macOS the two are equal, and `100vw` is the
+   * pre-hydration fallback in index.css. Only this hero reads it, so the hero
+   * publishes it (it used to come from the navbar).
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty("--vw", `${root.clientWidth}px`);
+    publish();
+    const ro = new ResizeObserver(publish);
+    ro.observe(root);
+    return () => {
+      ro.disconnect();
+    };
+  }, []);
+
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -99,46 +123,85 @@ export default function Hero() {
         <span aria-hidden="true" className="cb-rule cb-rule--top" />
         <span aria-hidden="true" className="cb-rule cb-rule--bottom" />
 
-        {/* ── Left: the argument ─────────────────────────────────────────── */}
-        <div className="cb-copy relative z-[2]">
+        {/* ── Left: the argument ─────────────────────────────────────────────
+            main's column, class for class: the outlined eyebrow pill, the
+            two-tone Helvetica h1, the grey support, the two pills and the
+            Space Mono trust line. index.css only places the column (and, on
+            desktop, centres it between the rules); every type size and
+            margin here is main's. */}
+        <div className="cb-copy relative z-[2] flex flex-col items-start text-left">
+          {/* The eyebrow is a pill rather than a bare line, which is what gives
+              the column a top edge to hang off. Hairline border, no fill: on
+              white a filled chip would be the heaviest thing on the page. */}
           <p
             data-hero="eyebrow"
             data-hero-reveal
             data-hero-eyebrow
-            className="cb-eyebrow font-hero-mono"
-            style={{ color: "var(--cb-muted)" }}
+            className="inline-flex items-center rounded-full border px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase md:text-[11px]"
+            style={{
+              letterSpacing: "0.2em",
+              borderColor: "var(--border)",
+              color: "var(--text-secondary)",
+            }}
           >
-            <Separated text={EYEBROW} />
+            {EYEBROW}
           </p>
 
-          {/* One h1, two block lines. HEADLINE_LINE_GAP is a real character
-              between them, so the accessible and indexed text reads "Your
-              business just run better." rather than running the lines
-              together. Block layout discards it on screen. */}
-          <h1 id="hero-heading" data-hero="h1" className="cb-h1 font-hero-serif">
-            <span className="block">{HEADLINE_LEAD}</span>
+          {/* One h1, two tones of one family. HEADLINE_LINE_GAP is a real
+              character between the block lines, so the accessible and indexed
+              text reads "Your business just run better." rather than running
+              the lines together; block layout discards it on screen.
+              Medium Helvetica at -0.015em, as on main: the face is already
+              tightly fitted, so tighter tracking starts closing counters at
+              display sizes.
+              Unlike main, neither line carries a reveal hook: the h1 is NEVER
+              hidden, because it can be the page's LCP element. */}
+          <h1
+            id="hero-heading"
+            data-hero="h1"
+            className="mt-6 md:mt-7"
+            style={{
+              fontSize: "clamp(2.3rem, 7.2vw, 3.4rem)",
+              lineHeight: 1.06,
+              letterSpacing: "-0.015em",
+            }}
+          >
+            <span className="block font-display font-medium" style={{ color: "var(--text-primary)" }}>
+              {HEADLINE_LEAD}
+            </span>
             {HEADLINE_LINE_GAP}
-            <span className="block">{HEADLINE_TAIL}</span>
+            <span className="block font-display font-medium" style={{ color: "var(--text-secondary)" }}>
+              {HEADLINE_TAIL}
+            </span>
           </h1>
 
           <p
             data-hero="support"
             data-hero-reveal
             data-hero-support
-            className="cb-support font-hero-sans"
-            style={{ color: "var(--cb-support)" }}
+            className="mt-5 max-w-[46ch] text-[15px] leading-relaxed md:mt-6 md:text-[16px]"
+            style={{ color: "var(--text-secondary)" }}
           >
             {SUPPORT}
           </p>
 
-          <HeroActions />
+          <div className="mt-7 md:mt-8">
+            <HeroActions />
+          </div>
 
           <p
             data-hero="footnote"
             data-hero-reveal
             data-hero-trust
-            className="cb-footnote font-hero-mono"
-            style={{ color: "var(--cb-muted)" }}
+            className="mt-6 font-mono text-[10px] uppercase md:mt-7"
+            // main's spacing, so no extra room around the dots: Separated only
+            // keeps each phrase whole, so a phone wraps at a dot and never
+            // inside "YOU KEEP THE ROADMAP".
+            style={{
+              letterSpacing: "0.24em",
+              color: "var(--text-secondary)",
+              ["--cb-sep-pad" as string]: "0",
+            }}
           >
             <Separated text={TRUST} />
           </p>
@@ -149,16 +212,18 @@ export default function Hero() {
 
         {/* ── The strip under the bottom rule ─────────────────────────────── */}
         <div data-hero-reveal data-hero-strip className="cb-strip relative z-[2]">
+          {/* Space Mono, the trust line's face: two different monos stacked
+              one above the other would read as a mistake. */}
           <p
             data-hero="strip-left"
-            className="cb-strip-text cb-strip-left font-hero-mono"
+            className="cb-strip-text cb-strip-left font-mono"
             style={{ color: "var(--cb-ink-500)" }}
           >
             {STRIP_LEFT}
           </p>
           <p
             data-hero="strip-right"
-            className="cb-strip-text cb-strip-right font-hero-mono"
+            className="cb-strip-text cb-strip-right font-mono"
             style={{ color: "var(--cb-muted)" }}
           >
             <Separated text={STRIP_RIGHT} />

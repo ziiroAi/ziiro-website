@@ -27,13 +27,12 @@ export default {
         // of this site and Helvetica cannot do that job.
         mono: ['Space Mono', 'monospace'],
         serif: ['Instrument Serif', 'Georgia', 'Times New Roman', 'serif'],
-        // The homepage hero and the navbar only. These three won a measured
-        // bake-off against the hero reference picture (fitted size and tracking,
-        // then scored by glyph overlap with the reference's own text). Each is followed by a metric-matched fallback face declared
-        // in index.css, so the font swap cannot move a line. Nothing below the
-        // hero uses them, which is what keeps the rest of the site unchanged.
-        'hero-serif': ['"Instrument Serif"', '"Instrument Serif Fallback"', 'Georgia', 'serif'],
-        'hero-sans': ['"Hanken Grotesk"', '"Hanken Grotesk Fallback"', 'Arial', 'sans-serif'],
+        // The homepage hero's orbit labels only. JetBrains Mono won a measured
+        // bake-off against the hero reference picture (fitted size and
+        // tracking, then scored by glyph overlap with the reference's own
+        // text). It is followed by a metric-matched fallback face declared in
+        // index.css, so the font swap cannot move a line. Nothing outside the
+        // hero uses it, which keeps the rest of the site unchanged.
         'hero-mono': ['"JetBrains Mono"', '"JetBrains Mono Fallback"', 'monospace'],
       },
       // Helvetica Neue ships Thin/UltraLight/Light/Regular/Medium/Bold — there

@@ -239,9 +239,14 @@ const App = () => (
       <ScrollProgress />
       <ScrollToTop />
       <Navbar />
-      <Suspense fallback={<div className="min-h-screen" />}>
-        <AppRoutes />
-      </Suspense>
+      {/* The page is one sheet that scrolls up off the footer pinned behind
+          it (index.css, SITE FOOTER). The server entry wraps its page the same
+          way, so the prerendered first paint is already layered. */}
+      <div className="site-sheet">
+        <Suspense fallback={<div className="min-h-screen" />}>
+          <AppRoutes />
+        </Suspense>
+      </div>
       <Footer />
     </BrowserRouter>
   </Providers>

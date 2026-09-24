@@ -405,15 +405,15 @@
      perfectly sharp: backdrop-filter samples what is painted BEHIND the
      element, and the nav's own controls come later in paint order.
 
-     Its only colour is the page's own ground, mixed from the token rather than
-     written as a white literal, so it can never tint the page a different
-     white.
+     There is no colour here at all. `transparent` rather than a white at zero
+     alpha: same computed result, and it keeps a white literal out of a file
+     where colour comes from tokens. A tint would fog the white ground.
 
      The mask is the whole trick. Without it the blur ends on a hard horizontal
      line across the page, which is the tell of a badly copied version of this
-     effect. The gradient dissolves it below the bar (stops at the rule).
-     Those stops are alpha, not ink, so they are deliberately literal and not
-     tokens. */
+     effect. The gradient dissolves it: fully opaque at the top, still 0.92 at
+     38%, then out to nothing. Those stops are alpha, not ink, so they are
+     deliberately literal and not tokens. */
   .site-nav-backdrop {
     position: absolute;
     left: 0;
@@ -437,34 +437,18 @@
     /* ITEM 13, restrained glassmorphism, and the emphasis is on restrained.
        Blur alone does not make text readable over moving content: it smears
        what is behind without lowering its contrast, so a dark block sliding
-       under the bar still fights the links. A wash of the page's own ground
-       does that work.
-
-       It is 94%, not the 58% it used to be. At 58%, and with the fade
-       starting inside the bar, copy scrolling under the header stayed
-       readable behind the wordmark and links (the hero footnote on a phone
-       was the case that showed it), which reads as a rendering fault, not
-       as glass. Once scrolled, the bar now fully separates from what passes
-       beneath it. At the top of the page it is still invisible: the opacity
-       ramp in Navbar.tsx holds it at zero until the reader scrolls.
-
-       There is still no bottom hairline. The owner saw one on the page and
-       asked for it gone (see the note below), so the separation comes from
-       opacity alone.
+       under the bar still fights the links. A thin wash of the page's own
+       ground does that work, and 58% is deliberately weak enough that the bar
+       still reads as part of the page rather than as a card sitting on it.
 
        color-mix rather than a Tailwind alpha modifier, which emits nothing on
        a var() colour. */
-    background: color-mix(in srgb, var(--background) 94%, transparent);
+    background: color-mix(in srgb, var(--background) 58%, transparent);
 
-    /* Solid for the whole height of the bar, then dissolving over the extra
-       40% below it. 71.43% is 100/140, the bar's own bottom edge inside this
-       140% band, so every control sits on a full-strength ground and only the
-       space under the bar fades. The fade is what keeps the blur from ending
-       on a hard line across the page. */
     mask-image: linear-gradient(
-      rgb(0, 0, 0) 0%,
-      rgb(0, 0, 0) 71.43%,
-      rgba(0, 0, 0, 0) 100%
+      rgb(0, 0, 0) 0px,
+      rgba(0, 0, 0, 0.92) 38%,
+      rgba(0, 0, 0, 0)
     );
   }
   /* `.site-nav-edge` used to sit here: a 1px band at top 100%, carrying the
@@ -933,31 +917,22 @@ html:not(.js) [data-reveal] {
 
 /* ══════════════════════════════════════════════════════════════════════════
    HERO: "CORE BRAIN"
-   Every number below is measured from the owner's reference picture, a
-   1536x1024 composition; on desktop the hero IS that picture, scaled by one
-   unit, so each value here is a reference pixel times --u.
+   The stage, the frame and the strip are measured from the owner's reference
+   picture, a 1536x1024 composition: each such number is a reference pixel
+   times --u. On desktop the hero takes its VERTICAL layout from that picture
+   below the top rule (941u from the rule down), with the rule itself on the
+   navbar's bottom edge, and anchors HORIZONTALLY to the screen's edges: the
+   left column and the strip start at the navbar's gutter, and the stage,
+   whose right side is the brain's flat side, is flush with the right edge.
+   So the hero fills any width with no bars, and the brain always touches the
+   screen's right edge. The left column itself is main's original, in main's
+   own Tailwind classes (Hero.tsx); CSS here only places it.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* Metric-matched fallbacks. Each one is a local face resized and re-metred
-   until its advances and line box equal the web font's (computed with
-   fontTools from the real files over the hero's own strings), so the swap
+/* A metric-matched fallback for the orbit's labels: a local face resized and
+   re-metred until its advances and line box equal JetBrains Mono's (computed
+   with fontTools from the real file over the hero's own strings), so the swap
    from fallback to web font moves no line and no box. */
-@font-face {
-  font-family: "Instrument Serif Fallback";
-  src: local("Times New Roman"), local("TimesNewRomanPSMT");
-  size-adjust: 84.15%;
-  ascent-override: 117.65%;
-  descent-override: 36.84%;
-  line-gap-override: 0%;
-}
-@font-face {
-  font-family: "Hanken Grotesk Fallback";
-  src: local("Arial"), local("ArialMT");
-  size-adjust: 101.67%;
-  ascent-override: 98.36%;
-  descent-override: 29.8%;
-  line-gap-override: 0%;
-}
 @font-face {
   font-family: "JetBrains Mono Fallback";
   src: local("Courier New"), local("CourierNewPSMT");
@@ -971,13 +946,7 @@ html:not(.js) [data-reveal] {
   /* Sampled off the reference. Every grey in it is cool (blue above red),
      which is most of why it reads as one system with the cobalt. */
   --cb-ink: #0A0A0C;
-  /* Nav links, 4.82:1 on white. Measured against the reference's link tone
-     by mean ink darkness; the old #5E6174 read ~10% darker. */
-  --cb-nav: #6E7183;
-  /* Support paragraph, 5.09:1. The reference's paragraph is lighter than the
-     old #555769 (7.1:1) by ~16% of ink darkness. */
-  --cb-support: #6B6D80;
-  /* The grey mono meta lines: eyebrow, footnote, strip figures. The reference
+  /* The strip's grey figures. The reference
      sets them lighter still (#878A9C to #9395A6, 2.96 to 3.42:1), which fails
      AA for 11px text. So: match the reference's weight (500) but hold the
      colour at the lightest value of the same hue that passes
@@ -987,16 +956,17 @@ html:not(.js) [data-reveal] {
      heavier stem holds the reference's tone. 16.1:1. */
   --cb-ink-500: #202124;
   --cb-rule: #E2E4EA;
-  --cb-pill: #E3E5EB;
-  --cb-cobalt: #2150FD;
-  --cb-cobalt-ink: #0B36F2;
-  --cb-cta: #0E0E10;
 
   /* One reference pixel. --vw is the layout width WITHOUT a classic scrollbar,
-     published by Navbar; 100vw would include it and push the right-anchored
-     half of the picture ~15px off the page on Windows. The floor keeps a very
-     short landscape window from shrinking the poster into a postage stamp. */
-  --u: max(0.62px, min(calc(var(--vw, 100vw) / 1536), calc(100svh / 1024)));
+     published by Hero.tsx; 100vw would include it and push the flush-right
+     brain ~15px under the scrollbar on Windows.
+     The height term fits the composition BELOW the reference's top rule
+     (1024 - 83 = 941u) into the viewport under the real navbar (--nav-h,
+     published by Navbar; 84px on desktop). The bar is a fixed height that
+     does not scale with --u, so the band above the rule is the bar itself,
+     not 83u (see the desktop block). The floor keeps a very short landscape
+     window from shrinking the poster into a postage stamp. */
+  --u: max(0.62px, min(calc(var(--vw, 100vw) / 1536), calc((100svh - var(--nav-h, 84px)) / 941)));
 }
 
 .cb-hero {
@@ -1021,67 +991,36 @@ html:not(.js) [data-reveal] {
    a dot, never inside a phrase: "MAPPED ACROSS 30 / AGENTS" read as broken. */
 .cb-seg { white-space: nowrap; }
 
-/* Weight 500, the reference's: its mono stems measure 1.27 to 1.33px against
-   1.00 to 1.24 at 400. JetBrains Mono 500 is already loaded. */
-.cb-eyebrow,
-.cb-footnote,
 .cb-strip-text {
-  font-weight: 500;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-/* A hair open, as measured: line 1 lands at the reference's 507px. */
-.cb-support { letter-spacing: 0.005em; }
-
-.cb-h1 {
-  /* A contact shadow, not a glow: the reference paper darkens ~2% within 7px
-     of the ink and is back to white by 10px. 7px / .085 is measured against
-     it; the earlier 9px / .09 reached ~30% too far. */
-  text-shadow: 0 1px 7px rgba(16, 18, 40, 0.085);
-  letter-spacing: -0.01em;
-  font-weight: 400;
-}
-
-/* ── The stage box. HeroStage draws in stage units; --s is one of them. ── */
+/* ── The stage box. HeroStage draws in stage units; --s is one of them. ──
+   Its width is STAGE_W from orbit/geometry.ts, which HeroStage publishes as
+   --stage-w; the fallback is the current value, for a render without the
+   inline style. Every layout below pins its right edge to the screen's. */
 .cb-stage {
-  width: calc(652 * var(--s));
+  width: calc(var(--stage-w, 677) * var(--s));
   height: calc(844 * var(--s));
 }
 .cb-stage__clip {
   position: absolute;
   inset: 0;
   z-index: 0;
-  /* Cut at the top, right and bottom edges only. The department labels hang
-     off the left of the ring and are counter-scaled so they never drop under
-     10px, which pushes them up to ~88 su past the stage's left edge at the
-     smallest --u; a plain overflow: hidden cut them ("PERATIONS" at
-     1024x768). The left allowance opens into the empty gutter between the
-     copy and the ring (measured: a gap of 56px or more at every desktop
-     size). The brain never reaches that side: its box starts at
-     197 su. */
-  clip-path: inset(0 calc(-1 * var(--s)) 0 calc(-120 * var(--s)));
+  /* Cut at the top, right and bottom edges only. The right cut is the brain's
+     flat side, and it lands exactly on the screen's right edge. The
+     department labels hang off the left of the ring and are counter-scaled
+     so they never drop under 10px, which pushes them up to ~88 su past the
+     stage's left edge at the smallest --u; a plain overflow: hidden cut them
+     ("PERATIONS" at 1024x768). The left allowance opens into the empty
+     gutter between the copy and the ring. The brain never reaches that side:
+     its box starts at 197 su. */
+  clip-path: inset(0 0 0 calc(-120 * var(--s)));
 }
-/* The vertical rule is the stage's own right edge (reference x 1512, y 83 to
-   927 is exactly the stage box), so it is drawn here: above the brain it
-   clips, below the core that overhangs it. */
-/* In the reference this edge is not a solid grey line. Inside the stage it is
-   dashed (4px on, 2.5px off) in a translucent cobalt-grey the brain shows
-   through; above the nav rule and below the strip rule it continues as a faint
-   solid tail that fades out. It sits on x 1512, one pixel past
-   the stage box, so it is `right: -1px`, and the clip lets the brain run one
-   stage unit under it. */
-.cb-stage::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: -1px;
-  bottom: 0;
-  width: 1px;
-  z-index: 1;
-  background: repeating-linear-gradient(to bottom, rgba(35, 65, 180, 0.5) 0 4px, transparent 4px 6.5px);
-  pointer-events: none;
-}
+/* No line is drawn on the flat side. The reference had a dashed rule there,
+   but the flat side is now the screen's own edge, and a 1px dash on the glass
+   would read as a rendering glitch. */
 /* The brain and the core disc are placed from the core's own coordinates,
    which HeroStage publishes from geometry.ts as --core-x / --core-y (stage
    units). The brain is an 860 su square and the disc's box a 124 su square
@@ -1108,95 +1047,73 @@ html:not(.js) [data-reveal] {
   height: calc(124 * var(--s));
 }
 
-/* ── Desktop: the picture, 1:1 in reference units ───────────────────────── */
+/* ── Desktop: the reference's verticals, anchored to the screen's edges ──────
+   The composition spans the full layout width, not a 1536u box centred in it,
+   so a window wider than 3:2 (every laptop once the browser chrome takes its
+   height) no longer shows white bars. The frame sits at the navbar's own
+   gutter (40px, its md:px-10): the logo and "[ 08 DEPARTMENTS ]" share one
+   left edge, and the strip's figures end under the bar's CTA. The copy column
+   does not: it stands where main's hero put it, inside a centred 1200px
+   column. The rules run edge to edge; the stage is flush right.
+
+   VERTICALLY, the band above the top rule is the navbar's real height, not
+   the reference's 83u. The site's bar is a fixed 84px that does not scale,
+   so a rule at 83u would sit under it on a tall window and cross its pill on
+   a short one. Every vertical offset is therefore written as the bar's
+   height plus the reference distance below the rule:
+   `var(--nav-h) + (N - 83) * --u`. The rule then lies on the bar's bottom
+   edge at every size, and the whole hero (bar + 941u) still fits the
+   viewport. */
 @media (min-width: 1024px) and (min-aspect-ratio: 1/1) {
-  .cb-hero { height: calc(1024 * var(--u)); }
+  .cb-hero { height: calc(var(--nav-h, 84px) + 941 * var(--u)); }
+  /* 100% of the hero, which is the full layout width: the same length as
+     var(--vw), without depending on Hero.tsx having published it yet. */
   .cb-comp {
     position: relative;
-    width: calc(1536 * var(--u));
+    width: 100%;
     height: 100%;
-    margin-inline: auto;
   }
   .cb-rule--top,
   .cb-rule--bottom {
-    left: calc(32 * var(--u));
-    width: calc(1480 * var(--u));
+    left: 0;
+    right: 0;
     height: 1px;
   }
-  .cb-rule--top { top: calc(83 * var(--u)); }
-  .cb-rule--bottom { top: calc(927 * var(--u)); }
+  .cb-rule--top { top: var(--nav-h, 84px); }
+  .cb-rule--bottom { top: calc(var(--nav-h, 84px) + (927 - 83) * var(--u)); }
 
+  /* main's column, placed and nothing more: its type is main's own classes
+     in Hero.tsx, which do not scale with --u. It fills the band between the
+     rules (the bar's bottom edge to the bottom rule) and centres itself in
+     it, so its optical middle stays on the stage's however tall the window
+     is.
+
+     Horizontally it keeps main's position, the left edge of main's
+     `max-w-[1200px] px-10` column centred on the page: 196px on a 1512
+     laptop, 400px at 1920. That is the owner's call: only the logo goes to
+     the screen's edge. It never comes closer than the bar's 40px gutter.
+     100% is .cb-comp's width, the full layout width. */
   .cb-copy {
     position: absolute;
-    left: calc(121 * var(--u));
-    top: calc(271 * var(--u));
-    width: calc(580 * var(--u));
-  }
-  /* Each line's dot gap is measured from the reference separately: the
-     eyebrow's dots sit almost at word spacing, the strip's much wider. */
-  .cb-eyebrow {
-    --cb-sep-pad: 0.09em;
-    font-size: max(11px, calc(13.5 * var(--u)));
-    line-height: 1;
-    letter-spacing: 0.105em;
-  }
-  .cb-h1 {
-    margin-top: calc(30.5 * var(--u));
-    font-size: calc(101.5 * var(--u));
-    line-height: calc(95 * var(--u));
-  }
-  .cb-support {
-    margin-top: calc(39 * var(--u));
-    max-width: max(340px, calc(512 * var(--u)));
-    font-size: max(16px, calc(20.75 * var(--u)));
-    line-height: max(23px, calc(29.5 * var(--u)));
-  }
-  .cb-actions { margin-top: calc(41.5 * var(--u)); gap: calc(31 * var(--u)); }
-  .cb-cta {
-    height: max(46px, calc(52 * var(--u)));
-    /* 18 and 32 are the reference's label size and inset. */
-    padding-inline: calc(32 * var(--u));
-    font-size: max(15px, calc(18 * var(--u)));
-  }
-  .cb-link { font-size: max(15px, calc(17 * var(--u))); }
-  .cb-footnote {
-    margin-top: calc(41.5 * var(--u));
-    --cb-sep-pad: 0.16em;
-    font-size: max(10px, calc(10.75 * var(--u)));
-    line-height: 1;
-    letter-spacing: 0.165em;
+    left: max(40px, calc((100% - 1200px) / 2 + 40px));
+    top: var(--nav-h, 84px);
+    height: calc((927 - 83) * var(--u));
+    justify-content: center;
   }
 
   .cb-stage {
     /* Keep --s a length (px per stage unit); orbit/useStageScale.ts reads it. */
     --s: var(--u);
     position: absolute;
-    left: calc(860 * var(--u));
-    top: calc(83 * var(--u));
-  }
-  /* The edge's faint solid tails, beyond the nav rule (up to y 12) and the
-     strip rule (down to y 1000). Desktop only: these join the frame's
-     horizontal rules, which the stacked layout does not draw. The middle is
-     transparent, behind the dashed part. The band is 71 + 844 + 73 = 988 su,
-     so the stage's own top and bottom edges fall at 71/988 and 915/988 of it:
-     the tails stop exactly where the dashes start. */
-  .cb-stage::before {
-    content: "";
-    position: absolute;
-    top: calc(-71 * var(--s));
-    bottom: calc(-73 * var(--s));
-    right: -1px;
-    width: 1px;
-    z-index: 0;
-    background: linear-gradient(to bottom, transparent, rgba(10, 10, 12, 0.1) calc(71 / 988 * 100%), transparent calc(71 / 988 * 100%) calc(915 / 988 * 100%), rgba(10, 10, 12, 0.1) calc(915 / 988 * 100%), transparent);
-    pointer-events: none;
+    right: 0;
+    top: var(--nav-h, 84px);
   }
 
   .cb-strip {
     position: absolute;
-    left: calc(121 * var(--u));
-    right: calc(122 * var(--u));
-    top: calc(954 * var(--u));
+    left: 40px;
+    right: 40px;
+    top: calc(var(--nav-h, 84px) + (954 - 83) * var(--u));
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -1205,10 +1122,8 @@ html:not(.js) [data-reveal] {
     font-size: max(10px, calc(11.25 * var(--u)));
     line-height: 1;
   }
-  /* Nudged onto the reference's baselines; the heavier 500 face sits ~1px
-     taller, which is why these differ. */
-  .cb-strip-left { position: relative; top: calc(3 * var(--u)); letter-spacing: 0.14em; }
-  .cb-strip-right { position: relative; top: calc(2 * var(--u)); --cb-sep-pad: 0.6em; letter-spacing: 0.13em; }
+  .cb-strip-left { letter-spacing: 0.14em; }
+  .cb-strip-right { --cb-sep-pad: 0.6em; letter-spacing: 0.13em; }
 }
 
 /* ── Stacked: phones, tablets in portrait, narrow windows ──────────────── */
@@ -1225,40 +1140,24 @@ html:not(.js) [data-reveal] {
   }
   .cb-rule--bottom { display: none; }
 
+  /* The bar's gutter, 24px (40px from md, below). main's classes on the
+     column's elements carry its type sizes and margins. */
   .cb-copy { padding-inline: 24px; }
-  .cb-eyebrow { font-size: 11px; line-height: 1; letter-spacing: 0.12em; }
-  .cb-h1 {
-    margin-top: 22px;
-    font-size: clamp(44px, 15.5vw, 96px);
-    line-height: 0.94;
-  }
-  .cb-support {
-    margin-top: 22px;
-    max-width: 34rem;
-    font-size: 17px;
-    line-height: 1.5;
-  }
-  .cb-actions { margin-top: 28px; gap: 12px 28px; }
-  .cb-cta { height: 50px; padding-inline: 28px; font-size: 16px; }
-  .cb-link { font-size: 16px; }
-  .cb-footnote {
-    margin-top: 26px;
-    font-size: 10px;
-    line-height: 1.6;
-    letter-spacing: 0.15em;
-    white-space: normal;
-  }
 
-  /* 20px on the right, not less: the core disc overhangs the stage's right
-     rule by 16 su (~9px here), and a thinner margin puts the disc on the
-     glass edge of the phone (cut outright at 360). */
+  /* Flush right, as on desktop: the brain's flat side is the screen's right
+     edge. The core disc's ring stays ~7 su inside it (the edge is 50 su right
+     of the core), so "CORE BRAIN" is whole at 360 and up; only the
+     disc's faint outer halo runs off, into the hero's overflow-x: clip. */
   .cb-stage {
     /* var(--vw), not 100vw, for the reason --u gives: a classic scrollbar
        would make the stage wider than the page and clip its right edge. */
-    /* Keep --s a length (px per stage unit); orbit/useStageScale.ts reads it. */
+    /* Keep --s a length (px per stage unit); orbit/useStageScale.ts reads it.
+       The 652 is the stage's old width, kept on purpose so the brain stays
+       the size it was; the 677 su stage is ~4% wider than the space and
+       reaches the right edge. */
     --s: calc(min(var(--vw, 100vw) - 28px, 600px) / 652);
     position: relative;
-    margin: 44px 20px 0 auto;
+    margin: 44px 0 0 auto;
   }
 
   .cb-strip {
@@ -1296,10 +1195,10 @@ html:not(.js) [data-reveal] {
 }
 
 @media (min-width: 768px) and (max-width: 1023.98px), (min-width: 768px) and (max-aspect-ratio: 1/1) {
-  .cb-copy { padding-inline: 48px; }
-  .cb-strip { padding-inline: 48px; flex-direction: row; justify-content: space-between; }
+  .cb-copy { padding-inline: 40px; }
+  .cb-strip { padding-inline: 40px; flex-direction: row; justify-content: space-between; }
   /* Keep --s a length (px per stage unit); orbit/useStageScale.ts reads it. */
-  .cb-stage { --s: calc(min(var(--vw, 100vw) - 24px, 587px) / 652); margin-right: 24px; }
+  .cb-stage { --s: calc(min(var(--vw, 100vw) - 24px, 587px) / 652); }
   .cb-rule--top { left: 24px; right: 24px; }
 }
 
@@ -1327,91 +1226,117 @@ html:not(.js) [data-reveal] {
   to { opacity: 1; }
 }
 
-/* ── Navbar (site-wide), drawn to the hero reference ──────────────────────
-   Below the desktop composition the bar keeps the old heights exactly (84px
-   from 640 up, 116px below it where the links wrap to a second row), so the
-   pre-hydration --nav-h estimates above stay true and no other page moves. */
-.cb-nav-inner {
+/* ══════════════════════════════════════════════════════════════════════════
+   SITE FOOTER
+   After the owner's reference (the Fragment Studios footer): a flat orange
+   ground, black type, and a huge black name edge to edge along the bottom.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* The owner's two colours. Black on this orange is 5.2:1, so every footer
+     text is black; white on it would be 3.7:1 and fail AA. */
+  --footer-bg: #EF4824;
+  --footer-ink: #0B0E14;
+  /* The corner radius where the orange meets the page above: about 7% of the
+     width, as in the reference, held between a phone's 28px and 120px. */
+  --footer-r: clamp(28px, 7vw, 120px);
+}
+
+/* THE SHEET. Every page sits on one opaque white sheet with rounded bottom
+   corners, stacked above the footer, which is pinned behind it. Scrolling to
+   the end lifts the sheet off the footer, bottom edge first, so the first
+   thing uncovered is the wordmark, and the footer itself never moves.
+   `overflow: clip` cuts the last section's dots and canvas to the curve. It is
+   `clip` and not `hidden` on purpose: `hidden` would make the sheet a scroll
+   container, and every `position: sticky` scene inside (the DotArt screen)
+   would pin to the sheet instead of the viewport, i.e. never pin at all.
+   The z-index makes the sheet a stacking context. Nothing fixed lives inside
+   it: the preloader, the toasts and the page atmosphere are all mounted
+   outside the routes. */
+.site-sheet {
   position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
+  z-index: 1;
+  background: var(--background);
+  border-bottom-left-radius: var(--footer-r);
+  border-bottom-right-radius: var(--footer-r);
+  overflow: clip;
 }
-.cb-nav-word {
-  font-size: 26px;
-  line-height: 1;
-  letter-spacing: -0.02em;
+
+/* THE FOOTER, pinned. `sticky` with `bottom: 0` holds its bottom edge on the
+   viewport's bottom edge the whole way down the page, underneath the sheet,
+   until the document's end, where its own place in the flow catches up. It
+   starts one corner radius up, behind the sheet, and pads that back, so the
+   orange fills the sheet's cut-away corners and the page is exactly as tall
+   as before.
+   A footer taller than the screen cannot be pinned: its top would sit above
+   the viewport for good, links and all. Footer.tsx measures it and sets
+   `data-static`, which puts it back in the flow, where it simply scrolls.
+   The prerendered HTML ships pinned; the check runs on mount. */
+.site-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 0;
+  margin-top: calc(-1 * var(--footer-r));
+  padding-top: var(--footer-r);
+  background: var(--footer-bg);
+  color: var(--footer-ink);
+  /* Clips the wordmark sideways should a font ever run wide, so it can never
+     scroll the page. */
+  overflow-x: clip;
 }
-.cb-nav-links {
-  order: 3;
-  width: 100%;
-  margin-top: 12px;
+.site-footer[data-static] {
+  position: relative;
+}
+/* Pinned, the footer is on screen from the first frame, merely covered, and
+   the browser's largest-contentful-paint does not see covering: the wordmark
+   was reported as every page's LCP, ahead of the hero. So it waits at opacity
+   0 until the sheet's end is near (Footer.tsx sets data-shown). Only where
+   scripts run: without them nothing would ever show it, and a covered footer
+   is harmless there. */
+@media (scripting: enabled) {
+  .site-footer:not([data-shown]) {
+    opacity: 0;
+  }
+}
+
+/* THE WORDMARK. Its box is the full footer width and a size container, so
+   the name is sized in cqw, a fraction of that box, rather than in vw, which
+   would count a classic scrollbar. 31.7cqw is measured: "Ziiro AI" in
+   Helvetica Neue Bold at -0.045em sets its ink at 95% of the width at every
+   size, and the © takes the rest. Arial Bold, the Windows fallback, has the
+   same metrics.
+   `overflow: clip` is not decoration. At line-height 0.8 the font's descent
+   area hangs ~0.2em below the line box, and although nothing is drawn there
+   (the name has no descenders) it still counted as scrollable overflow and
+   left ~100px of blank page under the footer. Clipping the box to itself
+   removes it; the ink sits wholly inside the line box. */
+.site-footer__mark {
+  container-type: inline-size;
+  overflow: clip;
   display: flex;
+  align-items: flex-end;
   justify-content: center;
-  gap: 28px;
+  padding-top: clamp(64px, 10vw, 200px);
+  /* With the 0.8 line box the baseline already sits ~0.03em off the box's
+     bottom; this adds a hair more, close to the edge as in the reference. */
+  padding-bottom: 1cqw;
+  white-space: nowrap;
+  line-height: 0.8;
 }
-.cb-nav-link { font-size: 14px; line-height: 20px; }
-.cb-nav-cta {
-  height: 44px;
-  padding-inline: 20px;
-  font-size: 14px;
-}
-@media (min-width: 640px) {
-  .cb-nav-links {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: auto;
-    margin-top: 0;
-    transform: translate(-50%, -50%);
+/* Tighter on a phone, so its footer fits the screen and can pin (see
+   .site-footer): 658px of footer at 390 wide, inside the ~664px an iPhone's
+   Safari shows with its bars out. The line box's own space above the caps
+   still keeps the name ~25px clear of the legal line. */
+@media (max-width: 639px) {
+  .site-footer__mark {
+    padding-top: 16px;
   }
 }
-@media (min-width: 768px) {
-  .cb-nav-inner { padding-inline: 48px; }
+.site-footer__word {
+  font-size: 31.7cqw;
+  letter-spacing: -0.045em;
 }
-@media (min-width: 1024px) and (min-aspect-ratio: 1/1) {
-  .cb-nav-inner {
-    display: block;
-    width: calc(1536 * var(--u));
-    height: max(64px, calc(83 * var(--u)));
-    margin-inline: auto;
-    padding: 0;
-  }
-  .cb-nav-word,
-  .cb-nav-links,
-  .cb-nav-cta {
-    position: absolute;
-    top: calc(44 * var(--u));
-    transform: translateY(-50%);
-  }
-  .cb-nav-word {
-    /* The 44px-target idiom's negative margin would pull an absolute box off
-       its centre line; here the padding alone does the job. */
-    margin-block: 0;
-    left: calc(121 * var(--u));
-    font-size: max(22px, calc(29.5 * var(--u)));
-  }
-  /* At the reference's own positions, not centred on the page: the reference
-     centres FOUR links, and the fourth ("Insights") has no route, so it is not
-     rendered. Re-centring the remaining three would move each one ~57px off the
-     picture. */
-  .cb-nav-links {
-    left: calc(558 * var(--u));
-    gap: calc(41 * var(--u));
-  }
-  .cb-nav-link {
-    font-size: max(14px, calc(16 * var(--u)));
-    /* Floored so line + py-3 never drops under a 44px target. */
-    line-height: max(20px, calc(20 * var(--u)));
-  }
-  .cb-nav-cta {
-    right: calc(122 * var(--u));
-    height: max(44px, calc(46 * var(--u)));
-    /* 26.5, not 23.5: the tighter label (-0.035em) would otherwise pull the
-       pill in by 6px; the reference pill stays 131px wide. */
-    padding-inline: calc(26.5 * var(--u));
-    font-size: max(14px, calc(16 * var(--u)));
-  }
+.site-footer__c {
+  font-size: 2.6cqw;
+  margin-left: 0.25cqw;
+  margin-bottom: 1.2cqw;
 }
