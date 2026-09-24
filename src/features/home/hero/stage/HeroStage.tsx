@@ -1,46 +1,44 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Helmet } from "react-helmet-async";
 
-// The brain is a raster lifted from the reference picture and refit as one
-// cobalt at per-pixel opacity.
+// The brain is a raster lifted from the reference picture and recoloured
+// orange (brain-raster/).
 import BrainLayer, { BRAIN_RASTER_AVIF } from "../brain-raster/BrainLayer";
 import DepartmentOrbit, { CoreDisc } from "../orbit";
-import { CORE } from "../orbit/geometry";
+import { CORE, STAGE_W } from "../orbit/geometry";
 
 /**
- * The h1's face, Instrument Serif upright, latin subset: the file Google's css2
- * answers with for this family today. The h1 paints in a metric-matched
- * fallback first (index.css), so this only shortens the time before the real
- * face swaps in; it moves nothing. If Google bumps the versioned path, the
- * preload simply misses and the stylesheet still loads the font.
+ * The stage's width and the core's position in stage units, published once
+ * for the CSS. The stage box is sized from `--stage-w`, and the brain box
+ * (860 su, centred on the core) and the core disc's box (124 su, the CoreDisc
+ * viewBox) are placed from `--core-x` / `--core-y` in index.css. So geometry.ts
+ * stays the one source: changing STAGE_W or CORE there moves the box, the
+ * brain and the disc with the threads and rings.
  */
-const H1_FONT =
-  "https://fonts.gstatic.com/s/instrumentserif/v5/jizBRFtNs2ka5fXjeivQ4LroWlx-6zUTjnTLgNs.woff2";
-
-/**
- * The core's position in stage units, published once for the CSS. The brain
- * box (860 su, centred on the core) and the core disc's box (124 su, the
- * CoreDisc viewBox) are placed from these in index.css, so moving CORE in
- * geometry.ts moves the brain and the disc with the threads and rings.
- */
-const CORE_VARS = { "--core-x": CORE.x, "--core-y": CORE.y } as CSSProperties;
+const STAGE_VARS = {
+  "--stage-w": STAGE_W,
+  "--core-x": CORE.x,
+  "--core-y": CORE.y,
+} as CSSProperties;
 
 /**
  * The right-hand half of the hero: the brain, the department orbit and the
  * core.
  *
- * Everything inside draws in stage units. The box is 652 x 844 of them, the
- * reference's own stage at x 860-1512 and y 83-927, and the CSS in index.css
- * (`.cb-stage`) sets `--s`, the size of one unit, for the current layout: one
- * reference pixel on desktop, a fraction of the phone width when the hero
- * stacks.
+ * Everything inside draws in stage units. The box is STAGE_W x 844 of them
+ * (677 x 844): the reference's own stage (y 83-927, from x 860) widened 25 su
+ * to the right so its right edge can sit on the screen's. The CSS in index.css
+ * (`.cb-stage`) pins that edge to the viewport's right edge in every layout,
+ * and sets `--s`, the size of one unit: one reference pixel on desktop, a
+ * fraction of the phone width when the hero stacks.
  *
  * THREE LAYERS, AND ONLY TWO OF THEM ARE CLIPPED. The brain and the orbit sit
  * inside `.cb-stage__clip`, which cuts them at the stage edges. That is what
- * slices the brain flat at the right rule and lets departments fade out behind
- * the top and bottom rules. The core disc is the exception: in the reference
- * it overhangs the right rule by 16px, so it lives outside the clip, above the
- * rule. Putting it inside would slice the disc flat on one side.
+ * slices the brain flat at the screen's right edge and lets departments fade
+ * out behind the top and bottom rules. The core disc is the exception: its box
+ * runs 12 su past the edge (its ring stays ~7 su inside), so it lives outside
+ * the clip, and only its faint outer halo is lost off screen, to the hero's
+ * own `overflow-x: clip`. Inside the clip, the halo would be cut flat.
  *
  * The stage is decoration to a screen reader, with one exception: the eight
  * departments and their roles, a visually hidden list DepartmentOrbit renders
@@ -88,28 +86,25 @@ export default function HeroStage({ className = "" }: { className?: string }) {
 
   return (
     <>
-      {/* The homepage's two preloads. They go through Helmet rather than
-          index.html so that they ship on this page only: the prerender
+      {/* The homepage's preload. It goes through Helmet rather than
+          index.html so that it ships on this page only: the prerender
           collects Helmet per route, and the template is shared by every route,
-          none of which uses either file.
-          - The brain is usually the page's LCP element, so its image is
-            fetched at high priority ahead of the parser reaching it. `type`
-            makes a browser without AVIF skip it; that one takes the WebP from
-            BrainLayer's <picture> instead.
-          - The h1's face (see H1_FONT). Font preloads need CORS mode even
-            same-origin, and Google's font host requires it.
+          none of which uses the file. The brain is usually the page's LCP
+          element, so its image is fetched at high priority ahead of the
+          parser reaching it. `type` makes a browser without AVIF skip it;
+          that one takes the WebP from BrainLayer's <picture> instead. (The h1
+          is Helvetica now, a local face, so there is no font to preload.)
           `fetchPriority` is camelCase because Helmet writes attribute names
           as given and HTML reads them case-insensitively. */}
       <Helmet>
         <link rel="preload" as="image" type="image/avif" href={BRAIN_RASTER_AVIF} fetchPriority="high" />
-        <link rel="preload" as="font" type="font/woff2" crossOrigin="anonymous" href={H1_FONT} />
       </Helmet>
       <div
         ref={rootRef}
         data-hero="stage"
         data-paused={paused ? "true" : "false"}
         className={`cb-stage ${className}`}
-        style={CORE_VARS}
+        style={STAGE_VARS}
       >
         <div className="cb-stage__clip">
           {/* The brain is the one layer that never fades in. It is usually the

@@ -8,10 +8,11 @@ import "./brain-raster.css";
  * (core disc, tick halo, dotted satellite ring) was removed, and the hidden
  * half is that hemisphere rotated 180 deg about C. A mirror would show a
  * Rorschach fold at every angle but 0 while it turns; a rotation keeps the
- * fibres radial and has no fold axis. It was upscaled x2 (EDSR) and refit as
- * ONE colour, cobalt rgb(0, 55, 251), at per-pixel opacity: the reference
- * brain is a single hue, and the refit changes the composite over white by
- * 0.3/255 on average. Pipeline: ./tools/build_brain_raster.py.
+ * fibres radial and has no fold axis. It was upscaled x2 (EDSR), measured as
+ * ink density (the reference brain is one hue at varying opacity), and
+ * recoloured by mapping density through an orange ramp: peach haze, luminous
+ * mid tones, #FF6B1A to #E0480A in the densest cores, highlights white.
+ * Pipeline: ./tools/build_brain_raster.py.
  *
  * Fills its parent box, whose centre is C (HeroStage sizes it 860 stage units
  * square). Rotates anticlockwise in CSS; pauses when `paused`, offscreen, in a
@@ -22,8 +23,8 @@ import "./brain-raster.css";
  * HTML, not lazy, fetchpriority high, with explicit dimensions, and HeroStage
  * preloads the AVIF. It has no `decoding="async"`: that hint lets the browser
  * present a frame without the image, which is the opposite of what the LCP
- * image wants. Browsers with AVIF get the 1720px file (80 KB, sharp at DPR 2
- * at full stage size); the rest get the 860px WebP (90 KB).
+ * image wants. Browsers with AVIF get the 1720px file (97 KB, sharp at DPR 2
+ * at full stage size); the rest get the 860px WebP (97 KB).
  */
 
 export const BRAIN_RASTER_AVIF = "/media/hero/brain-raster-1720.avif";

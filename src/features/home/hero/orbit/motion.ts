@@ -386,12 +386,12 @@ export function buildBeatKeyframes(): string {
 }
 
 /**
- * The focus moment's per-department and per-step parts: the role turns cobalt
+ * The focus moment's per-department and per-step parts: the role turns orange
  * (or, in compact mode, the caption names the department), the marker tints,
  * and the core throws a ring as each pulse lands.
  */
 export function buildActiveKeyframes(): string {
-  // The cobalt copy of the role, over the grey one.
+  // The orange copy of the role, over the grey one.
   const role = rampWindow("opacity", ACTIVE_FROM, ACTIVE_TO, RAMP_IN, RAMP_OUT);
   // Compact mode's readout: the same window, swapped in sequence.
   const readout: Frame[] = [

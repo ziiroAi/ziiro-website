@@ -4,11 +4,11 @@
  * The owner's order wins over the reference picture: the picture was drawn with
  * a PEOPLE node where GTM sits here. `role` is the AI hire that runs the
  * department, which is what the old orb cycled through as "Your AI · …". It is
- * set under each label as a small grey line and turns cobalt while that node
+ * set under each label as a small grey line and turns orange while that node
  * passes the focus marker.
  */
 export interface Department {
-  /** Two digits, shown in cobalt above the label. */
+  /** Two digits, shown in orange above the label. */
   readonly number: string;
   /** Shown upper-cased. Kept in sentence case here so the screen-reader list
    *  reads it as a word rather than letter by letter. */

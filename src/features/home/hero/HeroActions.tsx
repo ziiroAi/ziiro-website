@@ -1,80 +1,136 @@
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { ArrowUpRight } from "lucide-react";
 
-import { CSS_EASE, DURATION } from "@/shared/motion/tokens";
+import { CSS_EASE, DURATION, TRAVEL } from "@/shared/motion/tokens";
+import ArrowFillLink from "@/shared/ui/arrow-fill-link";
 
 /**
- * The two things a visitor can do from the hero, drawn to the reference: a
- * black pill and, beside it, a cobalt text link with a north-east arrow.
+ * The two things a visitor can do from the hero. Both already exist on the
+ * site — the strategy session is the standing offer, and "how it works" is the
+ * process written out on /who-we-are — so neither button promises anything new.
  *
- * The primary label is "Book a strategy session" rather than the old "Book a
- * call", because that is what the reference says and it is not new copy: it is
- * the name /book-a-call already gives itself, in its h1 and its title. The
- * destination is unchanged. The navbar keeps "Book a Call" for the same route,
- * which is the reference's own pairing.
+ * A filled near-black pill and an outlined one, side by side, wrapping to two
+ * rows only when the line genuinely runs out. They used to be soft-cornered
+ * rectangles carrying a warm inner glow and a 40px orange drop shadow, which
+ * is what a control has to do to separate itself from a black field; on white
+ * the ground does that work and the glow would just be haze, so both are flat
+ * and the only difference between them is fill against outline.
  *
- * Sizes live in index.css (`.cb-cta`, `.cb-link`), because on desktop they are
- * reference pixels times --u, which Tailwind cannot express. The pill's soft
- * shadow, the link's 2px drop and the larger, 2px-stroke arrow are measured
- * against the reference picture: an 18px label on a 32px inset, a pill shadow
- * of ~1.5/255 darkness just outside it, a 10px arrow on a 2px stroke. The
- * shadow is a Tailwind `shadow-*` class, not CSS, so it composes with the
- * focus ring (both are box-shadow) instead of replacing it.
- *
- * Both controls are at least 44px tall. The link's text is 17px, so it gets
- * the height from `min-h-[44px]` on an inline-flex box; the ink, which is what
- * the reference comparison measures, does not move.
+ * The arrow moves, the button doesn't slide around under the cursor, and the
+ * press response fires on pointer-down rather than on click, so the control
+ * acknowledges you at the moment you touch it.
  */
 
-/** Hover and focus resolve in DURATION.micro, like every control on the site. */
+function Arrow({
+  className = "",
+  style,
+}: {
+  className?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <svg
+      aria-hidden="true"
+      width="15"
+      height="15"
+      viewBox="0 0 15 15"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={style}
+    >
+      <path d="M3 7.5h9M8.4 3.9 12 7.5l-3.6 3.6" />
+    </svg>
+  );
+}
+
+/**
+ * Hover, focus and press all resolve in DURATION.micro. This is the single
+ * value that decides whether a control feels attached to the pointer; the
+ * buttons used to run at 200ms and the extra 50ms was enough to read as the
+ * page thinking about it rather than answering.
+ */
 const micro: CSSProperties = {
-  transitionProperty: "opacity, color",
+  transitionProperty:
+    "transform, background-color, border-color, box-shadow, color, opacity",
   transitionDuration: `${DURATION.micro}s`,
   transitionTimingFunction: CSS_EASE.out,
 };
+
+/** The icon travels TRAVEL.nudge and nothing else does — the button itself
+ *  holding still is what keeps the cursor on target while you aim. */
+const nudge: CSSProperties = {
+  ["--nudge" as string]: `${TRAVEL.nudge}px`,
+  transitionProperty: "transform",
+  transitionDuration: `${DURATION.micro}s`,
+  transitionTimingFunction: CSS_EASE.out,
+};
+
+// Sentence case, normal tracking, and small. Uppercase mono at wide tracking
+// made a 276px-wide button out of three words and read as decoration rather
+// than as a control.
+//
+// `active:` is deliberately the press state rather than an onClick handler:
+// it engages on pointer-down and releases on pointer-up, which is the moment
+// the visitor is asking to be acknowledged.
+//
+// No `active:scale-` here. It used to carry one, duplicating the global press
+// rule in index.css, and review item 20 rules out a scale change because it
+// alters the control's box on click. The global rule now presses with opacity
+// and these buttons inherit it, so this only has to not fight it.
+const base =
+  "group inline-flex min-h-[48px] items-center justify-center gap-2 rounded-full px-6 text-[14px] font-medium tracking-[-0.005em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
 
 export default function HeroActions() {
   return (
     <div
       data-hero-reveal
       data-hero-actions
-      className="cb-actions flex flex-wrap items-center"
+      className="flex flex-wrap items-center gap-3"
     >
+      {/* The filled pill. Hover is a step of opacity rather than a second
+          colour: the fill is --text-primary, and the only honest lighter
+          version of it on this page is itself over the white ground. */}
       <Link
         to="/book-a-call"
-        data-hero="cta-primary"
-        className="cb-cta inline-flex items-center justify-center whitespace-nowrap rounded-full font-hero-sans font-medium text-white shadow-[0_1px_6px_rgba(14,14,16,0.08)] hover:opacity-[0.86] focus-visible:opacity-[0.86] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+        className={`${base} hover:opacity-[0.86] focus-visible:opacity-[0.86]`}
         style={{
           ...micro,
-          background: "var(--cb-cta)",
-          ["--tw-ring-color" as string]: "var(--cb-ink)",
-          ["--tw-ring-offset-color" as string]: "#FFFFFF",
+          background: "var(--text-primary)",
+          color: "var(--background)",
+          // Tailwind can't alpha-modify a var() colour, so the focus ring and
+          // its offset are painted from real tokens explicitly.
+          ["--tw-ring-offset-color" as string]: "var(--background)",
+          ["--tw-ring-color" as string]: "var(--text-primary)",
         }}
       >
-        Book a strategy session
-      </Link>
-
-      {/* The engagement runs end to end at /docs#lifecycle, which is exactly
-          what this label promises. ScrollToTop owns landing on the hash after
-          the route change. */}
-      <Link
-        to="/docs#lifecycle"
-        data-hero="cta-secondary"
-        // Focus keeps the underline and adds a cobalt ring, 4px off the box,
-        // so a keyboard user can find it at a glance (the underline alone was
-        // a few pixels). `-mx-1 px-1` only gives the ring room beside the
-        // text; the ink does not move.
-        className="cb-link group relative top-[2px] -mx-1 inline-flex min-h-[44px] items-center gap-[0.3em] whitespace-nowrap rounded-sm px-1 font-hero-sans hover:opacity-80 focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cb-cobalt-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-white"
-        style={{ ...micro, color: "var(--cb-cobalt-ink)", letterSpacing: "0.012em" }}
-      >
-        See how it works
-        <ArrowUpRight
-          aria-hidden="true"
-          strokeWidth={2}
-          className="h-[1.15em] w-[1.15em] shrink-0"
+        Book a call
+        <Arrow
+          className="group-hover:translate-x-[var(--nudge)] group-focus-visible:translate-x-[var(--nudge)]"
+          style={nudge}
         />
       </Link>
+
+      {/* The outlined pill. The border darkens to the ink on hover, which is
+          the whole response — no fill change, no shadow, nothing that moves
+          the edge the cursor is aiming at. */}
+      {/* This used to be an in-page hash to #how-it-works, with a click
+          handler routing the travel through Lenis so a native jump couldn't
+          fight the smooth scroller. That section is gone from the homepage, so
+          the hash had nothing to land on.
+          It then pointed at /who-we-are#process, and Job 8 deleted the
+          seven-step section that owned that anchor, so it broke a second time.
+          The engagement now runs end to end at /docs#lifecycle: CONSULT,
+          DIAGNOSE, BUILD, OPTIMIZE with a line each, which is exactly what
+          this label promises. The phase-by-phase detail underneath it is a
+          level deeper, at /docs#diagnose.
+          A cross-page hash needs no Lenis interception, because App's
+          ScrollToTop owns landing on a hash after a route change, so the
+          handler went with it. */}
+      <ArrowFillLink to="/docs#lifecycle">See how it works</ArrowFillLink>
     </div>
   );
 }

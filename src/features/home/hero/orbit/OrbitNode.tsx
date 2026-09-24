@@ -2,16 +2,16 @@ import type { CSSProperties } from "react";
 
 import type { Department } from "./departments";
 import { DOT_R, NODE_HALO_R, NODE_OUTER_R, NODE_RING_R } from "./geometry";
-import { COBALT_INK, INK } from "./palette";
+import { INK, MUTED_INK, ORANGE, ORANGE_INK, orangeTint } from "./palette";
 import { PIN_SVG } from "./pin";
 
 /**
- * One department node: a ringed cobalt dot, and to its LEFT a right-aligned
+ * One department node: a ringed orange dot, and to its LEFT a right-aligned
  * block of number, label and role.
  *
  * Every moving part is an HTML pin (see motion.ts): the node itself (placed on
  * the track and scaled on entry and exit), the text block (offset to follow
- * the reference's small per-slot irregularities), and the cobalt copy of the
+ * the reference's small per-slot irregularities), and the orange copy of the
  * role that fades in over the grey one. Each pin carries a small
  * static SVG, so the drawing is the same as a plain SVG node's.
  *
@@ -43,9 +43,9 @@ const ROLE_Y = 14;
  *  against our 1.05 at 400); INK (palette.ts) holds the tone. The
  *  role line stays at 400. */
 const STRONG = 500;
-const DOT = "#1B4BFC";
-const NUMBER_BLUE = "#2B65FD";
-const ROLE_GREY = "#6E7184";
+/** The node's pale outer hairline and its ring, as orange tints. */
+const OUTER_TINT = orangeTint(0.2);
+const RING_TINT = orangeTint(0.55);
 
 interface OrbitNodeProps {
   readonly dept: Department;
@@ -91,9 +91,9 @@ export default function OrbitNode({
     <div className={`zo-pin zo-a zo-node-${copy}`} style={node}>
       <svg {...PIN_SVG}>
         <circle r={NODE_HALO_R} fill="url(#zo-node-halo)" />
-        <circle r={NODE_OUTER_R} fill="none" stroke="#DCE4FE" strokeWidth={0.8} />
-        <circle r={NODE_RING_R} fill="#FFFFFF" stroke="#A9BDFC" strokeWidth={1} />
-        <circle r={DOT_R} fill={DOT} data-hero={isA ? `dept-${dept.number}` : undefined} />
+        <circle r={NODE_OUTER_R} fill="none" stroke={OUTER_TINT} strokeWidth={0.8} />
+        <circle r={NODE_RING_R} fill="#FFFFFF" stroke={RING_TINT} strokeWidth={1} />
+        <circle r={DOT_R} fill={ORANGE} data-hero={isA ? `dept-${dept.number}` : undefined} />
       </svg>
 
       <div
@@ -110,7 +110,7 @@ export default function OrbitNode({
               fontSize={NUMBER_SIZE}
               fontWeight={STRONG}
               letterSpacing="0.08em"
-              fill={NUMBER_BLUE}
+              fill={ORANGE_INK}
             >
               {dept.number}
             </text>
@@ -128,15 +128,15 @@ export default function OrbitNode({
             </text>
             <RoleText
               role={dept.role}
-              fill={ROLE_GREY}
+              fill={MUTED_INK}
               className={isA ? "zo-label zo-role" : "zo-label"}
             />
           </svg>
-          {/* The active colour: a cobalt copy faded in over the grey one. */}
+          {/* The active colour: an orange copy faded in over the grey one. */}
           {isA && (
             <div className="zo-pin zo-a zo-role-on" style={{ animationDelay: delay, opacity: 0 }}>
               <svg {...PIN_SVG}>
-                <RoleText role={dept.role} fill={COBALT_INK} className="zo-label" />
+                <RoleText role={dept.role} fill={ORANGE_INK} className="zo-label" />
               </svg>
             </div>
           )}

@@ -1,14 +1,22 @@
 /**
- * Orbit geometry, in stage units (su). Stage su = reference px − (860, 83), and
- * the stage box is 652 × 844 su. Every number was measured on the reference
- * image, not estimated.
+ * Orbit geometry, in stage units (su). Stage su = reference px − (860, 83).
+ * Every number was measured on the reference image, not estimated.
  *
  * Angles are maths convention: 0° = right, y UP, anticlockwise positive. The
  * nodes travel with increasing angle, i.e. top → left → bottom, anticlockwise
  * on screen.
  */
 
-export const STAGE_W = 652;
+/**
+ * The stage box, 677 × 844 su: the SINGLE source of the stage's width.
+ * HeroStage publishes it as `--stage-w` and the page CSS sizes the stage from
+ * it. The reference's stage was 652 wide with the core disc hanging 16 su past
+ * its right edge; the stage now runs 25 su further right, so its right edge
+ * (the brain's flat side, flush with the screen edge) sits 50 su right of the
+ * core and the whole disc stays on screen. The left edge and every coordinate
+ * below are unchanged.
+ */
+export const STAGE_W = 677;
 export const STAGE_H = 844;
 
 /** Core point C. The threads converge on it; CoreDisc is centred on it. */
@@ -51,7 +59,7 @@ export const RING_OUTER_R = 442;
  *  disappears into the brain's dense rim. The active thread runs on to the
  *  disc. */
 export const THREAD_END_R = 378;
-/** A node, from the outside in: a soft cobalt halo that fades out by r 18, a
+/** A node, from the outside in: a soft orange halo that fades out by r 18, a
  *  pale outer hairline at r 15.5, the white-filled ring around the dot (the
  *  reference's ring peaks at r 13), and the solid dot itself, r 6.3. */
 export const NODE_HALO_R = 18;

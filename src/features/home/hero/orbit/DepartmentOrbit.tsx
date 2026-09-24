@@ -25,7 +25,7 @@ import {
 } from "./motion";
 import FocusReadout, { FocusMarker } from "./FocusReadout";
 import OrbitNode from "./OrbitNode";
-import { COBALT } from "./palette";
+import { MARKER_GREY, ORANGE, RULE_GREY, TRACK_GREY, orangeTint } from "./palette";
 import { PIN_SVG } from "./pin";
 import { useOffscreenPause } from "./useOffscreenPause";
 import { useStageScale } from "./useStageScale";
@@ -100,7 +100,7 @@ function Hairline({
  * nine o'clock that wakes whichever node is passing it.
  *
  * Fills the stage box. Inside, one plane the size of the stage at s = 1
- * (652 × 844 su) is scaled once by `--zo-s`, and everything in it draws in
+ * (STAGE_W × STAGE_H su) is scaled once by `--zo-s`, and everything in it draws in
  * stage units: static SVG layers for what never moves, and HTML pins, animated
  * on the compositor, for what does (see motion.ts). The core disc is NOT drawn
  * here: it is `CoreDisc`, on its own unclipped layer above the stage (it
@@ -138,13 +138,13 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
         >
           <defs>
             <linearGradient id="zo-thread" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor="#6F8CFF" stopOpacity="0.75" />
-              <stop offset="1" stopColor="#6F8CFF" stopOpacity="0.2" />
+              <stop offset="0" stopColor={ORANGE} stopOpacity="0.75" />
+              <stop offset="1" stopColor={ORANGE} stopOpacity="0.2" />
             </linearGradient>
             <linearGradient id="zo-glow" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor={COBALT} stopOpacity="0.95" />
-              <stop offset="0.6" stopColor={COBALT} stopOpacity="0.55" />
-              <stop offset="1" stopColor={COBALT} stopOpacity="0.85" />
+              <stop offset="0" stopColor={ORANGE} stopOpacity="0.95" />
+              <stop offset="0.6" stopColor={ORANGE} stopOpacity="0.55" />
+              <stop offset="1" stopColor={ORANGE} stopOpacity="0.85" />
             </linearGradient>
             {/* The track lightens over its top (reference darkness ≈ 13 there
                 against ≈ 35 on the rest of the arc). */}
@@ -156,17 +156,17 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
               x2="0"
               y2={TRACK.y - TRACK.r + 40}
             >
-              <stop offset="0" stopColor="#BCBECA" stopOpacity="0.4" />
-              <stop offset="1" stopColor="#BCBECA" stopOpacity="1" />
+              <stop offset="0" stopColor={TRACK_GREY} stopOpacity="0.4" />
+              <stop offset="1" stopColor={TRACK_GREY} stopOpacity="1" />
             </linearGradient>
             <radialGradient id="zo-node-halo">
-              <stop offset="0.55" stopColor={COBALT} stopOpacity="0.1" />
-              <stop offset="1" stopColor={COBALT} stopOpacity="0" />
+              <stop offset="0.55" stopColor={ORANGE} stopOpacity="0.1" />
+              <stop offset="1" stopColor={ORANGE} stopOpacity="0" />
             </radialGradient>
             <radialGradient id="zo-pulse">
-              <stop offset="0" stopColor={COBALT} stopOpacity="1" />
-              <stop offset="0.45" stopColor={COBALT} stopOpacity="0.9" />
-              <stop offset="1" stopColor={COBALT} stopOpacity="0" />
+              <stop offset="0" stopColor={ORANGE} stopOpacity="1" />
+              <stop offset="0.45" stopColor={ORANGE} stopOpacity="0.9" />
+              <stop offset="1" stopColor={ORANGE} stopOpacity="0" />
             </radialGradient>
           </defs>
         </svg>
@@ -178,7 +178,7 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
             cy={CORE.y}
             r={RING_OUTER_R}
             fill="none"
-            stroke="#C9CBD6"
+            stroke={RULE_GREY}
             strokeWidth={0.8}
             strokeDasharray="3 5"
           />
@@ -187,7 +187,7 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
             cy={CORE.y}
             r={RING_INNER_R}
             fill="none"
-            stroke="#C9CFEA"
+            stroke={orangeTint(0.4)}
             strokeWidth={0.8}
             strokeDasharray="1 5"
             strokeLinecap="round"
@@ -209,14 +209,14 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
               cy={CORE.y}
               r={SATELLITE_R}
               fill="none"
-              stroke="#4D6BFF"
+              stroke={ORANGE}
               strokeOpacity={0.9}
               strokeWidth={2}
               strokeDasharray="0.1 6"
               strokeLinecap="round"
             />
             {SATELLITES.map((p) => (
-              <circle key={`${p.x}-${p.y}`} cx={p.x} cy={p.y} r={p.r} fill={COBALT} />
+              <circle key={`${p.x}-${p.y}`} cx={p.x} cy={p.y} r={p.r} fill={ORANGE} />
             ))}
           </svg>
         </div>
@@ -280,7 +280,7 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
         <div className="zo-pin" style={{ transform: pinAt(CORE) }}>
           <div className="zo-pin zo-step zo-core-ring" style={{ opacity: 0 }}>
             <svg {...PIN_SVG}>
-              <circle r={CORE_DISC_R + 1} fill="none" stroke={COBALT} strokeWidth={1.2} />
+              <circle r={CORE_DISC_R + 1} fill="none" stroke={ORANGE} strokeWidth={1.2} />
             </svg>
           </div>
         </div>
@@ -291,7 +291,7 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
           </svg>
         </div>
 
-        {/* The fixed focus marker, and its cobalt tint for each crossing. */}
+        {/* The fixed focus marker, and its orange tint for each crossing. */}
         <Layer>
           <circle
             data-hero="focus-ring"
@@ -299,7 +299,7 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
             cy={FOCUS_POINT.y}
             r={5.5}
             fill="#FFFFFF"
-            stroke="#B7B8C7"
+            stroke={MARKER_GREY}
             strokeWidth={1.2}
           />
         </Layer>
@@ -308,7 +308,7 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
           style={{ transform: pinAt(FOCUS_POINT), opacity: 0 }}
         >
           <svg {...PIN_SVG}>
-            <circle r={5.5} fill="none" stroke={COBALT} strokeWidth={1.2} />
+            <circle r={5.5} fill="none" stroke={ORANGE} strokeWidth={1.2} />
           </svg>
         </div>
 
@@ -346,7 +346,7 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
         >
           <div className="zo-pin zo-step zo-ripple" style={{ animationDelay: BEAT_DELAYS.ripple, opacity: 0 }}>
             <svg {...PIN_SVG}>
-              <circle r={NODE_RING_R} fill="none" stroke={COBALT} strokeWidth={1} />
+              <circle r={NODE_RING_R} fill="none" stroke={ORANGE} strokeWidth={1} />
             </svg>
           </div>
         </div>

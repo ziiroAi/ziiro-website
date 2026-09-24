@@ -1,10 +1,11 @@
 /*
- * BrainLayer. The brain is one raster lifted from the hero reference picture:
- * cobalt at per-pixel opacity, so it composites over the page exactly as the
- * reference does over white.
+ * BrainLayer. The brain is one raster lifted from the hero reference picture
+ * and recoloured orange at build time, with per-pixel opacity, so over white
+ * it shows the orange ramp exactly. No CSS filter: it would cost GPU on the
+ * rotating layer every frame.
  *
  * It is a single <img> and it is usually the page's LCP element; that is
- * allowed. What keeps LCP time down is the asset: 80 KB, in the prerendered
+ * allowed. What keeps LCP time down is the asset: 97 KB, in the prerendered
  * HTML, preloaded, fetchpriority="high", explicit dimensions.
  */
 

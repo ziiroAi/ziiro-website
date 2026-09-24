@@ -1,5 +1,5 @@
 /**
- * The core: a white disc with a light-blue edge, a frosted band of radial
+ * The core: a white disc with a soft orange edge, a frosted band of radial
  * ticks to r 62, and a dashed white ring over the brain beyond that.
  * "CORE / BRAIN" is set in the disc.
  *
@@ -15,7 +15,7 @@
 
 import { useRef, type CSSProperties } from "react";
 
-import { INK } from "./palette";
+import { INK, orangeTint } from "./palette";
 import { stageScaleCss, useStageScale } from "./useStageScale";
 
 interface CoreDiscProps {
@@ -109,14 +109,14 @@ export default function CoreDisc({ className }: CoreDiscProps) {
       >
         <defs>
           <radialGradient id="zc-halo" cx="0" cy="0" r="84" gradientUnits="userSpaceOnUse">
-            <stop offset="0.48" stopColor="#DCE4FF" stopOpacity={HALO_STOPS[0]} />
-            <stop offset="0.72" stopColor="#E9EEFF" stopOpacity={HALO_STOPS[1]} />
+            <stop offset="0.48" stopColor={orangeTint(0.2)} stopOpacity={HALO_STOPS[0]} />
+            <stop offset="0.72" stopColor={orangeTint(0.1)} stopOpacity={HALO_STOPS[1]} />
             <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="zc-disc" cx="0" cy="0" r="41" gradientUnits="userSpaceOnUse">
             <stop offset="0" stopColor="#FFFFFF" />
-            <stop offset="0.8" stopColor="#F7F9FE" />
-            <stop offset="1" stopColor="#EEF2FD" />
+            <stop offset="0.8" stopColor={orangeTint(0.03)} />
+            <stop offset="1" stopColor={orangeTint(0.06)} />
           </radialGradient>
         </defs>
 
@@ -125,7 +125,7 @@ export default function CoreDisc({ className }: CoreDiscProps) {
             (r 64–71 reads 161 → 139 luma), so a bright halo there washes the
             join out. Values fitted to the reference's radial luma profile. */}
         <circle r={84} fill="url(#zc-halo)" />
-        <circle r={62} fill="#D6E0FF" fillOpacity={0.3} />
+        <circle r={62} fill={orangeTint(0.25)} fillOpacity={0.3} />
         <circle r={62} fill="#FFFFFF" fillOpacity={0.2} />
         <circle r={62} fill="none" stroke="#FFFFFF" strokeOpacity={0.15} strokeWidth={1.2} />
         <circle r={56.5} fill="none" stroke="#FFFFFF" strokeOpacity={0.8} strokeWidth={0.8} />
@@ -152,17 +152,17 @@ export default function CoreDisc({ className }: CoreDiscProps) {
               y1={r0 * s}
               x2={r1 * c}
               y2={r1 * s}
-              stroke={i % 2 === 0 ? "#B9C8FF" : "#FFFFFF"}
+              stroke={i % 2 === 0 ? orangeTint(0.45) : "#FFFFFF"}
               strokeOpacity={0.8}
               strokeWidth={0.6}
             />
           );
         })}
 
-        {/* The disc, with one light-blue edge. The reference's edge peaks
-            at r 43 in a pale blue (165,183,252), not a saturated hairline at
-            r 41, and there is no second ring outside it. */}
-        <circle r={41.75} fill="url(#zc-disc)" stroke="#93A9FF" strokeWidth={1.5} />
+        {/* The disc, with one soft edge. The reference's edge peaks at r 43
+            as a pale tint (this one matches its luminance), not a saturated
+            hairline at r 41, and there is no second ring outside it. */}
+        <circle r={41.75} fill="url(#zc-disc)" stroke={orangeTint(0.75)} strokeWidth={1.5} />
 
         <g style={WORDS_GROUP}>
           <text

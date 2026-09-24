@@ -32,7 +32,7 @@ export function stageScaleCss(selector: string, name: string): string {
 
 export function useStageScale(
   ref: RefObject<Element>,
-  /** The element's width in su: the stage (652) or the core box (124). */
+  /** The element's width in su: the stage (STAGE_W) or the core box (124). */
   widthSu: number,
 ): number | null {
   const [s, setS] = useState<number | null>(null);

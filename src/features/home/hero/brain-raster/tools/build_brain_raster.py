@@ -37,11 +37,18 @@ Steps
      r 386..412 that are clearly darker than their local median. A blanket
      band inpaint planes the brain's top and bottom lobes flat.
   5. Upscale x2 (EDSR by default; lanczos + gentle unsharp as the fallback).
-  6. Refit as ONE colour: the reference brain is cobalt rgb(0, 55, 251) at
+  6. Measure ink density: the reference brain is cobalt rgb(0, 55, 251) at
      varying opacity (measured: fg std < 10 per channel at every alpha band),
-     so solve per pixel for the alpha that reproduces the pixel over white.
-     RGB is written as the constant, which costs nothing to encode.
-  7. Feather alpha to zero from r 388 to 406 (beyond is track, threads, dots).
+     so the density d of a pixel is the cobalt opacity that reproduces it over
+     white. Blue and violet are both just cobalt at some density here.
+  7. Feather d to zero from r 388 to 406 (beyond is track, threads, dots).
+     Recolour: map d ** ORANGE_GAMMA through ORANGE_RAMP (white, peach haze,
+     luminous mid tones, deep orange node cores), then unblend each target
+     colour from white into (colour, alpha), with alpha as small as possible.
+     The stored colour is one flat orange except in the densest cores, which
+     blend to the exact unblend; over white it lands within ~1/255 of the ramp
+     on average and encodes almost as cheaply as the old single colour.
+     Low density maps to white, so highlights stay white.
   8. Encode: AVIF 1720 (qalpha 60) and WebP 860 (alpha_q 65) into
      public/media/hero/.
 """
@@ -58,7 +65,20 @@ DEFAULT_REF = ROOT / ".team/ziiro-fleet/reference-hero.png"  # gitignored bus fo
 OUT = ROOT / "public/media/hero"
 CX, CY, S = 1487, 498, 860
 X0, Y0 = CX - S // 2, CY - S // 2
-COBALT = np.array([0, 55, 251], np.float32)
+COBALT = np.array([0, 55, 251], np.float32)  # the reference's ink, measured
+# (density, composite colour over white). Deepest end stays saturated: never brown.
+ORANGE_RAMP = (
+    (0.00, (0xFF, 0xFF, 0xFF)),
+    (0.12, (0xFF, 0xF1, 0xE6)),
+    (0.30, (0xFF, 0xD9, 0xBF)),
+    (0.55, (0xFF, 0xB2, 0x7A)),
+    (0.75, (0xFF, 0x8A, 0x3D)),
+    (0.90, (0xFF, 0x6B, 0x1A)),
+    (1.00, (0xE0, 0x48, 0x0A)),
+)
+ORANGE_GAMMA = 0.8  # < 1 lifts the haze: orange is lighter than cobalt at equal density
+ORANGE_FLAT = np.array([255, 100, 0], np.float32)  # the stored colour below DEEP_FROM alpha
+DEEP_FROM, DEEP_TO = 0.85, 0.965  # alpha band where it blends to the exact unblend
 
 
 def polar(size):
@@ -117,19 +137,36 @@ def upscale(img8, method, model):
     return np.clip(up + 0.45 * (up - blur), 0, 255).astype(np.uint8)
 
 
-def to_alpha(rgb8, size):
+def ink_density(rgb8, size):
     u = rgb8.astype(np.float32)
     if u.shape[0] != size:
         u = cv2.resize(u, (size, size), interpolation=cv2.INTER_AREA)
     u = np.clip(u * (255.0 / 254.0), 0, 255)  # the reference's white point is ~254
     den = 255 - COBALT
-    a = np.clip(((255 - u) * den).sum(2) / (den * den).sum(), 0, 1)
+    d = np.clip(((255 - u) * den).sum(2) / (den * den).sum(), 0, 1)
     r, _ = polar(size)
     fe = np.clip((406 - r) / (406 - 388), 0, 1)
-    a = a * fe * fe * (3 - 2 * fe)
-    a = np.where(a < 0.012, 0, a)
+    d = d * fe * fe * (3 - 2 * fe)
+    return np.where(d < 0.012, 0, d)
+
+
+def orange_ramp(t):
+    stops = np.array([s for s, _ in ORANGE_RAMP])
+    return np.stack([np.interp(t, stops, [c[ch] for _, c in ORANGE_RAMP]) for ch in range(3)], -1)
+
+
+def to_rgba(rgb8, size):
+    target = orange_ramp(ink_density(rgb8, size) ** ORANGE_GAMMA)
+    a = (255 - target.min(2)) / 255  # the least alpha that can reach the target over white
+    exact = 255 - (255 - target) / np.maximum(a, 1e-6)[..., None]
+    # The exact unblend wobbles (G 65..112) with the texture, and at AVIF q90 that
+    # costs ~100 KB. Only the densest cores need it (to reach #E0480A); elsewhere
+    # one flat colour is within ~1/255 of the ramp on average.
+    w = np.clip((a - DEEP_FROM) / (DEEP_TO - DEEP_FROM), 0, 1)[..., None]
+    w = w * w * (3 - 2 * w)
+    rgb = ORANGE_FLAT * (1 - w) + exact * w
     rgba = np.zeros((size, size, 4), np.uint8)
-    rgba[..., :3] = COBALT.astype(np.uint8)
+    rgba[..., :3] = np.clip(np.round(rgb), 0, 255)
     rgba[..., 3] = np.round(a * 255)
     return rgba
 
@@ -158,8 +195,8 @@ def main():
 
     m1720, m860 = work / "brain-1720.png", work / "brain-860.png"
     Image.fromarray(up).save(work / "up-2x.png")
-    Image.fromarray(to_alpha(up, 1720), "RGBA").save(m1720)
-    Image.fromarray(to_alpha(clean, 860), "RGBA").save(m860)
+    Image.fromarray(to_rgba(up, 1720), "RGBA").save(m1720)
+    Image.fromarray(to_rgba(clean, 860), "RGBA").save(m860)
 
     subprocess.run(["avifenc", "-q", "90", "--qalpha", "60", "-s", "2", "-j", "8",
                     str(m1720), str(out / "brain-raster-1720.avif")], check=True, capture_output=True)
