@@ -3,6 +3,7 @@ import { animate, stagger } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
 import { CONTACT_EMAIL, mailto } from "@/shared/lib/contact";
+import { SPLINE_BRAIN_LICENSE, SPLINE_BRAIN_SOURCE } from "@/shared/lib/spline-brain";
 
 /** Small dot marker for editorial list items, same language as the dot world. */
 const Dot = () => (
@@ -312,6 +313,31 @@ const Terms = () => {
             </LegalSection>
 
             <div className="border-t border-[var(--border)] pt-6">
+              {/* The home hero's 3D brain is a CC BY 4.0 work, and the licence
+                  needs the credit, a link to it and a note of changes
+                  somewhere reasonable. This is that place: low-key, and not a
+                  numbered section, because it is a notice rather than a term. */}
+              <p className="mb-6 text-xs leading-relaxed text-[var(--text-muted)]">
+                Credits: the 3D brain on the home page is adapted from{" "}
+                <a
+                  href={SPLINE_BRAIN_SOURCE}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:text-[var(--text-primary)]"
+                >
+                  &lsquo;AI Brain&rsquo;
+                </a>{" "}
+                by vladkolokolnikov, remixed by angelik, used under{" "}
+                <a
+                  href={SPLINE_BRAIN_LICENSE}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2 hover:text-[var(--text-primary)]"
+                >
+                  CC BY 4.0
+                </a>
+                .
+              </p>
               <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-[var(--text-muted)]">
                 ( End of document / Ziiro AI )
               </p>

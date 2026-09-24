@@ -296,12 +296,14 @@ function useFooterShown(ref: RefObject<HTMLElement>) {
 
 /**
  * The site footer, after the owner's reference (the Fragment Studios footer):
- * a flat orange ground, bare black links around the middle, a black pill at
- * the far right, and the name set huge and edge to edge along the bottom.
+ * a flat orange ground, bare black links on the right, and the name set huge
+ * and edge to edge along the bottom. The black "Book a call" pill that sat at
+ * the far right is gone, at the owner's request; Book a Call is still the
+ * first link of the first column.
  *
  * Orange and black only, the owner's two colours (tokens in index.css). Every
  * piece of text on the orange is black, 5.2:1; white on this orange would be
- * 3.7:1 and fail, so the only white is the pill's label, on black.
+ * 3.7:1 and fail.
  *
  * PINNED BEHIND THE PAGE. The page is a sheet with rounded bottom corners
  * (`.site-sheet`, App.tsx) and the footer is `sticky` underneath it, so the
@@ -343,8 +345,8 @@ export default function Footer() {
         {/* One reveal for the whole top area: the footer is the last thing
             anyone reads, and a staggered cascade down here would be motion
             asking for attention it hasn't earned. */}
-        <MotionReveal className="grid gap-6 md:gap-12 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-start lg:gap-x-16">
-          {/* ─── Links: first on a phone, in the middle on desktop ─── */}
+        <MotionReveal className="grid gap-6 md:gap-12 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-x-16">
+          {/* ─── Links: first on a phone, on the right on desktop ─── */}
           <nav
             aria-label="Footer"
             className="grid grid-cols-2 gap-x-8 gap-y-3 sm:grid-cols-4 sm:gap-x-10 lg:order-2 lg:gap-x-12"
@@ -359,17 +361,6 @@ export default function Footer() {
               </ul>
             ))}
           </nav>
-
-          {/* ─── The pill, at the far right ─── */}
-          <div className="lg:order-3">
-            <Link
-              to="/book-a-call"
-              className={`inline-flex min-h-[52px] items-center justify-center whitespace-nowrap rounded-full bg-[var(--footer-ink)] px-10 text-[15px] font-medium text-white hover:opacity-85 ${FOCUS_RING}`}
-              style={micro("opacity")}
-            >
-              Book a call
-            </Link>
-          </div>
 
           {/* ─── Left: the tagline, the socials and the legal line ─── */}
           <div className="flex flex-col gap-3 text-[var(--footer-ink)] md:gap-6 lg:order-1 lg:gap-10">
