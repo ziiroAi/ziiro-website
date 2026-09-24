@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 
+import { START_YAW, scrollPose } from "./brainFrame";
 import { createBrainMotion } from "./brainMotion";
 import { LAP_S, type OrbitHandle } from "./orbit";
 import SplineBrain, { type BrainScene } from "./SplineBrain";
@@ -8,8 +9,9 @@ import SplineBrain, { type BrainScene } from "./SplineBrain";
  * The hero's brain: the Spline glass brain, as HeroStage's brain layer.
  *
  * It fills the stage's brain box (`.cb-stage__brain`, centred on the
- * department loop) and draws the brain centred in it, with the scene's fine
- * dark fibres wrapped round it, fading out just inside the loop.
+ * department loop) and draws the brain centred in it (brainFrame.ts), large,
+ * the departments just outside it. The plexus on it and the strings round it
+ * are the web's (orbit/web.ts), on a canvas above.
  *
  * - The still. A render of the scene at the start pose, on white. It is in the
  *   prerendered HTML and usually the page's LCP element, so it is treated the
@@ -19,31 +21,24 @@ import SplineBrain, { type BrainScene } from "./SplineBrain";
  * - The live scene (SplineBrain). From lg up it loads after the entrance, then
  *   crossfades in over the still at the same pose.
  *
- * ONE CLOCK. brainMotion turns the live brain, and the departments follow
- * the same turn (through the orbit's handle): one full turn of the brain is
- * one lap of the departments (LAP_S, 40s), so the auto-turn keeps the orbit's
- * pace, and dragging the brain by an eighth of a turn moves every department
- * on one place, forwards or back. Without the live brain the orbit keeps its
- * own clock at the same pace; under reduced motion it rests.
+ * ONE CLOCK. brainMotion turns the live brain, and the departments, the web
+ * and the plexus on the brain follow its pose (through the orbit's handle):
+ * one full turn of the brain is one lap of its clock (LAP_S, 40s), and
+ * dragging the brain moves them with it. Without the live brain the orbit
+ * keeps its own clock at the same pace; under reduced motion it rests.
  *
  * To re-render the still after a scene, pose or framing change: render the
- * scene the way SplineBrain sets it up, fibres and all, at START_YAW, into a
- * box 584 x 613 css px (the brain box at a loop radius of 584 / 1.76) at 2x,
- * so 1168 x 1226, on white and without the badge, and leave the fade to the
- * CSS. Save it at 1168px wide and at 700px, as AVIF at quality 60 and WebP at
- * 80. Below AVIF 60 the finest strands start to break up.
+ * scene the way SplineBrain sets it up, at START_YAW (brainFrame.ts), into a
+ * box 800 css px square (the brain box) at 2x, so 1600 square, on white and
+ * without the badge. Save it at 1600px wide and at 800px, as AVIF at quality
+ * 60 and WebP at 80.
  */
 
-/** The start pose: the brain turned three-quarters toward the page, in the
- *  scene's own frame, where 0 shows its back. The still is rendered at exactly
- *  this angle. */
-const START_YAW = (190 * Math.PI) / 180;
-
-const STILL_AVIF_SRCSET = "/media/hero-brain-700.avif 700w, /media/hero-brain.avif 1168w";
-const STILL_WEBP_SRCSET = "/media/hero-brain-700.webp 700w, /media/hero-brain.webp 1168w";
-/** The brain box's width (index.css): about 28vw beside the copy, at most
- *  440px on a stacked tablet, and about 70vw on a phone. */
-const STILL_SIZES = "(min-width: 1024px) and (min-aspect-ratio: 1/1) 28vw, (min-width: 660px) 440px, 70vw";
+const STILL_AVIF_SRCSET = "/media/hero-brain-800.avif 800w, /media/hero-brain.avif 1600w";
+const STILL_WEBP_SRCSET = "/media/hero-brain-800.webp 800w, /media/hero-brain.webp 1600w";
+/** The brain box's width (index.css): about half the width beside the copy,
+ *  at most 525px on a stacked tablet, and about 62vw on a phone. */
+const STILL_SIZES = "(min-width: 1024px) and (min-aspect-ratio: 1/1) 52vw, (min-width: 660px) 525px, 62vw";
 
 /** For HeroStage's preload: the same files and sizes, so the preload is the
  *  request the <img> makes. Strings, because react-refresh only lets a
@@ -71,6 +66,22 @@ export default function HeroBrain({ orbitRef }: { orbitRef?: RefObject<OrbitHand
     const orbit = orbitRef?.current ?? null;
     const animate = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    // The scroll: how far through the hero the page is, from Lenis's own
+    // scroll value when it is running (the page's native one otherwise). The
+    // hero's height is read on resize, never in the frame. Desktop only, and
+    // never under reduced motion.
+    const hero = root.closest<HTMLElement>(".cb-hero");
+    const desktop = window.matchMedia("(min-width: 1024px) and (min-aspect-ratio: 1/1)");
+    let heroHeight = hero?.offsetHeight ?? 0;
+    const heroSize = new ResizeObserver(() => {
+      heroHeight = hero?.offsetHeight ?? 0;
+    });
+    if (hero) heroSize.observe(hero);
+    const scrolled = () => {
+      if (!animate || !desktop.matches || !heroHeight) return scrollPose(0);
+      return scrollPose((window.__lenis?.scroll ?? window.scrollY) / heroHeight);
+    };
+
     // Under reduced motion nothing may move unless the visitor moves it, and
     // the glass's own material shimmers over time. So the renderer draws the
     // pose, then sleeps; a drag wakes it, and it sleeps again once the drag has
@@ -93,8 +104,17 @@ export default function HeroBrain({ orbitRef }: { orbitRef?: RefObject<OrbitHand
       startMoving: true,
       animate,
       onFrame(pose) {
-        scene.setPose(pose);
-        orbit?.setTurn(pose.turn);
+        const scroll = scrolled();
+        const yaw = pose.yaw + scroll.turn;
+        scene.setPose({ ...pose, yaw });
+        scene.setZoom(scroll.zoom);
+        orbit?.follow({
+          turn: pose.turn + scroll.turn,
+          yaw,
+          pitch: pose.pitch,
+          zoom: scroll.zoom,
+          fade: scroll.fade,
+        });
         settle();
       },
     });
@@ -132,6 +152,7 @@ export default function HeroBrain({ orbitRef }: { orbitRef?: RefObject<OrbitHand
       document.removeEventListener("visibilitychange", sync);
       wide.removeEventListener("change", sync);
       motion.dispose();
+      heroSize.disconnect();
       orbit?.drive(false);
     };
   }, [scene, orbitRef]);
@@ -149,8 +170,8 @@ export default function HeroBrain({ orbitRef }: { orbitRef?: RefObject<OrbitHand
           src="/media/hero-brain.webp"
           srcSet={STILL_WEBP_SRCSET}
           sizes={STILL_SIZES}
-          width={1168}
-          height={1226}
+          width={1600}
+          height={1600}
           alt=""
           draggable={false}
           className="glass-brain-still"

@@ -568,15 +568,10 @@
 
 
 /* The hero's glass brain (HeroBrain.tsx), HeroStage's brain layer. It fills
-   .cb-stage__brain: a box centred on the department loop, reaching
-   FIBRE_REACH of the loop's radii each side (orbit/loop.ts), which is as far
-   as the brain's fibres may show. SplineBrain's FRAME centres the brain in it.
-
-   The still and the live canvas both fill the box, and both fade out at its
-   edge on an ellipse of the loop's proportions: solid to 86%, gone at the
-   edge, just inside the nearest any department comes. So the fibres wrap the
-   brain as in the scene's preview, end just short of the loop, and never
-   reach a label. */
+   .cb-stage__brain: a box centred on the department loop, BRAIN_BOX of the
+   loop's radius each side (brainFrame.ts), and SplineBrain centres the brain
+   in it. The still and the live canvas both fill the box; both are white
+   round the brain, so the box itself never shows. */
 .glass-brain {
   position: absolute;
   inset: 0;
@@ -590,7 +585,6 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  mask-image: radial-gradient(ellipse closest-side, #000 86%, transparent);
 }
 
 /* Tailwind's preflight caps every img at max-width: 100%. `cover` keeps the
@@ -1008,6 +1002,30 @@ html:not(.js) [data-reveal] {
   line-gap-override: 0%;
 }
 
+/* The same for Space Mono, the hero's other mono (the eyebrow, the numbers,
+   the footnote, the strip, the scroll cue), so its swap from the fallback
+   moves nothing either: Space Mono advances 0.612em and stands 1.12em over
+   and 0.36em under its baseline, measured in the browser; Courier New
+   advances 0.6001em. The overrides are divided by size-adjust. */
+@font-face {
+  font-family: "Space Mono Fallback";
+  src: local("Courier New"), local("CourierNewPSMT");
+  font-weight: 400;
+  size-adjust: 101.98%;
+  ascent-override: 109.82%;
+  descent-override: 35.3%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Space Mono Fallback";
+  src: local("Courier New Bold"), local("CourierNewPS-BoldMT");
+  font-weight: 700;
+  size-adjust: 101.98%;
+  ascent-override: 109.82%;
+  descent-override: 35.3%;
+  line-gap-override: 0%;
+}
+
 :root {
   /* Sampled off the reference. Every grey in it is cool (blue above red),
      which is most of why it reads as one system with the cobalt. */
@@ -1054,69 +1072,79 @@ html:not(.js) [data-reveal] {
   white-space: nowrap;
 }
 
-/* ── The stage: the brain and its departments (stage/HeroStage.tsx) ──────
-   HeroStage publishes the loop's measurements from orbit/loop.ts: how far
-   the departments reach across (--reach-x) and up and down (--reach-y), in
-   the loop's radii; the loop's height over its width (--loop-aspect); and
-   how far the fibres may show (--fibre-reach). Each layout below sets the
-   loop's across-radius, --loop-a, from the room it has, and the loop's
-   centre, --cx / --cy. The brain box, the loop and the departments are all
-   placed from those, so they scale together. */
+/* The hero's Space Mono, with its metric-matched fallback (above). */
+.cb-hero .font-mono,
+.zo-num {
+  font-family: "Space Mono", "Space Mono Fallback", monospace;
+}
+
+/* ── The stage: the brain, its departments and the web (stage/HeroStage.tsx)
+   HeroStage publishes the measurements from orbit/loop.ts and brainFrame.ts:
+   how far the departments reach from the brain to the left, right, up and
+   down as they orbit, in the loop's radii (--reach-*); and the brain's
+   half-width and its box, in the same radii (--brain-half, --brain-box). Each layout below
+   sets the loop's radius, --loop-a, from the room it has, and the brain's
+   centre, --cx / --cy. The brain box, the departments and the web are all
+   placed from those, so they scale together. Nothing in it takes a click but
+   the brain's hit area. */
 .cb-stage {
-  /* The room a department takes beyond its dot. Across: the label's 16px
-     gap, its widest line ("AI Product Manager", 115px) and 24px to the
-     screen's edge. Up and down: the gap, the three lines (43px) and 8px. */
-  --lbl-x: 155px;
-  --lbl-y: 67px;
-  --loop-b: calc(var(--loop-a) * var(--loop-aspect, 1.05));
+  /* The room a department's words take: beside the dot, the 19px step and
+     the widest line ("AI Product Manager", about 117px); above or below it,
+     the three lines (53px), the 2px step and 3px. */
+  --lbl-w: 136px;
+  --lbl-h: 58px;
+  --loop-b: var(--loop-a);
+  pointer-events: none;
 }
 .cb-stage__brain {
   position: absolute;
-  left: calc(var(--cx) - var(--fibre-reach, 0.88) * var(--loop-a));
-  top: calc(var(--cy) - var(--fibre-reach, 0.88) * var(--loop-b));
-  width: calc(2 * var(--fibre-reach, 0.88) * var(--loop-a));
-  height: calc(2 * var(--fibre-reach, 0.88) * var(--loop-b));
+  left: calc(var(--cx) - var(--brain-box, 1.05) * var(--loop-a));
+  top: calc(var(--cy) - var(--brain-box, 1.05) * var(--loop-b));
+  width: calc(2 * var(--brain-box, 1.05) * var(--loop-a));
+  height: calc(2 * var(--brain-box, 1.05) * var(--loop-b));
 }
 .cb-stage__orbit {
   position: absolute;
   inset: 0;
 }
 
-/* ── The departments (orbit/DepartmentOrbit.tsx) ──────────────────────────
-   Every department is placed from five numbers its frame writes on it:
-   --ox / --oy, its offset from the loop's centre in the loop's radii; --nx /
-   --ny, the way out from the loop where it is; --act, how active it is (1 at
-   nine o'clock, facing the copy). Only transforms and opacity change, so a
-   frame never touches layout.
+/* ── The departments and the web (orbit/DepartmentOrbit.tsx, orbit/web.ts) ─
+   Every department is placed from the numbers its frame writes on it:
+   --ox / --oy, its offset from the brain in the loop's radii (grown by the
+   scroll's --zoom, on the root); --gx / --gy, where its words start, in px
+   from the dot; --ax / --ay, which way they hang from there; --do / --lo, how
+   much of the dot and the words show (they fade behind the copy, and the
+   words as the scroll zooms). Only transforms and opacity change, so a frame
+   never touches layout. The web is a canvas under them, redrawn in the same
+   frame.
 
-   Ink and grey, like the glass and its fibres: the one colour is the active
-   department's dot. The neutrals are the old orbit palette's, which this
-   replaced: INK #202124 (16:1 on white), the warm MUTED_INK #6F6B68 (5.28:1,
-   AA for these small mono sizes), and a warm grey for the loop. */
+   After the owner's r8 mockup (brain/spline/r8-target.png): navy ringed dots;
+   beside each, a mono number, a bold tracked name and the role in regular
+   dark grey. No accent colour. */
 .zo-root {
-  --zo-ink: #202124;
-  --zo-muted: #6F6B68;
-  --zo-line: #BDB5AF;
-  --zo-accent: #FF6B1A;
+  --zo-ink: #000000;
+  --zo-muted: #2C2E33;
+  --zo-navy: #0A1330;
   position: absolute;
   inset: 0;
 }
 
-/* The loop: a very fine line, the path the departments travel. Its box is
-   2.5 radii each way, the SVG's viewBox, so the path scales with the loop. */
-.zo-loop {
+.zo-web {
   position: absolute;
-  left: calc(var(--cx) - 1.25 * var(--loop-a));
-  top: calc(var(--cy) - 1.25 * var(--loop-b));
-  width: calc(2.5 * var(--loop-a));
-  height: calc(2.5 * var(--loop-b));
-  overflow: visible;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
-.zo-loop path {
-  fill: none;
-  stroke: var(--zo-line);
-  stroke-width: 1px;
-  vector-effect: non-scaling-stroke;
+
+/* The loop's box, for DepartmentOrbit to measure: centred on the brain, the
+   loop's radii each side. */
+.zo-frame {
+  position: absolute;
+  left: calc(var(--cx) - var(--loop-a));
+  top: calc(var(--cy) - var(--loop-b));
+  width: calc(2 * var(--loop-a));
+  height: calc(2 * var(--loop-b));
+  visibility: hidden;
 }
 
 .zo-nodes {
@@ -1130,51 +1158,45 @@ html:not(.js) [data-reveal] {
   top: var(--cy);
   width: 0;
   height: 0;
-  transform: translate(calc(var(--loop-a) * var(--ox)), calc(var(--loop-b) * var(--oy)));
-  /* Which way the label hangs off the dot, -1 to 1 on each axis: beside it
-     within 30 degrees of three and nine o'clock, above or below it within
-     30 degrees of twelve and six, and sliding between the two in the
-     diagonals, so its nearest corner always stays clear of the loop. */
-  --ax: clamp(-1, 2 * var(--nx), 1);
-  --ay: clamp(-1, 2 * var(--ny), 1);
+  transform: translate(
+    calc(var(--loop-a) * var(--ox) * var(--zoom, 1)),
+    calc(var(--loop-b) * var(--oy) * var(--zoom, 1))
+  );
 }
 
-/* The marker: a graphite ring, white inside so the fibres pass under it,
-   round a graphite core. The active department's core turns orange. */
+/* The marker: a fine navy ring, white inside so the strands meet it and
+   stop, round a solid navy dot. */
 .zo-dot {
+  opacity: var(--do, 1);
   position: absolute;
-  left: -7px;
-  top: -7px;
-  width: 14px;
-  height: 14px;
+  left: -10.5px;
+  top: -10.5px;
+  width: 21px;
+  height: 21px;
   border-radius: 50%;
   background: #FFFFFF;
-  box-shadow: 0 0 0 1px rgb(32 33 36 / 0.45);
+  box-shadow: inset 0 0 0 1.2px rgb(10 26 58 / 0.75);
 }
-.zo-dot::before,
 .zo-dot::after {
   content: "";
   position: absolute;
-  inset: 4px;
+  inset: 6px;
   border-radius: 50%;
-}
-.zo-dot::before { background: #3C3C40; }
-.zo-dot::after {
-  background: var(--zo-accent);
-  opacity: var(--act, 0);
+  background: var(--zo-navy);
 }
 
-/* The words, 16px out from the dot. The block is zero-width at the anchor;
-   each line is shifted by its own width, so the lines are left-aligned on
-   the right of the loop, right-aligned on the left and centred at the top
-   and bottom, and slide between those as the department travels. */
+/* The words, beside the dot (loop.ts, BESIDE), just above it on the upper
+   half of the loop and just below it on the lower. The block is zero-width at
+   the anchor; each line is shifted by its own width, so the lines are
+   left-aligned right of the dot and right-aligned left of it. */
 .zo-words {
+  opacity: var(--lo, 1);
   position: absolute;
   left: 0;
   top: 0;
   width: 0;
   transform:
-    translate(calc(16px * var(--nx)), calc(16px * var(--ny)))
+    translate(calc(var(--gx) * 1px), calc(var(--gy) * 1px))
     translateY(calc(-50% + 50% * var(--ay)));
 }
 .zo-num,
@@ -1186,32 +1208,24 @@ html:not(.js) [data-reveal] {
   transform: translateX(calc(-50% + 50% * var(--ax)));
 }
 .zo-num {
-  font-size: 10px;
-  line-height: 14px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-size: 11.5px;
+  line-height: 17px;
   color: var(--zo-muted);
 }
+/* The trailing tracking is taken back, so a right-aligned name ends where
+   its last letter does. */
 .zo-label {
+  margin-right: -0.2em;
   font-size: 11px;
-  line-height: 15px;
-  font-weight: 500;
-  letter-spacing: 0.17em;
+  line-height: 18px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
   color: var(--zo-ink);
 }
-/* The role darkens to ink on the active department. */
 .zo-role {
-  position: relative;
-  font-size: 10px;
-  line-height: 14px;
-  letter-spacing: 0.04em;
+  font-size: 13px;
+  line-height: 18px;
   color: var(--zo-muted);
-}
-.zo-role-on {
-  position: absolute;
-  inset: 0;
-  color: var(--zo-ink);
-  opacity: var(--act, 0);
 }
 
 /* Phones only (below). */
@@ -1219,6 +1233,19 @@ html:not(.js) [data-reveal] {
 
 /* The scroll cue's slot: desktop only (placed in the desktop block below). */
 .cb-scroll { display: none; }
+
+/* The column's type where it differs from main's classes in Hero.tsx: main's
+   own setting here, the r8 mockup's on desktop (below). */
+.cb-eyebrow { letter-spacing: 0.2em; }
+.cb-h1 {
+  font-size: clamp(2.3rem, 7.2vw, 3.4rem);
+  line-height: 1.06;
+  letter-spacing: -0.015em;
+}
+.cb-h1-lead,
+.cb-h1-tail { font-weight: 500; }
+.cb-h1-lead { color: var(--text-primary); }
+.cb-h1-tail { color: var(--text-secondary); }
 
 /* ── Desktop: the reference's verticals, anchored to the screen's edges ──────
    The composition spans the full layout width, not a 1536u box centred in it,
@@ -1250,35 +1277,76 @@ html:not(.js) [data-reveal] {
      centres itself in it, so its optical middle stays on the stage's however
      tall the window is.
 
-     Horizontally it keeps main's position, the left edge of main's
-     `max-w-[1200px] px-10` column centred on the page: 196px on a 1512
-     laptop, 400px at 1920. That is the owner's call: only the logo goes to
-     the screen's edge. It never comes closer than the bar's 40px gutter.
-     100% is .cb-comp's width, the full layout width. */
+     Horizontally it sits at the left edge of a centred 1400px column: 108px
+     at 1536, as in the owner's r7 mockup, 300px at 1920. (It was main's
+     1200px column; the mockup gives the brain's web the room that frees.)
+     It never comes closer than the bar's 40px gutter; only the logo goes to
+     the screen's edge. 100% is .cb-comp's width, the full layout width.
+     .cb-stage repeats this rule, as --copy-l. */
   .cb-copy {
     position: absolute;
-    left: max(40px, calc((100% - 1200px) / 2 + 40px));
+    left: max(40px, calc((100% - 1400px) / 2 + 40px));
     top: var(--nav-h, 84px);
     height: calc((927 - 83) * var(--u));
     justify-content: center;
   }
 
-  /* The right-hand half of the band under the bar, and the largest loop it
-     holds, centred in it: the labels beside the loop clear the screen's
-     right edge (the copy's side has more room at every width), and the ones
-     above and below stay inside the band. */
+  /* The r8 mockup's setting: a larger, heavier headline, 78px at 1536 wide,
+     set close, its second line a grey that deepens towards its end; the
+     support a size up with more air; the eyebrow lighter and larger. The
+     words are main's. --h1 is on the hero, so the stage can size round it. */
+  .cb-hero { --h1: clamp(3.4rem, 5.1vw, 5.2rem); }
+  .cb-h1 {
+    font-size: var(--h1);
+    line-height: 0.95;
+    letter-spacing: -0.025em;
+  }
+  .cb-h1-lead,
+  .cb-h1-tail { font-weight: 700; }
+  .cb-h1-tail {
+    background: linear-gradient(90deg, #8E8D91, #57565B);
+    background-clip: text;
+    color: transparent;
+  }
+  /* Scoped to the column so they out-rank main's responsive classes, which
+     Tailwind emits at the end of the sheet. */
+  .cb-copy .cb-support {
+    font-size: 18px;
+    line-height: 31px;
+  }
+  .cb-copy .cb-eyebrow {
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.175em;
+  }
+
+  /* The band under the bar, the full width, so the web's arcs and
+     particles can reach across behind the copy. As in the r8 mockup, the
+     loop hangs from the top of the band (the highest words may rise 12px into
+     the bar's band, where it has nothing at their height) and the right-hand
+     words end 12px short of the screen's edge, wherever a department is on
+     its orbit. The loop is the largest that fits: the band's height as the
+     departments go round; the room right of the headline, whose widest line
+     is about 6.8 of its size, with 40px before the brain's frontal lobe (0.77
+     of the loop); and the mockup's proportion to the band, 0.455. On its
+     left the loop passes behind the copy, and the departments fade there
+     (DepartmentOrbit). */
   .cb-stage {
     position: absolute;
-    left: 50%;
+    left: 0;
     right: 0;
     top: var(--nav-h, 84px);
     height: calc((927 - 83) * var(--u));
+    --copy-l: max(40px, calc((var(--vw, 100vw) - 1400px) / 2 + 40px));
+    --copy-r: calc(var(--copy-l) + 6.8 * var(--h1));
     --loop-a: min(
-      calc((var(--vw, 100vw) / 4 - var(--lbl-x)) / var(--reach-x, 0.9817)),
-      calc((422 * var(--u) - var(--lbl-y)) / (var(--reach-y, 1.0853) * var(--loop-aspect, 1.05)))
+      calc((871 * var(--u) + 12px - 14px - 2 * var(--lbl-h)) / (var(--reach-up, 0.9176) + var(--reach-dn, 0.905))),
+      calc((var(--vw, 100vw) - 12px - var(--lbl-w) - 40px - var(--copy-r)) / (var(--reach-r, 1.1285) + 0.77)),
+      calc(0.455 * 844 * var(--u))
     );
-    --cx: 50%;
-    --cy: 50%;
+    --cx: calc(var(--vw, 100vw) - 12px - var(--lbl-w) - var(--reach-r, 1.1285) * var(--loop-a));
+    --cy: calc(var(--lbl-h) - 12px + var(--reach-up, 0.9176) * var(--loop-a));
   }
 
   .cb-strip {
@@ -1324,19 +1392,19 @@ html:not(.js) [data-reveal] {
      column's elements carry its type sizes and margins. */
   .cb-copy { padding-inline: 24px; }
 
-  /* A band under the copy, the full width, with the loop centred across it
+  /* A band under the copy, the full width, with the web centred across it
      and its top labels at the band's top. Capped, so a tablet's brain stays
      in proportion with the copy above it. */
   .cb-stage {
     position: relative;
     margin-top: 44px;
     --loop-a: min(
-      calc((var(--vw, 100vw) / 2 - var(--lbl-x)) / var(--reach-x, 0.9817)),
+      calc((var(--vw, 100vw) - 2 * (var(--lbl-w) + 24px)) / (var(--reach-l, 1.1963) + var(--reach-r, 1.1285))),
       250px
     );
-    --cx: 50%;
-    --cy: calc(var(--loop-b) * var(--reach-y, 1.0853) + var(--lbl-y));
-    height: calc(2 * var(--cy));
+    --cx: calc(50% + (var(--reach-l, 1.1963) - var(--reach-r, 1.1285)) * var(--loop-a) / 2);
+    --cy: calc(var(--loop-b) * var(--reach-up, 0.9176) + var(--lbl-h));
+    height: calc(var(--loop-b) * (var(--reach-up, 0.9176) + var(--reach-dn, 0.905)) + 2 * var(--lbl-h));
   }
 
   .cb-strip {
@@ -1380,14 +1448,15 @@ html:not(.js) [data-reveal] {
 /* Phones: no room for the labels round the loop. Each department keeps its
    number beside its dot, and one caption under the loop names the one at
    nine o'clock, cross-fading as the next arrives (its opacity is the
-   department's --act, written by the orbit's frame). */
+   department's weight, `act` in orbit/loop.ts, written by the orbit's
+   frame). */
 @media (max-width: 659.98px) {
   .cb-stage {
-    /* The gap, a two-digit number and 15px to the edge; one line. */
-    --lbl-x: 44px;
-    --lbl-y: 38px;
+    /* The step and a two-digit number; one line. */
+    --lbl-w: 38px;
+    --lbl-h: 24px;
     /* Room under the loop for the caption. */
-    height: calc(2 * var(--cy) + 60px);
+    height: calc(var(--loop-b) * (var(--reach-up, 0.9176) + var(--reach-dn, 0.905)) + 2 * var(--lbl-h) + 60px);
   }
   .zo-label,
   .zo-role { display: none; }

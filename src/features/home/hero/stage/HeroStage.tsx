@@ -5,33 +5,38 @@ import { Helmet } from "react-helmet-async";
 // (HeroBrain). It replaced an orange raster lifted from the reference picture.
 import HeroBrain, { BRAIN_STILL_AVIF_SRCSET, BRAIN_STILL_SIZES } from "../HeroBrain";
 import DepartmentOrbit, { type OrbitHandle } from "../orbit";
-import { EXTENT, FIBRE_REACH, LOOP_ASPECT } from "../orbit/loop";
+import { BRAIN_BOX, BRAIN_HALF } from "../brainFrame";
+import { EXTENT } from "../orbit/loop";
 
 /**
- * The loop's measurements, published once for the CSS, which sizes the loop
- * (`--loop-a` / `--loop-b` in index.css) so that the departments and their
- * labels always fit round it, and the brain box inside it. loop.ts stays the
- * one source: change the loop's lumps there and the sizing follows.
+ * The loop's and the brain's measurements, published once for the CSS, which
+ * sizes the loop (`--loop-a` in index.css) so that the departments and their
+ * labels always fit round it, and the brain box inside it. loop.ts and
+ * brainFrame.ts stay the one source: change them and the sizing follows.
  */
 const LOOP_VARS = {
-  "--reach-x": EXTENT.x.toFixed(4),
-  "--reach-y": EXTENT.y.toFixed(4),
-  "--loop-aspect": String(LOOP_ASPECT),
-  "--fibre-reach": String(FIBRE_REACH),
+  "--reach-l": EXTENT.left.toFixed(4),
+  "--reach-r": EXTENT.right.toFixed(4),
+  "--reach-up": EXTENT.up.toFixed(4),
+  "--reach-dn": EXTENT.down.toFixed(4),
+  "--brain-half": String(BRAIN_HALF),
+  "--brain-box": String(BRAIN_BOX),
 } as CSSProperties;
 
 /**
- * The right-hand half of the hero: the glass brain, centred in it, with its
- * fibres, and the eight departments travelling round it on an uneven loop.
+ * The hero's picture: the glass brain, with its fibres, the eight departments
+ * travelling round it on an uneven loop, and the string web running through
+ * them, out across the hero.
  *
- * index.css (`.cb-stage`) makes this box the right half of the hero on
- * desktop and a band under the copy when the hero stacks, and centres the
- * loop in it. Everything inside is placed from the loop's two radii, so the
- * brain, the loop and the departments scale together.
+ * index.css (`.cb-stage`) makes this box the band under the bar, the full
+ * width, on desktop, with the brain placed in the room right of the copy; and
+ * a band under the copy when the hero stacks. Everything inside is placed
+ * from the loop's radii and the brain's centre, so the brain, the departments
+ * and the web scale together.
  *
- * ONE CLOCK. The brain's turn moves the departments (HeroBrain drives the
- * orbit through its handle); without the live brain the orbit keeps its own
- * clock at the same pace.
+ * ONE CLOCK. The brain's turn moves the departments and the web (HeroBrain
+ * drives the orbit through its handle); without the live brain the orbit
+ * keeps its own clock at the same pace.
  *
  * The stage is decoration to a screen reader, with one exception: the eight
  * departments and their roles, a visually hidden list DepartmentOrbit renders

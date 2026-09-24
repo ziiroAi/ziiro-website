@@ -1,36 +1,38 @@
 /**
- * The departments' path: a closed, slightly lumpy loop round the brain, and
- * where each department sits on it.
+ * The departments' path: a closed, uneven loop round the brain, and where each
+ * department is on it.
  *
- * The loop is a unit circle whose radius wanders by a few percent with a few
- * slow harmonics, so it is smooth all the way round (no corners) but uneven,
- * the way a drawn line would be. CSS scales it, `--loop-a` across and
- * `--loop-b` down (index.css), and sizes those from EXTENT so the labels round
- * it always fit.
+ * The loop is a circle about the brain whose radius wanders with four slow
+ * harmonics, fitted to the owner's r8 mockup (brain/spline/r8-target.png): at
+ * the start the eight departments sit where the mockup puts them, just
+ * outside the brain's silhouette, at irregular angles and radii, and the loop
+ * keeps close over the top and under the bottom, as the mockup's departments
+ * do. It is smooth all the way round, no corners. CSS scales it (`--loop-a`,
+ * index.css) and sizes it from EXTENT, so the labels always fit.
+ *
+ * The departments orbit it continuously, one lap per turn of the brain,
+ * dragged with it; the mockup's layout is the frame they start from.
  *
  * Angles are maths convention: 0 is right, anticlockwise positive, y up.
  * Screen y runs down, so a point's screen offset is (r cos θ, −r sin θ).
  */
 
-/** [harmonic, amplitude, phase]. The second harmonic pulls the loop in a
- *  little at three and nine o'clock and lets it out at the top and bottom:
- *  the labels beside the loop need the width, and the height is free. The
- *  others make it uneven, the way a hand-drawn loop is: no two sides alike,
- *  and never a corner. */
+/** [harmonic, amplitude, phase], for `a sin(kθ + phase)`. */
 const LUMPS = [
-  [2, 0.045, 1.5 * Math.PI],
-  [3, 0.03, (5 * Math.PI) / 6 + 0.9],
-  [4, 0.012, 5.1],
-  [5, 0.012, 2.0],
+  [1, 0.0359, -0.4247],
+  [2, 0.1373, 2.0549],
+  [3, 0.0394, -0.0424],
+  [4, 0.0174, -2.5423],
 ] as const;
 
 /** Each department drifts in and out along its radius by up to this much,
  *  each on its own slow period, so the ring never moves as one rigid thing. */
-const DRIFT = 0.025;
+const DRIFT = 0.03;
 const DRIFT_RATES = [0.31, 0.47, 0.38, 0.55, 0.34, 0.42, 0.5, 0.36] as const;
 const DRIFT_PHASES = [0.2, 2.4, 4.1, 1.3, 5.2, 3.3, 0.9, 2.8] as const;
 
 const TAU = Math.PI * 2;
+const DEG = Math.PI / 180;
 
 /** The loop's radius at `theta`, as a multiple of the base radius. */
 export function loopRadius(theta: number): number {
@@ -40,77 +42,64 @@ export function loopRadius(theta: number): number {
 }
 
 /**
- * How far the departments reach, in base radii, drift included: `x` is the
- * furthest any comes from the centre sideways, `y` up or down, and `min` the
- * nearest it comes in any direction. Measured off the loop itself, so it
- * follows any change to LUMPS or DRIFT. HeroStage publishes it for the CSS.
+ * How far the departments reach from the brain as they go round, in base
+ * radii, drift included: to the right, left, up and down. Measured off the
+ * loop itself, so it follows any change above. HeroStage publishes it for the
+ * CSS.
  */
 export const EXTENT = (() => {
-  let x = 0;
-  let y = 0;
-  let min = Infinity;
-  for (let i = 0; i < 1440; i++) {
-    const t = (i / 1440) * TAU;
-    const r = loopRadius(t);
-    x = Math.max(x, r * Math.abs(Math.cos(t)));
-    y = Math.max(y, r * Math.abs(Math.sin(t)));
-    min = Math.min(min, r);
+  let right = 0;
+  let left = 0;
+  let up = 0;
+  let down = 0;
+  for (let k = 0; k < 1440; k++) {
+    const t = (k / 1440) * TAU;
+    const r = loopRadius(t) * (1 + DRIFT);
+    right = Math.max(right, r * Math.cos(t));
+    left = Math.max(left, -r * Math.cos(t));
+    up = Math.max(up, r * Math.sin(t));
+    down = Math.max(down, -r * Math.sin(t));
   }
-  return { x: x * (1 + DRIFT), y: y * (1 + DRIFT), min: min * (1 - DRIFT) };
+  return { right, left, up, down };
 })();
 
-/** The loop's height over its width, before the lumps: a touch taller than
- *  round, where the hero has the room. */
-export const LOOP_ASPECT = 1.05;
+/**
+ * Each department's angle at the start, 01 to 08, as the mockup has them:
+ * Strategy low right, Product right, Marketing top right, Sales top,
+ * Operations upper left, GTM low left, Finance bottom left, Technology bottom
+ * right.
+ */
+const START_DEG = [341.2, 15.9, 46.5, 131.5, 150, 209, 235.8, 300] as const;
+export function startAngle(i: number): number {
+  return START_DEG[i % START_DEG.length] * DEG;
+}
 
-/** How far out the brain's fibres may show, in base radii: just inside the
- *  nearest any department ever comes (EXTENT.min), so no fibre reaches a
- *  department, let alone its label, which sits further out still. The brain
- *  box (index.css) reaches this far each side of the centre, and its fade ends
- *  at its edge. */
-export const FIBRE_REACH = Math.floor((EXTENT.min - 0.02) * 100) / 100;
-
-/** One lap of the departments, in seconds: the old orbit's 40s cycle, and one
- *  full turn of the brain (HeroBrain), so the two stay together. */
+/** One lap of the departments, in seconds, and one full turn of the brain
+ *  (HeroBrain), so the two stay together. */
 export const LAP_S = 40;
 
-/** Where the active department sits: nine o'clock, facing the copy, as the
- *  old orbit's focus marker did. */
+/** Where the "active" department sits, for the phone caption: nine o'clock,
+ *  facing the copy. */
 export const FOCUS = Math.PI;
 
-/** The loop as an SVG path, in unit coordinates: 1 is the base radius. */
-export function loopPath(samples = 240): string {
-  let d = "";
-  for (let i = 0; i <= samples; i++) {
-    const t = (i / samples) * TAU;
-    const r = loopRadius(t);
-    const x = r * Math.cos(t);
-    const y = -r * Math.sin(t);
-    d += `${i === 0 ? "M" : "L"}${x.toFixed(4)} ${y.toFixed(4)}`;
-  }
-  return `${d}Z`;
-}
-
-/**
- * Each department's angle at the start. Evenly spaced, 45° apart, then nudged
- * by a few degrees each so the ring reads as grown rather than ruled. 04
- * starts on the focus, as the old orbit's rest frame had it, so there is an
- * active department before anything moves.
- */
-const NUDGE_DEG = [3, -4, 2, 0, -3, 4, -2, 3] as const;
-export function startAngle(i: number, n: number): number {
-  const base = FOCUS - (3 * TAU) / n + (i * TAU) / n;
-  return base + ((NUDGE_DEG[i % NUDGE_DEG.length] * Math.PI) / 180);
-}
+/** How far the words sit beside the dot, px: past the ring and a little air.
+ *  `.zo-words` in index.css places them from --gx / --gy. */
+const BESIDE = 19;
 
 export interface NodePlace {
-  /** Offset from the loop's centre, in base radii (screen axes). */
+  /** Offset from the brain's centre, in base radii (screen axes). */
   ox: number;
   oy: number;
-  /** The way out from the loop at this point (screen axes), for the label. */
-  nx: number;
-  ny: number;
-  /** 0 to 1: how active the department is, by how near it is to FOCUS. */
+  /** The words' anchor, px from the dot. */
+  gx: number;
+  gy: number;
+  /** Which way the words hang off the anchor, -1 to 1: left or right of it,
+   *  above or below it. */
+  ax: number;
+  ay: number;
+  /** The department's angle now. */
+  theta: number;
+  /** 0 to 1: how near the department is to FOCUS (the phone caption). */
   act: number;
 }
 
@@ -126,32 +115,47 @@ const signedApart = (a: number, b: number) => {
 };
 
 /**
- * Where department `i` of `n` is, `turn` radians after the start, `t` seconds
- * into the drift (0 holds it still). One radian of turn moves every department
- * one radian round, anticlockwise: top, then the copy's side, then the bottom.
- * The active one is the one at the focus. Each department is weighed against
- * the one on the far side of the focus from it, over the step between the two
- * (nudges included): fully lit within a quarter of that step, dark beyond
- * three quarters. The smoothstep is symmetric, so the pair always weighs
- * exactly one between them: as one leaves the next arrives, and there is
- * always one lit, and one caption on a phone.
+ * Which side of its dot a department's words go, as the mockup sets them:
+ * right of the dot round most of the loop, left of it on the copy's side
+ * (from just past Sales, round to just past Finance), sliding across in the
+ * two short stretches between.
+ */
+function sideOf(theta: number): number {
+  const d = (((theta / DEG) % 360) + 360) % 360;
+  if (d <= 138 || d >= 285) return 1;
+  if (d < 144) return 1 - 2 * smooth((d - 138) / 6);
+  if (d <= 255) return -1;
+  return -1 + 2 * smooth((d - 255) / 30);
+}
+
+/**
+ * Where department `i` of `n` is, `turn` radians of the brain after the
+ * start, `t` seconds into the drift (0 holds it still). One radian of turn
+ * moves every department one radian round, anticlockwise.
+ *
+ * `act` weighs each department against the one on the far side of the focus
+ * from it, over the step between the two: fully lit within a quarter of that
+ * step, dark beyond three quarters. The smoothstep is symmetric, so the pair
+ * always weighs exactly one between them, and the phone always shows one
+ * caption.
  */
 export function placeAt(i: number, n: number, turn: number, t: number): NodePlace {
-  const theta = startAngle(i, n) + turn;
-  // Before the focus (still arriving) the department ahead is the one leaving;
-  // past it, the one behind is arriving.
+  const theta = startAngle(i) + turn;
   const d = signedApart(theta, FOCUS);
   const other = (i + (d < 0 ? 1 : n - 1)) % n;
-  const step = Math.abs(signedApart(startAngle(other, n), startAngle(i, n)));
+  const step = Math.abs(signedApart(startAngle(other), startAngle(i)));
   const drift = t ? DRIFT * Math.sin(t * DRIFT_RATES[i % 8] + DRIFT_PHASES[i % 8]) : 0;
   const r = loopRadius(theta) * (1 + drift);
-  const c = Math.cos(theta);
-  const s = Math.sin(theta);
+  const side = sideOf(theta);
+  const ay = Math.max(-1, Math.min(1, -2.5 * Math.sin(theta)));
   return {
-    ox: r * c,
-    oy: -r * s,
-    nx: c,
-    ny: -s,
+    ox: r * Math.cos(theta),
+    oy: -r * Math.sin(theta),
+    gx: BESIDE * side,
+    gy: 2 * ay,
+    ax: side,
+    ay,
+    theta,
     act: 1 - smooth((Math.abs(d) - step / 4) / (step / 2)),
   };
 }

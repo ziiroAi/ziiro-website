@@ -6,8 +6,8 @@ import type { Application } from "@splinetool/runtime";
 
 import { SPLINE_BRAIN_SCENE } from "@/shared/lib/spline-brain";
 
+import { BRAIN_BOX, BRAIN_HALF, BRAIN_LIFT } from "./brainFrame";
 import type { BrainPose } from "./brainMotion";
-import { FIBRE_REACH } from "./orbit/loop";
 
 /*
  * The live 3D brain, drawn by Spline into the hero stage's brain box, over the
@@ -20,6 +20,8 @@ import { FIBRE_REACH } from "./orbit/loop";
 /** What HeroBrain drives. */
 export interface BrainScene {
   setPose(pose: BrainPose): void;
+  /** Grow the brain about its box's centre (the scroll's zoom); 1 is rest. */
+  setZoom(zoom: number): void;
   /** Resume or pause the scene's own rendering (off screen, hidden tab). */
   play(): void;
   stop(): void;
@@ -57,32 +59,21 @@ function mayLoad(): boolean {
  * scene's `Brain` group, because `setZoom` does not move this export's camera.
  *
  * The canvas is the brain box (index.css, `.cb-stage__brain`): centred on the
- * department loop and FIBRE_REACH of its radii to each side, which is as far
- * as the fibres may show before they would meet a department. The brain is
- * centred in it, BRAIN_HALF of the loop's radius to each side, so the fibres
- * wrap it the way the scene's preview has them and fade out (index.css) just
- * inside the loop.
+ * department loop, BRAIN_BOX of its radius to each side. The brain is centred
+ * in it, BRAIN_HALF of the loop's radius to each side (brainFrame.ts, shared
+ * with the plexus drawn over it, which has to land on its surface).
  *
  * Measured for THIS export (6F-9Io7GmyXhEfJl). Re-measure if the scene changes.
  * - The camera is orthographic: 3.09px per unit at any canvas size, looking at
  *   (-7.59, 47.01), which lands on the canvas's centre.
  * - The brain is 340px wide per unit of group scale, whichever way it faces.
- *   The group's origin, the pivot it turns about, is low in the brain: the
- *   cerebrum's centre sits 106px per unit above it, the bounding box's centre
- *   (stem included) 78.4. `liftPx` centres the brain between the two, which is
- *   also where the fibre cage is centred, so the brain and its fibres sit in
- *   the middle of the loop together.
+ *   The group's origin, the pivot it turns about, is low in the brain:
+ *   BRAIN_LIFT half-widths below its middle.
  */
-/** Half the brain's width, in the loop's across-radius. The scene's fibre
- *  cage is about twice the brain's width, so at this size the whole cage, not
- *  just its middle, fits inside the fade: the strands read as the preview's
- *  loops round the brain rather than as cut hairs across it. */
-const BRAIN_HALF = 0.45;
 const FRAME = {
   /** Half the brain's width, as a fraction of the canvas's width. */
-  half: BRAIN_HALF / (2 * FIBRE_REACH),
+  half: BRAIN_HALF / (2 * BRAIN_BOX),
   halfPx: 170,
-  liftPx: 92,
   zoom: 3.09,
   look: { x: -7.59, y: 47.01 },
 };
@@ -92,15 +83,16 @@ const FRAME = {
  *  Moving the mesh by the opposite puts its centre on the axis. */
 const MODEL_CENTRE = { x: 3.84, z: -4.72 };
 
-function frame(app: Application, width: number) {
+function frame(app: Application, width: number, zoom = 1) {
   const brain = app.findObjectByName("Brain");
   if (!brain || width === 0) return;
-  const s = (FRAME.half * width) / FRAME.halfPx;
+  const s = (FRAME.half * width * zoom) / FRAME.halfPx;
   brain.scale.x = brain.scale.y = brain.scale.z = s;
   // Centred on the canvas: the look point, less the lift, since the pivot is
-  // liftPx x s below the brain's middle. Screen y runs down, world y up.
+  // BRAIN_LIFT half-widths below the brain's middle. Screen y runs down,
+  // world y up.
   brain.position.x = FRAME.look.x;
-  brain.position.y = FRAME.look.y - (FRAME.liftPx * s) / FRAME.zoom;
+  brain.position.y = FRAME.look.y - (BRAIN_LIFT * FRAME.halfPx * s) / FRAME.zoom;
 }
 
 /** The runtime internals used below. None are public API, so every use is
@@ -122,8 +114,11 @@ interface RuntimeInternals {
 }
 
 /** The fibre cage: the fine dark strands the scene wraps round the brain
- *  (see quietScene). */
-const FIBRES = true;
+ *  (see quietScene). Off since the r8 mockup: the plexus on the brain and the
+ *  web's fine strings round it carry the strings now, and the cage's heavy
+ *  black loops would run out under the departments' labels, which sit just
+ *  outside the brain. */
+const FIBRES = false;
 
 /**
  * Switch off what the export does by itself, so the only motion is ours.
@@ -198,8 +193,9 @@ export default function SplineBrain({ onReady }: { onReady: (scene: BrainScene) 
           model.position.x = MODEL_CENTRE.x;
           model.position.z = MODEL_CENTRE.z;
         }
+        let zoom = 1;
         frame(loaded, canvas.clientWidth);
-        resize = new ResizeObserver(() => frame(loaded, canvas.clientWidth));
+        resize = new ResizeObserver(() => frame(loaded, canvas.clientWidth, zoom));
         resize.observe(canvas);
         setReady(true);
         onReady({
@@ -207,6 +203,12 @@ export default function SplineBrain({ onReady }: { onReady: (scene: BrainScene) 
             if (cancelled) return;
             brain.rotation.y = yaw;
             brain.rotation.x = pitch;
+            loaded.requestRender();
+          },
+          setZoom(next) {
+            if (cancelled || next === zoom) return;
+            zoom = next;
+            frame(loaded, canvas.clientWidth, zoom);
             loaded.requestRender();
           },
           play: () => loaded.play(),

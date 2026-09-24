@@ -131,14 +131,15 @@ export default function Hero() {
         <div className="cb-copy relative z-[2] flex flex-col items-start text-left">
           {/* The eyebrow is a pill rather than a bare line, which is what gives
               the column a top edge to hang off. Hairline border, no fill: on
-              white a filled chip would be the heaviest thing on the page. */}
+              white a filled chip would be the heaviest thing on the page.
+              Its tracking, and its desktop size, are in index.css
+              (`.cb-eyebrow`). */}
           <p
             data-hero="eyebrow"
             data-hero-reveal
             data-hero-eyebrow
-            className="inline-flex items-center rounded-full border px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase md:text-[11px]"
+            className="cb-eyebrow inline-flex items-center rounded-full border px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase md:text-[11px]"
             style={{
-              letterSpacing: "0.2em",
               borderColor: "var(--border)",
               color: "var(--text-secondary)",
             }}
@@ -150,35 +151,23 @@ export default function Hero() {
               character between the block lines, so the accessible and indexed
               text reads "Your business just run better." rather than running
               the lines together; block layout discards it on screen.
-              Medium Helvetica at -0.015em, as on main: the face is already
-              tightly fitted, so tighter tracking starts closing counters at
-              display sizes.
+              Its size, weight and tones are in index.css (`.cb-h1`): main's
+              medium Helvetica when the hero stacks, and the r8 mockup's
+              larger, heavier setting beside the brain on desktop, the second
+              line a grey that deepens towards its end.
               Unlike main, neither line carries a reveal hook: the h1 is NEVER
               hidden, because it can be the page's LCP element. */}
-          <h1
-            id="hero-heading"
-            data-hero="h1"
-            className="mt-6 md:mt-7"
-            style={{
-              fontSize: "clamp(2.3rem, 7.2vw, 3.4rem)",
-              lineHeight: 1.06,
-              letterSpacing: "-0.015em",
-            }}
-          >
-            <span className="block font-display font-medium" style={{ color: "var(--text-primary)" }}>
-              {HEADLINE_LEAD}
-            </span>
+          <h1 id="hero-heading" data-hero="h1" className="cb-h1 mt-6 md:mt-7">
+            <span className="cb-h1-lead block font-display">{HEADLINE_LEAD}</span>
             {HEADLINE_LINE_GAP}
-            <span className="block font-display font-medium" style={{ color: "var(--text-secondary)" }}>
-              {HEADLINE_TAIL}
-            </span>
+            <span className="cb-h1-tail block font-display">{HEADLINE_TAIL}</span>
           </h1>
 
           <p
             data-hero="support"
             data-hero-reveal
             data-hero-support
-            className="mt-5 max-w-[46ch] text-[15px] leading-relaxed md:mt-6 md:text-[16px]"
+            className="cb-support mt-5 max-w-[46ch] text-[15px] leading-relaxed md:mt-6 md:text-[16px]"
             style={{ color: "var(--text-secondary)" }}
           >
             {SUPPORT}
