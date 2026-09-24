@@ -1,363 +1,217 @@
-import { useRef, type CSSProperties, type ReactNode } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, type CSSProperties } from "react";
 
 import { DEPARTMENTS } from "./departments";
-import {
-  CORE,
-  CORE_DISC_R,
-  RING_INNER_R,
-  RING_OUTER_R,
-  SATELLITES,
-  SATELLITE_R,
-  STAGE_H,
-  STAGE_W,
-  NODE_RING_R,
-  TRACK,
-} from "./geometry";
-import { ORBIT_CSS } from "./orbitCss";
-import {
-  BEAT_DELAYS,
-  FOCUS_POINT,
-  RIPPLE_REST,
-  delayFor,
-  parkedFrame,
-  pinAt,
-  restFrame,
-} from "./motion";
-import FocusReadout, { FocusMarker } from "./FocusReadout";
-import OrbitNode from "./OrbitNode";
-import { INK, MARKER_GREY, ORANGE, RULE_GREY, TRACK_GREY } from "./palette";
-import { PIN_SVG } from "./pin";
-import { useOffscreenPause } from "./useOffscreenPause";
-import { useStageScale } from "./useStageScale";
-
-interface DepartmentOrbitProps {
-  className?: string;
-  paused?: boolean;
-}
-
-const PARKED = parkedFrame();
-
-/** The satellite ring's box: its radius plus room for the largest dot. */
-/** Room past the satellite ring for its largest dot (r 2.8) and the ring's
- *  own 2 su stroke. */
-const DRIFT_PAD = 4;
-const DRIFT_R = SATELLITE_R + DRIFT_PAD;
-const DRIFT_BOX: CSSProperties = {
-  left: CORE.x - DRIFT_R,
-  top: CORE.y - DRIFT_R,
-  width: 2 * DRIFT_R,
-  height: 2 * DRIFT_R,
-};
-
-/** A static full-stage SVG layer, drawn in su. */
-function Layer({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      width={STAGE_W}
-      height={STAGE_H}
-      viewBox={`0 0 ${STAGE_W} ${STAGE_H}`}
-      overflow="visible"
-      aria-hidden="true"
-      focusable="false"
-    >
-      {children}
-    </svg>
-  );
-}
-
-/** A hairline pin: a 1 su bar that the pin's transform aims and stretches.
- *  `className` carries its loop (`zo-a` or `zo-pair`) and animation. */
-function Hairline({
-  className,
-  transform,
-  delay,
-  height,
-  fill,
-  hidden,
-}: {
-  className: string;
-  transform: string;
-  delay: string;
-  height: number;
-  fill: string;
-  hidden?: boolean;
-}) {
-  return (
-    <div
-      className={`zo-pin ${className}`}
-      style={{ transform, animationDelay: delay, opacity: hidden ? 0 : undefined }}
-    >
-      <svg {...PIN_SVG}>
-        <rect y={-height / 2} width={1} height={height} fill={fill} />
-      </svg>
-    </div>
-  );
-}
+import { LAP_S, loopPath, placeAt, type NodePlace } from "./loop";
 
 /**
- * The department orbit: eight departments flowing anticlockwise along the
- * track, each tied to the core by a hairline, with a fixed hollow marker at
- * nine o'clock that wakes whichever node is passing it.
+ * The department orbit: the eight departments travelling round the brain on a
+ * slightly lumpy loop (loop.ts), each a graphite ringed dot with its number,
+ * label and role set outside the loop, so nothing inside it (the brain, its
+ * fibres) can ever sit under a word.
  *
- * Fills the stage box. Inside, one plane the size of the stage at s = 1
- * (STAGE_W × STAGE_H su) is scaled once by `--zo-s`, and everything in it draws in
- * stage units: static SVG layers for what never moves, and HTML pins, animated
- * on the compositor, for what does (see motion.ts). The core disc is NOT drawn
- * here: it is `CoreDisc`, on its own unclipped layer above the stage (it
- * overhangs the stage's right edge), and the threads converge underneath it.
+ * MOTION. Every department is placed from one number, the turn. While the live
+ * brain is up, the turn is the brain's own (HeroBrain calls `setTurn` from its
+ * frame), so dragging the brain moves the departments with it. Otherwise (a
+ * phone, no WebGL, before the scene loads) the orbit keeps its own clock at the
+ * same pace, one lap per LAP_S. Each department also drifts a little in and out
+ * on its own slow period. Under reduced motion it holds its start frame, and
+ * moves only when the visitor turns the brain.
  *
- * The whole drawing is `aria-hidden`; the one thing it says, eight departments
- * each run by an AI role, is in the visually hidden list beside it.
+ * COST. A frame writes five custom properties per department; position, the
+ * label's side and the active accent are all computed in CSS from them
+ * (index.css, `.zo-*`), and nothing touches layout.
+ *
+ * The drawing is decoration to a screen reader; the one thing it says, eight
+ * departments each run by an AI role, is in the visually hidden list.
  */
-export default function DepartmentOrbit({ className, paused = false }: DepartmentOrbitProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const offscreen = useOffscreenPause(ref);
-  // Nothing until measured, so the server and the first client render agree;
-  // until then ORBIT_CSS derives the same value from the stage's `--s`.
-  const s = useStageScale(ref, STAGE_W);
-  const rootStyle = s === null ? undefined : ({ "--zo-s": s } as CSSProperties);
+
+export interface OrbitHandle {
+  /** Hand the clock to the brain (true), or take it back (false). */
+  drive(on: boolean): void;
+  /** While driven: the brain's turn, in radians. The departments move by as
+   *  much as it does, from wherever they were when it took over. */
+  setTurn(turn: number): void;
+}
+
+const PATH = loopPath();
+const N = DEPARTMENTS.length;
+
+/** Write every department's place into its custom properties, and the
+ *  active weight into its caption. */
+function paint(
+  nodes: (HTMLLIElement | null)[],
+  captions: (HTMLParagraphElement | null)[],
+  turn: number,
+  t: number,
+) {
+  for (let i = 0; i < N; i++) {
+    const p = placeAt(i, N, turn, t);
+    const li = nodes[i];
+    if (li) {
+      li.style.setProperty("--ox", p.ox.toFixed(4));
+      li.style.setProperty("--oy", p.oy.toFixed(4));
+      li.style.setProperty("--nx", p.nx.toFixed(4));
+      li.style.setProperty("--ny", p.ny.toFixed(4));
+      li.style.setProperty("--act", p.act.toFixed(3));
+    }
+    const cap = captions[i];
+    if (cap) cap.style.opacity = p.act.toFixed(3);
+  }
+}
+
+const vars = (p: NodePlace) =>
+  ({
+    "--ox": p.ox.toFixed(4),
+    "--oy": p.oy.toFixed(4),
+    "--nx": p.nx.toFixed(4),
+    "--ny": p.ny.toFixed(4),
+    "--act": p.act.toFixed(3),
+  }) as CSSProperties;
+
+const DepartmentOrbit = forwardRef<OrbitHandle>(function DepartmentOrbit(_, ref) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const nodes = useRef<(HTMLLIElement | null)[]>([]);
+  const captions = useRef<(HTMLParagraphElement | null)[]>([]);
+  // The turn on screen. While the brain drives, it is the brain's turn plus
+  // `offset`, which is fixed at the first turn after it takes over, so the
+  // departments carry on from where they are.
+  const shown = useRef(0);
+  const offset = useRef<number | null>(null);
+  const driven = useRef(false);
+  const own = useRef<{ start(): void; stop(): void } | null>(null);
+  // Refs only, so one function serves every render and both hooks below.
+  const place = useRef((turn: number, t: number) => {
+    shown.current = turn;
+    paint(nodes.current, captions.current, turn, t);
+  });
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      drive(on) {
+        if (on === driven.current) return;
+        driven.current = on;
+        offset.current = null;
+        if (on) own.current?.stop();
+        else own.current?.start();
+      },
+      setTurn(turn) {
+        if (!driven.current) return;
+        offset.current ??= shown.current - turn;
+        place.current(offset.current + turn, performance.now() / 1000);
+      },
+    }),
+    [],
+  );
+
+  // The orbit's own clock. Off under reduced motion, off screen, and in a
+  // hidden tab; handed to the brain while the live scene is up.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const rate = (2 * Math.PI) / LAP_S;
+    let raf = 0;
+    let last = 0;
+    let onScreen = true;
+    let wanted = true;
+
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+      last = now;
+      place.current(shown.current + rate * dt, now / 1000);
+    };
+    const sync = () => {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      last = 0;
+      if (wanted && !driven.current && onScreen && !document.hidden) {
+        raf = requestAnimationFrame(tick);
+      }
+    };
+    own.current = {
+      start() {
+        wanted = true;
+        sync();
+      },
+      stop() {
+        wanted = false;
+        sync();
+      },
+    };
+    const io = new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting;
+      sync();
+    });
+    io.observe(root);
+    document.addEventListener("visibilitychange", sync);
+    sync();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      io.disconnect();
+      document.removeEventListener("visibilitychange", sync);
+      own.current = null;
+    };
+  }, []);
 
   return (
-    <div
-      ref={ref}
-      className={`zo-root relative h-full w-full ${className ?? ""}`}
-      style={rootStyle}
-      data-paused={paused || offscreen ? "true" : "false"}
-    >
-      <style dangerouslySetInnerHTML={{ __html: ORBIT_CSS }} />
-      <div className="zo-plane font-hero-mono" aria-hidden="true">
-        {/* Every gradient, in an SVG of its own that holds nothing else and
-            renders first: the pins' SVGs reference these by id, so they must
-            not depend on any drawing layer staying rendered. */}
-        <svg
-          width={0}
-          height={0}
-          aria-hidden="true"
-          focusable="false"
-          style={{ position: "absolute" }}
-        >
-          <defs>
-            {/* The resting threads are ink, faint, and run into the brain's
-                dark fibres; orange is kept for the nodes and the active
-                connector (zo-glow, the pulse, the ripple, the core). */}
-            <linearGradient id="zo-thread" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor={INK} stopOpacity="0.5" />
-              <stop offset="1" stopColor={INK} stopOpacity="0.12" />
-            </linearGradient>
-            <linearGradient id="zo-glow" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor={ORANGE} stopOpacity="0.95" />
-              <stop offset="0.6" stopColor={ORANGE} stopOpacity="0.55" />
-              <stop offset="1" stopColor={ORANGE} stopOpacity="0.85" />
-            </linearGradient>
-            {/* The track lightens over its top (reference darkness ≈ 13 there
-                against ≈ 35 on the rest of the arc). */}
-            <linearGradient
-              id="zo-track"
-              gradientUnits="userSpaceOnUse"
-              x1="0"
-              y1={TRACK.y - TRACK.r}
-              x2="0"
-              y2={TRACK.y - TRACK.r + 40}
-            >
-              <stop offset="0" stopColor={TRACK_GREY} stopOpacity="0.4" />
-              <stop offset="1" stopColor={TRACK_GREY} stopOpacity="1" />
-            </linearGradient>
-            <radialGradient id="zo-node-halo">
-              <stop offset="0.55" stopColor={ORANGE} stopOpacity="0.1" />
-              <stop offset="1" stopColor={ORANGE} stopOpacity="0" />
-            </radialGradient>
-            <radialGradient id="zo-pulse">
-              <stop offset="0" stopColor={ORANGE} stopOpacity="1" />
-              <stop offset="0.45" stopColor={ORANGE} stopOpacity="0.9" />
-              <stop offset="1" stopColor={ORANGE} stopOpacity="0" />
-            </radialGradient>
-          </defs>
-        </svg>
+    <div ref={rootRef} className="zo-root font-hero-mono">
+      {/* The path, drawn once: a fine warm-grey line. Unit coordinates in a
+          box that CSS sizes to the loop's radii, so it scales with them. */}
+      <svg
+        className="zo-loop"
+        viewBox="-1.25 -1.25 2.5 2.5"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d={PATH} />
+      </svg>
 
-        <Layer>
-          {/* Rings about C. Radii are the ink peaks on the reference. */}
-          <circle
-            cx={CORE.x}
-            cy={CORE.y}
-            r={RING_OUTER_R}
-            fill="none"
-            stroke={RULE_GREY}
-            strokeWidth={0.8}
-            strokeDasharray="3 5"
-          />
-          <circle
-            cx={CORE.x}
-            cy={CORE.y}
-            r={RING_INNER_R}
-            fill="none"
-            stroke={TRACK_GREY}
-            strokeWidth={0.8}
-            strokeDasharray="1 5"
-            strokeLinecap="round"
-          />
-        </Layer>
-
-        {/* The satellite ring drifts with the brain: its own layer, turned
-            about C on the compositor. */}
-        <div className="zo-drift" style={DRIFT_BOX}>
-          <svg
-            width={2 * DRIFT_R}
-            height={2 * DRIFT_R}
-            viewBox={`${CORE.x - DRIFT_R} ${CORE.y - DRIFT_R} ${2 * DRIFT_R} ${2 * DRIFT_R}`}
-            aria-hidden="true"
-            focusable="false"
+      <ul className="zo-nodes" aria-hidden="true">
+        {DEPARTMENTS.map((d, i) => (
+          <li
+            key={d.number}
+            ref={(el) => {
+              nodes.current[i] = el;
+            }}
+            className="zo-node"
+            data-hero={`dept-${d.number}`}
+            style={vars(placeAt(i, N, 0, 0))}
           >
-            {/* Ink, like the fibres they drift through. */}
-            <circle
-              cx={CORE.x}
-              cy={CORE.y}
-              r={SATELLITE_R}
-              fill="none"
-              stroke={INK}
-              strokeOpacity={0.35}
-              strokeWidth={2}
-              strokeDasharray="0.1 6"
-              strokeLinecap="round"
-            />
-            {SATELLITES.map((p) => (
-              <circle key={`${p.x}-${p.y}`} cx={p.x} cy={p.y} r={p.r} fill={INK} fillOpacity={0.7} />
-            ))}
-          </svg>
-        </div>
-
-        {/* The track the departments ride. */}
-        <Layer>
-          <circle
-            cx={TRACK.x}
-            cy={TRACK.y}
-            r={TRACK.r}
-            fill="none"
-            stroke="url(#zo-track)"
-            strokeWidth={0.9}
-            strokeDasharray="3 4"
-          />
-        </Layer>
-
-        {/* Threads (to the brain's rim). Copy B's thread only shows during
-            its entry step. */}
-        {DEPARTMENTS.map((d, i) => {
-          const rest = restFrame(i);
-          const delay = delayFor(i);
-          return (
-            <div key={`thread-${d.number}`}>
-              <Hairline
-                className="zo-a zo-thread-a"
-                transform={rest.thread}
-                delay={delay}
-                height={0.9}
-                fill="url(#zo-thread)"
-              />
-              <Hairline
-                className="zo-a zo-thread-b"
-                transform={PARKED.thread}
-                delay={delay}
-                height={0.9}
-                fill="url(#zo-thread)"
-                hidden
-              />
-            </div>
-          );
-        })}
-
-        {/* The active thread, dot to disc: two glows take turns, so
-            consecutive ones can cross-fade. */}
-        {BEAT_DELAYS.glow.map((delay) => (
-          <Hairline
-            key={delay}
-            className="zo-pair zo-glow"
-            transform={restFrame(0).glow}
-            delay={delay}
-            height={1.2}
-            fill="url(#zo-glow)"
-            hidden
-          />
+            <span className="zo-dot" />
+            <span className="zo-words">
+              <span className="zo-num">{d.number}</span>
+              <span className="zo-label">{d.label.toUpperCase()}</span>
+              <span className="zo-role">
+                {d.role}
+                <span className="zo-role-on">{d.role}</span>
+              </span>
+            </span>
+          </li>
         ))}
+      </ul>
 
-        {/* A ring off the core each time a pulse lands. It sits under the
-            disc, so only the part outside r 41 shows, through the frosted
-            band. */}
-        <div className="zo-pin" style={{ transform: pinAt(CORE) }}>
-          <div className="zo-pin zo-step zo-core-ring" style={{ opacity: 0 }}>
-            <svg {...PIN_SVG}>
-              <circle r={CORE_DISC_R + 1} fill="none" stroke={ORANGE} strokeWidth={1.2} />
-            </svg>
-          </div>
-        </div>
-
-        <div className="zo-pin zo-step zo-pulse" style={{ animationDelay: BEAT_DELAYS.pulse, opacity: 0 }}>
-          <svg {...PIN_SVG}>
-            <circle r={4.5} fill="url(#zo-pulse)" />
-          </svg>
-        </div>
-
-        {/* The fixed focus marker, and its orange tint for each crossing. */}
-        <Layer>
-          <circle
-            data-hero="focus-ring"
-            cx={FOCUS_POINT.x}
-            cy={FOCUS_POINT.y}
-            r={5.5}
-            fill="#FFFFFF"
-            stroke={MARKER_GREY}
-            strokeWidth={1.2}
-          />
-        </Layer>
-        <div
-          className="zo-pin zo-step zo-focus"
-          style={{ transform: pinAt(FOCUS_POINT), opacity: 0 }}
-        >
-          <svg {...PIN_SVG}>
-            <circle r={5.5} fill="none" stroke={ORANGE} strokeWidth={1.2} />
-          </svg>
-        </div>
-
-        {/* Compact mode only: the phone-scale marker over the ring above. */}
-        <FocusMarker />
-
-        {DEPARTMENTS.map((d, i) => {
-          const rest = restFrame(i);
-          const delay = delayFor(i);
-          return (
-            <div key={`node-${d.number}`}>
-              <OrbitNode
-                dept={d}
-                copy="b"
-                nodeTransform={PARKED.node}
-                textTransform={PARKED.text}
-                delay={delay}
-                hidden
-              />
-              <OrbitNode
-                dept={d}
-                copy="a"
-                nodeTransform={rest.node}
-                textTransform={rest.text}
-                delay={delay}
-              />
-            </div>
-          );
-        })}
-
-        {/* The ripple off whichever dot is crossing the marker. */}
-        <div
-          className="zo-pin zo-step zo-ripple-at"
-          style={{ transform: RIPPLE_REST, animationDelay: BEAT_DELAYS.ripple }}
-        >
-          <div className="zo-pin zo-step zo-ripple" style={{ animationDelay: BEAT_DELAYS.ripple, opacity: 0 }}>
-            <svg {...PIN_SVG}>
-              <circle r={NODE_RING_R} fill="none" stroke={ORANGE} strokeWidth={1} />
-            </svg>
-          </div>
-        </div>
-
-        {/* Compact mode only: on top, so a node passing the marker never
-            covers the name it is being read out as. */}
-        <FocusReadout />
+      {/* Phones only (index.css): with no room for the labels round the loop,
+          one caption under it names the department at the focus, and
+          cross-fades as the next one arrives. */}
+      <div className="zo-readout" aria-hidden="true">
+        {DEPARTMENTS.map((d, i) => (
+          <p
+            key={d.number}
+            ref={(el) => {
+              captions.current[i] = el;
+            }}
+            style={{ opacity: placeAt(i, N, 0, 0).act }}
+          >
+            <span className="zo-readout-name">
+              {d.number} {d.label.toUpperCase()}
+            </span>
+            <span className="zo-readout-role">{d.role}</span>
+          </p>
+        ))}
       </div>
 
       <ul className="sr-only">
@@ -367,4 +221,6 @@ export default function DepartmentOrbit({ className, paused = false }: Departmen
       </ul>
     </div>
   );
-}
+});
+
+export default DepartmentOrbit;

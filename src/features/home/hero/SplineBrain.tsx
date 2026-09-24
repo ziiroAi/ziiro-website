@@ -7,13 +7,14 @@ import type { Application } from "@splinetool/runtime";
 import { SPLINE_BRAIN_SCENE } from "@/shared/lib/spline-brain";
 
 import type { BrainPose } from "./brainMotion";
+import { FIBRE_REACH } from "./orbit/loop";
 
 /*
  * The live 3D brain, drawn by Spline into the hero stage's brain box, over the
  * still of the same pose (HeroBrain). Which scene it is, and its credit, are in
  * shared/lib/spline-brain.ts. It does not move itself: HeroBrain's clock turns
- * it through the handle passed to `onReady`, and scrubs the department orbit
- * from the same turn.
+ * it through the handle passed to `onReady`, and moves the department orbit
+ * by the same turn.
  */
 
 /** What HeroBrain drives. */
@@ -55,39 +56,33 @@ function mayLoad(): boolean {
  * Where the brain sits. Set through the runtime by scaling and moving the
  * scene's `Brain` group, because `setZoom` does not move this export's camera.
  *
- * The canvas is the part of the stage the scene may draw on: from just inside
- * the department arc (125 su, the arc's leftmost point is at 130) to the
- * stage's right edge, which is the screen's, and the full height of
- * HeroStage's brain box. That is 552 x 860 su. The brain is centred on the
- * core C, 502 su in from the canvas's left edge and 50 su short of the
- * screen's, so its far half runs off the page, the way the orbit's picture has
- * it. Nothing is rendered for that half. The fibres spread wider than the
- * brain and reach out toward the arc; the canvas's fade (index.css) stops them
- * short of every label.
+ * The canvas is the brain box (index.css, `.cb-stage__brain`): centred on the
+ * department loop and FIBRE_REACH of its radii to each side, which is as far
+ * as the fibres may show before they would meet a department. The brain is
+ * centred in it, BRAIN_HALF of the loop's radius to each side, so the fibres
+ * wrap it the way the scene's preview has them and fade out (index.css) just
+ * inside the loop.
  *
  * Measured for THIS export (6F-9Io7GmyXhEfJl). Re-measure if the scene changes.
  * - The camera is orthographic: 3.09px per unit at any canvas size, looking at
  *   (-7.59, 47.01), which lands on the canvas's centre.
  * - The brain is 340px wide per unit of group scale, whichever way it faces.
- *   Its cerebrum's centre sits 106px per unit above the group's origin, the
- *   pivot it turns about; the bounding box's centre, stem included, sits at
- *   78.4, which put the core over the brain's lower edge.
+ *   The group's origin, the pivot it turns about, is low in the brain: the
+ *   cerebrum's centre sits 106px per unit above it, the bounding box's centre
+ *   (stem included) 78.4. `liftPx` centres the brain between the two, which is
+ *   also where the fibre cage is centred, so the brain and its fibres sit in
+ *   the middle of the loop together.
  */
+/** Half the brain's width, in the loop's across-radius. The scene's fibre
+ *  cage is about twice the brain's width, so at this size the whole cage, not
+ *  just its middle, fits inside the fade: the strands read as the preview's
+ *  loops round the brain rather than as cut hairs across it. */
+const BRAIN_HALF = 0.45;
 const FRAME = {
-  /** The canvas's width in stage units. Its height is the box's, 860 su. */
-  widthSu: 552,
-  /** Where the brain is centred, the core C, in su from the canvas's
-   *  top-left. */
-  centreSu: { x: 502, y: 430 },
-  /** Half the brain's width in su. Smaller than the orbit would allow on
-   *  purpose: the glass's wrinkles and dark rim are geometry, and much above
-   *  this, on a 2x screen, they read as crumpled chrome and the mesh's facets
-   *  show. At 240 the surface is the preview's frosted glass, the fibres have
-   *  room to wrap it inside the inner ring (384 su), and the far half still
-   *  runs off the page. */
-  halfSu: 240,
+  /** Half the brain's width, as a fraction of the canvas's width. */
+  half: BRAIN_HALF / (2 * FIBRE_REACH),
   halfPx: 170,
-  liftPx: 106,
+  liftPx: 92,
   zoom: 3.09,
   look: { x: -7.59, y: 47.01 },
 };
@@ -97,18 +92,15 @@ const FRAME = {
  *  Moving the mesh by the opposite puts its centre on the axis. */
 const MODEL_CENTRE = { x: 3.84, z: -4.72 };
 
-function frame(app: Application, width: number, height: number) {
+function frame(app: Application, width: number) {
   const brain = app.findObjectByName("Brain");
   if (!brain || width === 0) return;
-  const su = width / FRAME.widthSu;
-  const s = (FRAME.halfSu * su) / FRAME.halfPx;
+  const s = (FRAME.half * width) / FRAME.halfPx;
   brain.scale.x = brain.scale.y = brain.scale.z = s;
-  // C's offset from the canvas's centre, in px; the pivot is liftPx x s below
-  // the cerebrum's centre. Screen y runs down, world y up.
-  const dx = FRAME.centreSu.x * su - width / 2;
-  const dy = FRAME.centreSu.y * su - height / 2;
-  brain.position.x = FRAME.look.x + dx / FRAME.zoom;
-  brain.position.y = FRAME.look.y - (dy + FRAME.liftPx * s) / FRAME.zoom;
+  // Centred on the canvas: the look point, less the lift, since the pivot is
+  // liftPx x s below the brain's middle. Screen y runs down, world y up.
+  brain.position.x = FRAME.look.x;
+  brain.position.y = FRAME.look.y - (FRAME.liftPx * s) / FRAME.zoom;
 }
 
 /** The runtime internals used below. None are public API, so every use is
@@ -206,10 +198,8 @@ export default function SplineBrain({ onReady }: { onReady: (scene: BrainScene) 
           model.position.x = MODEL_CENTRE.x;
           model.position.z = MODEL_CENTRE.z;
         }
-        frame(loaded, canvas.clientWidth, canvas.clientHeight);
-        resize = new ResizeObserver(() =>
-          frame(loaded, canvas.clientWidth, canvas.clientHeight),
-        );
+        frame(loaded, canvas.clientWidth);
+        resize = new ResizeObserver(() => frame(loaded, canvas.clientWidth));
         resize.observe(canvas);
         setReady(true);
         onReady({

@@ -4,6 +4,7 @@ import { createTimeline } from "animejs";
 import { HEADLINE_LINE_GAP } from "@/shared/components/SplitHeadline";
 import { DIRECTORY_STATS } from "@/features/home/directory/pipelines";
 import HeroActions from "./HeroActions";
+import ScrollIndicator from "./ScrollIndicator";
 import HeroStage from "./stage/HeroStage";
 import { DEPARTMENTS } from "./orbit";
 import {
@@ -19,25 +20,25 @@ import {
  * are built to the owner's reference picture (a 1536x1024 composition); the
  * left column is main's original argument, by the owner's request.
  *
- * On desktop the stage takes the picture's verticals: every stage size is a
- * reference pixel times one unit (`--u` in index.css), the top rule lies on
- * the navbar's bottom edge, and the 941u below it are fitted to the rest of
- * the viewport. Horizontally the hero spans the full window. The column, the
+ * On desktop the hero takes the picture's verticals: every size is a
+ * reference pixel times one unit (`--u` in index.css), measured from the
+ * navbar's bottom edge, and the 941u below it are fitted to the rest of the
+ * viewport. Horizontally the hero spans the full window. The column, the
  * strip and the bar's logo share one left edge (the bar's gutter), and the
- * stage, whose right side is the brain's flat side, sits flush against the
- * right edge. The column is centred between the two rules. Narrower or
- * portrait screens get a stacked layout: the copy, then the stage (still
- * flush right), then the strip.
+ * stage is the right-hand half, with the brain centred in it. The column is
+ * centred in the band under the bar. Narrower or portrait screens get a
+ * stacked layout: the copy, then the stage, then the strip.
  *
- * The old WebGL orb ("Your AI" and the cycling role word) and the scroll cue
- * are retired from here (git history has them). The roles the orb cycled now
- * live on the department threads, one per department, in the stage.
+ * The old WebGL orb ("Your AI" and the cycling role word) is retired from
+ * here (git history has it). The roles the orb cycled now travel round the
+ * brain, one per department, in the stage. The scroll cue is back, centred in
+ * the strip's row on desktop.
  *
  * THE H1 AND THE BRAIN ARE NEVER HIDDEN. One of them is the LCP element
  * (usually the brain image), and anything hidden behind an
  * entrance animation paints late and drags LCP with it. Everything else in
- * the column rises in behind the h1; the orbit and core fade in over the
- * brain. Hiding sits behind the `js` class set in
+ * the column rises in behind the h1; the orbit fades in over the brain.
+ * Hiding sits behind the `js` class set in
  * index.html, so the prerendered page reads in full without JavaScript, and
  * under reduced motion nothing hides at all.
  */
@@ -74,11 +75,11 @@ export default function Hero() {
 
   /**
    * `--vw`: the page width WITHOUT a classic scrollbar. The hero sizes itself
-   * in `--u`, a fraction of the width, and pins the stage to the right edge;
-   * `100vw` counts the scrollbar on Windows, which would push the flush-right
-   * brain ~15px under it. On macOS the two are equal, and `100vw` is the
-   * pre-hydration fallback in index.css. Only this hero reads it, so the hero
-   * publishes it (it used to come from the navbar).
+   * in `--u`, a fraction of the width, and sizes the brain's loop from the
+   * right half's width; `100vw` counts the scrollbar on Windows, which would
+   * push the right-hand labels ~15px under it. On macOS the two are equal,
+   * and `100vw` is the pre-hydration fallback in index.css. Only this hero
+   * reads it, so the hero publishes it (it used to come from the navbar).
    */
   useEffect(() => {
     const root = document.documentElement;
@@ -110,7 +111,8 @@ export default function Hero() {
       .add(q("[data-hero-support]"), rise, 180)
       .add(q("[data-hero-actions]"), rise, 280)
       .add(q("[data-hero-trust]"), rise, 380)
-      .add(q("[data-hero-strip]"), { opacity: [0, 1], duration: 620 }, 460);
+      .add(q("[data-hero-strip]"), { opacity: [0, 1], duration: 620 }, 460)
+      .add(q("[data-hero-scroll-slot]"), { opacity: [0, 1], duration: 700 }, 560);
 
     return () => {
       tl.cancel();
@@ -120,15 +122,12 @@ export default function Hero() {
   return (
     <section ref={rootRef} className="cb-hero" aria-labelledby="hero-heading">
       <div className="cb-comp">
-        <span aria-hidden="true" className="cb-rule cb-rule--top" />
-        <span aria-hidden="true" className="cb-rule cb-rule--bottom" />
-
         {/* ── Left: the argument ─────────────────────────────────────────────
             main's column, class for class: the outlined eyebrow pill, the
             two-tone Helvetica h1, the grey support, the two pills and the
             Space Mono trust line. index.css only places the column (and, on
-            desktop, centres it between the rules); every type size and
-            margin here is main's. */}
+            desktop, centres it in the band under the bar); every type size
+            and margin here is main's. */}
         <div className="cb-copy relative z-[2] flex flex-col items-start text-left">
           {/* The eyebrow is a pill rather than a bare line, which is what gives
               the column a top edge to hang off. Hairline border, no fill: on
@@ -207,10 +206,10 @@ export default function Hero() {
           </p>
         </div>
 
-        {/* ── Right: the brain, the orbit and the core ─────────────────── */}
+        {/* ── Right: the brain and its departments ─────────────────────── */}
         <HeroStage />
 
-        {/* ── The strip under the bottom rule ─────────────────────────────── */}
+        {/* ── The strip along the bottom ──────────────────────────────────── */}
         <div data-hero-reveal data-hero-strip className="cb-strip relative z-[2]">
           {/* Space Mono, the trust line's face: two different monos stacked
               one above the other would read as a mistake. */}
@@ -228,6 +227,14 @@ export default function Hero() {
           >
             <Separated text={STRIP_RIGHT} />
           </p>
+        </div>
+
+        {/* The scroll cue, centred in the strip's row, between its two ends.
+            Desktop only (index.css): stacked, the strip closes the hero and
+            the page plainly carries on under it. The slot takes the entrance,
+            so the cue's own opacity is free to follow the scroll. */}
+        <div data-hero-reveal data-hero-scroll-slot className="cb-scroll">
+          <ScrollIndicator />
         </div>
       </div>
     </section>
