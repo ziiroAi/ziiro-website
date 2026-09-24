@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
-import { createTimeline, stagger } from "animejs";
+import { Fragment, useEffect, useRef } from "react";
+import { createTimeline } from "animejs";
 
 import { HEADLINE_LINE_GAP } from "@/shared/components/SplitHeadline";
-import IntelligenceOrb from "./IntelligenceOrb";
+import { DIRECTORY_STATS } from "@/features/home/directory/pipelines";
 import HeroActions from "./HeroActions";
-import ScrollIndicator from "./ScrollIndicator";
+import HeroStage from "./stage/HeroStage";
+import { DEPARTMENTS } from "./orbit";
 import {
   EYEBROW,
   HEADLINE_LEAD,
@@ -14,74 +15,78 @@ import {
 } from "./heroContent";
 
 /**
- * The homepage opener.
+ * The homepage opener, "Core Brain": built to the owner's reference picture,
+ * a 1536x1024 composition, measured from it pixel by pixel.
  *
- * Two columns from `lg` up: the argument on the left, the object on the right.
- * Below that they stack, copy first. The composition used to be one centred
- * stack with the orb on top, on a near-black field the section painted for
- * itself. Both of those are gone. The page is white everywhere now, so the
- * hero inherits the site's ground instead of asserting its own, and the
- * reading order is the ordinary one: the sentence leads and the object
- * illustrates it.
+ * On desktop the hero IS the picture. It is one 1536x1024 composition scaled
+ * by a single unit (`--u` in index.css), so the argument on the left, the
+ * brain on the right and the hairline frame around them keep their exact
+ * relationships at any window size. Narrower or portrait screens get a
+ * stacked layout: the copy, then the stage, then the strip.
  *
- * `data-hero-dark` stays on the section because other code still keys off it,
- * but it no longer flips anything — the scope that used to invert the palette
- * has been retired. `data-nav-dark` is gone outright: it existed to make the
- * navbar invert for the distance it overlapped a black hero, and there is no
- * black hero to overlap.
+ * The old WebGL orb ("Your AI" and the cycling role word) and the scroll cue
+ * are retired from here (git history has them). The roles the orb cycled now
+ * live on the department threads, one per department, in the stage.
  *
- * There is no atmosphere layer either. `HeroAtmosphere` was, by the end, two
- * faint accent washes and nothing else — one warm, one cool — and the brief is
- * now black ink on white paper with every hue-carrying wash removed rather than
- * toned down. With both washes gone the component had no content left, so it is
- * deleted rather than kept as a wrapper around nothing. The section's ground is
- * simply the page's.
- *
- * Entrance order is the argument's order — the eyebrow names the field, the
- * claim lands, the object arrives alongside it, then the support, then what to
- * do. All of it on one anime.js timeline (the house convention) at absolute
- * positions, so the left column and the right one can overlap deliberately
- * rather than by arithmetic on relative offsets.
+ * THE H1 AND THE BRAIN ARE NEVER HIDDEN. One of them is the LCP element
+ * (usually the brain image), and anything hidden behind an
+ * entrance animation paints late and drags LCP with it. Everything else in
+ * the column rises in behind the h1; the orbit and core fade in over the
+ * brain. Hiding sits behind the `js` class set in
+ * index.html, so the prerendered page reads in full without JavaScript, and
+ * under reduced motion nothing hides at all.
  */
+
+/** Two digits, the way the reference sets every count in the strip. */
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * A " · "-separated line with room around each dot, which wraps only at a dot. The separator keeps its
+ * plain spaces inside the span, so the text node still reads "a · b" to a
+ * crawler and a screen reader; the extra room is padding, not characters.
+ */
+function Separated({ text }: { text: string }) {
+  const parts = text.split(" · ");
+  return (
+    <>
+      {parts.map((part, i) => (
+        <Fragment key={part}>
+          {i > 0 && <span className="cb-sep"> · </span>}
+          <span className="cb-seg">{part}</span>
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
+const STRIP_LEFT = `[ ${pad2(DEPARTMENTS.length)} departments ]`;
+const STRIP_RIGHT = `${pad2(DIRECTORY_STATS.jobs)} jobs of work · mapped across ${pad2(
+  DIRECTORY_STATS.agents,
+)} agents · ${pad2(DIRECTORY_STATS.live)} live`;
+
 export default function Hero() {
   const rootRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-
-    // The CSS already leaves everything visible under this preference, so
-    // there is nothing to reveal and nothing to clean up.
+    // Nothing is hidden under this preference (index.css), so there is
+    // nothing to reveal.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const q = (sel: string) => root.querySelectorAll<HTMLElement>(sel);
+    const rise = { opacity: [0, 1], y: [10, 0], duration: 620 };
 
-    const tl = createTimeline({ defaults: { ease: "out(3)", duration: 700 } });
-
-    tl.add(
-      q("[data-hero-orb]"),
-      { opacity: [0, 1], scale: [0.86, 1], duration: 1200, ease: "out(4)" },
-      0,
-    )
-      .add(q("[data-hero-eyebrow]"), { opacity: [0, 1], y: [10, 0], duration: 620 }, 60)
-      .add(q("[data-hero-glow]"), { opacity: [0, 1], scale: [0.72, 1], duration: 1600 }, 120)
-      .add(
-        q("[data-hero-line]"),
-        {
-          opacity: [0, 1],
-          y: [28, 0],
-          duration: 900,
-          ease: "out(4)",
-          delay: stagger(110),
-        },
-        220,
-      )
-      .add(q("[data-hero-support]"), { opacity: [0, 1], y: [14, 0], duration: 700 }, 560)
-      .add(q("[data-hero-actions]"), { opacity: [0, 1], y: [14, 0], duration: 700 }, 720)
-      .add(q("[data-hero-orb-label]"), { opacity: [0, 1], y: [10, 0], duration: 620 }, 800)
-      .add(q("[data-hero-trust]"), { opacity: [0, 1], y: [10, 0], duration: 600 }, 880)
-      .add(q("[data-hero-orb-word]"), { opacity: [0, 1], y: [14, 0], duration: 760 }, 920)
-      .add(q("[data-hero-scroll]"), { opacity: [0, 1], duration: 700 }, 1100);
+    // Short on purpose: the brain turns and the departments flow for as long as
+    // the hero is on screen, and a long entrance on top of that is a third
+    // thing moving. Everything is in by ~1.1s.
+    const tl = createTimeline({ defaults: { ease: "out(3)" } });
+    tl.add(q("[data-hero-eyebrow]"), rise, 0)
+      .add(q("[data-hero-stage-fade]"), { opacity: [0, 1], duration: 900, ease: "out(2)" }, 120)
+      .add(q("[data-hero-support]"), rise, 180)
+      .add(q("[data-hero-actions]"), rise, 280)
+      .add(q("[data-hero-trust]"), rise, 380)
+      .add(q("[data-hero-strip]"), { opacity: [0, 1], duration: 620 }, 460);
 
     return () => {
       tl.cancel();
@@ -89,150 +94,76 @@ export default function Hero() {
   }, []);
 
   return (
-    <section
-      ref={rootRef}
-      data-hero-dark
-      className="relative isolate overflow-hidden"
-      style={{ background: "var(--background)", color: "var(--text-primary)" }}
-    >
-      <div
-        data-hero-column
-        // `clears-nav` replaces `pt-24 lg:pt-32`. Those were 96px and 128px,
-        // and 96 does not clear a navbar that is 112px tall once its links
-        // wrap at 390. The class reserves the header's measured height plus a
-        // gap, so desktop keeps exactly the 128px it had and the phone stops
-        // rendering the eyebrow underneath the nav links. See index.css.
-        className="clears-nav relative z-10 mx-auto grid min-h-[100svh] w-full max-w-[1200px] grid-cols-1 items-center gap-y-12 px-6 pb-20 md:px-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.88fr)] lg:gap-x-12 lg:pb-28"
-      >
-        {/* ── Left: the argument ───────────────────────────────────────── */}
-        <div className="flex flex-col items-start text-left">
-          {/* The eyebrow is a pill rather than a bare line, which is what gives
-              the column a top edge to hang off when nothing above it is
-              centred. Hairline border, no fill: on white a filled chip would
-              be the heaviest thing on the page. */}
+    <section ref={rootRef} className="cb-hero" aria-labelledby="hero-heading">
+      <div className="cb-comp">
+        <span aria-hidden="true" className="cb-rule cb-rule--top" />
+        <span aria-hidden="true" className="cb-rule cb-rule--bottom" />
+
+        {/* ── Left: the argument ─────────────────────────────────────────── */}
+        <div className="cb-copy relative z-[2]">
           <p
+            data-hero="eyebrow"
             data-hero-reveal
             data-hero-eyebrow
-            className="inline-flex items-center rounded-full border px-3.5 py-1.5 font-mono text-[10px] font-bold uppercase md:text-[11px]"
-            style={{
-              letterSpacing: "0.2em",
-              borderColor: "var(--border)",
-              color: "var(--text-secondary)",
-            }}
+            className="cb-eyebrow font-hero-mono"
+            style={{ color: "var(--cb-muted)" }}
           >
-            {EYEBROW}
+            <Separated text={EYEBROW} />
           </p>
 
-          {/* One h1, two tones of one family.
-
-              The two lines are separate block spans because each one is
-              animated on its own, so they need the `data-hero-*` hooks
-              individually and cannot come from <SplitHeadline>. What they do
-              borrow from it is HEADLINE_LINE_GAP: without a real character
-              between the spans, textContent ran the lines together and the
-              highest-value string on the site read "Your businessjust run
-              better." to Google, to a screen reader and to any answer engine.
-              White space between block boxes is discarded by block layout, so
-              the gap costs nothing on screen.
-
-              The sr-only tail that used to sit here is gone. It read "Business
-              intelligence and agentic AI systems for founder-led teams." and
-              dated from a time when the visible h1 carried no real copy, so a
-              crawler needed the sentence from somewhere. That is no longer
-              true: the h1 says something now. Keeping it meant the h1's text
-              and its accessible name disagreed with what is on screen, which
-              is the pattern hidden-heading-text guidance exists to discourage,
-              and it was the reason the home h1 alone ran on past its tagline.
-              It also still sold "business intelligence" and "agentic systems",
-              the separately-named services the site has since collapsed into
-              Diagnose, Build and Optimize, so it was quietly contradicting
-              /products from inside a hidden element. The positioning it
-              carried lives in the support paragraph below and in the meta
-              description, both of which a crawler reads and a visitor can
-              see. */}
-          {/* Tracking and weight are both set for Helvetica Neue, which is what
-              font-display resolves to now. -0.035em and font-bold were tuned
-              for Instrument Sans and are wrong for this face twice over:
-              Helvetica is already tightly fitted, so past about -0.02em the
-              counters start closing at display sizes, and `font-bold` asks for
-              a real Helvetica Bold 700 rather than the lighter setting the
-              reference uses. Medium is the Swiss display weight and keeps the
-              line airy without going limp. */}
-          <h1
-            className="mt-6 md:mt-7"
-            style={{
-              fontSize: "clamp(2.3rem, 7.2vw, 3.4rem)",
-              lineHeight: 1.06,
-              letterSpacing: "-0.015em",
-            }}
-          >
-            <span
-              data-hero-reveal
-              data-hero-line
-              className="block font-display font-medium"
-              style={{ color: "var(--text-primary)" }}
-            >
-              {HEADLINE_LEAD}
-            </span>
+          {/* One h1, two block lines. HEADLINE_LINE_GAP is a real character
+              between them, so the accessible and indexed text reads "Your
+              business just run better." rather than running the lines
+              together. Block layout discards it on screen. */}
+          <h1 id="hero-heading" data-hero="h1" className="cb-h1 font-hero-serif">
+            <span className="block">{HEADLINE_LEAD}</span>
             {HEADLINE_LINE_GAP}
-            <span
-              data-hero-reveal
-              data-hero-line
-              className="block font-display font-medium"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {HEADLINE_TAIL}
-            </span>
+            <span className="block">{HEADLINE_TAIL}</span>
           </h1>
 
           <p
+            data-hero="support"
             data-hero-reveal
             data-hero-support
-            className="mt-5 max-w-[46ch] text-[15px] leading-relaxed md:mt-6 md:text-[16px]"
-            style={{ color: "var(--text-secondary)" }}
+            className="cb-support font-hero-sans"
+            style={{ color: "var(--cb-support)" }}
           >
             {SUPPORT}
           </p>
 
-          <div className="mt-7 md:mt-8">
-            <HeroActions />
-          </div>
+          <HeroActions />
 
           <p
+            data-hero="footnote"
             data-hero-reveal
             data-hero-trust
-            className="mt-6 font-mono text-[10px] uppercase md:mt-7"
-            style={{ letterSpacing: "0.24em", color: "var(--text-secondary)" }}
+            className="cb-footnote font-hero-mono"
+            style={{ color: "var(--cb-muted)" }}
           >
-            {TRUST}
+            <Separated text={TRUST} />
           </p>
         </div>
 
-        {/* ── Right: the object ────────────────────────────────────────── */}
-        <div className="flex w-full justify-center lg:justify-end">
-          <IntelligenceOrb />
+        {/* ── Right: the brain, the orbit and the core ─────────────────── */}
+        <HeroStage />
+
+        {/* ── The strip under the bottom rule ─────────────────────────────── */}
+        <div data-hero-reveal data-hero-strip className="cb-strip relative z-[2]">
+          <p
+            data-hero="strip-left"
+            className="cb-strip-text cb-strip-left font-hero-mono"
+            style={{ color: "var(--cb-ink-500)" }}
+          >
+            {STRIP_LEFT}
+          </p>
+          <p
+            data-hero="strip-right"
+            className="cb-strip-text cb-strip-right font-hero-mono"
+            style={{ color: "var(--cb-muted)" }}
+          >
+            <Separated text={STRIP_RIGHT} />
+          </p>
         </div>
-      </div>
-
-      {/* The cue is pinned to the section rather than sitting at the end of a
-          column, which is what lets the grid above centre itself without the
-          cue dragging the composition down. index.css already drops it below
-          800px of viewport height; `hidden lg:block` extends that judgement to
-          the breakpoint where the layout stacks, for the same reason.
-
-          Below lg the orb moves from beside the copy to under it, and a
-          full-height hero then has to hold a pill, a two-line headline, two
-          lines of copy, two buttons, a two-line trust line AND the orb. At
-          390x844 that is 844px of content in 844px of viewport, so the pinned
-          cue had nothing left to stand in and grazed the orb's bloom. Something
-          has to yield there and the cue is the right thing: it is decorative,
-          and on a stacked layout the fact that the page continues is not
-          exactly a secret. */}
-      <div
-        data-hero-scroll-slot
-        className="absolute bottom-8 left-1/2 z-10 hidden -translate-x-1/2 md:bottom-10 lg:block"
-      >
-        <ScrollIndicator />
       </div>
     </section>
   );
