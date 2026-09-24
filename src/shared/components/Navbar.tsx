@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useLocation } from "react-router-dom";
 import ZiiroMark from "@/shared/ui/ziiro-mark";
-import { CSS_EASE, DURATION } from "@/shared/motion/tokens";
+import { CSS_EASE, DURATION, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import { scrollTo } from "@/shared/motion/SmoothScroll";
 
 /**
@@ -44,6 +44,19 @@ import { scrollTo } from "@/shared/motion/SmoothScroll";
  * The logo pill and the three links are there from the first paint. The call to
  * action is the only thing that arrives later, rising in continuously as the
  * reader leaves the hero rather than snapping in at a threshold.
+ *
+ * ── BELOW 640px THE LINKS LIVE BEHIND A BURGER ─────────────────────────────
+ * Under `sm` the three links do not fit beside the logo. They used to wrap onto
+ * a second row, which made the bar 116px tall and put the links over the hero's
+ * eyebrow pill on a phone. Now the bar is one row at every width: the logo, the
+ * call to action and a burger. The burger opens a full-screen white panel with
+ * the links set large, plus the call to action.
+ *
+ * The panel is the SAME element as the desktop link row, restyled by
+ * `.site-menu` in index.css below 640px. So the links exist once in the
+ * document, in the prerendered HTML, at every width. On a phone the call to
+ * action is always shown, as an outlined pill. The scroll-driven fade-in is
+ * desktop behaviour, and on a phone it read as a washed-out grey button.
  */
 
 const LINKS = [
@@ -187,8 +200,41 @@ const micro = (properties: string) => ({
   transitionTimingFunction: CSS_EASE.out,
 });
 
+/**
+ * Where the burger takes over: below Tailwind's `sm`, the width at which the
+ * three links stop fitting beside the logo (measured: 620 wraps, 640 does not).
+ * `.site-menu` in index.css switches at the same 640, and the two have to
+ * agree or the panel and the button would exist at different widths.
+ */
+const COMPACT_QUERY = "(max-width: 639.98px)";
+
+/** Everything the menu's focus trap can land on, filtered to what is actually
+ *  shown: the row's call to action is hidden while the panel is open, and the
+ *  panel's own call to action does not exist above 640. */
+function focusables(root: HTMLElement): HTMLElement[] {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>("a[href], button:not([disabled])"),
+  ).filter(
+    (el) =>
+      el.tabIndex >= 0 &&
+      el.getClientRects().length > 0 &&
+      getComputedStyle(el).visibility !== "hidden",
+  );
+}
+
 export default function Navbar() {
   const { pathname } = useLocation();
+
+  // The phone menu. `compact` is read once up front rather than defaulting to
+  // false, because the client renders over the prerendered HTML with
+  // createRoot, so a wrong first value would briefly hide the phone call to
+  // action from assistive tech. The server has no window and renders false.
+  const [open, setOpen] = useState(false);
+  const [compact, setCompact] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(COMPACT_QUERY).matches,
+  );
+  const menuRef = useRef<HTMLDivElement>(null);
+  const burgerRef = useRef<HTMLButtonElement>(null);
 
   // 0 at the top of the page, 1 once the call to action is fully seated.
   const [ctaProgress, setCtaProgress] = useState(0);
@@ -269,7 +315,98 @@ export default function Navbar() {
 
   useEffect(() => {
     setPinned(false);
+    // A route change closes the menu too. That covers every link in the panel,
+    // the logo and the call to action, as well as history navigation.
+    setOpen(false);
   }, [pathname]);
+
+  // Track the breakpoint. Growing past it, for example by rotating a tablet,
+  // closes the menu, because the burger that would close it is gone up there.
+  useEffect(() => {
+    const mq = window.matchMedia(COMPACT_QUERY);
+    const sync = () => {
+      setCompact(mq.matches);
+      if (!mq.matches) setOpen(false);
+    };
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  /**
+   * ── WHILE THE MENU IS OPEN ───────────────────────────────────────────
+   *
+   * Scroll lock. Lenis drives wheel and keyboard scrolling here, so it is
+   * stopped rather than fought, and its own `lenis-stopped` class clips the
+   * root. Touch scrolling is native (SmoothScroll leaves touch alone) and
+   * Lenis does not exist at all under reduced motion, so the root's overflow
+   * is locked directly as well. Both are handed back exactly as found.
+   *
+   * Everything outside the bar is made `inert`: the panel covers the page, so
+   * nothing under it may take focus, clicks or a screen reader's cursor.
+   * Focus moves to the first link, Tab cycles through what the bar shows, and
+   * Escape closes. On close, focus goes back to the burger if it was still in
+   * the bar or had been dropped on the body, so the reader lands where they
+   * started.
+   */
+  useEffect(() => {
+    if (!open) return;
+    const nav = navRef.current;
+    if (!nav) return;
+    const burger = burgerRef.current;
+
+    const root = document.documentElement;
+    const prevOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    window.__lenis?.stop();
+
+    const outside = Array.from(nav.parentElement?.children ?? []).filter(
+      (el): el is HTMLElement => el !== nav && el instanceof HTMLElement && !el.inert,
+    );
+    outside.forEach((el) => {
+      el.inert = true;
+    });
+
+    const raf = requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLElement>("a[href]")?.focus({ preventScroll: true });
+    });
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setOpen(false);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = focusables(nav);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !nav.contains(active))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (active === last || !nav.contains(active))) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener("keydown", onKey);
+      outside.forEach((el) => {
+        el.inert = false;
+      });
+      root.style.overflow = prevOverflow;
+      window.__lenis?.start();
+      const active = document.activeElement;
+      if (!active || active === document.body || nav.contains(active)) {
+        burger?.focus({ preventScroll: true });
+      }
+    };
+  }, [open]);
 
   /**
    * ── THE BAR PUBLISHES ITS OWN HEIGHT AS `--nav-h` ─────────────────────
@@ -319,7 +456,28 @@ export default function Navbar() {
   const ctaLift = reduced ? 0 : -CTA_LIFT * (1 - ctaProgress);
   // Below this it is invisible anyway, and an invisible link that still takes
   // clicks and still answers a screen reader is a trap sitting over the hero.
-  const ctaIdle = ctaOpacity < 0.02;
+  // Never idle on a phone: there the pill is always shown (see `.site-nav-cta`
+  // in index.css, which also keeps the prerendered first paint right).
+  const ctaIdle = !compact && ctaOpacity < 0.02;
+
+  /** The menu's clocks, all from the token file and handed to index.css as
+   *  custom properties, because the panel's transitions live in a media query
+   *  there. Zero under reduced motion: the panel simply appears. */
+  const menuMotion = {
+    ["--menu-in" as string]: reduced ? "0s" : `${DURATION.swap}s`,
+    ["--menu-settle" as string]: reduced ? "0s" : `${DURATION.reveal}s`,
+    ["--menu-out" as string]: reduced ? "0s" : `${DURATION.quick}s`,
+    ["--menu-ease" as string]: CSS_EASE.outExpo,
+    ["--menu-stagger" as string]: reduced ? "0s" : `${STAGGER.tight}s`,
+    ["--menu-travel" as string]: reduced ? "0px" : `${TRAVEL.reveal}px`,
+  } as CSSProperties;
+  /** The burger's two strokes meet in the middle as an X. In-out, because the
+   *  gesture can be reversed mid-flight by a second tap. */
+  const morph: CSSProperties = {
+    transitionProperty: "transform",
+    transitionDuration: reduced ? "0s" : `${DURATION.swap}s`,
+    transitionTimingFunction: CSS_EASE.inOut,
+  };
 
   const reveal = (property: string) => ({
     transitionProperty: property,
@@ -328,7 +486,11 @@ export default function Navbar() {
   });
 
   return (
-    <nav ref={navRef} className="fixed left-0 right-0 top-0 z-50 py-5">
+    <nav
+      ref={navRef}
+      className="fixed left-0 right-0 top-0 z-50 py-5"
+      data-menu-open={open || undefined}
+    >
       {/* The progressive blur, and the only thing in this bar that is not a
           control. It is first so it paints behind everything below it, and
           aria-hidden because it is a surface, not content.
@@ -351,7 +513,10 @@ export default function Navbar() {
           in index.css still draw a real border-bottom, and must: they switch
           the blur off, so there they are the only thing defining the edge. */}
 
-      <div className="relative mx-auto flex w-full flex-wrap items-center justify-between px-6 md:px-10">
+      {/* `isolate` gives the row its own stacking context, so the phone panel
+          inside it can sit at z-index -1: under the logo, the call to action
+          and the burger, and over the page. */}
+      <div className="relative isolate mx-auto flex w-full items-center justify-between px-6 md:px-10">
         {/* ─── The logo pill ───────────────────────────────────────────────
             At rest it is a circle holding just the mark. On hover, on
             focus-visible, or on a tap where there is no hover to be had, the
@@ -456,37 +621,82 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* ─── Centre: the three links ─────────────────────────────────────
+        {/* ─── Centre: the three links, which are also the phone menu ──────
             From sm up they are absolutely centred, so they sit on the page's
             axis rather than in whatever space is left between the pill and the
-            call to action, which changes width as the reader scrolls.
+            call to action, which changes width as the reader scrolls. Every
+            class that styles that row carries `sm:`, so the row is exactly
+            what it was.
 
-            Below sm there is no room for all three on the pill's line, so they
-            wrap to their own centred row underneath. One element either way:
-            rendering a second copy for small screens would put every link in
-            the document twice.
+            Below sm this same element is the menu panel: `.site-menu` in
+            index.css makes it a full-screen white sheet under the bar, with
+            the links set large and a call to action at the foot. Hidden, it is
+            `visibility: hidden`, which keeps it out of the tab order and the
+            accessibility tree while the links stay in the document and in the
+            prerendered HTML. One element either way: rendering a second copy
+            for small screens would put every link in the document twice.
 
-            `-my-3 py-3` takes each link from 36px to a 44px tap target and
-            hands the padding straight back to the layout, so the row's
-            occupied height is the 20px of ink it always was. `leading-5` is
-            the last half-pixel: 13px text rides a 19.5px line by default,
+            `sm:-my-3 sm:py-3` takes each desktop link from 36px to a 44px tap
+            target and hands the padding straight back to the layout, so the
+            row's occupied height is the 20px of ink it always was. `leading-5`
+            is the last half-pixel: 13px text rides a 19.5px line by default,
             which lands the padded box on 43.5 and just under the target. */}
-        <div className="order-3 mt-3 flex w-full items-center justify-center gap-6 sm:absolute sm:left-1/2 sm:top-1/2 sm:mt-0 sm:w-auto sm:-translate-x-1/2 sm:-translate-y-1/2 sm:gap-7 xl:gap-9">
-          {LINKS.map((link) => (
+        <div
+          id="site-menu"
+          ref={menuRef}
+          data-open={open}
+          className="site-menu sm:absolute sm:left-1/2 sm:top-1/2 sm:flex sm:w-auto sm:-translate-x-1/2 sm:-translate-y-1/2 sm:items-center sm:justify-center sm:gap-7 xl:gap-9"
+          style={menuMotion}
+        >
+          {LINKS.map((link, i) => (
             <Link
               key={link.to}
               to={link.to}
               aria-current={pathname === link.to ? "page" : undefined}
-              className={`-my-3 whitespace-nowrap py-3 text-[13px] leading-5 tracking-wide hover:text-[var(--text-primary)] ${
+              onClick={() => setOpen(false)}
+              className={`site-menu-item site-menu-link sm:-my-3 sm:whitespace-nowrap sm:py-3 sm:text-[13px] sm:leading-5 sm:tracking-wide sm:hover:text-[var(--text-primary)] ${
                 pathname === link.to
-                  ? "text-[var(--text-primary)]"
-                  : "text-[var(--text-secondary)]"
+                  ? "sm:text-[var(--text-primary)]"
+                  : "sm:text-[var(--text-secondary)]"
               }`}
-              style={micro("color")}
+              style={{ ...micro("color"), ["--i" as string]: i }}
+              // Phone only: the index beside each large link, drawn by
+              // `.site-menu-link::after` from this attribute. CSS rather than a
+              // span, so it never becomes part of the link's text for a crawler
+              // ("Mission01") or its name for a screen reader.
+              data-index={String(i + 1).padStart(2, "0")}
             >
               {link.label}
             </Link>
           ))}
+          {/* Phone only: the call to action at the foot of the panel. The row's
+              own pill steps aside while the panel is open, so there is exactly
+              one of it on screen. */}
+          <div
+            className="site-menu-item site-menu-foot sm:hidden"
+            style={{ ["--i" as string]: LINKS.length }}
+          >
+            <Link
+              to="/book-a-call"
+              onClick={() => setOpen(false)}
+              className="site-menu-cta"
+            >
+              Book a call
+              <svg
+                aria-hidden="true"
+                width="15"
+                height="15"
+                viewBox="0 0 15 15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 7.5h9M8.4 3.9 12 7.5l-3.6 3.6" />
+              </svg>
+            </Link>
+          </div>
         </div>
 
         {/* ─── Right: the call to action ─────────────────────────────────
@@ -513,37 +723,89 @@ export default function Navbar() {
 
             The link keeps its own opacity transition, which is now only ever
             driving the hover. Before the split the two shared one declaration
-            and could not be tuned apart. */}
-        <div
-          className="flex items-center"
-          style={{
-            opacity: ctaOpacity,
-            transform: `translateY(${ctaLift}px)`,
-            visibility: ctaIdle ? "hidden" : "visible",
-            pointerEvents: ctaIdle ? "none" : undefined,
-            ...(reduced
-              ? {
-                  transitionProperty: "opacity",
-                  transitionDuration: `${DURATION.swap}s`,
-                  transitionTimingFunction: CSS_EASE.out,
-                }
-              : null),
-          }}
-        >
-          <Link
-            to="/book-a-call"
-            data-reveal
-            tabIndex={ctaIdle ? -1 : undefined}
-            aria-hidden={ctaIdle || undefined}
-            // `min-h-[44px]`: this measured 123x36, under the touch guidance on
-            // its short axis. The padding stays as it was and the minimum does
-            // the work, so the pill keeps its proportions and simply stops
-            // being too short to hit. Same idiom the rest of the site uses.
-            className="flex min-h-[44px] items-center rounded-full bg-[var(--text-primary)] px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90"
-            style={micro("opacity")}
+            and could not be tuned apart.
+
+            Below sm none of the scroll-driven fade applies: `.site-nav-cta` in
+            index.css pins the wrapper fully shown (it has to outrank these
+            inline styles, hence !important there), and the link turns into the
+            outlined pill. The fade was reading as a washed-out grey button on a
+            phone. The burger sits to its right on the same row. */}
+        <div className="flex items-center gap-2.5">
+          <div
+            className="site-nav-cta flex items-center"
+            style={{
+              opacity: ctaOpacity,
+              transform: `translateY(${ctaLift}px)`,
+              visibility: ctaIdle ? "hidden" : "visible",
+              pointerEvents: ctaIdle ? "none" : undefined,
+              ...(reduced
+                ? {
+                    transitionProperty: "opacity",
+                    transitionDuration: `${DURATION.swap}s`,
+                    transitionTimingFunction: CSS_EASE.out,
+                  }
+                : null),
+            }}
           >
-            Book a Call
-          </Link>
+            <Link
+              to="/book-a-call"
+              data-reveal
+              tabIndex={ctaIdle ? -1 : undefined}
+              aria-hidden={ctaIdle || undefined}
+              // `min-h-[44px]`: this measured 123x36, under the touch guidance on
+              // its short axis. The padding stays as it was and the minimum does
+              // the work, so the pill keeps its proportions and simply stops
+              // being too short to hit. Same idiom the rest of the site uses.
+              //
+              // `max-sm:` is the phone's outlined pill: the page's ground, a hairline
+              // in the same --border as the logo pill and the burger, ink text.
+              // Under 360 it gives up some side padding so the tap-opened logo
+              // still clears it.
+              className="flex min-h-[44px] items-center rounded-full bg-[var(--text-primary)] px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90 max-sm:border max-sm:border-[var(--border)] max-sm:bg-[var(--background)] max-sm:text-[var(--text-primary)] max-[359px]:px-3.5"
+              style={micro("opacity")}
+            >
+              Book a Call
+            </Link>
+          </div>
+
+          {/* ─── The burger (below sm only) ────────────────────────────────────
+              A 44px circle in the logo pill's own vocabulary: the page's ground,
+              a --border hairline, the ink. Two strokes rather than three, which
+              meet in the middle as an X when the menu is open. */}
+          <button
+            ref={burgerRef}
+            type="button"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            aria-controls="site-menu"
+            onClick={() => setOpen((v) => !v)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:hidden"
+            style={{
+              border: "1px solid var(--border)",
+              background: "var(--background)",
+              // Tailwind can't alpha-modify a var() colour, so the focus ring and
+              // its offset are painted from real tokens, as HeroActions does.
+              ["--tw-ring-offset-color" as string]: "var(--background)",
+              ["--tw-ring-color" as string]: "var(--text-primary)",
+            }}
+          >
+            <span aria-hidden="true" className="relative block h-[10px] w-[18px]">
+              <span
+                className="absolute left-0 top-0 block h-[1.5px] w-full rounded-full bg-current"
+                style={{
+                  transform: open ? "translateY(4.25px) rotate(45deg)" : "none",
+                  ...morph,
+                }}
+              />
+              <span
+                className="absolute bottom-0 left-0 block h-[1.5px] w-full rounded-full bg-current"
+                style={{
+                  transform: open ? "translateY(-4.25px) rotate(-45deg)" : "none",
+                  ...morph,
+                }}
+              />
+            </span>
+          </button>
         </div>
       </div>
     </nav>
