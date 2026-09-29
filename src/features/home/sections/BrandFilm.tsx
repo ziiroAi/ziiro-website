@@ -11,13 +11,20 @@ import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
  * eagerly-fetched `poster` attribute. A reader who never scrolls this far
  * downloads nothing but the markup.
  *
- * Wide screens get the master render itself, untouched: 1080p at 5.8 Mbps,
- * 30 MB. The 0.86 Mbps cut that shipped before blocked up the film's pale
- * gradients and softened its small type, and this film is the brand's first
- * impression, so here quality wins over bytes. Phones get a 1080p x264
- * re-encode of that master (CRF 18, veryslow): half the bytes at 15.7 MB, and
- * at a phone's frame width the difference does not show (VMAF 96.9 against
- * the master, 93.7 on its worst frame).
+ * The film is the Business Brain launch cut, 1080p at 60fps. Both copies are
+ * x264 veryslow encodes straight from its lossless render, and this film is
+ * the brand's first impression, so here quality wins over bytes. Wide screens
+ * get CRF 14: 35.8 MB at 5.05 Mbps, SSIM 0.9991 against the render. Phones
+ * get CRF 18: 23.0 MB at 3.24 Mbps, SSIM 0.9986, and at a phone's frame width
+ * the difference does not show. Both are converted to BT.709 and tagged so:
+ * browsers read untagged HD video as BT.709, and ffmpeg's untagged BT.601
+ * default shifts the orange. High@4.2 keeps 1080p60 within older phones'
+ * decoders.
+ *
+ * The poster is the film's reveal: the lockup and "Business Brain" on white.
+ * The film opens on white, so poster to first frame is white to white. No
+ * poster is baked into frame 0, because it would flash at every autoplay
+ * start.
  *
  * A new encode gets a new file name. /media is served `immutable` for a year,
  * so a file replaced under the same name would keep playing the old copy for
@@ -33,21 +40,21 @@ import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
  * The schema belongs on /watch/<slug>, not on the home page.
  */
 
-/** Runtime is 40.2s; both encodes are 1920x1080 H.264 with faststart. */
+/** Runtime is 56.7s; both encodes are 1920x1080 at 60fps, H.264 with faststart. */
 const BRAND_FILM: VslConfig = {
   source: {
     kind: "file",
-    src: "/media/ziiro-brand-anthem-master.mp4",
-    narrowSrc: "/media/ziiro-brand-anthem-phone.mp4",
+    src: "/media/ziiro-business-brain-master.mp4",
+    narrowSrc: "/media/ziiro-business-brain-phone.mp4",
   },
-  // The film's own opening line, not a claim written for it.
-  title: "Running a business shouldn't mean drowning in it.",
+  // The film's own opening lines, not a claim written for it.
+  title: "Everyone's selling you AI to replace your team. We built the opposite.",
   description:
-    "A short film on what Ziiro builds and why: the manual work that piles up inside a growing business, and the systems we put in its place.",
-  uploadDate: "2026-09-19",
-  duration: "PT40S",
-  poster: "/media/ziiro-brand-anthem-poster-1080.jpg",
-  runtime: "40 sec",
+    "The launch film for Business Brain: it maps a business against 137 jobs, keeps only the ones worth automating, and wires its departments into one brain. Agents prepare, people approve.",
+  uploadDate: "2026-09-29",
+  duration: "PT57S",
+  poster: "/media/ziiro-business-brain-poster-1080.jpg",
+  runtime: "57 sec",
 };
 
 /**
