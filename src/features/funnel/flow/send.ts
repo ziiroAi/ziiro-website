@@ -11,8 +11,14 @@ import type { Answers, SendResult } from "./state";
 import { inputModeOf } from "./words";
 
 export const LEAD_URL = "/api/funnel/lead";
-/** How long the send waits for Turnstile's token, inside the 8 s budget (Review Focus 4). */
+/** How long the send waits for Turnstile's token, before the request (Review Focus 4). */
 export const TOKEN_WAIT_MS = 3_000;
+/**
+ * How long a send waits for /lead, from the request (review M2). /lead runs for 15 s at most (its maxDuration), so a
+ * send this gives up on has already ended on the server, and the retry, with the same visit, gets the replay check's
+ * answer instead of making a second lead. The extra second is for the network.
+ */
+export const LEAD_BUDGET_MS = 16_000;
 /** S8's lines change at these times; each replaces the one before (§4.3). */
 export const S8_LINE_AT_MS = [0, 700, 1_400] as const;
 /** S8 holds at least this long, so each line is up for 0.7 s. */

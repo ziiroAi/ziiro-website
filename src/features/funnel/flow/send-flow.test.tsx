@@ -6,6 +6,7 @@ import { copy, type LeadRequest } from "@/features/funnel/data/light";
 import { INTERIM_BOOKING_URL } from "@/features/pricing/entities/rates";
 import { FunnelRoot } from "./FunnelRoot";
 import { loadPlanData, prefetchPlan } from "./plan-chunk";
+import { LEAD_BUDGET_MS } from "./send";
 import { funnelSession, setLeadContact } from "./session";
 import { button, click, mount, stubBrowser, stubClock, tap, tapThrough, typeInto, type Mounted } from "./test/dom";
 
@@ -54,6 +55,16 @@ type Reply = (signal?: AbortSignal) => Promise<Response>;
 const json = (status: number, body: unknown): Reply => async () => new Response(JSON.stringify(body), { status });
 const noAnswer: Reply = (signal) =>
   new Promise((_resolve, reject) => signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))));
+
+/** Answers after ms, unless the send gives up first. */
+const after = (ms: number, reply: Reply): Reply => (signal) =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(reply(signal)), ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(new DOMException("aborted", "AbortError"));
+    });
+  });
 
 let replies: Reply[] = [];
 let leads: LeadRequest[] = [];
@@ -206,14 +217,23 @@ describe("sending S7 (§4.3, §10, §13.2)", () => {
     expect(root().querySelector<HTMLAnchorElement>(`.f-plan a[href="${INTERIM_BOOKING_URL}"]`)?.textContent).toBe("Book a call");
   });
 
+  it("waits out a slow server that saves the lead, instead of calling it a failure (review M2)", async () => {
+    replies = [after(12_000, json(200, { success: true, planEmail: "sent" }))];
+    send();
+    await run(12_000);
+    expect(planText()).toBe("Ananya · none");
+    expect(leads).toHaveLength(1);
+  });
+
   it("opens the plan with sp.save.unsure's notice after no answer twice", async () => {
     replies = [noAnswer, noAnswer];
     send();
-    await run(8_000);
+    await run(LEAD_BUDGET_MS);
     expect(screenNow()).toBe("s7");
     expect(alertLine()).toBe("Something went wrong on our end. Try that again?");
     send();
-    await run(8_000);
+    await run(LEAD_BUDGET_MS);
+    expect(leads[1]).toMatchObject({ retry: true, visitId: leads[0].visitId });  // the replay check answers it (review M2)
     expect(planText()).toBe("Ananya · unsure");
   });
 

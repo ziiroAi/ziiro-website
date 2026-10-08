@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LEAD_URL, afterSend, leadRequest, postLead, s8LineAt, s8Lines, type LeadInput, type LeadOutcome } from "./send";
+import { LEAD_BUDGET_MS, LEAD_URL, afterSend, leadRequest, postLead, s8LineAt, s8Lines, type LeadInput, type LeadOutcome } from "./send";
 import { initialFlow, type Answers, type SendResult } from "./state";
 import { FAKE_PLAN } from "./test/fake-data";
 
@@ -56,6 +57,13 @@ describe("leadRequest (index §1.2)", () => {
 });
 
 describe("postLead (§13.2)", () => {
+  it("waits longer than /lead can run, so a send it gives up on has already ended on the server (review M2)", () => {
+    const lead = readFileSync(new URL("../../../../api/funnel/lead.ts", import.meta.url), "utf8");
+    const maxDurationS = Number(/maxDuration:\s*(\d+)/.exec(lead)?.[1]);
+    expect(maxDurationS).toBeGreaterThan(0);
+    expect(LEAD_BUDGET_MS).toBeGreaterThan(maxDurationS * 1_000);
+  });
+
   const body = leadRequest(BASE);
   afterEach(() => vi.useRealTimers());
 

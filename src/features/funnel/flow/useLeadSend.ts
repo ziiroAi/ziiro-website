@@ -4,16 +4,15 @@
  * S8's clock is Date.now(), counted from the tap.
  */
 import { useCallback, useRef, type Dispatch } from "react";
-import { LEAD_TIMEOUT_MS } from "@/features/funnel/data/light";
 import { loadPlanData, loadPlanPage } from "./plan-chunk";
 import type { CheckedContact, FlowEnv, TokenSource } from "./screens/types";
-import { S8_MIN_MS, TOKEN_WAIT_MS, afterSend, leadRequest, postLead } from "./send";
+import { LEAD_BUDGET_MS, S8_MIN_MS, TOKEN_WAIT_MS, afterSend, leadRequest, postLead } from "./send";
 import { setLeadContact } from "./session";
 import type { FlowAction, FlowState, SendResult } from "./state";
 import { markLeadSent } from "./visit-id";
 import { problemTextFrom } from "./words";
 
-/** S8's hold. Nothing left to hold resolves at once, so a send that used up its 8 s goes straight on. */
+/** S8's hold. Nothing left to hold resolves at once, so a send that used up its time goes straight on. */
 const wait = (ms: number) => (ms <= 0 ? Promise.resolve() : new Promise<void>((resolve) => setTimeout(resolve, ms)));
 const FAILED: SendResult = { to: "s7", error: "server", field: null, line: "g.error" };
 /** A second try that failed before /lead: never S7 again (D18, review H2). The plan's frame says so and offers a call. */
@@ -41,9 +40,9 @@ export function useLeadSend(state: FlowState, dispatch: Dispatch<FlowAction>, st
         const { composePlan } = await loadPlanData();
         const plan = composePlan({ teamBand, revenueBand, currency: revenueCurrency, chips: words.chips, problemText: words.problemText });
         dispatch({ type: "planReady", plan });
-        const token = await widget.waitForToken(Math.min(TOKEN_WAIT_MS, LEAD_TIMEOUT_MS - elapsed()));
+        const token = await widget.waitForToken(TOKEN_WAIT_MS);
         const body = leadRequest({ visitId: visit.id, retry: isRetry, contact, token, answers, words, plan });
-        const result = afterSend(await postLead(body, LEAD_TIMEOUT_MS - elapsed()), isRetry);
+        const result = afterSend(await postLead(body, LEAD_BUDGET_MS), isRetry);
         await Promise.all([wait(S8_MIN_MS - elapsed()), result.to === "plan" ? loadPlanPage().catch(() => undefined) : undefined]);
         if (result.to === "s7") widget.reset();  // a token is single use: the second try needs a fresh one
         dispatch({ type: "sendFinished", result });

@@ -15,7 +15,7 @@ const refused = (status: number, field?: LeadField): LeadAnswer => ({
 
 /** Back at S7 once, with every field kept (§10). */
 async function expectBackAtS7(page: Page, line: string) {
-  await expect(page.locator(".f-root")).toHaveAttribute("data-screen", "s7", { timeout: 12_000 });
+  await expect(page.locator(".f-root")).toHaveAttribute("data-screen", "s7", { timeout: 20_000 });
   await expect(page.getByText(line)).toBeVisible();
   await expect(page.getByLabel("Your name")).toHaveValue("Ananya");
   await expect(page.getByLabel("Email", { exact: true })).toHaveValue("ananya@example.com");
@@ -96,8 +96,8 @@ test("our server failing twice: S7 with g.error, then the plan with sp.save.fail
   await expect(page.getByText(SAVE_FAIL)).toBeVisible();
 });
 
-test("no answer twice: S8 holds 8 s, S7 with g.error, then the plan with sp.save.unsure", async ({ page, funnelApi }) => {
-  test.setTimeout(40_000);
+test("no answer twice: S8 holds until the drop, S7 with g.error, then the plan with sp.save.unsure", async ({ page, funnelApi }) => {
+  test.setTimeout(60_000);
   funnelApi.answerLeadWith(["no-answer", "no-answer"]);
   await fillContact(page);
   await sendContact(page);

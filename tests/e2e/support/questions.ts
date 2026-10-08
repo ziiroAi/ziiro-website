@@ -42,7 +42,7 @@ export async function sendContact(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Show me my plan" }).click();
 }
 
-/** Lane C's plan is on screen at "/". S8 may hold up to LEAD_TIMEOUT_MS. */
+/** Lane C's plan is on screen at "/". S8 holds until /lead answers, up to LEAD_BUDGET_MS (review M2). */
 export async function expectPlan(page: Page): Promise<void> {
-  await expect(page.locator(".f-root")).toHaveAttribute("data-screen", "plan", { timeout: 12_000 });
+  await expect(page.locator(".f-root")).toHaveAttribute("data-screen", "plan", { timeout: 20_000 });
 }
