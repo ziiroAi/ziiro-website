@@ -16,6 +16,8 @@ import { problemTextFrom } from "./words";
 /** S8's hold. Nothing left to hold resolves at once, so a send that used up its 8 s goes straight on. */
 const wait = (ms: number) => (ms <= 0 ? Promise.resolve() : new Promise<void>((resolve) => setTimeout(resolve, ms)));
 const FAILED: SendResult = { to: "s7", error: "server", field: null, line: "g.error" };
+/** A second try that failed before /lead: never S7 again (D18, review H2). The plan's frame says so and offers a call. */
+const GAVE_UP: SendResult = { to: "plan", notice: "fail", error: "server" };
 
 export function useLeadSend(state: FlowState, dispatch: Dispatch<FlowAction>, starter: string): FlowEnv["send"] {
   const sending = useRef(false);
@@ -46,9 +48,10 @@ export function useLeadSend(state: FlowState, dispatch: Dispatch<FlowAction>, st
         if (result.to === "s7") widget.reset();  // a token is single use: the second try needs a fresh one
         dispatch({ type: "sendFinished", result });
       } catch {
-        // The plan couldn't be composed or its code didn't load: no lead went out, so S7 offers the send again.
-        widget.reset();
-        dispatch({ type: "sendFinished", result: FAILED });
+        // The plan couldn't be composed or its code didn't load, twice over: no lead went out. S7 offers the send
+        // once more; after that the plan's frame shows sp.save.fail and the booking link.
+        if (!isRetry) widget.reset();
+        dispatch({ type: "sendFinished", result: isRetry ? GAVE_UP : FAILED });
       } finally {
         sending.current = false;
       }

@@ -6,7 +6,7 @@ import { BusinessType } from "./BusinessType";
 import { ContactForm } from "./ContactForm";
 import { Landing } from "./Landing";
 import { NonOwner } from "./NonOwner";
-import { PlanScreen } from "./Plan";
+import { PlanOrNoPlan } from "./NoPlan";
 import { Problem } from "./Problem";
 import { Revenue } from "./Revenue";
 import type { ScreenProps } from "./types";
@@ -21,5 +21,5 @@ export const SCREEN_UI: Readonly<Partial<Record<Screen, ComponentType<ScreenProp
   s6: Problem,
   s7: ContactForm,
   s8: Analysing,
-  plan: PlanScreen,
+  plan: PlanOrNoPlan,
 };

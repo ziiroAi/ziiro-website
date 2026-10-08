@@ -2,9 +2,10 @@
 import { act } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LeadRequest } from "@/features/funnel/data/light";
+import { copy, type LeadRequest } from "@/features/funnel/data/light";
+import { INTERIM_BOOKING_URL } from "@/features/pricing/entities/rates";
 import { FunnelRoot } from "./FunnelRoot";
-import { prefetchPlan } from "./plan-chunk";
+import { loadPlanData, prefetchPlan } from "./plan-chunk";
 import { funnelSession, setLeadContact } from "./session";
 import { button, click, mount, stubBrowser, stubClock, tap, tapThrough, typeInto, type Mounted } from "./test/dom";
 
@@ -31,8 +32,10 @@ vi.mock("@/shared/lib/contact-checks", () => ({
 }));
 vi.mock("./plan-chunk", async (importOriginal) => {
   const { createElement } = await import("react");
+  const actual = await importOriginal<typeof import("./plan-chunk")>();
   return {
-    ...(await importOriginal<typeof import("./plan-chunk")>()),
+    ...actual,
+    loadPlanData: vi.fn(actual.loadPlanData),
     prefetchPlan: vi.fn(),
     LazyHeroPicturePrefetch: () => createElement("i", { "data-hero-prefetch": "" }),
   };
@@ -187,6 +190,20 @@ describe("sending S7 (§4.3, §10, §13.2)", () => {
     send();
     await run(2_100);
     expect(planText()).toBe("Ananya · fail");
+  });
+
+  it("shows the plan's frame with sp.save.fail and the booking link when the plan's code can't load twice (review H2)", async () => {
+    const lost = new TypeError("Failed to fetch dynamically imported module");
+    vi.mocked(loadPlanData).mockRejectedValueOnce(lost).mockRejectedValueOnce(lost);
+    send();
+    await run(2_100);
+    expect(screenNow()).toBe("s7");
+    expect(alertLine()).toBe("Something went wrong on our end. Try that again?");
+    send();
+    await run(2_100);
+    expect(screenNow()).toBe("plan");
+    expect(root().querySelector('.f-plan [role="alert"]')?.textContent).toBe(copy("sp.save.fail"));
+    expect(root().querySelector<HTMLAnchorElement>(`.f-plan a[href="${INTERIM_BOOKING_URL}"]`)?.textContent).toBe("Book a call");
   });
 
   it("opens the plan with sp.save.unsure's notice after no answer twice", async () => {

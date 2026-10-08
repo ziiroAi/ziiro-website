@@ -13,6 +13,7 @@ export const LINES: Readonly<Record<string, string>> = {
   "g.error": "Something went wrong on our end. Try that again?",
   "g.noscript": "This page needs JavaScript to build your plan. Rather talk? Book a call.",
   "nav.btn": "Book a call",
+  "sp.save.fail": "I couldn't save your details just now, so no email went out. Your plan is below, and you can still book a call.",
   "s0.sub.early": "You're up early.",
   "s0.sub.day": "Glad you're here.",
   "s0.sub.late": "Late one? I'll keep it quick.",
