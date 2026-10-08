@@ -48,8 +48,11 @@ describe("S3 + S4 (§4.3, §11.1)", () => {
   it("keeps both answers when Back comes from S5", async () => {
     tapThrough(root(), "5–10 years", "6–20");
     window.history.back();
-    await settle(20);
-    expect(screenNow()).toBe("s34");
+    // Wait for the screen to change, not a fixed time: popstate can land late when the whole suite runs at once.
+    await vi.waitFor(async () => {
+      await settle();
+      expect(screenNow()).toBe("s34");
+    }, { timeout: 2_000, interval: 20 });
     expect(button(root(), "5–10 years")?.getAttribute("aria-pressed")).toBe("true");
     expect(button(root(), "6–20")?.classList.contains("is-selected")).toBe(true);
   });
