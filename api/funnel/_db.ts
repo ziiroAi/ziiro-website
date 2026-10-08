@@ -55,7 +55,7 @@ export interface FunnelDb {
   /** One transaction: the visit's final snapshot, then the contact (§13.2, write 1). */
   saveLead(visit: VisitRecord, contact: ContactRecord): Promise<SavedLead>;
   savePlanEmail(row: PlanEmailRecord): Promise<void>;
-  /** Flagged contacts saved in the last hour (review H1). */
+  /** Flagged contacts saved in the last 24 hours (review H1). */
   countRecentFlagged(): Promise<number>;
 }
 

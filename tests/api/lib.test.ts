@@ -159,6 +159,13 @@ describe("turnstileOutcome (§13.2 step 5, §13.3)", () => {
     expect((fetchMock.mock.calls[0][1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
   });
 
+  it("says unavailable, not refused, when Cloudflare answers 5xx or not in JSON (recheck M1)", async () => {
+    fetchMock.mockResolvedValue(new Response("upstream down", { status: 503 }));
+    expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("unavailable");
+    fetchMock.mockResolvedValue(new Response("<html>oops</html>", { status: 200 }));
+    expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("unavailable");
+  });
+
   it("says unavailable when Cloudflare rejects our secret (review M1)", async () => {
     cloudflare({ success: false, "error-codes": ["invalid-input-secret"] });
     expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("unavailable");

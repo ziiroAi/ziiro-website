@@ -19,7 +19,9 @@ export const config = { runtime: "nodejs", maxDuration: 15 };
 
 const LEAD_RATE_MAX = 5;              // per connection per 10 minutes, the /contact setting (§13.2 step 4)
 const RETRY_RATE_MAX = 2;             // second tries per connection per 10 minutes: retry is the client's word (review H1)
-const FLAGGED_ALERT_CEILING = 10;     // flagged leads alerted one by one per hour, then one flood alert (review H1)
+// Flagged leads alerted one by one per 24 hours, then one flood alert a day (review H1, recheck). Resend's free
+// plan sends 100 a day and each alert may count twice, so 20 leaves room for real leads' alerts and plan emails.
+const FLAGGED_ALERT_CEILING = 20;
 const PRODUCTION_HOSTS = ["ziiroai.com", "www.ziiroai.com"];  // where a Production token may come from (review L2)
 const CALL_TIMEOUT_MS = 2_500;        // each Turnstile or Resend call, so most answers land inside S8's 8 s
 const PLAN_EMAIL_TRIES = 2;           // two tries, then failed (§10)
@@ -85,20 +87,20 @@ const FLAG_FOR: Record<Exclude<TurnstileOutcome, "passed">, LeadFlag> = {
 
 /**
  * §13.2 steps 4 and 5. A first try that fails stops here: 429, 403, or 503 while the spam check is down (review M1).
- * A second try has its own per-connection limit, because retry is the client's word (review H1), and always gets
- * the spam check: it, not the shared-IP limit, decides the flag (review M2).
+ * A second try always gets the spam check: it, not the shared-IP limit, decides the flag (review M2). Past its own
+ * per-connection limit (review H1), a second try is saved only when its token passes or the check is down, so a
+ * busy office or carrier IP loses no real lead (recheck M2) while a forged retry, with no passing token, gets 429.
  */
 async function checkSender(deps: LeadDeps, request: Request, lead: LeadRequest): Promise<Gate> {
   const retry = lead.retry === true;
   const ip = clientIp(request);
   const limited = deps.rateLimited(`funnel-lead:${ip}`, LEAD_RATE_MAX);
   if (!retry && limited) return { refuse: 429, flag: null, spamCheck: "skipped" };
-  if (retry && deps.rateLimited(`funnel-lead-retry:${ip}`, RETRY_RATE_MAX)) {
-    return { refuse: 429, flag: null, spamCheck: "skipped" };
-  }
+  const retryOverLimit = retry && deps.rateLimited(`funnel-lead-retry:${ip}`, RETRY_RATE_MAX);
   const outcome = await deps.turnstile(lead.turnstileToken, ip);
   if (outcome === "passed") return { refuse: null, flag: null, spamCheck: outcome };
   if (!retry) return { refuse: outcome === "unavailable" ? 503 : 403, flag: null, spamCheck: outcome };
+  if (retryOverLimit && outcome !== "unavailable") return { refuse: 429, flag: null, spamCheck: outcome };
   return { refuse: null, flag: FLAG_FOR[outcome], spamCheck: outcome };
 }
 
@@ -163,7 +165,7 @@ function sendAlert(deps: LeadDeps, lead: LeadRequest, email: Email, idempotencyK
   });
 }
 
-/** True past the hour's ceiling of flagged saves. A count that can't be read alerts as before (review H1). */
+/** True past the ceiling of flagged saves in 24 hours. A count that can't be read alerts as before (review H1). */
 async function pastFloodCeiling(deps: LeadDeps): Promise<boolean> {
   try {
     return (await deps.db().countRecentFlagged()) > FLAGGED_ALERT_CEILING;
@@ -173,12 +175,12 @@ async function pastFloodCeiling(deps: LeadDeps): Promise<boolean> {
   }
 }
 
-/** One flood alert per hour, to TEAM_INBOX only, in place of every flagged lead's own (review H1). */
+/** One flood alert per UTC day, to TEAM_INBOX only, in place of every flagged lead's own (review H1). */
 function sendFloodAlert(deps: LeadDeps): Promise<boolean> {
   const env = deps.env();
-  const hour = deps.now().toISOString().slice(0, 13);
+  const day = deps.now().toISOString().slice(0, 10);
   return deliver(deps, {
-    ...buildFloodAlert(FLAGGED_ALERT_CEILING), to: [env.teamInbox], from: env.alertFrom, idempotencyKey: `flood-${hour}`,
+    ...buildFloodAlert(FLAGGED_ALERT_CEILING), to: [env.teamInbox], from: env.alertFrom, idempotencyKey: `flood-${day}`,
   });
 }
 

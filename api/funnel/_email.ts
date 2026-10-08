@@ -182,9 +182,9 @@ export function buildSendByHandAlert(input: { lead: LeadRequest; errorName: stri
  */
 export function buildFloodAlert(ceiling: number): Email {
   return {
-    subject: `Flagged funnel leads: more than ${ceiling} this hour`,
+    subject: `Flagged funnel leads: more than ${ceiling} in 24 hours`,
     text: [
-      `More than ${ceiling} flagged leads were saved in the last hour, so their alerts are paused until the hour is out.`,
+      `More than ${ceiling} flagged leads were saved in the last 24 hours, so their alerts are paused until the count drops.`,
       "Every one is in the database, with its plan email held. Read them with the saved query for flagged contacts.",
       "If they look real, check the spam check first: a Turnstile outage flags every lead.",
     ].join("\n"),

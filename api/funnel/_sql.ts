@@ -102,9 +102,9 @@ from jsonb_to_record($1::jsonb) as r(
 on conflict (visit_id) do nothing
 returning id`;
 
-/** Flagged contacts saved in the last hour, for the flood ceiling on team alerts (review H1). */
+/** Flagged contacts saved in the last 24 hours, for the flood ceiling on team alerts (review H1). */
 export const COUNT_RECENT_FLAGGED = `
-select count(*)::int as n from contacts where flag is not null and created_at > now() - interval '1 hour'`;
+select count(*)::int as n from contacts where flag is not null and created_at > now() - interval '24 hours'`;
 
 /** One row per lead: sent, failed or held (§13.2, write 4). */
 export const PLAN_EMAIL_INSERT = `

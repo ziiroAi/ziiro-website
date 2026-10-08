@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ananya from "../../fixtures/ananya-lead.json";
-import { UpstreamError, type TurnstileOutcome } from "../../../api/_lib";
+import { UpstreamError, isRateLimited, type TurnstileOutcome } from "../../../api/_lib";
 import type {
   ContactRecord, FunnelDb, PlanEmailRecord, StoredPlanEmailStatus, VisitAnswers, VisitRecord,
 } from "../../../api/funnel/_db";
@@ -22,6 +22,8 @@ type Options = {
   recentFlagged?: number;                             // flagged contacts saved in the last hour, this one included
   countDown?: boolean;                                // the flagged count can't be read
   production?: boolean;                               // VERCEL_ENV is production (default true)
+  realLimiter?: boolean;                              // api/_lib's own in-memory limiter, not the fake
+  countFromSaved?: boolean;                           // the flagged count is the flagged rows saved so far
   turnstile?: TurnstileOutcome;
   failSend?: (email: OutgoingEmail) => number | null; // a Resend status to throw, or null to send
 };
@@ -51,12 +53,15 @@ function setup(options: Options = {}) {
     },
     async countRecentFlagged() {
       if (options.dbDown || options.countDown) throw new Error("connection refused");
+      if (options.countFromSaved) return saved.filter((row) => row.contact.flag !== null).length;
       return options.recentFlagged ?? 1;
     },
   };
   const handle = createLeadHandler({
     db: () => db,
-    rateLimited: (key) => (key.startsWith("funnel-lead-retry:") ? options.limitedRetry : options.limited) ?? false,
+    rateLimited: options.realLimiter
+      ? isRateLimited
+      : (key) => (key.startsWith("funnel-lead-retry:") ? options.limitedRetry : options.limited) ?? false,
     turnstile,
     async send(email) {
       tries.push(email);
@@ -76,10 +81,10 @@ function setup(options: Options = {}) {
   return { handle, saved, rows, sent, tries, turnstile };
 }
 
-const send = (body: unknown, type = "application/json") =>
+const send = (body: unknown, type = "application/json", ip = IP) =>
   new Request("https://ziiroai.com/api/funnel/lead", {
     method: "POST",
-    headers: { "content-type": type, origin: "https://ziiroai.com", "x-forwarded-for": IP, "x-vercel-ip-country": "IN" },
+    headers: { "content-type": type, origin: "https://ziiroai.com", "x-forwarded-for": ip, "x-vercel-ip-country": "IN" },
     body: typeof body === "string" ? body : JSON.stringify(body),
   });
 const lead = (over: Record<string, unknown> = {}) => ({ ...ananya, ...over });
@@ -178,13 +183,45 @@ describe("POST /api/funnel/lead (§13.2)", () => {
       expect(keys(sent)).toEqual([`alert-${ID}`]);
     });
 
-    it("answers 429 to a second try past the second-try limit, and saves and sends nothing (review H1)", async () => {
-      const { handle, saved, tries, turnstile } = setup({ limitedRetry: true });
+    it.each(["missing", "refused"] as const)(
+      "answers 429 to a second try past the second-try limit whose check says %s, and saves and sends nothing (review H1)",
+      async (outcome) => {
+        const { handle, saved, tries } = setup({ limitedRetry: true, turnstile: outcome });
+        const res = await handle(send(lead({ retry: true })));
+        expect(res.status).toBe(429);
+        expect(saved).toEqual([]);
+        expect(tries).toEqual([]);
+      },
+    );
+
+    it("saves a second try past the second-try limit, unflagged with the plan email, when its token passes (recheck M2)", async () => {
+      const { handle, saved, sent } = setup({ limitedRetry: true });
       const res = await handle(send(lead({ retry: true })));
-      expect(res.status).toBe(429);
-      expect(saved).toEqual([]);
-      expect(tries).toEqual([]);
-      expect(turnstile).not.toHaveBeenCalled();
+      expect(await res.json()).toEqual({ success: true, planEmail: "sent" });
+      expect(saved[0].contact.flag).toBeNull();
+      expect(keys(sent)).toEqual([`alert-${ID}`, `plan-${ID}`]);
+    });
+
+    it("saves a second try past the second-try limit while the check is down, flagged turnstile_unavailable (recheck M2)", async () => {
+      const { handle, saved } = setup({ limitedRetry: true, turnstile: "unavailable" });
+      const res = await handle(send(lead({ retry: true })));
+      expect(res.status).toBe(200);
+      expect(saved[0].contact.flag).toBe("turnstile_unavailable");
+    });
+
+    it("saves all 9 visitors on one shared IP with valid tokens, with the real limiter (worker-3's recheck repro)", async () => {
+      const { handle, saved } = setup({ realLimiter: true });
+      const ip = `198.51.100.${Math.floor(Math.random() * 250) + 1}-${Date.now()}`;
+      const answers: number[] = [];
+      for (let visitor = 0; visitor < 9; visitor += 1) {
+        const body = lead({ visitId: crypto.randomUUID() });
+        const first = await handle(send(body, "application/json", ip));
+        const final = first.status === 429 ? await handle(send({ ...body, retry: true }, "application/json", ip)) : first;
+        answers.push(final.status);
+      }
+      expect(answers).toEqual(Array(9).fill(200));
+      expect(saved).toHaveLength(9);
+      expect(saved.every((row) => row.contact.flag === null)).toBe(true);
     });
 
     it("answers 503 on a first try when the spam check is down, and saves nothing (review M1)", async () => {
@@ -213,23 +250,31 @@ describe("POST /api/funnel/lead (§13.2)", () => {
   describe("a flood of flagged saves (review H1)", () => {
     const flagged = { turnstile: "missing" as const };
 
-    it("alerts a flagged lead while this hour's flagged saves are at the ceiling", async () => {
-      const { handle, sent } = setup({ ...flagged, recentFlagged: 10 });
+    it("alerts a flagged lead while the last 24 hours' flagged saves are at the ceiling", async () => {
+      const { handle, sent } = setup({ ...flagged, recentFlagged: 20 });
       await handle(send(lead({ retry: true })));
       expect(keys(sent)).toEqual([`alert-${ID}`]);
     });
 
-    it("past the ceiling, saves the lead, skips its alert, and sends one flood alert for the hour", async () => {
-      const { handle, saved, sent, rows } = setup({ ...flagged, recentFlagged: 11 });
+    it("past the ceiling, saves the lead, skips its alert, and sends one flood alert for the day", async () => {
+      const { handle, saved, sent, rows } = setup({ ...flagged, recentFlagged: 21 });
       const res = await handle(send(lead({ retry: true })));
       expect(await res.json()).toEqual({ success: true, planEmail: "held" });
       expect(saved).toHaveLength(1);
       expect(rows[0]).toMatchObject({ status: "held" });
-      expect(keys(sent)).toEqual(["flood-2026-10-19T06"]);
+      expect(keys(sent)).toEqual(["flood-2026-10-19"]);
       expect(sent[0].to).toEqual(["team@ziiroai.com"]);
       expect(sent[0].replyTo).toBeUndefined();
-      expect(sent[0].subject).toBe("Flagged funnel leads: more than 10 this hour");
+      expect(sent[0].subject).toBe("Flagged funnel leads: more than 20 in 24 hours");
       expect(sent[0].text).not.toContain(ananya.email);
+    });
+
+    it("sends at most 20 lead alerts and one flood alert for a slow drip of 30 forged retries (worker-3's recheck repro)", async () => {
+      const { handle, saved, sent } = setup({ ...flagged, countFromSaved: true });
+      for (let i = 0; i < 30; i += 1) await handle(send(lead({ visitId: crypto.randomUUID(), retry: true })));
+      expect(saved).toHaveLength(30);
+      expect(keys(sent).filter((key) => key.startsWith("alert-"))).toHaveLength(20);
+      expect([...new Set(keys(sent).filter((key) => key.startsWith("flood-")))]).toEqual(["flood-2026-10-19"]);
     });
 
     it("alerts as before when the count can't be read", async () => {

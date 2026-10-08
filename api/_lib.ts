@@ -292,9 +292,14 @@ export const turnstileOutcome = async (
       body: form,
       ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
     });
-    const data = (await res.json().catch(() => ({}))) as {
+    // A 5xx or a reply that isn't JSON is Cloudflare's outage, not the visitor's no (recheck M1).
+    const data = res.ok ? ((await res.json().catch(() => null)) as {
       success?: boolean; action?: string; hostname?: string; "error-codes"?: string[];
-    };
+    } | null) : null;
+    if (data === null || typeof data !== "object") {
+      logEvent("error", "turnstile.unavailable", { status: res.status });
+      return "unavailable";
+    }
     if (data.success !== true) {
       if (!(data["error-codes"] ?? []).some((code) => SECRET_ERRORS.has(code))) return "refused";
       logEvent("error", "turnstile.misconfigured", { rejected: "TURNSTILE_SECRET_KEY" });
