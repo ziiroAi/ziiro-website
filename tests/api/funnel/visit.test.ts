@@ -87,12 +87,14 @@ describe("POST /api/funnel/visit (§13.2)", () => {
     expect(saved).toEqual([]);
   });
 
-  it("flags a bot by navigator.webdriver or by its user agent", async () => {
+  it("answers a bot, known by navigator.webdriver or its user agent, without saving it (review M3)", async () => {
     const { handle, saved } = setup();
-    await handle(send(visit({ webdriver: true })));
-    await handle(send(visit({}), { "user-agent": GOOGLEBOT }));
+    const byDriver = await handle(send(visit({ webdriver: true })));
+    const byAgent = await handle(send(visit({}), { "user-agent": GOOGLEBOT }));
     await handle(send(visit({})));
-    expect(saved.map((row) => row.bot_flag)).toEqual([true, true, false]);
+    expect([byDriver.status, byAgent.status]).toEqual([200, 200]);
+    expect(await byAgent.json()).toEqual({ success: true, country: "IN" });
+    expect(saved.map((row) => row.bot_flag)).toEqual([false]);
   });
 
   it("leaves the country out when the header isn't a country code", async () => {

@@ -43,9 +43,11 @@ export function createVisitHandler(deps: VisitDeps) {
     }
     const visit = parsed.value;
     const country = countryOf(request);
+    // A bot gets the same answer and no row, so it can't grow the table or skew the numbers (review M3).
+    if (isBot(request, visit.fields.webdriver)) return answer(request, { success: true, country });
     const record = toVisitRecord(visit, {
       country,
-      bot: isBot(request, visit.fields.webdriver),
+      bot: false,
       jobIds: visit.fields.agentIds ? deps.jobIdsFor(visit.fields.agentIds) : null,
     });
     try {
