@@ -29,6 +29,9 @@ const OVERLAY = {
   "seo.home.title": "Your Business Spine: an AI plan in a minute",
   "seo.home.desc": "Answer a few questions and see which of the 33 agents in a full Business Spine your business needs today. ziiro AI is an AI consultancy based in India.",
   "seo.plan.title": "Your plan",
+  "s9.err.sent": "Your plan is on its way to {email}. This page couldn't show it just now, but the email has all of it.",
+  "s9.err.unsent": "This page couldn't show your plan just now. Reload to try again, or book a call.",
+  "g.reload": "Reload the page",
 };
 
 const range = (prefix, from, to) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}${i + from}`);
@@ -47,6 +50,7 @@ const SURFACES = {
     "s7.q", "s7.sub", "s7.name", "s7.name.ph", "s7.email", "s7.email.ph", "s7.phone", "s7.phone.why", "s7.consent", "s7.links", "s7.btn",
     "s7.err.name", "s7.err.email", "s7.err.phone", "s7.err.consent", "s7.err.bot",
     "s8.l1", "s8.l1.chips", "s8.l2", "s8.l3", "s8.l3.one",
+    "s9.err.sent", "s9.err.unsent", "g.reload",
   ]],
   "copy/site.ts": ["SITE_COPY", ["nav.home.aria", "nav.mission", "nav.who", "nav.products", "nav.btn", "ph.nav.menu"]],
   "copy/plan.ts": ["PLAN_COPY", [

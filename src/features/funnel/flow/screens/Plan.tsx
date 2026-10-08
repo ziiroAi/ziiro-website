@@ -1,11 +1,12 @@
 /** (C) S9 (spec §6; index §1.3): lane C's PlanPage at "/", with what the questions gathered; and S5's prefetch. */
 import { Component, Suspense, useEffect, type ReactNode } from "react";
-import { copy } from "@/features/funnel/data/light";
+import { calendlyUrl, copy } from "@/features/funnel/data/light";
+import { ErrorNote } from "../ErrorNote";
 import { LazyHeroPicturePrefetch, LazyPlanPage } from "../plan-chunk";
 import { problemTextFrom } from "../words";
 import type { ScreenProps } from "./types";
 
-/** If the plan's code can't load, g.error shows in its place (§10) instead of a blank page. */
+/** If the plan's code can't load, a note shows in its place (§10, review M4) instead of a blank page. */
 class PlanBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
 
@@ -27,12 +28,18 @@ function Painted({ onPaint }: { onPaint(): void }) {
   return null;
 }
 
+/** The lead was sent, so the plan is in their inbox, unless the save failed or is unsure: then it says only what's true. */
+function PlanFailed({ visitor, saveNotice }: { visitor: { name: string; email: string }; saveNotice: ScreenProps["state"]["saveNotice"] }) {
+  const line = saveNotice ? copy("s9.err.unsent") : copy("s9.err.sent", { email: visitor.email });
+  return <ErrorNote line={line} bookingHref={calendlyUrl(visitor.name, visitor.email)} />;
+}
+
 export function PlanScreen({ state, edit, env }: ScreenProps) {
   if (!state.plan || !state.visitor) return null;
   const words = { problemText: problemTextFrom(state.answers.problemText, env.starter), chips: state.answers.chips };
   return (
     <div className="f-plan" tabIndex={-1} data-question="">
-      <PlanBoundary fallback={<p className="f-err" role="alert">{copy("g.error")}</p>}>
+      <PlanBoundary fallback={<PlanFailed visitor={state.visitor} saveNotice={state.saveNotice} />}>
         <Suspense fallback={null}>
           <LazyPlanPage
             plan={state.plan}
