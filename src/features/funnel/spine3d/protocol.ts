@@ -26,10 +26,10 @@ export type ToWorker =
   | { type: "levels"; levels: DiscLevels }
   | { type: "dispose" };
 
-/** "ready" once the first frame is drawn; "themed" once a theme change's first frame is drawn; "fail" with a
- *  FallbackReason name, or an error message. */
+/** "ready" once the first frame is drawn, with the renderer's name (W14-O: a software one never spins); "themed" once a
+ *  theme change's first frame is drawn; "fail" with a FallbackReason name, or an error message. */
 export type FromWorker =
-  | { type: "ready"; boxes: DiscBox[] }
+  | { type: "ready"; boxes: DiscBox[]; gpu: string }
   | { type: "themed"; theme: Theme }
   | { type: "boxes"; boxes: DiscBox[] }
   | { type: "picked"; id: number; disc: DiscId | null }

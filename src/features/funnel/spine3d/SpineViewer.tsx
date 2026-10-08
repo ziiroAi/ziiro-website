@@ -12,6 +12,7 @@ import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
 import { shouldRelease } from "./gpu";
 import type { Motion } from "./orbit";
+import { isSoftwareRenderer } from "./pace";
 import { hasWebGL2, meshFor, preflight, readConnection, type FallbackReason, type MeshSize } from "./rules";
 
 /** W14-A's crunched meshes: 1.5 MB or less on a phone, 3 MB or less on desktop. /spine is cached immutable for a
@@ -114,6 +115,8 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   const [state, setState] = useState<{ phase: SpinePhase; reason: FallbackReason | null }>({ phase: "still", reason: null });
   /** True while a theme change draws: the still (already in the new theme) covers for the canvas (W14-J F1). */
   const [restyling, setRestyling] = useState(false);
+  /** False where the idle spin is off: reduced motion, a software renderer, or a GPU too slow for it (W14-O). */
+  const [spin, setSpin] = useState(true);
   const latest = useRef(inputs);
   latest.current = inputs;
   const live = useRef<Live | null>(null);
@@ -160,11 +163,14 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         const handle = startSpine(canvas, {
           width, height, dpr: devicePixelRatio || 1, size, meshUrl: MESH_URLS[size],
           theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: baseFraming(size) },
-          onReady: (boxes) => {
+          onReady: (boxes, gpu) => {
             if (cancelled || !live.current) return;
             canvas.style.opacity = "1";
             canvas.removeAttribute("aria-hidden");
-            const drive = createDrive(box, handle, size, readMotion());
+            const motion = readMotion();
+            const idleSpin = !isSoftwareRenderer(gpu);
+            setSpin(motion.spin && idleSpin);
+            const drive = createDrive(box, handle, size, motion, { idleSpin, onSpinOff: () => !cancelled && setSpin(false) });
             live.current = { ...live.current, drive };
             drive.takeBoxes(boxes);
             setState({ phase: "live", reason: null });
@@ -248,7 +254,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     live.current?.drive?.wake();
   }, [inputs.levels]);
 
-  return { ...state, restyling };
+  return { ...state, restyling, spin };
 }
 
 export function SpineViewer({ label, lit, className = "", children, onApi, onPhase }: SpineViewerProps): JSX.Element {
@@ -257,7 +263,7 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason, restyling } = useSpine(boxRef, { label, theme, levels, onApi, onPhase });
+  const { phase, reason, restyling, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase });
   const live = phase === "live";
   return (
     <div
@@ -265,6 +271,7 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
       data-testid="spine-viewer"
       data-spine={phase}
       data-spine-reason={reason ?? undefined}
+      data-spine-spin={live ? (spin ? "on" : "off") : undefined}
       className={`relative ${live ? "cursor-grab select-none" : ""} ${className}`}
       style={live ? { touchAction: "pan-y" } : undefined}
     >

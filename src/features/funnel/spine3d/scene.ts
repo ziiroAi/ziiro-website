@@ -19,6 +19,7 @@ import {
   type Shared,
 } from "./look-three";
 import { bloomScaleFor, maxDprFor, samplesFor } from "./gpu";
+import { gpuNameOf } from "./pace";
 import type { MeshSize } from "./rules";
 
 export type SpineCanvas = HTMLCanvasElement | OffscreenCanvas;
@@ -52,6 +53,8 @@ export interface DiscBox {
 }
 
 export interface SpineScene {
+  /** The WebGL renderer's name, e.g. "ANGLE (Apple, ANGLE Metal Renderer: Apple M2…)" (W14-O). */
+  readonly gpu: string;
   /** Draws one frame and returns every disc's box in it. */
   render(view: View): DiscBox[];
   /** The disc under a point (CSS px from the canvas's top left), or null. */
@@ -183,6 +186,7 @@ export async function createSpineScene(options: SceneOptions): Promise<SpineScen
   /** Set when dispose gives the context back on purpose, so that loss isn't reported as a failure. */
   let released = false;
   const renderer = createRenderer(canvas, () => !released && options.onContextLost());
+  const gpu = gpuNameOf(renderer.getContext());
   const loaded = await loadMesh(options.meshUrl);
   const scene = new Scene();
   const proxies = GAPS.map(discProxy);
@@ -284,6 +288,7 @@ export async function createSpineScene(options: SceneOptions): Promise<SpineScen
   await renderer.compileAsync(scene, camera);
 
   return {
+    gpu,
     render,
     pick: (x, y) => {
       if (px.width <= 0 || px.height <= 0) return null;

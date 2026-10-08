@@ -7,6 +7,7 @@ import { discLevels } from "./levels";
 import type { FromWorker, ToWorker } from "./protocol";
 
 const scene = {
+  gpu: "Worker GPU",
   render: vi.fn(() => []),
   pick: vi.fn(() => null),
   resize: vi.fn(),
@@ -75,5 +76,14 @@ describe("disposing (W14-K)", () => {
     send({ type: "dispose" });
     expect(scene.dispose).toHaveBeenCalled();
     expect(close).toHaveBeenCalled();
+  });
+});
+
+describe("naming the GPU (W14-O)", () => {
+  it("reports the renderer's name with its first frame", async () => {
+    send(init);
+    build();
+    await vi.waitFor(() => expect(posted.some((m) => m.type === "ready")).toBe(true));
+    expect(posted.find((m) => m.type === "ready")).toEqual({ type: "ready", boxes: [], gpu: "Worker GPU" });
   });
 });

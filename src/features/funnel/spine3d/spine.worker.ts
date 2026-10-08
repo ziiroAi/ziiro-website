@@ -34,7 +34,7 @@ async function init(message: Extract<ToWorker, { type: "init" }>): Promise<void>
     if (latest.size) spine.resize(...latest.size);
     if (latest.theme) spine.setTheme(latest.theme);
     if (latest.levels) spine.setLevels(latest.levels);
-    scope.postMessage({ type: "ready", boxes: spine.render(latest.view ?? message.view) });
+    scope.postMessage({ type: "ready", boxes: spine.render(latest.view ?? message.view), gpu: spine.gpu });
   } catch (error) {
     scope.postMessage({ type: "fail", reason: error instanceof Error ? error.message : "error" });
   }

@@ -29,10 +29,10 @@ let now = 0;
 let api: SpineViewerApi | null = null;
 const onPhase = vi.fn();
 
-/** Runs the queued animation frames, n times over, 16 ms apart. */
-function flush(n = 1) {
+/** Runs the queued animation frames, n times over, stepMs apart (16 ms: a 60 Hz display). */
+function flush(n = 1, stepMs = 16) {
   for (let i = 0; i < n; i++) {
-    now += 16;
+    now += stepMs;
     frames.splice(0).forEach((frame) => frame(now));
   }
 }
@@ -46,6 +46,8 @@ beforeEach(() => {
   vi.stubGlobal("requestAnimationFrame", (frame: FrameRequestCallback) => frames.push(frame));
   vi.stubGlobal("cancelAnimationFrame", () => undefined);
   vi.stubGlobal("WebGL2RenderingContext", class {});
+  // jsdom's page never has focus; a browser tab the reader is looking at does.
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
   vi.stubGlobal("requestIdleCallback", (run: () => void) => {
     run();
     return 1;
@@ -86,7 +88,9 @@ async function mount(lit?: Parameters<typeof SpineViewer>[0]["lit"]) {
   });
 }
 
-const ready = (boxes: DiscBox[] = []) => act(() => lastOptions().onReady(boxes));
+/** A real GPU, unless a test says otherwise. */
+const HARDWARE_GPU = "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)";
+const ready = (boxes: DiscBox[] = [], gpu = HARDWARE_GPU) => act(() => lastOptions().onReady(boxes, gpu));
 
 function pointer(type: string, x: number, pointerType = "mouse") {
   const event = Object.assign(new MouseEvent(type, { bubbles: true, clientX: x, clientY: 10 }), { pointerId: 1, pointerType });
@@ -388,8 +392,8 @@ describe("giving the GPU back (W14-K)", () => {
     await mountTwo();
     const [hero, tour] = viewers();
     const [heroStart, tourStart] = startSpine.mock.calls.map((call, i) => ({ options: call[1], handle: startSpine.mock.results[i].value }));
-    act(() => heroStart.options.onReady([]));
-    act(() => tourStart.options.onReady([]));
+    act(() => heroStart.options.onReady([], HARDWARE_GPU));
+    act(() => tourStart.options.onReady([], HARDWARE_GPU));
     nearScreen(hero, false);
     expect(heroStart.handle.dispose).toHaveBeenCalled();
     expect(hero.dataset.spine).toBe("asleep");
@@ -404,7 +408,7 @@ describe("giving the GPU back (W14-K)", () => {
     });
     expect(startSpine).toHaveBeenCalledTimes(3);
     expect(hero.dataset.spine).toBe("loading");
-    act(() => startSpine.mock.calls[2][1].onReady([]));
+    act(() => startSpine.mock.calls[2][1].onReady([], HARDWARE_GPU));
     expect(hero.dataset.spine).toBe("live");
     expect(onPhase.mock.calls).toEqual([["live", null]]);
   });
@@ -412,9 +416,72 @@ describe("giving the GPU back (W14-K)", () => {
   it("keeps an off-screen viewer's 3D while no other viewer is live", async () => {
     await mountTwo();
     const [hero] = viewers();
-    act(() => startSpine.mock.calls[0][1].onReady([]));
+    act(() => startSpine.mock.calls[0][1].onReady([], HARDWARE_GPU));
     nearScreen(hero, false);
     expect(hero.dataset.spine).toBe("live");
     expect(startSpine.mock.results[0].value.dispose).not.toHaveBeenCalled();
+  });
+});
+
+describe("the idle spin on a weak GPU (W14-O)", () => {
+  const SWIFTSHADER = "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)";
+  const renders = () => handle.render.mock.calls.length;
+
+  it("does not spin on a software renderer and draws only when moved, and a drag still turns it", async () => {
+    await mount();
+    ready([], SWIFTSHADER);
+    flush(3);
+    expect(viewer().dataset.spineSpin).toBe("off");
+    expect(lastView().yaw).toBe(0);
+    expect(frames).toHaveLength(0);
+    pointer("pointerdown", 100);
+    pointer("pointermove", 160);
+    flush();
+    expect(lastView().yaw).toBeGreaterThan(0.3);
+  });
+
+  it("stops spinning once the median of its first 30 frames is over 33 ms", async () => {
+    await mount();
+    ready();
+    expect(viewer().dataset.spineSpin).toBe("on");
+    act(() => flush(31, 50));
+    expect(viewer().dataset.spineSpin).toBe("off");
+    expect(frames).toHaveLength(0);
+  });
+
+  it("keeps spinning on a GPU that keeps up", async () => {
+    await mount();
+    ready();
+    flush(40);
+    expect(viewer().dataset.spineSpin).toBe("on");
+    expect(frames).toHaveLength(1);
+  });
+
+  it("spins at 30 frames a second at most on a phone", async () => {
+    vi.stubGlobal("innerWidth", 390);
+    await mount();
+    ready();
+    const before = renders();
+    flush(6);
+    expect(renders() - before).toBe(3);
+  });
+
+  it("pauses the idle spin while the page isn't focused, and spins on once it is again", async () => {
+    await mount();
+    ready();
+    flush(2);
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
+    flush(2);
+    const paused = renders();
+    flush(3);
+    expect(renders()).toBe(paused);
+    expect(frames).toHaveLength(0);
+    act(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    flush(2);
+    expect(renders()).toBeGreaterThan(paused);
   });
 });

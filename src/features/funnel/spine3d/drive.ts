@@ -1,12 +1,15 @@
 // (C) W14-C §2: what moves the live spine, on the main thread. A drag turns it (orbit.ts), a flight moves the camera
 // (camera.ts), and each animation frame sends one View to the renderer. The loop runs only while something moves and
 // the viewer is on screen in a visible tab (render on demand). It also implements the viewer API (api.ts).
+// W14-O: the idle spin runs only in a focused page, at 30 fps at most on a phone, and stops for good on a GPU whose
+// first frames come too slowly (pace.ts); a drag, a fling or a flight still draws.
 import type { DiscId } from "../data/contract";
 import type { DiscPickEvent, SpineViewerApi } from "./api";
 import { baseFraming, blendFraming, easeInOut, FLIGHT_MS, framingFor, type Framing } from "./camera";
 import type { SpineHandle } from "./host";
 import { discLevels } from "./levels";
 import { dragBy, grab, release, REST, step, type Motion } from "./orbit";
+import { isTooSlow, SAMPLE_FRAMES, spinFrameMsFor } from "./pace";
 import type { MeshSize } from "./rules";
 import type { DiscBox } from "./scene";
 
@@ -18,6 +21,15 @@ const TAP_MS = 500;
 const FRAME_MS = 16;
 /** A long gap between frames (a stalled tab) counts as this, so nothing jumps. */
 const MAX_FRAME_MS = 64;
+/** A capped spin draws a frame this much early rather than skip a whole display frame for a millisecond's jitter. */
+const CAP_SLACK_MS = 4;
+
+export interface DrivePace {
+  /** False where the idle spin must never run (a software renderer). */
+  idleSpin: boolean;
+  /** The idle spin has stopped for good: its first frames came too slowly. */
+  onSpinOff?(): void;
+}
 
 export interface Drive extends SpineViewerApi {
   /** Feeds the boxes the renderer returned for the frame it drew. */
@@ -45,7 +57,13 @@ interface Flight {
   resolve(): void;
 }
 
-export function createDrive(el: HTMLElement, handle: SpineHandle, size: MeshSize, motion: Motion): Drive {
+export function createDrive(
+  el: HTMLElement,
+  handle: SpineHandle,
+  size: MeshSize,
+  motion: Motion,
+  pace: DrivePace = { idleSpin: true },
+): Drive {
   let orbit = REST;
   let framing: Framing = baseFraming(size);
   let flight: Flight | null = null;
@@ -56,6 +74,13 @@ export function createDrive(el: HTMLElement, handle: SpineHandle, size: MeshSize
   let raf = 0;
   let last = 0;
   let visible = true;
+  let spin = motion.spin && pace.idleSpin;
+  let focused = document.hasFocus();
+  /** The previous animation frame while the loop runs, and the gaps between frames until the GPU is judged. */
+  let lastFrame = 0;
+  let frameMs: number[] = [];
+  let judged = !spin;
+  const spinFrameMs = spinFrameMsFor(size);
   const boxListeners = new Set<(boxes: readonly DiscBox[]) => void>();
   const pickListeners = new Set<(event: DiscPickEvent) => void>();
 
@@ -75,16 +100,39 @@ export function createDrive(el: HTMLElement, handle: SpineHandle, size: MeshSize
     return false;
   }
 
+  /** Times the gap since the last animation frame, and turns the spin off once the first SAMPLE_FRAMES are too slow. */
+  function timeFrame(now: number): void {
+    if (!judged && lastFrame) frameMs = [...frameMs, now - lastFrame];
+    lastFrame = now;
+    if (judged || frameMs.length < SAMPLE_FRAMES) return;
+    judged = true;
+    if (!isTooSlow(frameMs)) return;
+    spin = false;
+    pace.onSpinOff?.();
+  }
+
+  /** Only the idle spin is moving it: nobody holds it, it isn't flung and no flight runs. */
+  const spinOnly = () => !orbit.held && !flight && !orbit.yawSpeed && !orbit.pitchSpeed;
+
   function tick(now: number): void {
     raf = 0;
+    timeFrame(now);
+    const idle = spin && focused;
+    if (idle && spinOnly() && last && now - last < spinFrameMs - CAP_SLACK_MS) {
+      schedule();
+      return;
+    }
     const dt = last ? Math.min(now - last, MAX_FRAME_MS) : FRAME_MS;
     last = now;
-    const stepped = step(orbit, dt, motion);
+    const stepped = step(orbit, dt, { ...motion, spin: idle });
     orbit = stepped.orbit;
     const flying = advanceFlight(now);
     handle.render({ yaw: orbit.yaw, pitch: orbit.pitch, framing });
     if (stepped.moving || flying || orbit.held) schedule();
-    else last = 0;
+    else {
+      last = 0;
+      lastFrame = 0;
+    }
   }
 
   const local = (event: PointerEvent) => {
@@ -149,6 +197,12 @@ export function createDrive(el: HTMLElement, handle: SpineHandle, size: MeshSize
   };
 
   const onVisibility = () => (running() ? schedule() : cancelAnimationFrame(raf));
+  // Out of focus the spin's next frame is its last; back in focus it carries on.
+  const onBlur = () => (focused = false);
+  const onFocus = () => {
+    focused = true;
+    schedule();
+  };
   const io = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver(([entry]) => {
     visible = entry.isIntersecting;
     onVisibility();
@@ -165,6 +219,8 @@ export function createDrive(el: HTMLElement, handle: SpineHandle, size: MeshSize
   el.addEventListener("pointercancel", onUp);
   el.addEventListener("pointerleave", onLeave);
   document.addEventListener("visibilitychange", onVisibility);
+  window.addEventListener("blur", onBlur);
+  window.addEventListener("focus", onFocus);
   schedule();
 
   return {
@@ -210,6 +266,8 @@ export function createDrive(el: HTMLElement, handle: SpineHandle, size: MeshSize
       el.removeEventListener("pointercancel", onUp);
       el.removeEventListener("pointerleave", onLeave);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("focus", onFocus);
     },
   };
 }

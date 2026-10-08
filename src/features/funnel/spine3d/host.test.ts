@@ -8,6 +8,7 @@ import { discLevels } from "./levels";
 import type { FromWorker, ToWorker } from "./protocol";
 
 const scene = {
+  gpu: "Inline GPU",
   render: vi.fn(() => []),
   pick: vi.fn(() => null),
   resize: vi.fn(),
@@ -67,6 +68,23 @@ describe("the spine on the main thread (no OffscreenCanvas)", () => {
   });
 });
 
+describe("naming the GPU (W14-O)", () => {
+  it("hands the renderer's name to onReady on the main thread", async () => {
+    const start = options();
+    startSpine(document.createElement("canvas"), start);
+    await vi.waitFor(() => expect(createSpineScene).toHaveBeenCalled());
+    build();
+    await vi.waitFor(() => expect(start.onReady).toHaveBeenCalledWith([], "Inline GPU"));
+  });
+
+  it("hands the name the worker reports to onReady", () => {
+    const start = options();
+    startSpine(offscreenCanvas(), start);
+    FakeWorker.last!.reply({ type: "ready", boxes: [], gpu: "Worker GPU" });
+    expect(start.onReady).toHaveBeenCalledWith([], "Worker GPU");
+  });
+});
+
 class FakeWorker {
   static last: FakeWorker | null = null;
   onmessage: ((event: { data: FromWorker }) => void) | null = null;
@@ -94,7 +112,7 @@ describe("the spine in a worker", () => {
   it("settles a theme change only when the worker reports the new look drawn", async () => {
     const handle = startSpine(offscreenCanvas(), options());
     const worker = FakeWorker.last!;
-    worker.reply({ type: "ready", boxes: [] });
+    worker.reply({ type: "ready", boxes: [], gpu: "Worker GPU" });
     let settled = false;
     const change = handle.setTheme("light").then(() => (settled = true));
     expect(worker.sent.at(-1)).toEqual({ type: "theme", theme: "light" });
@@ -108,7 +126,7 @@ describe("the spine in a worker", () => {
   it("settles a theme change made while loading with the first frame, which already wears it", async () => {
     const handle = startSpine(offscreenCanvas(), options());
     const change = handle.setTheme("light");
-    FakeWorker.last!.reply({ type: "ready", boxes: [] });
+    FakeWorker.last!.reply({ type: "ready", boxes: [], gpu: "Worker GPU" });
     await expect(change).resolves.toBeUndefined();
   });
 });

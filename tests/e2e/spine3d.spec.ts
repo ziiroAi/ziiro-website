@@ -62,6 +62,18 @@ test.describe("the live spine", () => {
       await expect.poll(looksLight, { timeout: LIVE_TIMEOUT_MS }).toBe(next === "light");
     });
   }
+
+  // W14-O: SwiftShader stands in for a low-end phone with software GL. A spin that never stops starved the page's
+  // own frames there (ananya-plan fell to 2/6), so on a software renderer the spine draws only when moved.
+  test.describe("with motion allowed", () => {
+    test.use({ reducedMotion: "no-preference" });
+    test("does not spin on its own on a software renderer", async ({ page }) => {
+      await toPlan(page);
+      const viewer = page.getByTestId("spine-viewer");
+      await expect(viewer).toHaveAttribute("data-spine", "live", { timeout: LIVE_TIMEOUT_MS });
+      await expect(viewer).toHaveAttribute("data-spine-spin", "off");
+    });
+  });
 });
 
 /** Mid-grey: the light look's ground is near white and the dark look's near black, spine included. */
