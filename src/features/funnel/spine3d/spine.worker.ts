@@ -2,7 +2,6 @@
 // and parse, the meshopt decode and the shader compile all run here, so a tap on the page while the 3D loads never
 // waits on them (the INP gate).
 import type { View } from "./camera";
-import { LOOK } from "./look";
 import type { FromWorker, ToWorker } from "./protocol";
 import { createSpineScene, type SpineScene } from "./scene";
 
@@ -20,7 +19,6 @@ async function init(message: Extract<ToWorker, { type: "init" }>): Promise<void>
   try {
     const built = await createSpineScene({
       ...message,
-      look: LOOK,
       onContextLost: () => scope.postMessage({ type: "fail", reason: "context-lost" }),
     });
     if (disposed) return built.dispose();
@@ -32,7 +30,7 @@ async function init(message: Extract<ToWorker, { type: "init" }>): Promise<void>
   }
 }
 
-scope.onmessage = ({ data }) => {
+function handle(data: ToWorker): void {
   switch (data.type) {
     case "init":
       void init(data);
@@ -58,5 +56,14 @@ scope.onmessage = ({ data }) => {
       disposed = true;
       spine?.dispose();
       spine = null;
+  }
+}
+
+/** A frame, theme or resize that throws would leave a stale picture: report it, and the viewer brings the still back. */
+scope.onmessage = ({ data }) => {
+  try {
+    handle(data);
+  } catch (error) {
+    scope.postMessage({ type: "fail", reason: error instanceof Error ? error.message : "error" });
   }
 };

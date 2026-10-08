@@ -1,20 +1,23 @@
 // (C) W14-C §1: the live spine. three.js on a canvas the caller hands over: an OffscreenCanvas in spine.worker.ts,
 // or the page's own canvas where OffscreenCanvas can't run WebGL. It never touches the DOM, so the same code runs in
-// both. The mesh is the owner's Tripo spine crunched by W14-A; one orange ring per disc gap carries the glow, so a
-// plan's discs can light on their own (§6.7, D28) instead of the mesh's single baked mask.
+// both. The mesh is the owner's Tripo spine crunched by W14-A; the look is worker-3's (look.ts, look-three.ts): r17's
+// camera, metal, world, one glowing band and cap per disc gap, and bloom.
 import {
-  ACESFilmicToneMapping, CylinderGeometry, Color, DirectionalLight, Group, HemisphereLight, ImageBitmapLoader, Mesh,
-  MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PMREMGenerator, Quaternion, Raycaster, Scene,
-  SRGBColorSpace, TorusGeometry, Vector2, Vector3, WebGLRenderer, type Material, type Object3D, type Texture,
+  CylinderGeometry, Group, ImageBitmapLoader, Mesh, PerspectiveCamera, Quaternion, Raycaster, Scene, Vector2, Vector3,
+  WebGLRenderer, type Material, type MeshStandardMaterial, type Object3D, type Texture,
 } from "three";
+import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { DISCS, type DiscId, type Theme } from "../data/contract";
-import type { Framing, View } from "./camera";
+import type { View } from "./camera";
 import { GAPS, type Gap } from "./gaps";
 import type { DiscLevels } from "./levels";
-import type { SpineLook, ThemeLook } from "./look";
+import { LOOK, type Vec3 } from "./look";
+import {
+  applyCamera, glow, makeBackground, makeBody, makeComposer, makeEnvironment, makeLights, makeRings, TONE, type Rings,
+  type Shared,
+} from "./look-three";
 import type { MeshSize } from "./rules";
 
 export type SpineCanvas = HTMLCanvasElement | OffscreenCanvas;
@@ -26,10 +29,9 @@ export interface SceneOptions {
   dpr: number;
   theme: Theme;
   size: MeshSize;
-  /** Absolute path of the crunched mesh, or null for the placeholder built from the gaps. */
-  meshUrl: string | null;
+  /** Absolute path of the crunched mesh. */
+  meshUrl: string;
   levels: DiscLevels;
-  look: SpineLook;
   /** Called once if the GPU drops the context. The viewer then gives the still back. */
   onContextLost(): void;
 }
@@ -65,30 +67,15 @@ export const MESH_FAILED = "mesh-failed";
 
 const MAX_DPR = 2;
 const UP = new Vector3(0, 1, 0);
-const TORUS_AXIS = new Vector3(0, 0, 1);
-const RING_SEGMENTS = { radial: 12, tubular: 96 } as const;
-const BODY_SEGMENTS = 48;
 const RIM_POINTS = 16;
-/** The pick stand-ins: wider and taller than the ring, so a finger finds a disc in close-up. Layer 1 never renders. */
+/** The pick stand-ins: wider and taller than the band, so a finger finds a disc in close-up. Layer 1 never renders. */
 const PICK = { layer: 1, radiusScale: 1.12, heightScale: 3, minHeight: 0.024 } as const;
 
-const vec = (v: readonly [number, number, number]): Vector3 => new Vector3(v[0], v[1], v[2]);
-
-/** The column's axis through the gaps' centres, which the spine turns about. */
-function columnCentre(): Vector3 {
-  const sum = GAPS.reduce((acc, gap) => acc.add(vec(gap.centre)), new Vector3());
-  return sum.divideScalar(GAPS.length);
-}
-
-function bodyMaterial(look: ThemeLook, normalMap: Texture | null): MeshStandardMaterial {
-  return new MeshStandardMaterial({
-    color: new Color(look.body.color),
-    metalness: look.body.metalness,
-    roughness: look.body.roughness,
-    envMapIntensity: look.body.envIntensity,
-    normalMap,
-  });
-}
+const vec = (v: Vec3): Vector3 => new Vector3(v[0], v[1], v[2]);
+const levelsOf = (levels: DiscLevels): number[] => DISCS.map((disc) => levels[disc]);
+/** worker-3's mask fill: the GLB's one painted mask can't light discs apart, so it dims whenever any disc is quiet. */
+const fillOf = (levels: DiscLevels): number =>
+  DISCS.every((disc) => levels[disc] >= LOOK.discLevels.lit) ? LOOK.discLevels.lit : LOOK.discLevels.quiet;
 
 /** In a worker there is no document, so GLTFLoader's TextureLoader (picked on Safari and old Firefox) can't make an
  *  <img>. This plugin swaps in ImageBitmapLoader, which works everywhere OffscreenCanvas does. */
@@ -101,82 +88,50 @@ function imageBitmapTextures(parser: GLTFParser) {
   return { name: "ziiro_image_bitmap_textures" };
 }
 
-async function loadMesh(url: string): Promise<{ root: Object3D; normalMap: Texture | null }> {
+interface LoadedMesh {
+  root: Object3D;
+  /** Each mesh with the material it came with: his normal map and his painted disc mask. */
+  parts: { mesh: Mesh; source: MeshStandardMaterial }[];
+}
+
+async function loadMesh(url: string): Promise<LoadedMesh> {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).register(imageBitmapTextures);
   try {
     const gltf = await loader.loadAsync(url);
-    let normalMap: Texture | null = null;
+    const parts: LoadedMesh["parts"] = [];
     gltf.scene.traverse((node) => {
-      const material = (node as Mesh).material as MeshStandardMaterial | undefined;
-      if (material?.normalMap) normalMap = material.normalMap;
+      const mesh = node as Mesh;
+      if (mesh.isMesh) parts.push({ mesh, source: mesh.material as MeshStandardMaterial });
     });
-    return { root: gltf.scene, normalMap };
+    return { root: gltf.scene, parts };
   } catch {
     throw new Error(MESH_FAILED);
   }
 }
 
-/** Until W14-A's mesh is in: one body between each pair of gaps, and a half body past each end. */
-function placeholderSpine(): Group {
-  const group = new Group();
-  const centres = GAPS.map((gap) => vec(gap.centre));
-  const last = centres.length - 1;
-  const ends = [
-    centres[0].clone().multiplyScalar(2).sub(centres[1]),
-    ...centres,
-    centres[last].clone().multiplyScalar(2).sub(centres[last - 1]),
-  ];
-  for (let i = 0; i < ends.length - 1; i++) {
-    const gap = GAPS[Math.min(i, last)];
-    const from = ends[i];
-    const to = ends[i + 1];
-    const body = new Mesh(new CylinderGeometry(gap.radius, gap.radius, from.distanceTo(to) - gap.width, BODY_SEGMENTS));
-    body.position.copy(from).add(to).multiplyScalar(0.5);
-    body.quaternion.setFromUnitVectors(UP, to.clone().sub(from).normalize());
-    group.add(body);
-  }
-  return group;
-}
-
-function ring(gap: Gap, look: SpineLook): Mesh<TorusGeometry, MeshBasicMaterial> {
-  const tube = Math.max(gap.width * look.ring.tubeScale, look.ring.minTube);
-  const geometry = new TorusGeometry(gap.radius * look.ring.radiusScale, tube, RING_SEGMENTS.radial, RING_SEGMENTS.tubular);
-  const mesh = new Mesh(geometry, new MeshBasicMaterial({ toneMapped: false }));
-  mesh.position.copy(vec(gap.centre));
-  mesh.quaternion.copy(new Quaternion().setFromUnitVectors(TORUS_AXIS, vec(gap.normal)));
-  return mesh;
-}
-
-function frame(camera: PerspectiveCamera, framing: Framing, width: number, height: number): void {
-  camera.fov = framing.fovDeg;
-  camera.aspect = width / height;
-  const distance = framing.visibleHeight / 2 / Math.tan((framing.fovDeg * Math.PI) / 360);
-  camera.position.set(0, framing.centreY, distance);
-  camera.lookAt(0, framing.centreY, 0);
-  // Slide the picture so the column sits at columnX across the box, as it does in the still.
-  camera.setViewOffset(width, height, (0.5 - framing.columnX) * width, 0, width, height);
-  camera.updateProjectionMatrix();
-}
-
 /** A fatter, unseen stand-in for each disc, on its own layer: the raycast target for picking. */
 function discProxy(gap: Gap): Mesh {
-  const height = Math.max(gap.width * PICK.heightScale, PICK.minHeight);
-  const proxy = new Mesh(new CylinderGeometry(gap.radius * PICK.radiusScale, gap.radius * PICK.radiusScale, height, 24));
+  const radius = gap.radius * PICK.radiusScale;
+  const proxy = new Mesh(new CylinderGeometry(radius, radius, Math.max(gap.width * PICK.heightScale, PICK.minHeight), 24));
   proxy.position.copy(vec(gap.centre));
-  proxy.quaternion.setFromUnitVectors(UP, vec(gap.normal));
+  proxy.quaternion.setFromUnitVectors(UP, vec(gap.normal).normalize());
   proxy.layers.set(PICK.layer);
   return proxy;
 }
 
-/** Points around each disc's rim, in the disc's own space (the torus lies in its XY plane). */
-const RIM = Array.from({ length: RIM_POINTS }, (_, i) => {
-  const a = (2 * Math.PI * i) / RIM_POINTS;
-  return new Vector3(Math.cos(a), Math.sin(a), 0);
+/** Points round each disc's rim at the body radius, in model space. */
+const RIMS: Vector3[][] = GAPS.map((gap) => {
+  const n = vec(gap.normal).normalize();
+  const u = new Vector3().crossVectors(n, Math.abs(n.x) < 0.9 ? new Vector3(1, 0, 0) : new Vector3(0, 0, 1)).normalize();
+  const v = new Vector3().crossVectors(n, u);
+  return Array.from({ length: RIM_POINTS }, (_, i) => {
+    const a = (2 * Math.PI * i) / RIM_POINTS;
+    return vec(gap.centre).addScaledVector(u, Math.cos(a) * gap.radius).addScaledVector(v, Math.sin(a) * gap.radius);
+  });
 });
 
-function discBox(disc: DiscId, ring: Mesh<TorusGeometry>, camera: PerspectiveCamera, width: number, height: number): DiscBox {
-  const radius = ring.geometry.parameters.radius;
-  const points = RIM.map((p) => p.clone().multiplyScalar(radius).applyMatrix4(ring.matrixWorld).project(camera));
+function discBox(k: number, inner: Object3D, camera: PerspectiveCamera, width: number, height: number): DiscBox {
+  const points = RIMS[k].map((p) => p.clone().applyMatrix4(inner.matrixWorld).project(camera));
   const xs = points.map((p) => ((p.x + 1) / 2) * width);
   const ys = points.map((p) => ((1 - p.y) / 2) * height);
   const right = xs.indexOf(Math.max(...xs));
@@ -186,127 +141,174 @@ function discBox(disc: DiscId, ring: Mesh<TorusGeometry>, camera: PerspectiveCam
   const boxHeight = Math.max(...ys) - top;
   const inFront = points.every((p) => p.z < 1);
   const onScreen = inFront && xs[right] > 0 && left < width && top < height && top + boxHeight > 0;
-  return { disc, left, top, width: boxWidth, height: boxHeight, anchor: { x: xs[right], y: ys[right] }, onScreen };
+  return { disc: DISCS[k], left, top, width: boxWidth, height: boxHeight, anchor: { x: xs[right], y: ys[right] }, onScreen };
 }
 
 function createRenderer(canvas: SpineCanvas, onContextLost: () => void): WebGLRenderer {
-  const context = canvas.getContext("webgl2", { alpha: true, antialias: true, powerPreference: "low-power" });
+  const context = canvas.getContext("webgl2", { alpha: false, antialias: false, powerPreference: "high-performance" });
   if (!context) throw new Error(NO_WEBGL2);
   (canvas as EventTarget).addEventListener("webglcontextlost", (event) => {
     event.preventDefault();
     onContextLost();
   });
-  const renderer = new WebGLRenderer({ canvas, context: context as WebGL2RenderingContext, alpha: true, antialias: true });
-  renderer.outputColorSpace = SRGBColorSpace;
-  renderer.toneMapping = ACESFilmicToneMapping;
-  renderer.setClearColor(0x000000, 0);
-  return renderer;
+  // MSAA comes from the composer's render target, so the canvas itself needs none.
+  return new WebGLRenderer({ canvas, context: context as WebGL2RenderingContext, antialias: false });
 }
 
-function disposeAll(scene: Scene, renderer: WebGLRenderer): void {
-  scene.traverse((node) => {
+function disposeTree(root: Object3D): void {
+  root.traverse((node) => {
     const mesh = node as Mesh;
     if (!mesh.isMesh) return;
     mesh.geometry.dispose();
     (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach((m: Material) => m.dispose());
   });
-  scene.environment?.dispose();
-  renderer.dispose();
+}
+
+/** Everything a theme sets: the world, the page behind, the lights, the bands and the metal. */
+interface Dressing {
+  environment: Texture;
+  background: Mesh;
+  /** The background's uniforms the body and the bands fade into (worker-3's end fade). */
+  shared: Shared;
+  lights: Object3D[];
+  rings: Rings;
+  bodies: MeshStandardMaterial[];
 }
 
 export async function createSpineScene(options: SceneOptions): Promise<SpineScene> {
-  const { canvas, look } = options;
+  const { canvas, size } = options;
   const renderer = createRenderer(canvas, options.onContextLost);
+  const loaded = await loadMesh(options.meshUrl);
   const scene = new Scene();
-  const pmrem = new PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  pmrem.dispose();
-
-  const loaded = options.meshUrl ? await loadMesh(options.meshUrl) : { root: placeholderSpine(), normalMap: null };
-  const rings = GAPS.map((gap) => ring(gap, look));
   const proxies = GAPS.map(discProxy);
 
-  // The spine turns about its own column: the model is moved so the column runs through the pivot's origin.
-  const centre = columnCentre();
-  const model = new Group();
-  model.add(loaded.root, ...rings, ...proxies);
-  model.position.set(-centre.x, 0, -centre.z);
+  // The spine turns about its column: LOOK.model.axis through LOOK.model.pivot.
+  const inner = new Group();
+  inner.position.set(-LOOK.model.pivot[0], -LOOK.model.pivot[1], -LOOK.model.pivot[2]);
+  inner.add(loaded.root, ...proxies);
   const pivot = new Group();
-  pivot.add(model);
-  const hemi = new HemisphereLight();
-  const key = new DirectionalLight();
-  scene.add(pivot, hemi, key);
+  pivot.position.set(LOOK.model.pivot[0], LOOK.model.pivot[1], LOOK.model.pivot[2]);
+  pivot.add(inner);
+  scene.add(pivot);
 
   const camera = new PerspectiveCamera();
   const raycaster = new Raycaster();
   raycaster.layers.set(PICK.layer);
+  const axis = vec(LOOK.model.axis).normalize();
   let theme = options.theme;
   let levels = options.levels;
-  let body = bodyMaterial(look.themes[theme], loaded.normalMap);
-  let size = { width: options.width, height: options.height };
-  let view: View = { yaw: 0, pitch: 0, framing: look.framing[options.size] };
+  let px = { width: options.width, height: options.height, ratio: Math.min(options.dpr, MAX_DPR) };
+  let view: View | null = null;
+  let composer: EffectComposer | null = null;
 
-  const paint = () => {
-    const t = look.themes[theme];
-    loaded.root.traverse((node) => {
-      if ((node as Mesh).isMesh) (node as Mesh).material = body;
-    });
-    rings.forEach((r, i) => r.material.color.set(t.ring.color).multiplyScalar(t.ring.strength * levels[DISCS[i]]));
-    hemi.color.set(t.hemi.sky);
-    hemi.groundColor.set(t.hemi.ground);
-    hemi.intensity = t.hemi.intensity;
-    key.color.set(t.key.color);
-    key.intensity = t.key.intensity;
-    key.position.set(...t.key.position);
+  const dress = (): Dressing => {
+    const t = LOOK.themes[theme];
+    renderer.toneMapping = TONE[t.toneMapping];
     renderer.toneMappingExposure = t.exposure;
+    const { quad, shared } = makeBackground(t, px.width / Math.max(px.height, 1));
+    const rings = makeRings(t, GAPS, shared);
+    rings.setLevels(levelsOf(levels));
+    inner.add(rings.group);
+    const bodies = loaded.parts.map(({ mesh, source }) => {
+      const body = makeBody(t, source, source.emissiveMap ?? null, fillOf(levels), shared);
+      mesh.material = body;
+      return body;
+    });
+    const dressing: Dressing = {
+      environment: makeEnvironment(renderer, t),
+      background: quad,
+      shared,
+      lights: makeLights(t),
+      rings,
+      bodies,
+    };
+    scene.environment = dressing.environment;
+    scene.add(dressing.background, ...dressing.lights);
+    return dressing;
+  };
+
+  const undress = (d: Dressing) => {
+    inner.remove(d.rings.group);
+    disposeTree(d.rings.group);
+    scene.remove(d.background, ...d.lights);
+    disposeTree(d.background);
+    d.bodies.forEach((m) => m.dispose());
+    d.environment.dispose();
+  };
+
+  let dressing = dress();
+
+  const rebuildComposer = () => {
+    composer?.dispose();
+    composer = makeComposer(renderer, scene, camera, LOOK.themes[theme], px.width * px.ratio, px.height * px.ratio);
+  };
+
+  const resize = (width: number, height: number, dpr: number) => {
+    px = { width, height, ratio: Math.min(dpr, MAX_DPR) };
+    renderer.setPixelRatio(px.ratio);
+    renderer.setSize(width, height, false);
+    dressing.shared.uniforms.bgAspect.value = width / Math.max(height, 1);
+    rebuildComposer();
+  };
+
+  const pose = (next: View) => {
+    applyCamera(camera, LOOK.camera[size], next.framing, size, px.width, px.height);
+    const right = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+    pivot.quaternion.setFromAxisAngle(right, next.pitch).multiply(new Quaternion().setFromAxisAngle(axis, next.yaw));
+    scene.updateMatrixWorld();
+    dressing.shared.update(inner, px.width * px.ratio, px.height * px.ratio);
   };
 
   const render = (next: View): DiscBox[] => {
     view = next;
-    pivot.rotation.set(view.pitch, look.restYaw + view.yaw, 0, "YXZ");
-    frame(camera, view.framing, size.width, size.height);
-    if (size.width <= 0 || size.height <= 0) return [];
-    renderer.render(scene, camera);
-    return rings.map((r, i) => discBox(DISCS[i], r, camera, size.width, size.height));
+    pose(next);
+    if (px.width <= 0 || px.height <= 0 || !composer) return [];
+    composer.render();
+    return GAPS.map((_, k) => discBox(k, inner, camera, px.width, px.height));
   };
 
-  const resize = (width: number, height: number, dpr: number) => {
-    size = { width, height };
-    renderer.setPixelRatio(Math.min(dpr, MAX_DPR));
-    renderer.setSize(width, height, false);
+  const redraw = () => {
+    if (view) render(view);
   };
 
-  paint();
   resize(options.width, options.height, options.dpr);
-  frame(camera, view.framing, size.width, size.height);
   // Shaders compile in parallel where the GPU allows (KHR_parallel_shader_compile), before the first frame.
   await renderer.compileAsync(scene, camera);
 
   return {
     render,
     pick: (x, y) => {
-      if (size.width <= 0 || size.height <= 0) return null;
-      raycaster.setFromCamera(new Vector2((x / size.width) * 2 - 1, 1 - (y / size.height) * 2), camera);
+      if (px.width <= 0 || px.height <= 0) return null;
+      raycaster.setFromCamera(new Vector2((x / px.width) * 2 - 1, 1 - (y / px.height) * 2), camera);
       const hit = raycaster.intersectObjects(proxies, false)[0];
       return hit ? DISCS[proxies.indexOf(hit.object as Mesh)] : null;
     },
     resize: (width, height, dpr) => {
       resize(width, height, dpr);
-      render(view);
+      redraw();
     },
     setTheme: (next) => {
+      if (next === theme) return;
       theme = next;
-      const old = body;
-      body = bodyMaterial(look.themes[theme], loaded.normalMap);
-      paint();
-      old.dispose();
-      render(view);
+      undress(dressing);
+      dressing = dress();
+      rebuildComposer();
+      redraw();
     },
     setLevels: (next) => {
       levels = next;
-      paint();
-      render(view);
+      dressing.rings.setLevels(levelsOf(levels));
+      const intensity = LOOK.themes[theme].maskFill.intensity * glow(fillOf(levels));
+      dressing.bodies.forEach((body) => {
+        if (body.emissiveMap) body.emissiveIntensity = intensity;
+      });
+      redraw();
     },
-    dispose: () => disposeAll(scene, renderer),
+    dispose: () => {
+      undress(dressing);
+      composer?.dispose();
+      disposeTree(scene);
+      renderer.dispose();
+    },
   };
 }

@@ -63,9 +63,8 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
   let disposed = false;
   let spine: SpineScene | null = null;
   let latest = start.view;
-  void Promise.all([import("./scene"), import("./look")])
-    .then(([{ createSpineScene }, { LOOK }]) =>
-      createSpineScene({ ...start, canvas, look: LOOK, onContextLost: () => onFail("context-lost") }))
+  void Promise.all([import("./scene")])
+    .then(([{ createSpineScene }]) => createSpineScene({ ...start, canvas, onContextLost: () => onFail("context-lost") }))
     .then((built) => {
       if (disposed) return built.dispose();
       spine = built;

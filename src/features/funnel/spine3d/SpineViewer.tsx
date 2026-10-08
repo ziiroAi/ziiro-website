@@ -9,13 +9,13 @@ import type { SpineViewerApi } from "./api";
 import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
-import { LOOK } from "./look";
+import { baseFraming } from "./camera";
 import type { Motion } from "./orbit";
-import { hasWebGL2, meshFor, preflight, readSaveData, type FallbackReason, type MeshSize } from "./rules";
+import { hasWebGL2, meshFor, preflight, readConnection, type FallbackReason, type MeshSize } from "./rules";
 
 /** W14-A's crunched meshes: 1.5 MB or less on a phone, 3 MB or less on desktop. /spine is cached immutable for a
  *  year (vercel.json, tests/media/immutable.json), so a re-crunched mesh goes in a new folder: m2, m3… */
-export const MESH_URLS: Readonly<Record<MeshSize, string | null>> = {
+export const MESH_URLS: Readonly<Record<MeshSize, string>> = {
   phone: "/spine/3d/m1/spine-phone.glb",
   desktop: "/spine/3d/m1/spine-desktop.glb",
 };
@@ -39,6 +39,8 @@ export interface SpineViewerProps {
   children: ReactNode;
   /** The viewer API once the 3D is live, and null if the still comes back (W14-F builds on it). */
   onApi?(api: SpineViewerApi | null): void;
+  /** Once live, and on a fallback with its reason: the plan_view record (§9). */
+  onPhase?(phase: "live" | "fallback", reason: FallbackReason | null): void;
 }
 
 /** Runs after two frames (the first paint is on screen), then in idle time. Returns a cancel. */
@@ -89,6 +91,7 @@ interface Inputs {
   theme: Theme;
   levels: DiscLevels;
   onApi?: (api: SpineViewerApi | null) => void;
+  onPhase?: (phase: "live" | "fallback", reason: FallbackReason | null) => void;
 }
 
 function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
@@ -100,9 +103,10 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   useEffect(() => {
     const box = boxRef.current;
     if (!box) return;
-    const blocked = preflight({ saveData: readSaveData(navigator), webgl2: hasWebGL2(window) });
+    const blocked = preflight({ ...readConnection(navigator), webgl2: hasWebGL2(window) });
     if (blocked) {
       setState({ phase: "fallback", reason: blocked });
+      latest.current.onPhase?.("fallback", blocked);
       return;
     }
     let cancelled = false;
@@ -118,6 +122,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       teardown();
       setState({ phase: "fallback", reason });
       latest.current.onApi?.(null);
+      latest.current.onPhase?.("fallback", reason);
     };
     const begin = async () => {
       try {
@@ -127,19 +132,19 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         box.append(canvas);
         const { width, height } = box.getBoundingClientRect();
         const size = meshFor(window.innerWidth);
-        const base = LOOK.framing[size];
         const handle = startSpine(canvas, {
           width, height, dpr: devicePixelRatio || 1, size, meshUrl: MESH_URLS[size],
-          theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: base },
+          theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: baseFraming(size) },
           onReady: (boxes) => {
             if (cancelled || !live.current) return;
             canvas.style.opacity = "1";
             canvas.removeAttribute("aria-hidden");
-            const drive = createDrive(box, handle, base, readMotion());
+            const drive = createDrive(box, handle, size, readMotion());
             live.current = { ...live.current, drive };
             drive.takeBoxes(boxes);
             setState({ phase: "live", reason: null });
             latest.current.onApi?.(drive);
+            latest.current.onPhase?.("live", null);
           },
           onBoxes: (boxes) => live.current?.drive?.takeBoxes(boxes),
           onFail: fail,
@@ -171,13 +176,13 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   return state;
 }
 
-export function SpineViewer({ label, lit, className = "", children, onApi }: SpineViewerProps): JSX.Element {
+export function SpineViewer({ label, lit, className = "", children, onApi, onPhase }: SpineViewerProps): JSX.Element {
   const boxRef = useRef<HTMLDivElement>(null);
   const theme = useHtmlTheme();
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason } = useSpine(boxRef, { label, theme, levels, onApi });
+  const { phase, reason } = useSpine(boxRef, { label, theme, levels, onApi, onPhase });
   const live = phase === "live";
   return (
     <div

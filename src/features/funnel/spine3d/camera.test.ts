@@ -1,37 +1,52 @@
 import { describe, expect, it } from "vitest";
-import { blendFraming, CLOSE_UP_HEIGHT, easeInOut, framingFor, type Framing } from "./camera";
+import { baseFraming, blendFraming, CLOSE_UP_HEIGHT, easeInOut, framingFor, visibleTan } from "./camera";
 import { GAPS } from "./gaps";
+import { LOOK } from "./look";
 
-const base: Framing = { fovDeg: 22, visibleHeight: 1.07, centreY: 0.399, columnX: 0.765 };
+const dist = (a: readonly number[], b: readonly number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+describe("baseFraming: r17's own camera (worker-3's look.ts), per mesh size", () => {
+  it.each(["desktop", "phone"] as const)("takes the %s pose as it is", (size) => {
+    const c = LOOK.camera[size];
+    expect(baseFraming(size)).toEqual({ position: c.position, target: c.target, rollDeg: c.rollDeg, lensMm: c.lensMm, shift: c.shift });
+  });
+});
 
 describe("framingFor: where a camera target puts the camera", () => {
-  it("keeps the base framing for the overview", () => {
-    expect(framingFor({ kind: "overview" }, base)).toEqual(base);
+  it("keeps r17's camera for the overview", () => {
+    expect(framingFor({ kind: "overview" }, "desktop")).toEqual(baseFraming("desktop"));
   });
 
-  it("closes in on a disc: centred on its gap, a close-up height, the column where it was", () => {
-    const close = framingFor({ kind: "disc", disc: "G05" }, base);
-    expect(close.centreY).toBe(GAPS[5].centre[1]);
-    expect(close.visibleHeight).toBe(CLOSE_UP_HEIGHT);
-    expect(close.columnX).toBe(base.columnX);
+  it.each(["desktop", "phone"] as const)("closes in on a disc on %s: aimed at its gap, CLOSE_UP_HEIGHT tall in frame", (size) => {
+    const base = baseFraming(size);
+    const close = framingFor({ kind: "disc", disc: "G05" }, size);
+    expect(close.target).toEqual(GAPS[5].centre);
+    const visible = 2 * dist(close.position, close.target) * visibleTan(LOOK.camera[size]);
+    expect(visible).toBeCloseTo(CLOSE_UP_HEIGHT);
+    // The same view direction, roll, lens and shift: only the distance and the aim change.
+    const dir = (f: typeof base) => f.position.map((p, i) => (p - f.target[i]) / dist(f.position, f.target));
+    dir(close).forEach((v, i) => expect(v).toBeCloseTo(dir(base)[i]));
+    expect([close.rollDeg, close.lensMm, close.shift]).toEqual([base.rollDeg, base.lensMm, base.shift]);
   });
 
   it("takes an explicit framing as it is", () => {
-    const framing = { ...base, centreY: 0.7 };
-    expect(framingFor({ kind: "framing", framing }, base)).toEqual(framing);
+    const framing = { ...baseFraming("phone"), lensMm: 80 };
+    expect(framingFor({ kind: "framing", framing }, "phone")).toEqual(framing);
   });
 });
 
 describe("blendFraming and easeInOut: a flight between two framings", () => {
-  const to = framingFor({ kind: "disc", disc: "G02" }, base);
+  const from = baseFraming("desktop");
+  const to = framingFor({ kind: "disc", disc: "G02" }, "desktop");
 
   it("starts at the first framing and lands on the second", () => {
-    expect(blendFraming(base, to, 0)).toEqual(base);
-    expect(blendFraming(base, to, 1)).toEqual(to);
+    expect(blendFraming(from, to, 0)).toEqual(from);
+    expect(blendFraming(from, to, 1)).toEqual(to);
   });
 
   it("passes between them half way", () => {
-    expect(blendFraming(base, to, 0.5).centreY).toBeCloseTo((base.centreY + to.centreY) / 2);
+    const half = blendFraming(from, to, 0.5);
+    half.target.forEach((v, i) => expect(v).toBeCloseTo((from.target[i] + to.target[i]) / 2));
   });
 
   it("eases from 0 to 1 without going back", () => {

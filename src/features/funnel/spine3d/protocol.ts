@@ -12,7 +12,7 @@ export interface SpineStart {
   dpr: number;
   theme: Theme;
   size: MeshSize;
-  meshUrl: string | null;
+  meshUrl: string;
   levels: DiscLevels;
   view: View;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canOffscreen, meshFor, preflight, reasonFor } from "./rules";
+import { canOffscreen, meshFor, preflight, readConnection, reasonFor, stillReasonOf } from "./rules";
 
 describe("preflight (W14-C §4): when the still stays and no 3D code loads", () => {
   it("lets the 3D try on an ordinary connection in a browser with WebGL2", () => {
@@ -10,8 +10,41 @@ describe("preflight (W14-C §4): when the still stays and no 3D code loads", () 
     expect(preflight({ saveData: true, webgl2: true })).toBe("save-data");
   });
 
+  it.each(["slow-2g", "2g", "3g"])("keeps the still on a %s connection (§6.6)", (effectiveType) => {
+    expect(preflight({ saveData: false, webgl2: true, effectiveType })).toBe("slow-connection");
+  });
+
+  it("lets the 3D try on 4g, or where the browser doesn't say", () => {
+    expect(preflight({ saveData: false, webgl2: true, effectiveType: "4g" })).toBeNull();
+    expect(preflight({ saveData: false, webgl2: true, effectiveType: undefined })).toBeNull();
+  });
+
   it("keeps the still, without fetching any 3D code, in a browser that has no WebGL2 at all", () => {
     expect(preflight({ saveData: false, webgl2: false })).toBe("no-webgl2");
+  });
+});
+
+describe("readConnection: navigator.connection, where the browser has it", () => {
+  it("reads Save-Data and the effective type", () => {
+    expect(readConnection({ connection: { saveData: true, effectiveType: "3g" } } as unknown as Navigator)).toEqual({ saveData: true, effectiveType: "3g" });
+  });
+
+  it("reads nothing as an ordinary connection", () => {
+    expect(readConnection({} as Navigator)).toEqual({ saveData: false, effectiveType: undefined });
+    expect(readConnection(undefined)).toEqual({ saveData: false, effectiveType: undefined });
+  });
+});
+
+describe("stillReasonOf: the reason recorded as still_reason (§9, contract STILL_REASONS)", () => {
+  it.each([
+    ["save-data", "save_data"],
+    ["slow-connection", "slow_connection"],
+    ["no-webgl2", "unsupported"],
+    ["context-lost", "failed"],
+    ["mesh-failed", "failed"],
+    ["error", "failed"],
+  ] as const)("records %s as %s", (reason, recorded) => {
+    expect(stillReasonOf(reason)).toBe(recorded);
   });
 });
 

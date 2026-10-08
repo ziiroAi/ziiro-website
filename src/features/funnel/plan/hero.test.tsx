@@ -22,14 +22,20 @@ afterEach(() => {
   allowNavigation();
 });
 
-function renderHero(onBook = vi.fn(), headingRef = createRef<HTMLHeadingElement>()) {
+function renderHero(onBook = vi.fn(), headingRef = createRef<HTMLHeadingElement>(), onProgress = vi.fn()) {
   screen = render(
-    <Hero heroText={heroText} name="Ananya" email="ananya@studio.in" headingRef={headingRef} onBook={onBook} onProgress={() => undefined} />,
+    <Hero heroText={heroText} name="Ananya" email="ananya@studio.in" headingRef={headingRef} onBook={onBook} onProgress={onProgress} />,
   );
   return screen;
 }
 
 describe("Hero (§6.2 block 1)", () => {
+  it("records plan_view as the still, and why, when the live spine can't run (§9): here, no WebGL2", () => {
+    const onProgress = vi.fn();
+    renderHero(vi.fn(), createRef<HTMLHeadingElement>(), onProgress);
+    expect(onProgress).toHaveBeenCalledWith({ planView: "still", stillReason: "unsupported" });
+  });
+
   it("paints the r17 still inside the live spine viewer, which replaces it once its first frame is drawn (W14-C)", () => {
     const { container } = renderHero();
     const still = container.querySelector("[data-testid=spine-viewer] [data-testid=spine-still] picture img");

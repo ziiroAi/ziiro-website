@@ -4,10 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DiscId } from "../data/contract";
 import { render, type Rendered } from "../plan/test-utils";
 import type { DiscPickEvent, SpineViewerApi } from "./api";
-import { framingFor } from "./camera";
+import { baseFraming, framingFor } from "./camera";
 import type { StartOptions } from "./host";
 import { discLevels } from "./levels";
-import { LOOK } from "./look";
 import type { DiscBox } from "./scene";
 import { MESH_URLS, SpineViewer } from "./SpineViewer";
 
@@ -28,6 +27,7 @@ let saveData = false;
 let frames: FrameRequestCallback[] = [];
 let now = 0;
 let api: SpineViewerApi | null = null;
+const onPhase = vi.fn();
 
 /** Runs the queued animation frames, n times over, 16 ms apart. */
 function flush(n = 1) {
@@ -71,7 +71,7 @@ const box = (disc: DiscId, size: number): DiscBox =>
   ({ disc, left: 0, top: 0, width: size, height: size, anchor: { x: size, y: size / 2 }, onScreen: true });
 
 const ui = (lit?: Parameters<typeof SpineViewer>[0]["lit"]) => (
-  <SpineViewer label="The spine" lit={lit} onApi={(next) => (api = next)}>
+  <SpineViewer label="The spine" lit={lit} onApi={(next) => (api = next)} onPhase={onPhase}>
     <img alt="The spine" src="/still.webp" />
   </SpineViewer>
 );
@@ -152,6 +152,21 @@ describe("SpineViewer (W14-C)", () => {
     expect(viewer().dataset.spineReason).toBe("no-webgl2");
   });
 
+  it("reports live once, and the fallback with its reason, for the plan_view record (§9)", async () => {
+    await mount();
+    ready();
+    act(() => lastOptions().onFail("mesh-failed"));
+    expect(onPhase.mock.calls).toEqual([["live", null], ["fallback", "mesh-failed"]]);
+  });
+
+  it("never loads the 3D on a 3G connection", async () => {
+    Object.defineProperty(navigator, "connection", { configurable: true, get: () => ({ saveData: false, effectiveType: "3g" }) });
+    await mount();
+    expect(startSpine).not.toHaveBeenCalled();
+    expect(viewer().dataset.spineReason).toBe("slow-connection");
+    expect(onPhase).toHaveBeenCalledWith("fallback", "slow-connection");
+  });
+
   it("never loads the 3D under Save-Data", async () => {
     saveData = true;
     await mount();
@@ -203,7 +218,7 @@ describe("the viewer API (W14-F builds on it)", () => {
   it("cuts to a disc without animate, and flies there over several frames with it", async () => {
     await mount();
     ready();
-    const close = framingFor({ kind: "disc", disc: "G04" }, LOOK.framing[lastOptions().size]);
+    const close = framingFor({ kind: "disc", disc: "G04" }, lastOptions().size);
     await act(async () => {
       await api!.flyTo({ kind: "disc", disc: "G04" }, { animate: false });
       flush();
@@ -213,13 +228,14 @@ describe("the viewer API (W14-F builds on it)", () => {
     let arrived = false;
     act(() => void api!.flyTo({ kind: "overview" }).then(() => (arrived = true)));
     flush(3);
-    expect(lastView().framing.visibleHeight).toBeGreaterThan(close.visibleHeight);
+    expect(lastView().framing).not.toEqual(close);
+    expect(lastView().framing).not.toEqual(baseFraming(lastOptions().size));
     await act(async () => {
       flush(80);
       await Promise.resolve();
     });
     expect(arrived).toBe(true);
-    expect(lastView().framing).toEqual(LOOK.framing[lastOptions().size]);
+    expect(lastView().framing).toEqual(baseFraming(lastOptions().size));
   });
 
   it("lights discs on demand", async () => {

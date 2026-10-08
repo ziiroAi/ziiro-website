@@ -1,9 +1,10 @@
 // Block 1 (§6.2): the full spine and its numbers. From 1024 px the still fills the hero and the words sit in its
 // left 55 %. Under that (D34) the words come first, then the still (or the phone band) at full strength, then the
 // stats and the scroll line.
-import { useState, type Ref } from "react";
+import { useCallback, useState, type Ref } from "react";
 import { copy } from "../data";
 import type { CtaFrom, DepartmentId, PlanProgress } from "../data/contract";
+import { stillReasonOf, type FallbackReason } from "../spine3d/rules";
 import { SpineViewer } from "../spine3d/SpineViewer";
 import { BookCallLink } from "./BookCallLink";
 import { FilmLightbox } from "./FilmLightbox";
@@ -52,6 +53,12 @@ export interface HeroProps {
 export function Hero({ heroText, name, email, headingRef, onBook, onProgress, lit }: HeroProps): JSX.Element {
   const [filmOpen, setFilmOpen] = useState(false);
   const theme = useHtmlTheme();
+  // §9's plan_view: "motion" once the live spine runs, "still" with still_reason when it falls back.
+  const onPhase = useCallback(
+    (phase: "live" | "fallback", reason: FallbackReason | null) =>
+      onProgress(phase === "live" || !reason ? { planView: "motion" } : { planView: "still", stillReason: stillReasonOf(reason) }),
+    [onProgress],
+  );
   const [firstLine, secondLine] = heroTitle();
   return (
     <section aria-labelledby="plan-hero-title" className="relative">
@@ -93,7 +100,12 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress, li
         </div>
         <div className="relative mt-10 lg:mt-0">
           {/* W14-C: the still paints first and stays the fallback; the live spine replaces it once drawn. */}
-          <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={lit} className={FADE_OUT}>
+          <SpineViewer
+            label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")}
+            lit={lit}
+            className={FADE_OUT}
+            onPhase={onPhase}
+          >
             <HeroPicture className="block h-auto w-full" />
           </SpineViewer>
           <svg

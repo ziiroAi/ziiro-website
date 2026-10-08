@@ -49,6 +49,9 @@ const visitor = { name: "Ananya", email: "ananya@studio.in" };
 let screen: Rendered | null = null;
 let allowNavigation: () => void = () => undefined;
 let onProgress = vi.fn();
+/** The progress reports, leaving out one field's: the hero's plan_view (W14-C) is tested in hero.test.tsx. */
+const progressBut = (field: string) =>
+  onProgress.mock.calls.map(([fields]) => fields).filter((fields: Record<string, unknown>) => !(field in fields));
 
 function renderPage(over: Partial<PlanPageProps> = {}): Rendered {
   screen = render(
@@ -108,7 +111,7 @@ describe("PlanPage (§6)", () => {
     FakeObserver.last?.show(2);
     FakeObserver.last?.show(1);
     FakeObserver.last?.show(5);
-    expect(onProgress.mock.calls.map(([fields]) => fields)).toEqual([{ planDepth: 0 }, { planDepth: 2 }, { planDepth: 5 }]);
+    expect(progressBut("planView")).toEqual([{ planDepth: 0 }, { planDepth: 2 }, { planDepth: 5 }]);
   });
 
   it("reports which Book a call was tapped (§9 cta_from)", () => {
@@ -118,7 +121,7 @@ describe("PlanPage (§6)", () => {
       calendlyUrl(visitor.name, visitor.email), calendlyUrl(visitor.name, visitor.email),
     ]);
     links.forEach((a) => click(a));
-    expect(onProgress.mock.calls.map(([fields]) => fields)).toEqual([
+    expect(progressBut("planView")).toEqual([
       { ctaFrom: "hero", ctaClicked: true }, { ctaFrom: "close", ctaClicked: true },
     ]);
   });

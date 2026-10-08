@@ -3,10 +3,11 @@
 // the viewer is on screen in a visible tab (render on demand). It also implements the viewer API (api.ts).
 import type { DiscId } from "../data/contract";
 import type { DiscPickEvent, SpineViewerApi } from "./api";
-import { blendFraming, easeInOut, FLIGHT_MS, framingFor, type Framing } from "./camera";
+import { baseFraming, blendFraming, easeInOut, FLIGHT_MS, framingFor, type Framing } from "./camera";
 import type { SpineHandle } from "./host";
 import { discLevels } from "./levels";
 import { dragBy, grab, release, REST, step, type Motion } from "./orbit";
+import type { MeshSize } from "./rules";
 import type { DiscBox } from "./scene";
 
 /** §11.3: a touch target is 44 × 44 px or more. */
@@ -44,9 +45,9 @@ interface Flight {
   resolve(): void;
 }
 
-export function createDrive(el: HTMLElement, handle: SpineHandle, base: Framing, motion: Motion): Drive {
+export function createDrive(el: HTMLElement, handle: SpineHandle, size: MeshSize, motion: Motion): Drive {
   let orbit = REST;
-  let framing = base;
+  let framing: Framing = baseFraming(size);
   let flight: Flight | null = null;
   let press: Press | null = null;
   let hovered: DiscId | null = null;
@@ -170,7 +171,7 @@ export function createDrive(el: HTMLElement, handle: SpineHandle, base: Framing,
     reducedMotion: !motion.spin,
     flyTo: (target, options) => {
       flight?.resolve();
-      const to = framingFor(target, base);
+      const to = framingFor(target, size);
       if (options?.animate === false || !motion.spin) {
         flight = null;
         framing = to;
