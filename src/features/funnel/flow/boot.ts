@@ -130,3 +130,17 @@ export function introStartMs(win: Window, t0: number): number {
 export function introOffsetMs(start: number, now: number): number {
   return Math.min(0, Math.round(start - now));
 }
+
+/**
+ * The inline script Landing prints right after the greeting (§13.1). In the prerendered HTML it writes the
+ * visitor's greeting, its lang and the second line before the browser paints. If anything fails, "Hello." stays.
+ * React's own render doesn't run it; by then the boot is in state.
+ */
+export function greetingSnippet(subs: Readonly<Record<SubId, string>>): string {
+  const json = JSON.stringify(subs).replace(/</g, "\\u003c");
+  return (
+    `(function(s){try{var b=window.__funnelBoot;if(!b)return;` +
+    `document.querySelectorAll("[data-greet]").forEach(function(e){e.textContent=b.greeting;e.setAttribute("lang",b.lang)});` +
+    `document.querySelectorAll("[data-sub]").forEach(function(e){e.textContent=s[b.sub]})}catch(e){}})(${json})`
+  );
+}
