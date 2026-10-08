@@ -4,8 +4,9 @@ import {
   AGENT_IDS, BUCKETS, BUSINESS_TYPES, CHIPS, CONTACT_ERRORS, CTA_FROM, CURRENCIES, DAY_PARTS, DEPARTMENTS,
   DEVICE_CLASSES, FILM_PCTS, INPUT_MODES, LIMITS, NON_OWNER_REASONS, ORDER_VARIANTS, PLAN_VIEWS, REVENUE_BANDS,
   SEGMENTS, STEPS, STILL_REASONS, TEAM_BANDS, TEMPLATES, THEMES, TIERS, VISIT_FIELD_KEYS, YEARS_BANDS, isOneOf,
-  type VisitFields, type VisitRequest,
+  CONSENT_VERSION, type LeadField, type LeadRequest, type VisitFields, type VisitRequest,
 } from "../../src/features/funnel/data/contract";
+import { isE164, isValidEmail, isValidName } from "../../src/shared/lib/contact-checks";
 
 export type Parsed<T, F extends string> = { ok: true; value: T } | { ok: false; field: F };
 type Check = (value: unknown) => boolean;
@@ -23,6 +24,8 @@ const HOST = /^[A-Za-z0-9.-]+$/;
 const ZONE = /^[A-Za-z0-9/_+-]+$/;
 const LOCALE = /^[A-Za-z0-9-]+$/;
 const ONE_LINE = /^[^\u0000-\u001f\u007f]*$/u;
+const LINES = /^[^\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]*$/u;
+const MAX_TOKEN = 2_048;
 
 const text = (pattern: RegExp, max: number): Check => (value) =>
   typeof value === "string" && value.length <= max && pattern.test(value);
@@ -113,3 +116,48 @@ const BOT_AGENT =
 /** §13.2: navigator.webdriver was set, or the user agent is a known bot. */
 export const isBot = (request: Request, webdriver: boolean | undefined): boolean =>
   webdriver === true || BOT_AGENT.test(request.headers.get("user-agent") ?? "");
+
+const LEAD_KEYS = ["visitId", "retry", "name", "email", "phone", "consent", "turnstileToken", "answers", "plan"];
+const ANSWER_KEYS = ["businessOther", "problemText", "chips", "inputMode"];
+const PLAN_KEYS = [
+  "template", "orderVariant", "tier", "agentIds", "matchedPhrases", "classifierVersion", "agentsVersion", "fallback",
+];
+
+const isConsent = (value: unknown): boolean =>
+  isRecord(value) && onlyKeys(value, ["given", "version"]) && value.given === true && value.version === CONSENT_VERSION;
+
+const isAnswers = (value: unknown): boolean =>
+  isRecord(value) && onlyKeys(value, ANSWER_KEYS) &&
+  (value.businessOther === undefined || text(ONE_LINE, LIMITS.businessOtherChars)(value.businessOther)) &&
+  (value.problemText === undefined || text(LINES, LIMITS.problemTextChars)(value.problemText)) &&
+  listOf(CHIPS, 0, LIMITS.chips)(value.chips) && isOneOf(INPUT_MODES, value.inputMode);
+
+const isPhrases = (value: unknown): boolean =>
+  Array.isArray(value) && value.length <= LIMITS.matchedPhrases && value.every(text(ONE_LINE, LIMITS.phraseChars));
+
+const isPlan = (value: unknown): boolean =>
+  isRecord(value) && onlyKeys(value, PLAN_KEYS) &&
+  isOneOf(TEMPLATES, value.template) && isOneOf(ORDER_VARIANTS, value.orderVariant) && isOneOf(TIERS, value.tier) &&
+  listOf(AGENT_IDS, 1, LIMITS.agentIds)(value.agentIds) && isPhrases(value.matchedPhrases) &&
+  version(value.classifierVersion) && version(value.agentsVersion) && typeof value.fallback === "boolean";
+
+/** §13.2 step 3, in the order the 400 reports: name, email, phone, consent, then everything else as "payload". */
+export function parseLead(body: unknown): Parsed<LeadRequest, LeadField> {
+  if (!isRecord(body) || !onlyKeys(body, LEAD_KEYS) || !isVisitId(body.visitId)) return { ok: false, field: "payload" };
+  if (typeof body.name !== "string" || !isValidName(body.name)) return { ok: false, field: "name" };
+  if (typeof body.email !== "string" || !isValidEmail(body.email.trim())) return { ok: false, field: "email" };
+  const phone = body.phone;
+  if (phone !== undefined && !(typeof phone === "string" && (phone === "" || isE164(phone)))) {
+    return { ok: false, field: "phone" };
+  }
+  if (!isConsent(body.consent)) return { ok: false, field: "consent" };
+  const rest =
+    (body.retry === undefined || typeof body.retry === "boolean") &&
+    (body.turnstileToken === undefined || text(ONE_LINE, MAX_TOKEN)(body.turnstileToken)) &&
+    isAnswers(body.answers) && isPlan(body.plan);
+  return rest ? { ok: true, value: body as unknown as LeadRequest } : { ok: false, field: "payload" };
+}
+
+/** The visit ID, read before anything else, for the replay check (§13.2 step 2). */
+export const visitIdOf = (body: unknown): string | null =>
+  isRecord(body) && isVisitId(body.visitId) ? body.visitId : null;
