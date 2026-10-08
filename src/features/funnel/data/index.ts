@@ -5,3 +5,4 @@ export { AGENTS_VERSION, agentById, agents, departments, jobIdsFor, stopsFor } f
 export { tierFor } from "./tier";
 export { classify, CLASSIFIER_VERSION } from "./classifier/classify";
 export { composePlan, laneAgent, priority, wordsDepartmentFor } from "./compose";
+export { cleanProblemText, quoteWords } from "./words";
