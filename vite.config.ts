@@ -56,16 +56,12 @@ export default defineConfig({
         // route preloads anything but the runtime, react-dom and lenis, and
         // ogl is requested only by `/`.
         //
-        // NAMING CAVEAT: the "toast" group is ~167 kB and is mostly react-dom,
-        // not sonner. react-dom is reachable from sonner and got assigned to
-        // the first group that claimed it. That is not a leak, react-dom is
-        // needed on every route regardless, but do not read the size of this
-        // chunk as the cost of the toaster.
+        // The "react" group holds react, react-dom and the scheduler, so a deploy leaves them cached.
         codeSplitting: {
           groups: [
             { name: "webgl", test: /node_modules[\\/]ogl[\\/]/ },
             { name: "scroll", test: /node_modules[\\/]lenis[\\/]/ },
-            { name: "toast", test: /node_modules[\\/]sonner[\\/]/ },
+            { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
           ],
         },
       },

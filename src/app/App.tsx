@@ -1,7 +1,3 @@
-import { Toaster } from "@/shared/ui/toaster";
-import { Toaster as Sonner } from "@/shared/ui/sonner";
-import { TooltipProvider } from "@/shared/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense, useEffect, useRef } from "react";
@@ -186,15 +182,11 @@ function ScrollToTop() {
   return null;
 }
 
-const queryClient = new QueryClient();
-
 /** App-wide providers, shared by the client entry and the SSG server entry. */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>{children}</TooltipProvider>
-      </QueryClientProvider>
+      {children}
     </ThemeProvider>
   );
 }
@@ -231,8 +223,6 @@ export function AppRoutes() {
 const App = () => (
   <Providers>
     <PageAtmosphere />
-    <Toaster />
-    <Sonner />
     <BrowserRouter>
       <SmoothScroll />
       <ScrollProgress />
