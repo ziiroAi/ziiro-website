@@ -8,6 +8,8 @@
  * auto-paused, silently swallowing every submission. Email delivery is the goal.
  */
 
+export { isValidEmail } from "../src/shared/lib/contact-checks";
+
 const allowedOrigins = new Set([
   "https://ziiroai.com",
   "https://www.ziiroai.com",
@@ -34,20 +36,6 @@ const rateLimitMax = 5;
  * one; that is a dashboard setting, not code, so it cannot live in this file.
  */
 const rateLimitBuckets = new Map<string, number[]>();
-
-const disposableDomains = new Set([
-  "mailinator.com", "guerrillamail.com", "tempmail.com", "throwaway.email", "yopmail.com",
-  "sharklasers.com", "guerrillamailblock.com", "grr.la", "guerrillamail.info", "spam4.me",
-  "trashmail.com", "trashmail.me", "trashmail.net", "dispostable.com", "maildrop.cc",
-  "10minutemail.com", "10minutemail.net", "10minutemail.org", "minutemail.com", "temp-mail.org",
-  "fakeinbox.com", "mailnull.com", "spamgourmet.com", "spamgourmet.net", "discard.email",
-  "mailnesia.com", "spamspot.com", "spamthisplease.com", "byom.de", "getnada.com",
-  "anonaddy.com", "tempinbox.com", "tempr.email", "emailondeck.com", "getairmail.com",
-  "filzmail.com", "zetmail.com", "mohmal.com", "owlpic.com", "cfl.fr",
-  "spamfree24.org", "spamfree24.de", "spamfree24.eu", "spamfree24.info", "spaml.de",
-  "spaml.com", "disigntime.com", "no-spam.ws", "antispam24.de", "wegwerfmail.de",
-  "wegwerfmail.net", "wegwerfmail.org", "abcmail.email", "armyspy.com",
-]);
 
 /**
  * CORS is NOT a security control here and must not be counted as one: the
@@ -86,11 +74,6 @@ export const sanitizeText = (value: unknown, maxLength = 500) =>
 
 export const sanitizeHeader = (value: unknown, maxLength = 120) =>
   sanitizeText(value, maxLength).replace(/[\r\n]/g, " ");
-
-export const isValidEmail = (email: string) =>
-  /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email) &&
-  email.length <= 254 &&
-  !disposableDomains.has(email.split("@")[1]?.toLowerCase());
 
 export const isRateLimited = (key: string) => {
   const now = Date.now();
