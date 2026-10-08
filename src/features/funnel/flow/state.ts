@@ -117,17 +117,34 @@ function logErrors(list: readonly ContactError[], more: readonly ContactError[])
   return [...list, ...more].slice(0, LIMITS.contactErrors);
 }
 
+/**
+ * The first screen before `target` whose answers are missing, else `target` (review H1). A reload keeps the
+ * history entries but not the answers, so Back could otherwise reach S6 or S7 with S3 to S5 unanswered.
+ */
+function firstGap(answers: Answers, target: Screen): Screen {
+  const needs: readonly [Screen, boolean][] = [
+    ["s1", answers.segment !== null],
+    ["s2", answers.businessType !== null],
+    ["s34", answers.yearsBand !== null && answers.teamBand !== null],
+    ["s5", answers.revenueBand !== null && answers.revenueCurrency !== null],
+  ];
+  const gap = needs.find(([screen, done]) => !done && SCREENS.indexOf(screen) < SCREENS.indexOf(target));
+  return gap ? gap[0] : target;
+}
+
 function popTo(state: FlowState, target: Screen): FlowState {
   const leavingPlan = state.screen === "plan" && target !== "plan";
   const base: FlowState = leavingPlan
     ? { ...state, round: state.round + 1, attempt: 0, contactErrors: [], plan: null, saveNotice: null, secondsToResult: null, progress: {} }
     : state;
-  const wanted: Screen = target === "s8" ? "s7" : target === "plan" && !base.plan ? "s6" : target;
+  const entry: Screen = target === "s8" ? "s7" : target === "plan" && !base.plan ? "s6" : target;
+  const wanted = firstGap(base.answers, entry);
   return {
     ...base,
     screen: wanted,
     dir: SCREENS.indexOf(wanted) < SCREENS.indexOf(state.screen) ? "back" : "forward",
-    nav: { mode: "none", seq: base.nav.seq + 1 },  // the browser already moved
+    // The browser already moved; a clamped entry is retagged with the screen it now shows.
+    nav: { mode: wanted === entry ? "none" : "replace", seq: base.nav.seq + 1 },
     fieldErrors: [],
     sendLine: null,
     problemEmpty: false,

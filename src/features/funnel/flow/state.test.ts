@@ -112,6 +112,16 @@ describe("the questions' state (§4.1, §4.3)", () => {
     expect(run(...TO_S7, { type: "popTo", screen: "plan" }).screen).toBe("s6");
   });
 
+  it("Back after a reload stops at the first unanswered screen and retags that entry (review H1)", () => {
+    expect(run({ type: "popTo", screen: "s6" })).toMatchObject({ screen: "s1", nav: { mode: "replace", seq: 1 } });
+    expect(run({ type: "popTo", screen: "s7" }).screen).toBe("s1");
+    expect(run(TO_S6[0], { type: "popTo", screen: "s34" }).screen).toBe("s2");
+    expect(run(...TO_S6.slice(0, 2), { type: "popTo", screen: "s6" }).screen).toBe("s34");
+    expect(run(...TO_S6.slice(0, 3), { type: "popTo", screen: "s5" }).screen).toBe("s34");
+    expect(run(...TO_S6.slice(0, 4), { type: "popTo", screen: "s7" }).screen).toBe("s5");
+    expect(run(...TO_S6, { type: "popTo", screen: "s7" })).toMatchObject({ screen: "s7", nav: { mode: "none" } });
+  });
+
   it("leaving the plan starts a new visit: the round goes up and the try count, errors and plan reset (§4.1)", () => {
     const s = run(...AT_PLAN, { type: "popTo", screen: "s6" });
     expect(s).toMatchObject({ screen: "s6", round: 1, attempt: 0, contactErrors: [], plan: null, saveNotice: null });
