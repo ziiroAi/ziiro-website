@@ -11,12 +11,16 @@ const SAMPLES: Readonly<Record<MeshSize, number>> = { phone: 4, desktop: 4 };
 /** The bloom's working size in CSS pixels per CSS pixel, as worker-3 tuned the glow (lookdev, desktop at DPR 2). */
 const BLOOM_CSS_SCALE = 4;
 
-/** The bloom's size as a multiple of the canvas, at most. Desktop: 2, as tuned at DPR 2, so a DPR 1 screen gets no 4x bloom. */
-const MAX_BLOOM_SCALE: Readonly<Record<MeshSize, number>> = { phone: BLOOM_CSS_SCALE / MAX_DPR.phone, desktop: 2 };
+/**
+ * The bloom's size as a multiple of the canvas, at most. A phone keeps the tuned glow at its capped ratio. Desktop
+ * never exceeds its size before W14-K (the canvas times the ratio), so a DPR 1 screen pays no more than it did.
+ */
+const maxBloomScale = (size: MeshSize, ratio: number): number =>
+  size === "phone" ? BLOOM_CSS_SCALE / MAX_DPR.phone : ratio;
 
 /** The bloom's size as a multiple of the canvas (device pixels), so the glow keeps its tuned width where it can. */
 export const bloomScaleFor = (size: MeshSize, ratio: number): number =>
-  Math.min(BLOOM_CSS_SCALE / ratio, MAX_BLOOM_SCALE[size]);
+  Math.min(BLOOM_CSS_SCALE / ratio, maxBloomScale(size, ratio));
 
 export const maxDprFor = (size: MeshSize): number => MAX_DPR[size];
 

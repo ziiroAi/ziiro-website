@@ -12,8 +12,9 @@ describe("the GPU budget (W14-K)", () => {
     expect(bloomScaleFor("phone", 1.5) * 1.5).toBeCloseTo(4);
   });
 
-  it("never makes the bloom more than twice the canvas on desktop, so a DPR 1 screen does not pay for a 4x bloom", () => {
-    expect(bloomScaleFor("desktop", 1)).toBe(2);
+  it("never makes the desktop bloom bigger than it was before W14-K (the canvas times the pixel ratio), so a DPR 1 screen pays no more", () => {
+    expect(bloomScaleFor("desktop", 1)).toBe(1);
+    expect(bloomScaleFor("desktop", 1.5)).toBe(1.5);
   });
 
   it("lets go of a viewer's 3D only when it is off screen and another viewer is live", () => {
