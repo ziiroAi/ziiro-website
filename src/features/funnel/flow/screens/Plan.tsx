@@ -48,7 +48,7 @@ export function PlanScreen({ state, edit, env }: ScreenProps) {
             saveNotice={state.saveNotice}
             onProgress={(fields) => edit({ type: "progress", fields })}
           />
-          <Painted onPaint={() => edit({ type: "planShown", seconds: Math.round((performance.now() - env.boot.t0) / 1_000) })} />
+          {state.secondsToResult === null && <Painted onPaint={() => edit({ type: "planShown", seconds: Math.round((performance.now() - env.boot.t0) / 1_000) })} />}
         </Suspense>
       </PlanBoundary>
     </div>

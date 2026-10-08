@@ -10,6 +10,7 @@ import { useFlowHistory } from "./history";
 import { prefetchPlan } from "./plan-chunk";
 import { localTimeZone } from "./region";
 import { SCREEN_UI } from "./screens";
+import { keepPlan, resumedPlan } from "./resume";
 import { PlanPrefetch } from "./screens/Plan";
 import type { FlowEnv, ScreenProps } from "./screens/types";
 import { setCtaReporter, setStage } from "./session";
@@ -25,7 +26,10 @@ const NOTE_ON: ReadonlySet<Screen> = new Set<Screen>(["s1", "s1b", "s2", "s34", 
 export function FunnelRoot(): JSX.Element {
   const boot = useBoot();
   const [starter] = useState(() => copy("s6.text"));
-  const [state, dispatch] = useReducer(reduce, starter, initialFlow);
+  // Back to "/" from another page after the send: the same plan on the same visit (review M3).
+  const [resumed] = useState(() => (typeof window === "undefined" ? null : resumedPlan(window)));
+  const [state, dispatch] = useReducer(reduce, starter, (text: string) => resumed ?? initialFlow(text));
+  const roundAtMount = useRef(state.round);
   const [gate] = useState(() => createTapGate());
   const [introOffset] = useState(() =>
     typeof window === "undefined" ? 0 : introOffsetMs(introStartMs(window, boot.t0), performance.now()),
@@ -53,7 +57,7 @@ export function FunnelRoot(): JSX.Element {
   const send = useLeadSend(state, dispatch, starter);
   const [warm, setWarm] = useState(false);
   useEffect(() => {
-    startVisit();  // a reload after a send starts a new visit (§4.1)
+    if (!resumed) startVisit();  // a reload after a send starts a new visit (§4.1)
     setCtaReporter((from) => dispatch({ type: "progress", fields: { ctaFrom: from, ctaClicked: true } }));
     return () => {
       setCtaReporter(null);
@@ -65,8 +69,11 @@ export function FunnelRoot(): JSX.Element {
     setStage(stage);  // the header's links show at S9 only (D6, §6.2)
   }, [stage]);
   useEffect(() => {
-    if (state.round > 0) rotateVisit();  // leaving the plan: sending again is a new visit (§4.1)
+    if (state.round !== roundAtMount.current) rotateVisit();  // leaving the plan: sending again is a new visit (§4.1)
   }, [state.round]);
+  useEffect(() => {
+    keepPlan(state);
+  }, [state]);
   useEffect(() => {
     if (state.screen !== "s5") return;
     prefetchPlan();  // the plan's code loads during S5 to S8 (§13.1)
