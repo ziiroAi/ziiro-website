@@ -9,7 +9,7 @@ const STOPS = ["deals", "sales", "marketing", "back-office"].map((id) => departm
 const AGENTS = ["Enquiry responder", "Reply sorter", "Call companion", "Campaign runner", "Marketing analyst", "Numbers agent"];
 const BUDGET = { phone: 500_000, desktop: 800_000 }; // §13.10, everything prefetched before the plan
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-/** Held 3 s, under LEAD_TIMEOUT_MS, so axe can read S8 while it is on screen. */
+/** Held 3 s, well under LEAD_BUDGET_MS (send.ts), so axe can read S8 while it is on screen. */
 const SLOW_OK: LeadAnswer = { status: 200, body: { success: true, planEmail: "sent" }, delayMs: 3_000 };
 
 /** Every screen fades in, and axe reads a fading line's blended colour as low contrast. Endless loops don't count. */

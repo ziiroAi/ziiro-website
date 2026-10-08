@@ -130,8 +130,6 @@ export const CONSENT_VERSION = "2026-10-08";
 export const NOTICE_VERSION = "2026-10-08";
 /** Turnstile's action at S7 (§13.4). */
 export const TURNSTILE_ACTION = "funnel_lead";
-/** How long S8 waits for /lead, counted from the tap on s7.btn (§4.3). */
-export const LEAD_TIMEOUT_MS = 8_000;
 
 export const LIMITS = {
   visitBodyBytes: 4_096,        // §13.2
