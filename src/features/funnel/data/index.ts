@@ -3,3 +3,4 @@
 export * from "./light";
 export { AGENTS_VERSION, agentById, agents, departments, jobIdsFor, stopsFor } from "./agents";
 export { tierFor } from "./tier";
+export { classify, CLASSIFIER_VERSION } from "./classifier/classify";
