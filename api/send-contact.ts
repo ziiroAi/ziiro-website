@@ -43,7 +43,7 @@ import {
   sendResendEmail,
   teamInbox,
   verifyTurnstile,
-} from "./_lib";
+} from "./_lib.js";
 
 export const config = { runtime: "edge" };
 

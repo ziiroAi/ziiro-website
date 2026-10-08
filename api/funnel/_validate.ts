@@ -5,8 +5,8 @@ import {
   DEVICE_CLASSES, FILM_PCTS, INPUT_MODES, LIMITS, NON_OWNER_REASONS, ORDER_VARIANTS, PLAN_VIEWS, REVENUE_BANDS,
   SEGMENTS, STEPS, STILL_REASONS, TEAM_BANDS, TEMPLATES, THEMES, TIERS, VISIT_FIELD_KEYS, YEARS_BANDS, isOneOf,
   CONSENT_VERSION, type LeadField, type LeadRequest, type VisitFields, type VisitRequest,
-} from "../../src/features/funnel/data/contract";
-import { isE164, isValidEmail, isValidName } from "../../src/shared/lib/contact-checks";
+} from "../../src/features/funnel/data/contract.js";
+import { isE164, isValidEmail, isValidName } from "../../src/shared/lib/contact-checks.js";
 
 export type Parsed<T, F extends string> = { ok: true; value: T } | { ok: false; field: F };
 type Check = (value: unknown) => boolean;

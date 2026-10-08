@@ -2,18 +2,18 @@
 import {
   UpstreamError, clientIp, isJsonRequest, isRateLimited, jsonResponse, logEvent, readJson, requestId,
   resendFrom, sendResendEmail, teamInbox, turnstileOutcome, type TurnstileOutcome,
-} from "../_lib";
-import { jobIdsFor } from "../../src/features/funnel/data";
+} from "../_lib.js";
+import { jobIdsFor } from "../../src/features/funnel/data/index.js";
 import {
   LIMITS, NOTICE_VERSION, TURNSTILE_ACTION,
   type AgentId, type LeadField, type LeadFlag, type LeadRequest, type LeadResponse, type PlanEmailStatus,
-} from "../../src/features/funnel/data/contract";
-import { cleanName } from "../../src/shared/lib/contact-checks";
-import { createDb, type FunnelDb, type StoredPlanEmailStatus, type VisitAnswers, type VisitRecord } from "./_db";
+} from "../../src/features/funnel/data/contract.js";
+import { cleanName } from "../../src/shared/lib/contact-checks.js";
+import { createDb, type FunnelDb, type StoredPlanEmailStatus, type VisitAnswers, type VisitRecord } from "./_db.js";
 import {
   alertRecipients, buildAlertEmail, buildFloodAlert, buildPlanEmail, buildSendByHandAlert, type Email, type SpamCheck,
-} from "./_email";
-import { countryOf, parseLead, visitIdOf } from "./_validate";
+} from "./_email.js";
+import { countryOf, parseLead, visitIdOf } from "./_validate.js";
 
 export const config = { runtime: "nodejs", maxDuration: 15 };
 

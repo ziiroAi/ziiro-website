@@ -10,7 +10,7 @@
  * lead survives either one failing. See api/funnel/ and spec §13.2.
  */
 
-export { isValidEmail } from "../src/shared/lib/contact-checks";
+export { isValidEmail } from "../src/shared/lib/contact-checks.js";
 
 const allowedOrigins = new Set([
   "https://ziiroai.com",

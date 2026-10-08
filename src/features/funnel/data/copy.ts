@@ -1,10 +1,10 @@
 // Every copy line by its ID (§4.5, copy.md), and copy(), which fills a line's placeholders (00-index §1.3).
-import type { CopyVars } from "./contract";
-import { EMAIL_COPY } from "./copy/email";
-import { FLOW_COPY } from "./copy/flow";
-import { PLAN_COPY } from "./copy/plan";
-import { SEO_COPY } from "./copy/seo";
-import { SITE_COPY } from "./copy/site";
+import type { CopyVars } from "./contract.js";
+import { EMAIL_COPY } from "./copy/email.js";
+import { FLOW_COPY } from "./copy/flow.js";
+import { PLAN_COPY } from "./copy/plan.js";
+import { SEO_COPY } from "./copy/seo.js";
+import { SITE_COPY } from "./copy/site.js";
 
 export const COPY_LINES: Readonly<Record<string, string>> = {
   ...FLOW_COPY, ...SITE_COPY, ...PLAN_COPY, ...EMAIL_COPY, ...SEO_COPY,

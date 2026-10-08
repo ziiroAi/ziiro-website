@@ -1,5 +1,5 @@
 // §5.3 and D10: rupees or dollars. It sits in the light entry, because S5 needs it before the plan loads.
-import type { Currency } from "./contract";
+import type { Currency } from "./contract.js";
 
 const INDIA_TIME_ZONES: ReadonlySet<string> = new Set(["Asia/Kolkata", "Asia/Calcutta"]);
 

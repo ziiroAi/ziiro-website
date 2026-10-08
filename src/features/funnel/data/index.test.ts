@@ -39,7 +39,9 @@ describe("data/index.ts", () => {
 
   it("imports only its own files and the pricing entity, so api/funnel can bundle it (§13.1)", () => {
     const imports = sourceFiles(DATA).flatMap((file) =>
-      runtimeImports(file).map((spec) => ({ file: relative(DATA, file), spec, path: relative(DATA, resolve(dirname(file), spec)) })));
+      runtimeImports(file).map((spec) => ({
+        file: relative(DATA, file), spec, path: relative(DATA, resolve(dirname(file), spec.replace(/(\/index)?\.js$/, ""))),
+      })));
     expect(imports.filter((i) => !i.spec.startsWith("."))).toEqual([]);
     expect(imports.filter((i) => i.path.startsWith("..") && i.path !== PRICING)).toEqual([]);
   });

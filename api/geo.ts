@@ -9,7 +9,7 @@
  * rate is shown, and the page's region picker allows that anyway.
  */
 
-import { logEvent, requestId } from "./_lib";
+import { logEvent, requestId } from "./_lib.js";
 
 export const config = { runtime: "edge" };
 

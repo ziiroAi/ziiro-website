@@ -1,7 +1,7 @@
 // Neon access for the funnel (spec §13.5): Neon's HTTP driver, one round trip per call, no pool.
 import { neon } from "@neondatabase/serverless";
-import type { LeadFlag, PlanEmailStatus, StepId, VisitRequest } from "../../src/features/funnel/data/contract";
-import { CONTACT_INSERT, COUNT_RECENT_FLAGGED, FIND_LEAD, PLAN_EMAIL_INSERT, VISIT_UPSERT } from "./_sql";
+import type { LeadFlag, PlanEmailStatus, StepId, VisitRequest } from "../../src/features/funnel/data/contract.js";
+import { CONTACT_INSERT, COUNT_RECENT_FLAGGED, FIND_LEAD, PLAN_EMAIL_INSERT, VISIT_UPSERT } from "./_sql.js";
 
 /** A visits row by its column names, as VISIT_UPSERT's record list spells them. */
 export type VisitRecord = {

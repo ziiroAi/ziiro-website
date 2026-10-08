@@ -3,11 +3,11 @@
 import {
   BUSINESS_TYPES, CHIPS, REVENUE_BANDS, SEGMENTS, TEAM_BANDS, YEARS_BANDS,
   type ChipId, type LeadFlag, type LeadRequest,
-} from "../../src/features/funnel/data/contract";
-import { agentById, calendlyUrl, copy, departments, stopsFor } from "../../src/features/funnel/data";
-import { cleanEcho, cleanName } from "../../src/shared/lib/contact-checks";
-import type { TurnstileOutcome } from "../_lib";
-import type { VisitAnswers } from "./_db";
+} from "../../src/features/funnel/data/contract.js";
+import { agentById, calendlyUrl, copy, departments, stopsFor } from "../../src/features/funnel/data/index.js";
+import { cleanEcho, cleanName } from "../../src/shared/lib/contact-checks.js";
+import type { TurnstileOutcome } from "../_lib.js";
+import type { VisitAnswers } from "./_db.js";
 
 export interface Email {
   subject: string;

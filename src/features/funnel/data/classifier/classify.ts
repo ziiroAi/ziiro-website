@@ -1,9 +1,9 @@
 // §5.2: their words and chips become the problem, the second problem and the phrases that matched.
-import { CHIP_BUCKET, LIMITS } from "../contract";
-import type { Bucket, ChipId, Classification } from "../contract";
-import { tokens } from "./normalise";
-import { CLAUSE_BREAK, CLAUSE_CONJUNCTIONS, NEGATORS, PHRASES } from "./phrases";
-import type { Problem } from "./phrases";
+import { CHIP_BUCKET, LIMITS } from "../contract.js";
+import type { Bucket, ChipId, Classification } from "../contract.js";
+import { tokens } from "./normalise.js";
+import { CLAUSE_BREAK, CLAUSE_CONJUNCTIONS, NEGATORS, PHRASES } from "./phrases.js";
+import type { Problem } from "./phrases.js";
 
 /** Saved with every plan (§9 classifier_version). Bump it whenever a phrase or a rule in this folder changes. */
 export const CLASSIFIER_VERSION = "kw-1";

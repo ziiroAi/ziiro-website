@@ -1,7 +1,7 @@
 // The 33 agents and the 7 departments (§5.1, §6.7), read from the generated rows.
-import { AGENT_ROWS, AGENTS_VERSION, DEPARTMENT_NAMES } from "./agents.generated";
-import { DEPARTMENT_DISC, DEPARTMENTS } from "./contract";
-import type { Agent, AgentId, Department, DepartmentId, JobId, JobStatus, MarkCounts, PlanStop } from "./contract";
+import { AGENT_ROWS, AGENTS_VERSION, DEPARTMENT_NAMES } from "./agents.generated.js";
+import { DEPARTMENT_DISC, DEPARTMENTS } from "./contract.js";
+import type { Agent, AgentId, Department, DepartmentId, JobId, JobStatus, MarkCounts, PlanStop } from "./contract.js";
 
 export { AGENTS_VERSION };
 

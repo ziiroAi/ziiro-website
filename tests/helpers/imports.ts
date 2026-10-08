@@ -17,7 +17,9 @@ export const packageOf = (spec: string) => spec.split("/").slice(0, spec.startsW
 function resolveLocal(from: string, spec: string): string {
   const bare = spec.split("?")[0];
   const base = bare.startsWith("@/") ? path.join("src", bare.slice(2)) : path.join(path.dirname(from), bare);
-  const file = CANDIDATES.map((ext) => base + ext).find((f) => existsSync(f) && statSync(f).isFile());
+  // "./x.js" names "./x.ts", as TypeScript and Vite read it: the api/ graph spells its imports that way (B18).
+  const bases = base.endsWith(".js") ? [base.slice(0, -3), base] : [base];
+  const file = bases.flatMap((b) => CANDIDATES.map((ext) => b + ext)).find((f) => existsSync(f) && statSync(f).isFile());
   if (!file) throw new Error(`${from}: can't resolve "${spec}"`);
   return file;
 }

@@ -1,9 +1,9 @@
 // §5.2 to §5.5 and §6.3: which agents a plan needs, in which order, and where their words point.
-import { agentById, AGENTS_VERSION, jobIdsFor, marksFor, stopsFor } from "./agents";
-import { classify, CLASSIFIER_VERSION } from "./classifier/classify";
-import { AGENT_IDS, TIER_SIZE } from "./contract";
-import type { AgentId, Bucket, DepartmentId, Lane, OrderVariant, PlanDescriptor, PlanInput, Template, Tier } from "./contract";
-import { tierFor } from "./tier";
+import { agentById, AGENTS_VERSION, jobIdsFor, marksFor, stopsFor } from "./agents.js";
+import { classify, CLASSIFIER_VERSION } from "./classifier/classify.js";
+import { AGENT_IDS, TIER_SIZE } from "./contract.js";
+import type { AgentId, Bucket, DepartmentId, Lane, OrderVariant, PlanDescriptor, PlanInput, Template, Tier } from "./contract.js";
+import { tierFor } from "./tier.js";
 
 const byNumber = (numbers: readonly number[]): AgentId[] => numbers.map((n) => AGENT_IDS[n - 1]);
 

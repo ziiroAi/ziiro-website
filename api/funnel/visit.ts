@@ -1,11 +1,11 @@
 // POST /api/funnel/visit: one anonymous row per visit, updated at every step (spec §9, §13.2).
-import { clientIp, isJsonRequest, isRateLimited, jsonResponse, logEvent, readJson, requestId } from "../_lib";
-import { jobIdsFor } from "../../src/features/funnel/data";
+import { clientIp, isJsonRequest, isRateLimited, jsonResponse, logEvent, readJson, requestId } from "../_lib.js";
+import { jobIdsFor } from "../../src/features/funnel/data/index.js";
 import {
   LIMITS, VISIT_FIELD_KEYS, isOneOf, type AgentId, type VisitResponse,
-} from "../../src/features/funnel/data/contract";
-import { createDb, toVisitRecord, type FunnelDb } from "./_db";
-import { countryOf, isBot, parseVisit } from "./_validate";
+} from "../../src/features/funnel/data/contract.js";
+import { createDb, toVisitRecord, type FunnelDb } from "./_db.js";
+import { countryOf, isBot, parseVisit } from "./_validate.js";
 
 export const config = { runtime: "nodejs", maxDuration: 15 };
 

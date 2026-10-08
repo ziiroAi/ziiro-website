@@ -1,5 +1,5 @@
 // §5.3: the size of the plan.
-import type { RevenueBand, TeamBand, Tier } from "./contract";
+import type { RevenueBand, TeamBand, Tier } from "./contract.js";
 
 const BY_TEAM: Readonly<Record<TeamBand, Tier>> = { solo: "S", "2_5": "S", "6_20": "M", "21_50": "L", "50_plus": "L" };
 const ONE_DOWN: Readonly<Record<Tier, Tier>> = { S: "S", M: "S", L: "M" };

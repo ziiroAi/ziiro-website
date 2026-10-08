@@ -21,7 +21,8 @@ function reach(entry: string): string[] {
     if (seen.has(file)) return;
     seen.add(file);
     for (const [, spec] of readFileSync(file, "utf8").matchAll(RUNTIME_IMPORT)) {
-      if (spec.startsWith(".")) visit(`${resolve(dirname(file), spec)}.ts`);
+      // "./x.js" names "./x.ts" (B18: the api/ functions run these files as plain ESM).
+      if (spec.startsWith(".")) visit(`${resolve(dirname(file), spec.replace(/\.js$/, ""))}.ts`);
     }
   };
   visit(resolve(DATA, entry));

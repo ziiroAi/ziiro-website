@@ -1,5 +1,5 @@
 // templates.md §1: the phrase lists (English, Hinglish and Devanagari), the negators and the clause breaks.
-import type { Bucket } from "../contract";
+import type { Bucket } from "../contract.js";
 
 export type Problem = Exclude<Bucket, "unclassified">;
 

@@ -1,5 +1,5 @@
 // §6.3: their words, quoted on the plan. And S6's starter line, which isn't their words.
-import { copy } from "./copy";
+import { copy } from "./copy.js";
 
 /** Spaces, full stops, commas, colons, ? ! … the danda and double danda, and dashes. */
 const TRAILING = /[\s.,;:!?\u2026\u0964\u0965\-\u2013\u2014]+$/u;

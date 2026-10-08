@@ -45,7 +45,8 @@ const departmentNames = Object.fromEntries(Object.entries(DEPARTMENT_IDS).map(([
 const files = {
   "agents.generated.ts": [
     HEADER,
-    'import type { Agent, DepartmentId } from "./contract";\n',
+    // ".js": api/ functions run this file as plain ESM, which needs the extension (B18).
+    'import type { Agent, DepartmentId } from "./contract.js";\n',
     `export const AGENTS_VERSION = ${JSON.stringify(agentsJson.version)};\n`,
     `export const DEPARTMENT_NAMES: Readonly<Record<DepartmentId, string>> = ${JSON.stringify(departmentNames, null, 2)};\n`,
     `export const AGENT_ROWS: readonly Agent[] = ${JSON.stringify(agents, null, 2)};\n`,
