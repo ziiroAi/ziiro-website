@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { afterQuietLcp, onFirstInput, probeSoftwareGl, QUIET_AFTER_LCP_MS } from "./first-screen";
+import { afterLcpThenIdle, NO_LCP_MS, onOptionPress, probeSoftwareGl, WAIT_AFTER_LCP_MS } from "./first-screen";
 
 const UNMASKED_RENDERER = 0x9246;
 function canvasWith(gpu: string | null) {
@@ -57,17 +57,17 @@ describe("the S0 renderer probe (W14-R)", () => {
   });
 });
 
-describe("starting after a quiet second past the LCP (W14-R)", () => {
+describe("starting a second past the LCP, in idle time (W14-R)", () => {
   it("runs 1 s after the LCP, in idle time, and not before", () => {
     vi.useFakeTimers();
     vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
     vi.stubGlobal("requestIdleCallback", idleNow);
     const run = vi.fn();
-    afterQuietLcp(run);
-    vi.advanceTimersByTime(5_000);
+    afterLcpThenIdle(run);
+    vi.advanceTimersByTime(NO_LCP_MS - 1);
     expect(run).not.toHaveBeenCalled();
     FakeLcpObserver.all[0].emit();
-    vi.advanceTimersByTime(QUIET_AFTER_LCP_MS - 1);
+    vi.advanceTimersByTime(WAIT_AFTER_LCP_MS - 1);
     expect(run).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(run).toHaveBeenCalledTimes(1);
@@ -78,12 +78,29 @@ describe("starting after a quiet second past the LCP (W14-R)", () => {
     vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
     vi.stubGlobal("requestIdleCallback", idleNow);
     const run = vi.fn();
-    const cancel = afterQuietLcp(run);
+    const cancel = afterLcpThenIdle(run);
     FakeLcpObserver.all[0].emit();
     cancel();
     vi.advanceTimersByTime(5_000);
     expect(run).not.toHaveBeenCalled();
     expect(FakeLcpObserver.all[0].disconnect).toHaveBeenCalled();
+  });
+
+  it("counts from the first paint when no LCP comes, as in a tab opened in the background (W14-U L5)", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
+    vi.stubGlobal("requestAnimationFrame", (go: FrameRequestCallback) => setTimeout(() => go(0), 16));
+    vi.stubGlobal("requestIdleCallback", idleNow);
+    const run = vi.fn();
+    afterLcpThenIdle(run);
+    vi.advanceTimersByTime(NO_LCP_MS + 32 + WAIT_AFTER_LCP_MS - 1);
+    expect(run).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(FakeLcpObserver.all[0].disconnect).toHaveBeenCalled();
+    FakeLcpObserver.all[0].emit();
+    vi.advanceTimersByTime(5_000);
+    expect(run).toHaveBeenCalledTimes(1);
   });
 
   it("counts from the first paint where the browser reports no LCP", () => {
@@ -92,25 +109,57 @@ describe("starting after a quiet second past the LCP (W14-R)", () => {
     vi.stubGlobal("requestAnimationFrame", (go: FrameRequestCallback) => setTimeout(() => go(0), 16));
     vi.stubGlobal("requestIdleCallback", idleNow);
     const run = vi.fn();
-    afterQuietLcp(run);
-    vi.advanceTimersByTime(32 + QUIET_AFTER_LCP_MS - 1);
+    afterLcpThenIdle(run);
+    vi.advanceTimersByTime(32 + WAIT_AFTER_LCP_MS - 1);
     expect(run).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(run).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("the visitor's first tap or key (W14-R)", () => {
-  it("fires once, on a pointer press or a key, and not after it is stopped", () => {
+describe("leaving S0: pressing one of S1's options (W14-R, W14-U L1)", () => {
+  function option() {
+    const s1 = document.createElement("div");
+    s1.className = "f-s1";
+    s1.innerHTML = '<div class="f-options"></div>';
+    const button = document.createElement("button");
+    s1.firstElementChild!.append(button);
+    document.body.append(s1);
+    return button;
+  }
+  const key = (target: EventTarget, name: string) => target.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true }));
+  const press = (target: EventTarget) => target.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it("fires once, on a press of an option or Enter or Space on one, and not after it is stopped", () => {
+    const button = option();
     const run = vi.fn();
-    const stop = onFirstInput(run);
-    window.dispatchEvent(new Event("pointerdown"));
-    window.dispatchEvent(new Event("keydown"));
+    const stop = onOptionPress(run);
+    press(button);
+    key(button, "Enter");
     expect(run).toHaveBeenCalledTimes(1);
     stop();
     const later = vi.fn();
-    onFirstInput(later)();
-    window.dispatchEvent(new Event("keydown"));
+    onOptionPress(later)();
+    press(button);
     expect(later).not.toHaveBeenCalled();
+    const spaced = vi.fn();
+    onOptionPress(spaced);
+    key(button, " ");
+    expect(spaced).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a Tab, a screen-reader key, a press outside the options and a key on the page", () => {
+    const button = option();
+    const run = vi.fn();
+    onOptionPress(run);
+    key(button, "Tab");
+    key(button, "ArrowDown");
+    key(document.body, "Enter");
+    press(document.body);
+    expect(run).not.toHaveBeenCalled();
   });
 });

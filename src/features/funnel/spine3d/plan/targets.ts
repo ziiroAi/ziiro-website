@@ -29,6 +29,13 @@ export interface CameraPose {
 
 export type Variant = "desktop" | "phone";
 
+/** The desktop variant: the stage beside the words, with every department disc padded to a 44 px target (§6.2). */
+export const DESKTOP_QUERY = "(min-width: 1024px)";
+
+/** The variant now. The tour and the drive read it the same way, so a tap and a disc's button agree (W14-V T3). */
+export const variantNow = (): Variant =>
+  typeof matchMedia !== "function" || matchMedia(DESKTOP_QUERY).matches ? "desktop" : "phone";
+
 /** The close-up's lens and how much of the frame's smaller side the disc's width fills. The phone band is small,
  *  so its disc fills more: that is also what lets it pass the 44 px tap rule (tap.ts). Owner judges by eye. */
 export const CLOSE_UP: Readonly<Record<Variant, { fovDeg: number; fill: number }>> = {

@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { describe, expect, it, vi } from "vitest";
 import { LOOK } from "./look";
-import { disposeComposer, makeComposer } from "./look-three";
+import { disposeComposer, makeComposer, makeEnvironment } from "./look-three";
 
 /** The site sets the renderer's pixel ratio; three's EffectComposer.addPass used to multiply sizes by it again. */
 const renderer = { getPixelRatio: () => 2, getSize: (v: THREE.Vector2) => v.set(300, 200) } as unknown as THREE.WebGLRenderer;
@@ -38,5 +38,28 @@ describe("makeComposer (W14-K)", () => {
     const spies = composer.passes.map((pass) => vi.spyOn(pass, "dispose"));
     disposeComposer(composer);
     spies.forEach((spy) => expect(spy).toHaveBeenCalled());
+  });
+});
+
+describe("makeEnvironment (W14-V T4)", () => {
+  it("frees its temporary scene once prefiltered, and hands back the render target that owns the framebuffer", () => {
+    const disposals: ReturnType<typeof vi.fn>[] = [];
+    const target = { texture: new THREE.Texture(), dispose: vi.fn() };
+    const pmrem = {
+      fromScene: vi.fn((scene: THREE.Scene) => {
+        scene.traverse((node) => {
+          const mesh = node as THREE.Mesh;
+          if (!mesh.isMesh) return;
+          disposals.push(vi.spyOn(mesh.geometry, "dispose"), vi.spyOn(mesh.material as THREE.Material, "dispose"));
+        });
+        return target;
+      }),
+      dispose: vi.fn(),
+    };
+    const made = makeEnvironment({} as THREE.WebGLRenderer, LOOK.themes.dark, () => pmrem as unknown as THREE.PMREMGenerator);
+    expect(made).toBe(target);
+    expect(disposals.length).toBeGreaterThan(2);
+    disposals.forEach((dispose) => expect(dispose).toHaveBeenCalled());
+    expect(pmrem.dispose).toHaveBeenCalled();
   });
 });

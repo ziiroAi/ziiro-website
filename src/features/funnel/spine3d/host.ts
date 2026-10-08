@@ -4,7 +4,7 @@
 import type { DiscId, Theme } from "../data/contract";
 import type { View } from "./camera";
 import type { DiscLevels } from "./levels";
-import type { FromWorker, SpineStart, ToWorker } from "./protocol";
+import { isFromWorker, type SpineStart, type ToWorker } from "./protocol";
 import { canOffscreen, reasonFor, type FallbackReason } from "./rules";
 import type { DiscBox, SpineScene } from "./scene";
 
@@ -12,6 +12,9 @@ import type { DiscBox, SpineScene } from "./scene";
 const DISPOSE_GRACE_MS = 1000;
 
 export interface SpineHandle {
+  /** True when frames are drawn off the main thread (the worker), so the main thread's frame gaps say nothing about
+   *  the GPU, and the drive judges it by how long each frame takes to come back (W14-U M1). */
+  readonly offThread?: boolean;
   /** Draws a frame. Its disc boxes arrive through onBoxes. */
   render(view: View): void;
   pick(x: number, y: number): Promise<DiscId | null>;
@@ -40,7 +43,12 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
     themed.slice(0, upTo).forEach(({ settle }) => settle());
     themed = themed.slice(upTo);
   };
-  worker.onmessage = ({ data }: MessageEvent<FromWorker>) => {
+  const fail = () => {
+    settleThemes();
+    onFail("error");
+  };
+  worker.onmessage = ({ data }: MessageEvent<unknown>) => {
+    if (!isFromWorker(data)) return fail();
     // The first frame wears the latest theme sent while loading, so it settles every change made before it.
     if (data.type === "ready") settleThemes();
     if (data.type === "themed") settleThemes(themed.findIndex(({ theme }) => theme === data.theme) + 1);
@@ -55,13 +63,12 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
       onFail(reasonFor(data.reason));
     }
   };
-  worker.onerror = () => {
-    settleThemes();
-    onFail("error");
-  };
+  worker.onerror = fail;
+  worker.onmessageerror = fail;
   const offscreen = canvas.transferControlToOffscreen();
   send({ type: "init", canvas: offscreen, ...start }, [offscreen]);
   return {
+    offThread: true,
     render: (view) => send({ type: "view", view }),
     pick: (x, y) =>
       new Promise((resolve) => {
@@ -77,6 +84,10 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
       }),
     setLevels: (levels) => send({ type: "levels", levels }),
     dispose: () => {
+      // A ready or fail already on its way must reach no one: the viewer may be on a new handle by then (W14-V T2).
+      worker.onmessage = null;
+      worker.onerror = null;
+      worker.onmessageerror = null;
       // The worker loses its context and closes itself; terminate is the backstop if it is stuck (W14-K).
       send({ type: "dispose" });
       setTimeout(() => worker.terminate(), DISPOSE_GRACE_MS);
@@ -88,6 +99,8 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
 
 function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start }: StartOptions): SpineHandle {
   let disposed = false;
+  /** Stops the mesh download when the viewer leaves before the scene is built (W14-U L2). */
+  const abort = new AbortController();
   let spine: SpineScene | null = null;
   let latest = start.view;
   /** Asked for while the scene is built, applied before its first frame (W14-J F1). */
@@ -98,7 +111,7 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
     themed = [];
   };
   void Promise.all([import("./scene")])
-    .then(([{ createSpineScene }]) => createSpineScene({ ...start, canvas, onContextLost: () => onFail("context-lost") }))
+    .then(([{ createSpineScene }]) => createSpineScene({ ...start, canvas, signal: abort.signal, onContextLost: () => onFail("context-lost") }))
     .then((built) => {
       if (disposed) return built.dispose();
       spine = built;
@@ -136,6 +149,7 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
     },
     dispose: () => {
       disposed = true;
+      abort.abort();
       spine?.dispose();
       spine = null;
       settleThemes();

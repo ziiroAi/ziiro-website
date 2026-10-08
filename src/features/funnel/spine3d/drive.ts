@@ -10,11 +10,11 @@ import type { SpineHandle } from "./host";
 import { discLevels } from "./levels";
 import { dragBy, grab, release, REST, step, type Motion } from "./orbit";
 import { isTooSlow, SAMPLE_FRAMES, spinFrameMsFor } from "./pace";
+import { pickDisc, screenDisc } from "./plan/tap";
+import { variantNow } from "./plan/targets";
 import type { MeshSize } from "./rules";
 import type { DiscBox } from "./scene";
 
-/** §11.3: a touch target is 44 × 44 px or more. */
-export const MIN_TAP_PX = 44;
 /** A press that moved less than this and lasted less than TAP_MS is a tap, not a drag. */
 const TAP_SLOP_PX = 8;
 const TAP_MS = 500;
@@ -36,6 +36,8 @@ export interface Drive extends SpineViewerApi {
   takeBoxes(boxes: readonly DiscBox[]): void;
   /** Draws a frame if nothing else will, after a resize or a theme change. */
   wake(): void;
+  /** Reduced motion turned on or off while it runs (W14-V T8). */
+  setMotion(next: Motion): void;
   dispose(): void;
 }
 
@@ -61,25 +63,31 @@ export function createDrive(
   el: HTMLElement,
   handle: SpineHandle,
   size: MeshSize,
-  motion: Motion,
+  initialMotion: Motion,
   pace: DrivePace = { idleSpin: true },
 ): Drive {
+  let motion = initialMotion;
   let orbit = REST;
   let framing: Framing = baseFraming(size);
   let flight: Flight | null = null;
   let press: Press | null = null;
   let hovered: DiscId | null = null;
-  let hoverPending = false;
   let boxes: readonly DiscBox[] = [];
   let raf = 0;
   let last = 0;
   let visible = true;
-  let spin = motion.spin && pace.idleSpin;
+  /** Set once the GPU proved too slow for the idle spin: it stays off for good (W14-O). */
+  let tooSlow = false;
+  const spinAllowed = () => motion.spin && pace.idleSpin && !tooSlow;
+  let spin = spinAllowed();
   let focused = document.hasFocus();
-  /** The previous animation frame while the loop runs, and the gaps between frames until the GPU is judged. */
+  /** The previous animation frame while the loop runs, and the frame times until the GPU is judged. */
   let lastFrame = 0;
+  /** Off the main thread: when the oldest frame not yet drawn was sent (W14-U M1). */
+  let sentAt = 0;
   let frameMs: number[] = [];
-  let judged = !spin;
+  /** Judged only where the spin can ever run; a reader may turn reduced motion off later (T8). */
+  let judged = !pace.idleSpin;
   const spinFrameMs = spinFrameMsFor(size);
   const boxListeners = new Set<(boxes: readonly DiscBox[]) => void>();
   const pickListeners = new Set<(event: DiscPickEvent) => void>();
@@ -100,15 +108,34 @@ export function createDrive(
     return false;
   }
 
-  /** Times the gap since the last animation frame, and turns the spin off once the first SAMPLE_FRAMES are too slow. */
-  function timeFrame(now: number): void {
-    if (!judged && lastFrame) frameMs = [...frameMs, now - lastFrame];
-    lastFrame = now;
-    if (judged || frameMs.length < SAMPLE_FRAMES) return;
+  /** One frame's time; the spin turns off for good once the first SAMPLE_FRAMES are too slow. */
+  function judge(ms: number): void {
+    if (judged) return;
+    frameMs = [...frameMs, ms];
+    if (frameMs.length < SAMPLE_FRAMES) return;
     judged = true;
     if (!isTooSlow(frameMs)) return;
+    tooSlow = true;
     spin = false;
     pace.onSpinOff?.();
+  }
+
+  /**
+   * On the main thread a frame's time is the gap between animation frames. Off it (the worker), those gaps stay near
+   * 16 ms however slow the GPU is, so a frame's time is how long it takes to come back drawn (takeBoxes).
+   */
+  function timeFrame(now: number): void {
+    if (!handle.offThread && lastFrame) judge(now - lastFrame);
+    lastFrame = now;
+  }
+
+  /** Stops the loop where it is, so the next schedule() starts it again (W14-V T1: a cancelled id once blocked it). */
+  function stopLoop(): void {
+    cancelAnimationFrame(raf);
+    raf = 0;
+    last = 0;
+    lastFrame = 0;
+    sentAt = 0;
   }
 
   /** Only the idle spin is moving it: nobody holds it, it isn't flung and no flight runs. */
@@ -127,6 +154,7 @@ export function createDrive(
     const stepped = step(orbit, dt, { ...motion, spin: idle });
     orbit = stepped.orbit;
     const flying = advanceFlight(now);
+    if (handle.offThread && !sentAt) sentAt = performance.now();
     handle.render({ yaw: orbit.yaw, pitch: orbit.pitch, framing });
     if (stepped.moving || flying || orbit.held) schedule();
     else {
@@ -142,19 +170,22 @@ export function createDrive(
   const boxOf = (disc: DiscId | null) => boxes.find((box) => box.disc === disc) ?? null;
   const emit = (event: DiscPickEvent) => pickListeners.forEach((listener) => listener(event));
 
-  async function tapAt(x: number, y: number, pointerType: string): Promise<void> {
-    const disc = await handle.pick(x, y);
-    const box = boxOf(disc);
-    if (!disc || !box) return;
-    if (pointerType === "touch" && (box.width < MIN_TAP_PX || box.height < MIN_TAP_PX)) return;
-    emit({ disc, via: "tap", box });
+  /** W14-V T3: one tap rule, tap.ts's: a phone takes only a disc 44 px or more on screen, desktop pads every disc to
+   *  44 × 44 around its centre (§6.2, §11.3), for a mouse, a pen or a touch alike. */
+  function discAt(x: number, y: number): DiscId | null {
+    const { width, height } = el.getBoundingClientRect();
+    return pickDisc({ x, y }, boxes.map(screenDisc), variantNow(), { width, height });
   }
 
-  async function hoverAt(x: number, y: number): Promise<void> {
-    if (hoverPending || !pickListeners.size) return;
-    hoverPending = true;
-    const disc = await handle.pick(x, y);
-    hoverPending = false;
+  function tapAt(x: number, y: number): void {
+    const disc = discAt(x, y);
+    const box = boxOf(disc);
+    if (disc && box) emit({ disc, via: "tap", box });
+  }
+
+  function hoverAt(x: number, y: number): void {
+    if (!pickListeners.size) return;
+    const disc = discAt(x, y);
     if (disc === hovered) return;
     hovered = disc;
     emit({ disc, via: "hover", box: boxOf(disc) });
@@ -172,7 +203,7 @@ export function createDrive(
   const onMove = (event: PointerEvent) => {
     const { x, y } = local(event);
     if (!press || event.pointerId !== press.id) {
-      if (event.pointerType === "mouse") void hoverAt(x, y);
+      if (event.pointerType === "mouse") hoverAt(x, y);
       return;
     }
     orbit = dragBy(orbit, x - press.x, y - press.y, event.timeStamp - press.t);
@@ -184,7 +215,7 @@ export function createDrive(
     if (!press || event.pointerId !== press.id) return;
     const { x, y } = local(event);
     const still = Math.hypot(x - press.startX, y - press.startY) < TAP_SLOP_PX;
-    if (event.type === "pointerup" && still && event.timeStamp - press.startT < TAP_MS) void tapAt(x, y, press.type);
+    if (event.type === "pointerup" && still && event.timeStamp - press.startT < TAP_MS) tapAt(x, y);
     orbit = release(orbit, motion);
     press = null;
     schedule();
@@ -196,7 +227,7 @@ export function createDrive(
     emit({ disc: null, via: "hover", box: null });
   };
 
-  const onVisibility = () => (running() ? schedule() : cancelAnimationFrame(raf));
+  const onVisibility = () => (running() ? schedule() : stopLoop());
   // Out of focus the spin's next frame is its last; back in focus it carries on.
   const onBlur = () => (focused = false);
   const onFocus = () => {
@@ -224,7 +255,9 @@ export function createDrive(
   schedule();
 
   return {
-    reducedMotion: !motion.spin,
+    get reducedMotion() {
+      return !motion.spin;
+    },
     flyTo: (target, options) => {
       flight?.resolve();
       const to = framingFor(target, size);
@@ -252,11 +285,20 @@ export function createDrive(
     boxes: () => boxes,
     takeBoxes: (next) => {
       boxes = next;
+      if (handle.offThread && sentAt) {
+        judge(performance.now() - sentAt);
+        sentAt = 0;
+      }
       boxListeners.forEach((listener) => listener(next));
     },
     wake: schedule,
+    setMotion: (next) => {
+      motion = next;
+      spin = spinAllowed();
+      schedule();
+    },
     dispose: () => {
-      cancelAnimationFrame(raf);
+      stopLoop();
       flight?.resolve();
       io?.disconnect();
       ro?.disconnect();

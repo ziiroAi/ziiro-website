@@ -21,8 +21,13 @@ export const TONE: Record<ThemeLook["toneMapping"], THREE.ToneMapping> = {
   neutral: THREE.NeutralToneMapping, aces: THREE.ACESFilmicToneMapping, agx: THREE.AgXToneMapping,
 };
 
-/** The reflection world: a vertical gradient plus soft panels, prefiltered once. */
-export function makeEnvironment(renderer: THREE.WebGLRenderer, t: ThemeLook): THREE.Texture {
+/** The reflection world: a vertical gradient plus soft panels, prefiltered once. Returns the render target, which owns
+ *  the framebuffer behind the texture, so a theme change frees both (W14-V T4). */
+export function makeEnvironment(
+  renderer: THREE.WebGLRenderer,
+  t: ThemeLook,
+  makePmrem = (r: THREE.WebGLRenderer) => new THREE.PMREMGenerator(r),
+): THREE.WebGLRenderTarget {
   const scene = new THREE.Scene();
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(10, 32, 16),
@@ -45,10 +50,16 @@ export function makeEnvironment(renderer: THREE.WebGLRenderer, t: ThemeLook): TH
     panel.lookAt(0, 0, 0);
     scene.add(panel);
   }
-  const pmrem = new THREE.PMREMGenerator(renderer);
+  const pmrem = makePmrem(renderer);
   const target = pmrem.fromScene(scene, t.env.blur);
   pmrem.dispose();
-  return target.texture;
+  scene.traverse((node) => {
+    const mesh = node as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.geometry.dispose();
+    (mesh.material as THREE.Material).dispose();
+  });
+  return target;
 }
 
 /** The background as a GLSL function of the screen point p (fractions, origin top left), so the body and the rings can

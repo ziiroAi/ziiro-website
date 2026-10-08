@@ -8,8 +8,8 @@ import { baseFraming, framingFor } from "./camera";
 import type { StartOptions } from "./host";
 import { discLevels } from "./levels";
 import type { DiscBox } from "./scene";
-import { QUIET_AFTER_LCP_MS } from "./first-screen";
-import { MESH_URLS, SpineViewer } from "./SpineViewer";
+import { WAIT_AFTER_LCP_MS } from "./first-screen";
+import { LOAD_TIMEOUT_MS, MESH_URLS, SpineViewer } from "./SpineViewer";
 
 let picked: DiscId | null = null;
 const handle = {
@@ -26,6 +26,9 @@ vi.mock("./host", () => ({ startSpine: (canvas: HTMLCanvasElement, options: Star
 let screen: Rendered | null = null;
 let saveData = false;
 let frames: FrameRequestCallback[] = [];
+/** Each queued frame's id, beside it in `frames`: cancelAnimationFrame really cancels (W14-V T9). */
+let frameIds: number[] = [];
+let nextFrameId = 1;
 let now = 0;
 let api: SpineViewerApi | null = null;
 const onPhase = vi.fn();
@@ -34,6 +37,7 @@ const onPhase = vi.fn();
 function flush(n = 1, stepMs = 16) {
   for (let i = 0; i < n; i++) {
     now += stepMs;
+    frameIds = [];
     frames.splice(0).forEach((frame) => frame(now));
   }
 }
@@ -42,10 +46,20 @@ beforeEach(() => {
   saveData = false;
   picked = null;
   frames = [];
+  frameIds = [];
   api = null;
   document.documentElement.dataset.theme = "light";
-  vi.stubGlobal("requestAnimationFrame", (frame: FrameRequestCallback) => frames.push(frame));
-  vi.stubGlobal("cancelAnimationFrame", () => undefined);
+  vi.stubGlobal("requestAnimationFrame", (frame: FrameRequestCallback) => {
+    frames.push(frame);
+    frameIds.push(nextFrameId);
+    return nextFrameId++;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+    const at = frameIds.indexOf(id);
+    if (at < 0) return;
+    frames.splice(at, 1);
+    frameIds.splice(at, 1);
+  });
   vi.stubGlobal("WebGL2RenderingContext", class {});
   // jsdom's page never has focus; a browser tab the reader is looking at does.
   vi.spyOn(document, "hasFocus").mockReturnValue(true);
@@ -280,26 +294,43 @@ describe("the viewer API (W14-F builds on it)", () => {
     expect(api!.boxes()).toEqual([box("G02", 20)]);
   });
 
-  it("picks a disc on a tap, but on touch only when its box is 44 × 44 px or more", async () => {
-    await mount();
-    const events: DiscPickEvent[] = [];
-    ready([box("G05", 60), box("G03", 20)]);
-    act(() => void api!.onDiscPick((event) => events.push(event)));
-    const tap = async (pointerType: string) => {
-      pointer("pointerdown", 50, pointerType);
-      pointer("pointerup", 50, pointerType);
-      await act(async () => {
-        await Promise.resolve();
-      });
-    };
+  /** The viewer's box on screen: jsdom lays nothing out. */
+  const sized = () => {
+    viewer().getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 400, height: 300, right: 400, bottom: 300, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+  const boxAt = (disc: DiscId, left: number, size: number): DiscBox => ({ ...box(disc, size), left, anchor: { x: left + size, y: size / 2 } });
+  const tapAt = async (x: number, pointerType: string) => {
+    pointer("pointerdown", x, pointerType);
+    pointer("pointerup", x, pointerType);
+    await act(async () => {
+      await Promise.resolve();
+    });
+  };
 
-    picked = "G05";
-    await tap("touch");
-    picked = "G03";
-    await tap("touch");
-    await tap("mouse");
-    expect(events.map((e) => [e.disc, e.via])).toEqual([["G05", "tap"], ["G03", "tap"]]);
-    expect(events[1].box).toEqual(box("G03", 20));
+  it("picks a disc on a tap by its box on screen; on desktop a small disc takes taps anywhere in its 44 × 44 padding (W14-V T3)", async () => {
+    await mount();
+    sized();
+    const events: DiscPickEvent[] = [];
+    ready([boxAt("G05", 0, 60), boxAt("G03", 100, 20)]);
+    act(() => void api!.onDiscPick((event) => events.push(event)));
+    await tapAt(50, "touch");
+    await tapAt(125, "touch");
+    await tapAt(125, "mouse");
+    expect(events.map((e) => [e.disc, e.via])).toEqual([["G05", "tap"], ["G03", "tap"], ["G03", "tap"]]);
+    expect(events[1].box).toEqual(boxAt("G03", 100, 20));
+  });
+
+  it("on a phone, takes a touch only on a disc 44 × 44 px or more on screen (§11.3)", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
+    await mount();
+    sized();
+    const events: DiscPickEvent[] = [];
+    ready([boxAt("G05", 0, 60), boxAt("G03", 100, 20)]);
+    act(() => void api!.onDiscPick((event) => events.push(event)));
+    await tapAt(110, "touch");
+    await tapAt(30, "touch");
+    expect(events.map((e) => e.disc)).toEqual(["G05"]);
   });
 
   it("does not count a drag as a tap", async () => {
@@ -319,10 +350,10 @@ describe("the viewer API (W14-F builds on it)", () => {
 
   it("reports a mouse hover moving onto a disc and off it", async () => {
     await mount();
+    sized();
     const events: DiscPickEvent[] = [];
     ready([box("G06", 60)]);
     act(() => void api!.onDiscPick((event) => events.push(event)));
-    picked = "G06";
     pointer("pointermove", 40);
     await act(async () => {
       await Promise.resolve();
@@ -412,6 +443,25 @@ describe("giving the GPU back (W14-K)", () => {
     act(() => startSpine.mock.calls[2][1].onReady([], HARDWARE_GPU));
     expect(hero.dataset.spine).toBe("live");
     expect(onPhase.mock.calls).toEqual([["live", null]]);
+  });
+
+  it("ignores a late ready or fail from the 3D it gave back, once it has started again (W14-V T2)", async () => {
+    await mountTwo();
+    const [hero] = viewers();
+    const [heroStart, tourStart] = startSpine.mock.calls.map((call) => call[1]);
+    act(() => heroStart.onReady([], HARDWARE_GPU));
+    act(() => tourStart.onReady([], HARDWARE_GPU));
+    nearScreen(hero, false);
+    await act(async () => {
+      nearScreen(hero, true);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(startSpine).toHaveBeenCalledTimes(3);
+    act(() => heroStart.onReady([], HARDWARE_GPU));
+    expect(hero.dataset.spine).toBe("loading");
+    act(() => heroStart.onFail("context-lost"));
+    expect(hero.dataset.spine).toBe("loading");
+    expect(startSpine.mock.results[2].value.dispose).not.toHaveBeenCalled();
   });
 
   it("keeps an off-screen viewer's 3D while no other viewer is live", async () => {
@@ -532,19 +582,27 @@ describe("on the first screen, S0 (W14-R)", () => {
   /** Lets timers and the dynamic import of ./host run. */
   const wait = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
   const lcpPainted = () => act(() => lcp.forEach((emit) => emit()));
+  /** A press on one of S1's options: the visitor is leaving S0. */
   const tap = () =>
     act(() => {
-      window.dispatchEvent(new Event("pointerdown"));
+      const option = document.createElement("button");
+      const s1 = document.createElement("div");
+      s1.className = "f-s1";
+      s1.innerHTML = '<div class="f-options"></div>';
+      s1.firstElementChild!.append(option);
+      document.body.append(s1);
+      option.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      s1.remove();
     });
   /** The handle this viewer got (an earlier describe gives startSpine its own handles). */
   const started = () => startSpine.mock.results.at(-1)!.value as typeof handle;
 
-  it("starts its 3D only a quiet second after the LCP", async () => {
+  it("starts its 3D only a second after the LCP, in idle time", async () => {
     await mountFirstScreen();
     await wait(5_000);
     expect(startSpine).not.toHaveBeenCalled();
     await lcpPainted();
-    await wait(QUIET_AFTER_LCP_MS - 1);
+    await wait(WAIT_AFTER_LCP_MS - 1);
     expect(startSpine).not.toHaveBeenCalled();
     await wait(1);
     await wait(1);
@@ -556,7 +614,7 @@ describe("on the first screen, S0 (W14-R)", () => {
     gpuNamed(SWIFTSHADER);
     await mountFirstScreen();
     await lcpPainted();
-    await wait(QUIET_AFTER_LCP_MS + 1);
+    await wait(WAIT_AFTER_LCP_MS + 1);
     await wait(1);
     expect(startSpine).not.toHaveBeenCalled();
     expect(viewer().dataset.spine).toBe("fallback");
@@ -567,7 +625,7 @@ describe("on the first screen, S0 (W14-R)", () => {
   it("gives its 3D up when the visitor taps before its first frame: they are leaving S0", async () => {
     await mountFirstScreen();
     await lcpPainted();
-    await wait(QUIET_AFTER_LCP_MS + 1);
+    await wait(WAIT_AFTER_LCP_MS + 1);
     await wait(1);
     expect(viewer().dataset.spine).toBe("loading");
     await tap();
@@ -580,20 +638,137 @@ describe("on the first screen, S0 (W14-R)", () => {
     await mountFirstScreen();
     await tap();
     await lcpPainted();
-    await wait(QUIET_AFTER_LCP_MS + 1);
+    await wait(WAIT_AFTER_LCP_MS + 1);
     await wait(1);
     expect(startSpine).not.toHaveBeenCalled();
+    expect(viewer().dataset.spine).toBe("still");
+  });
+
+  it("keeps loading through a Tab, a drag in the gutter or a scroll: only pressing an S1 option leaves S0 (W14-U L1)", async () => {
+    await mountFirstScreen();
+    await lcpPainted();
+    await wait(WAIT_AFTER_LCP_MS + 1);
+    await wait(1);
+    act(() => {
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+      viewer().dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    });
+    expect(started().dispose).not.toHaveBeenCalled();
+    expect(viewer().dataset.spine).toBe("loading");
+  });
+
+  it("leaves on Enter or Space on an S1 option, as on a press (W14-U L1)", async () => {
+    await mountFirstScreen();
+    await lcpPainted();
+    await wait(WAIT_AFTER_LCP_MS + 1);
+    await wait(1);
+    act(() => {
+      const option = document.createElement("button");
+      const s1 = document.createElement("div");
+      s1.className = "f-s1";
+      s1.innerHTML = '<div class="f-options"></div>';
+      s1.firstElementChild!.append(option);
+      document.body.append(s1);
+      option.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+      s1.remove();
+    });
+    expect(started().dispose).toHaveBeenCalled();
     expect(viewer().dataset.spine).toBe("still");
   });
 
   it("keeps its 3D for a tap after its first frame", async () => {
     await mountFirstScreen();
     await lcpPainted();
-    await wait(QUIET_AFTER_LCP_MS + 1);
+    await wait(WAIT_AFTER_LCP_MS + 1);
     await wait(1);
     await ready();
     await tap();
     expect(started().dispose).not.toHaveBeenCalled();
     expect(viewer().dataset.spine).toBe("live");
+  });
+});
+
+describe("a 3D that never arrives (W14-V T6)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function mountLoading() {
+    await act(async () => {
+      screen = render(ui());
+    });
+    act(() => flush(2));
+    // The dynamic import of ./host settles (vi.waitFor would run the fake clock on).
+    for (let i = 0; i < 5 && !startSpine.mock.calls.length; i++) await act(async () => void (await vi.advanceTimersByTimeAsync(0)));
+    expect(startSpine).toHaveBeenCalled();
+  }
+  const started = () => startSpine.mock.results.at(-1)!.value as typeof handle;
+
+  it("gives the still back after 20 s of loading, records the fallback, and lets the stalled 3D go", async () => {
+    await mountLoading();
+    expect(viewer().dataset.spine).toBe("loading");
+    await act(async () => void (await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS - 1)));
+    expect(viewer().dataset.spine).toBe("loading");
+    await act(async () => void (await vi.advanceTimersByTimeAsync(1)));
+    expect(viewer().dataset.spine).toBe("fallback");
+    expect(viewer().dataset.spineReason).toBe("timeout");
+    expect(onPhase).toHaveBeenCalledWith("fallback", "timeout");
+    expect(started().dispose).toHaveBeenCalled();
+  });
+
+  it("never times out once the first frame is drawn", async () => {
+    await mountLoading();
+    ready();
+    await act(async () => void (await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS * 2)));
+    expect(viewer().dataset.spine).toBe("live");
+  });
+});
+
+describe("what the viewer tells a screen reader, and how it moves, after it starts (W14-V T7, T8)", () => {
+  let reduce = false;
+  let changed: (() => void)[] = [];
+  beforeEach(() => {
+    reduce = false;
+    changed = [];
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("reduced-motion") ? reduce : true,
+      addEventListener: (_type: string, listener: () => void) => changed.push(listener),
+      removeEventListener: (_type: string, listener: () => void) => (changed = changed.filter((l) => l !== listener)),
+    }));
+  });
+
+  it("reads the canvas in the theme it is in now", async () => {
+    const labelled = (label: string) => (
+      <SpineViewer label={label}>
+        <img alt={label} src="/still.webp" />
+      </SpineViewer>
+    );
+    await act(async () => {
+      screen = render(labelled("A dark spine"));
+    });
+    await act(async () => {
+      flush(2);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    ready();
+    await act(async () => screen!.rerender(labelled("A light spine")));
+    expect(canvas()?.getAttribute("aria-label")).toBe("A light spine");
+  });
+
+  it("stops the idle spin when Reduce Motion is turned on while it runs, and says so through the API", async () => {
+    await mount();
+    ready();
+    flush(2);
+    expect(viewer().dataset.spineSpin).toBe("on");
+    reduce = true;
+    act(() => changed.forEach((listener) => listener()));
+    expect(viewer().dataset.spineSpin).toBe("off");
+    expect(api!.reducedMotion).toBe(true);
+    flush(2);
+    expect(frames).toHaveLength(0);
   });
 });

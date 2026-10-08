@@ -8,7 +8,7 @@ import type { FromWorker, ToWorker } from "./protocol";
 
 const scene = {
   gpu: "Worker GPU",
-  render: vi.fn(() => []),
+  render: vi.fn((_view?: unknown) => []),
   pick: vi.fn(() => null),
   resize: vi.fn(),
   setTheme: vi.fn(),
@@ -16,8 +16,17 @@ const scene = {
   dispose: vi.fn(),
 };
 let build: () => void = () => undefined;
-const createSpineScene = vi.fn(() => new Promise((resolve) => (build = () => resolve(scene))));
-vi.mock("./scene", () => ({ createSpineScene: () => createSpineScene() }));
+let failBuild: (error: Error) => void = () => undefined;
+const createSpineScene = vi.fn(
+  (_options?: Record<string, unknown>) =>
+    new Promise((resolve, reject) => {
+      build = () => resolve(scene);
+      failBuild = reject;
+    }),
+);
+vi.mock("./scene", () => ({ createSpineScene: (options: Record<string, unknown>) => createSpineScene(options) }));
+let frames: FrameRequestCallback[] = [];
+const drawFrame = () => frames.splice(0).forEach((frame) => frame(0));
 
 const posted: FromWorker[] = [];
 const scope = self as unknown as { onmessage: ((event: { data: ToWorker }) => void) | null };
@@ -30,7 +39,7 @@ const init: ToWorker = {
   dpr: 1,
   theme: "dark",
   size: "phone",
-  meshUrl: "/spine.glb",
+  meshUrl: "/spine/3d/m1/spine-phone.glb",
   levels: discLevels(),
   view: { yaw: 0, pitch: 0, framing: baseFraming("phone") },
 };
@@ -38,6 +47,8 @@ const init: ToWorker = {
 beforeEach(async () => {
   vi.clearAllMocks();
   posted.length = 0;
+  frames = [];
+  vi.stubGlobal("requestAnimationFrame", (frame: FrameRequestCallback) => frames.push(frame));
   vi.spyOn(self, "postMessage").mockImplementation((message: unknown) => void posted.push(message as FromWorker));
   vi.resetModules();
   await import("./spine.worker");
@@ -85,5 +96,61 @@ describe("naming the GPU (W14-O)", () => {
     build();
     await vi.waitFor(() => expect(posted.some((m) => m.type === "ready")).toBe(true));
     expect(posted.find((m) => m.type === "ready")).toEqual({ type: "ready", boxes: [], gpu: "Worker GPU" });
+  });
+});
+
+describe("drawing at the GPU's own pace (W14-U M1)", () => {
+  it("keeps only the latest view and draws it once a frame, so a slow GPU never builds a backlog", async () => {
+    send(init);
+    build();
+    await vi.waitFor(() => expect(posted.some((m) => m.type === "ready")).toBe(true));
+    scene.render.mockClear();
+    posted.length = 0;
+    const view = (yaw: number) => ({ type: "view" as const, view: { yaw, pitch: 0, framing: baseFraming("phone") } });
+    send(view(0.1));
+    send(view(0.2));
+    send(view(0.3));
+    expect(scene.render).not.toHaveBeenCalled();
+    drawFrame();
+    expect(scene.render).toHaveBeenCalledTimes(1);
+    expect(scene.render.mock.calls[0][0]).toEqual(view(0.3).view);
+    expect(posted.filter((m) => m.type === "boxes")).toHaveLength(1);
+    drawFrame();
+    expect(scene.render).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("what init may ask for (W14-V T6)", () => {
+  it.each([
+    ["another origin", "https://example.com/spine/3d/m1/spine-phone.glb"],
+    ["another folder", "/api/funnel/lead"],
+    ["a protocol-relative URL", "//example.com/spine/3d/m1/spine-phone.glb"],
+  ])("refuses a mesh from %s", async (_name, meshUrl) => {
+    send({ ...init, meshUrl } as ToWorker);
+    await vi.waitFor(() => expect(posted.some((m) => m.type === "fail")).toBe(true));
+    expect(createSpineScene).not.toHaveBeenCalled();
+  });
+
+  it("clamps the pixel ratio and the size it is given", () => {
+    send({ ...init, width: 1e9, height: -5, dpr: 50 } as ToWorker);
+    const asked = createSpineScene.mock.calls.at(-1)![0]!;
+    expect(asked.dpr).toBeLessThanOrEqual(3);
+    expect(asked.width).toBeLessThanOrEqual(8192);
+    expect(asked.height).toBe(0);
+    expect(asked.dpr).toBeGreaterThan(0);
+  });
+});
+
+describe("disposing while the scene builds (W14-U L2)", () => {
+  it("stops the mesh download and closes only once the half-built scene has given its context back", async () => {
+    const close = vi.spyOn(self, "close").mockImplementation(() => undefined);
+    send(init);
+    const signal = (createSpineScene.mock.calls.at(-1)![0] as { signal: AbortSignal }).signal;
+    send({ type: "dispose" });
+    expect(signal.aborted).toBe(true);
+    expect(close).not.toHaveBeenCalled();
+    failBuild(new Error("aborted"));
+    await vi.waitFor(() => expect(close).toHaveBeenCalled());
+    expect(posted.some((m) => m.type === "fail")).toBe(false);
   });
 });

@@ -30,3 +30,14 @@ export const samplesFor = (size: MeshSize): number => SAMPLES[size];
 export function shouldRelease({ nearScreen, othersLive }: { nearScreen: boolean; othersLive: boolean }): boolean {
   return !nearScreen && othersLive;
 }
+
+/** W14-V T5: a scene whose mesh or shaders fail mid-build gives its context back now, not at garbage collection
+ *  (iOS Safari caps live contexts, so a leaked one can starve the next viewer). */
+export async function releaseOnThrow<T>(release: () => void, build: () => Promise<T>): Promise<T> {
+  try {
+    return await build();
+  } catch (error) {
+    release();
+    throw error;
+  }
+}

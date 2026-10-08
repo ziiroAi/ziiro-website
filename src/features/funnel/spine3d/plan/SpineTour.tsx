@@ -16,10 +16,9 @@ import type { CameraTarget, SpineViewerApi } from "../api";
 import { meshFor } from "../rules";
 import { SpineViewer } from "../SpineViewer";
 import { SpineOverlay } from "./SpineOverlay";
-import type { Variant } from "./targets";
+import { DESKTOP_QUERY, type Variant } from "./targets";
 import { calloutsFor, flightTargets, LEGEND_STRIP_PX, runFlights, stopForDepth, tourFraming, type Stop } from "./tour";
 
-const DESKTOP_QUERY = "(min-width: 1024px)";
 /** The still fills the stage. Under 1024 px it is a band with the phone lens window's own shape (look.ts: 1290 ×
  *  1356), so the 3D isn't stretched (W14-M). From 1024 px it fills the screen under the bar beside the words; the r17
  *  frame has its spine at x ≈ 0.75, and 95 % brings it near the middle, where the tour's camera centres it. */

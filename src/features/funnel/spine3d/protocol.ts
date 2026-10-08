@@ -34,3 +34,13 @@ export type FromWorker =
   | { type: "boxes"; boxes: DiscBox[] }
   | { type: "picked"; id: number; disc: DiscId | null }
   | { type: "fail"; reason: string };
+
+const FROM_WORKER = new Set(["ready", "themed", "boxes", "picked", "fail"]);
+
+/** W14-V T6: a message the viewer can act on. Anything else (null, no type, a ready without boxes) is a failure. */
+export function isFromWorker(data: unknown): data is FromWorker {
+  if (typeof data !== "object" || data === null) return false;
+  const { type, boxes } = data as { type?: unknown; boxes?: unknown };
+  if (typeof type !== "string" || !FROM_WORKER.has(type)) return false;
+  return (type !== "ready" && type !== "boxes") || Array.isArray(boxes);
+}

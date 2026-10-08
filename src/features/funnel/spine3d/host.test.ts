@@ -17,8 +17,15 @@ const scene = {
   dispose: vi.fn(),
 };
 let build: () => void = () => undefined;
-const createSpineScene = vi.fn(() => new Promise((resolve) => (build = () => resolve(scene))));
-vi.mock("./scene", () => ({ createSpineScene: () => createSpineScene() }));
+let failBuild: (error: Error) => void = () => undefined;
+const createSpineScene = vi.fn(
+  (_options?: { signal?: AbortSignal }) =>
+    new Promise((resolve, reject) => {
+      build = () => resolve(scene);
+      failBuild = reject;
+    }),
+);
+vi.mock("./scene", () => ({ createSpineScene: (options: { signal?: AbortSignal }) => createSpineScene(options) }));
 
 const options = (): StartOptions => ({
   width: 100,
@@ -89,6 +96,7 @@ class FakeWorker {
   static last: FakeWorker | null = null;
   onmessage: ((event: { data: FromWorker }) => void) | null = null;
   onerror: (() => void) | null = null;
+  onmessageerror: (() => void) | null = null;
   sent: ToWorker[] = [];
   constructor() {
     FakeWorker.last = this;
@@ -146,5 +154,56 @@ describe("ending the worker (W14-K)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("after dispose (W14-V T2)", () => {
+  it("a ready or fail the worker sent before dispose reaches no one", () => {
+    const start = options();
+    const handle = startSpine(offscreenCanvas(), start);
+    const worker = FakeWorker.last!;
+    handle.dispose();
+    worker.reply({ type: "ready", boxes: [], gpu: "Worker GPU" });
+    worker.reply({ type: "fail", reason: "context-lost" });
+    worker.onerror?.();
+    expect(start.onReady).not.toHaveBeenCalled();
+    expect(start.onFail).not.toHaveBeenCalled();
+  });
+});
+
+describe("messages it can't read (W14-V T6)", () => {
+  it.each([
+    ["null", null],
+    ["no type", {}],
+    ["an unknown type", { type: "nonsense" }],
+    ["a ready without boxes", { type: "ready", gpu: "x" }],
+  ])("falls back on %s", (_name, data) => {
+    const start = options();
+    startSpine(offscreenCanvas(), start);
+    FakeWorker.last!.reply(data as unknown as FromWorker);
+    expect(start.onFail).toHaveBeenCalledWith("error");
+    expect(start.onReady).not.toHaveBeenCalled();
+  });
+
+  it("falls back when a message can't be cloned (messageerror)", () => {
+    const start = options();
+    startSpine(offscreenCanvas(), start);
+    FakeWorker.last!.onmessageerror?.();
+    expect(start.onFail).toHaveBeenCalledWith("error");
+  });
+});
+
+describe("leaving while it builds, on the main thread (W14-U L2)", () => {
+  it("stops the mesh download, and the half-built scene gives its context back", async () => {
+    const start = options();
+    const handle = startSpine(document.createElement("canvas"), start);
+    await vi.waitFor(() => expect(createSpineScene).toHaveBeenCalled());
+    const signal = createSpineScene.mock.calls.at(-1)![0]!.signal!;
+    expect(signal.aborted).toBe(false);
+    handle.dispose();
+    expect(signal.aborted).toBe(true);
+    failBuild(new Error("aborted"));
+    await Promise.resolve();
+    expect(start.onFail).not.toHaveBeenCalled();
   });
 });

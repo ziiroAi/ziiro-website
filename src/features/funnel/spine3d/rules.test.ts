@@ -44,6 +44,7 @@ describe("stillReasonOf: the reason recorded as still_reason (§9, contract STIL
     ["context-lost", "failed"],
     ["mesh-failed", "failed"],
     ["error", "failed"],
+    ["timeout", "failed"],
   ] as const)("records %s as %s", (reason, recorded) => {
     expect(stillReasonOf(reason)).toBe(recorded);
   });

@@ -10,7 +10,7 @@ import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
-import { afterQuietLcp, onFirstInput, probeSoftwareGl } from "./first-screen";
+import { afterLcpThenIdle, onOptionPress, probeSoftwareGl } from "./first-screen";
 import { shouldRelease } from "./gpu";
 import type { Motion } from "./orbit";
 import { isSoftwareRenderer } from "./pace";
@@ -28,6 +28,10 @@ const IDLE_TIMEOUT_MS = 2000;
 /** Where requestIdleCallback is missing (Safari), the 3D starts this long after the first paint. */
 const IDLE_FALLBACK_MS = 300;
 const FRAME_FALLBACK_MS = 16;
+/** W14-V T6: a 3D with no first frame by now (a stalled mesh fetch or worker) gives way to the still, and the visit
+ *  still gets its plan_view record. */
+export const LOAD_TIMEOUT_MS = 20_000;
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const CANVAS_CLASS = "absolute inset-0 h-full w-full transition-opacity duration-300";
 
 /** "asleep": off screen while another viewer is live, so its 3D was given back and its still shows (W14-K). */
@@ -60,8 +64,8 @@ export interface SpineViewerProps {
   /** Once live, and on a fallback with its reason: the plan_view record (§9). */
   onPhase?(phase: "live" | "fallback", reason: FallbackReason | null): void;
   /**
-   * S0 (W14-R): the first tap must never wait on the 3D. No 3D on a software renderer, a start only once the page has
-   * been quiet for a second past its LCP, and none at all if the visitor taps before its first frame.
+   * S0 (W14-R): the first tap must never wait on the 3D. No 3D on a software renderer, a start a second past the LCP
+   * in idle time, and none at all if the visitor presses one of S1's options before its first frame.
    */
   firstScreen?: boolean;
 }
@@ -88,7 +92,7 @@ function afterFirstPaint(run: () => void): () => void {
 }
 
 function readMotion(): Motion {
-  const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduce = typeof matchMedia === "function" && matchMedia(REDUCED_MOTION).matches;
   return { spin: !reduce, inertia: !reduce };
 }
 
@@ -144,8 +148,16 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     let asleep = false;
     let nearScreen = true;
     let reportedLive = false;
+    /** W14-O: the idle spin is off on this GPU (software, or too slow), whatever the visitor's motion setting. */
+    let paceSpin = true;
+    let loadTimer: ReturnType<typeof setTimeout> | null = null;
     const me = {};
+    const stopLoadTimer = () => {
+      if (loadTimer !== null) clearTimeout(loadTimer);
+      loadTimer = null;
+    };
     const teardown = () => {
+      stopLoadTimer();
       const current = live.current;
       live.current = null;
       markLive(me, false);
@@ -170,18 +182,26 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         box.append(canvas);
         const { width, height } = box.getBoundingClientRect();
         const size = meshFor(window.innerWidth);
-        const handle = startSpine(canvas, {
+        /** A late message from a handle this viewer has let go (asleep, then started again) is ignored (W14-V T2). */
+        const mine = () => !cancelled && live.current?.handle === handle;
+        const handle: SpineHandle = startSpine(canvas, {
           width, height, dpr: devicePixelRatio || 1, size, meshUrl: MESH_URLS[size],
           theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: baseFraming(size) },
           onReady: (boxes, gpu) => {
-            if (cancelled || !live.current) return;
+            if (!mine() || !live.current) return;
+            stopLoadTimer();
             stopWatching();
             canvas.style.opacity = "1";
             canvas.removeAttribute("aria-hidden");
             const motion = readMotion();
             const idleSpin = !isSoftwareRenderer(gpu);
+            paceSpin = idleSpin;
             setSpin(motion.spin && idleSpin);
-            const drive = createDrive(box, handle, size, motion, { idleSpin, onSpinOff: () => !cancelled && setSpin(false) });
+            const onSpinOff = () => {
+              paceSpin = false;
+              if (!cancelled) setSpin(false);
+            };
+            const drive = createDrive(box, handle, size, motion, { idleSpin, onSpinOff });
             live.current = { ...live.current, drive };
             drive.takeBoxes(boxes);
             setState({ phase: "live", reason: null });
@@ -191,10 +211,15 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
             if (!reportedLive) latest.current.onPhase?.("live", null);
             reportedLive = true;
           },
-          onBoxes: (boxes) => live.current?.drive?.takeBoxes(boxes),
-          onFail: fail,
+          onBoxes: (boxes) => {
+            if (mine()) live.current?.drive?.takeBoxes(boxes);
+          },
+          onFail: (reason) => {
+            if (mine()) fail(reason);
+          },
         });
         live.current = { handle, drive: null, canvas };
+        loadTimer = setTimeout(() => fail("timeout"), LOAD_TIMEOUT_MS);
         setState({ phase: "loading", reason: null });
       } catch {
         fail("error");
@@ -230,9 +255,9 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     presenceListeners.add(settle);
     const firstScreen = latest.current.firstScreen === true;
     const cancelStart = firstScreen
-      ? afterQuietLcp(() => (probeSoftwareGl() ? fail("software-gl") : void begin()))
+      ? afterLcpThenIdle(() => (probeSoftwareGl() ? fail("software-gl") : void begin()))
       : afterFirstPaint(() => void begin());
-    /** S0: a tap before the first frame means the visitor is leaving, so the 3D stops wherever it got to. */
+    /** S0: an option pressed before the first frame means the visitor is leaving, so the 3D stops wherever it got to. */
     const interrupt = () => {
       if (cancelled || failed || live.current?.drive) return;
       interrupted = true;
@@ -240,11 +265,22 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       teardown();
       setState({ phase: "still", reason: null });
     };
-    const stopWatching = firstScreen ? onFirstInput(interrupt) : () => undefined;
+    const stopWatching = firstScreen ? onOptionPress(interrupt) : () => undefined;
+    /** W14-V T8: Reduce Motion turned on or off while the 3D runs stops or starts the idle spin and the flights. */
+    const motionQuery = typeof matchMedia === "function" ? matchMedia(REDUCED_MOTION) : null;
+    const onMotionChange = () => {
+      const drive = live.current?.drive;
+      if (cancelled || !drive) return;
+      const motion = readMotion();
+      drive.setMotion(motion);
+      setSpin(motion.spin && paceSpin);
+    };
+    motionQuery?.addEventListener?.("change", onMotionChange);
     return () => {
       cancelled = true;
       cancelStart();
       stopWatching();
+      motionQuery?.removeEventListener?.("change", onMotionChange);
       near?.disconnect();
       presenceListeners.delete(settle);
       teardown();
@@ -272,6 +308,11 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       stale = true;
     };
   }, [inputs.theme]);
+
+  // W14-V T7: the canvas reads the theme it is in now, as the still's alt text does.
+  useEffect(() => {
+    live.current?.canvas.setAttribute("aria-label", inputs.label);
+  }, [inputs.label]);
 
   useEffect(() => {
     live.current?.handle.setLevels(inputs.levels);

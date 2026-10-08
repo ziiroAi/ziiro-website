@@ -12,7 +12,7 @@ import { LOOK } from "../look";
 import type { MeshSize } from "../rules";
 import { discCallout } from "./discCopy";
 import type { LabelInput } from "./labels";
-import type { ScreenBox, ScreenDisc } from "./tap";
+import { boxOfDisc as boxOf, screenDisc, type ScreenBox } from "./tap";
 import type { Variant } from "./targets";
 import { add, length, normalize, scale, sub, type Vec3 } from "./vec";
 
@@ -95,10 +95,8 @@ export async function runFlights(
 }
 
 const padBox = (b: ScreenBox, pad: number): ScreenBox => ({ x0: b.x0 - pad, y0: b.y0 - pad, x1: b.x1 + pad, y1: b.y1 + pad });
-const boxOf = (box: DiscBox): ScreenBox => ({ x0: box.left, y0: box.top, x1: box.left + box.width, y1: box.top + box.height });
-
-/** A DiscBox as tap.ts reads it. A disc the API marks off screen is treated as behind the camera: never a target. */
-export const screenDisc = (box: DiscBox): ScreenDisc => ({ disc: box.disc, box: boxOf(box), inFront: true, behindCamera: !box.onScreen });
+// W14-V: one tap rule. screenDisc lives in tap.ts beside pickDisc, so the drive uses it without the tour's data.
+export { screenDisc };
 
 export interface Callout {
   disc: DiscId;

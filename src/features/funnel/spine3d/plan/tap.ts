@@ -6,6 +6,7 @@
 //   disc opens in the overview too.
 // The end discs belong to no department and are never targets (§6.7).
 import type { DiscId } from "../../data/contract";
+import type { DiscBox } from "../scene";
 import type { Variant } from "./targets";
 
 export const MIN_TARGET_PX = 44;
@@ -39,6 +40,12 @@ export interface Viewport {
   width: number;
   height: number;
 }
+
+/** A DiscBox as a ScreenBox. */
+export const boxOfDisc = (box: DiscBox): ScreenBox => ({ x0: box.left, y0: box.top, x1: box.left + box.width, y1: box.top + box.height });
+
+/** A DiscBox as this file reads it. A disc the API marks off screen is treated as behind the camera: never a target. */
+export const screenDisc = (box: DiscBox): ScreenDisc => ({ disc: box.disc, box: boxOfDisc(box), inFront: true, behindCamera: !box.onScreen });
 
 export const isHittable = (box: ScreenBox): boolean =>
   box.x1 - box.x0 >= MIN_TARGET_PX && box.y1 - box.y0 >= MIN_TARGET_PX;

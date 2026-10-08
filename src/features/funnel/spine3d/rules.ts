@@ -3,7 +3,8 @@
 
 import type { StillReason } from "../data/contract";
 
-/** "software-gl": S0 only, whose 3D never runs on a software renderer (W14-R). */
+/** "software-gl": S0 only, whose 3D never runs on a software renderer (W14-R). "timeout": the 3D took too long to draw
+ *  its first frame (a stalled mesh fetch or worker), so the still stays (W14-V T6). */
 export type FallbackReason =
   | "save-data"
   | "slow-connection"
@@ -11,6 +12,7 @@ export type FallbackReason =
   | "software-gl"
   | "context-lost"
   | "mesh-failed"
+  | "timeout"
   | "error";
 export type MeshSize = "phone" | "desktop";
 

@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { bloomScaleFor, maxDprFor, shouldRelease } from "./gpu";
+import { describe, expect, it, vi } from "vitest";
+import { bloomScaleFor, maxDprFor, releaseOnThrow, shouldRelease } from "./gpu";
 
 describe("the GPU budget (W14-K)", () => {
   it("draws a phone at 1.5 device pixels per CSS pixel at most, and desktop at 2", () => {
@@ -21,5 +21,19 @@ describe("the GPU budget (W14-K)", () => {
     expect(shouldRelease({ nearScreen: false, othersLive: true })).toBe(true);
     expect(shouldRelease({ nearScreen: true, othersLive: true })).toBe(false);
     expect(shouldRelease({ nearScreen: false, othersLive: false })).toBe(false);
+  });
+});
+
+describe("a scene that fails while it is built (W14-V T5)", () => {
+  it("gives its context back when the mesh or a shader fails, and passes the error on", async () => {
+    const release = vi.fn();
+    await expect(releaseOnThrow(release, () => Promise.reject(new Error("mesh-failed")))).rejects.toThrow("mesh-failed");
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps its context when the build succeeds", async () => {
+    const release = vi.fn();
+    await expect(releaseOnThrow(release, async () => "scene")).resolves.toBe("scene");
+    expect(release).not.toHaveBeenCalled();
   });
 });

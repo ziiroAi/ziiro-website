@@ -8,7 +8,8 @@ export const SAMPLE_FRAMES = 30;
 /** A median frame over this (under 30 fps) means the GPU can't keep a spin going. */
 const SLOW_FRAME_MS = 33;
 const SPIN_FPS: Readonly<Record<MeshSize, number | null>> = { phone: 30, desktop: null };
-const SOFTWARE = /swiftshader|llvmpipe|software/i;
+/** SwiftShader, llvmpipe, Mesa softpipe, Windows WARP ("Microsoft Basic Render Driver"), and any "software" one. */
+const SOFTWARE = /swiftshader|llvmpipe|softpipe|basic render driver|software/i;
 
 /** The parts of a WebGL context that name its renderer. */
 export interface NamedGl {

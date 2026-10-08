@@ -13,7 +13,7 @@ export function LandingSpine({ visible }: { visible: boolean }): JSX.Element {
   const theme = useHtmlTheme();
   return (
     <div className="f-spine" data-testid="landing-spine" data-visible={visible ? "" : undefined} aria-hidden={!visible}>
-      {/* W14-R: the first tap never waits on it: no 3D on software GL, a quiet second past the LCP, gone on an early tap. */}
+      {/* W14-R: the first tap never waits on it: no 3D on software GL, a second past the LCP in idle time, gone on an early option press. */}
       <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} className="f-spine-viewer" firstScreen>
         {null}
       </SpineViewer>

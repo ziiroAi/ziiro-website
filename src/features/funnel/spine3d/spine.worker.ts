@@ -11,10 +11,40 @@ const scope = self as unknown as {
   postMessage(message: FromWorker): void;
   close(): void;
   onmessage: ((event: MessageEvent<ToWorker>) => void) | null;
+  location: { href: string; origin: string };
+};
+
+/** W14-V T6: the only meshes the worker fetches, and the sizes it will make a canvas. */
+const MESH_PATH = "/spine/3d/";
+const MAX_SIDE = 8192;
+const MAX_DPR = 3;
+/** Where a worker has no requestAnimationFrame, it draws at most this often. */
+const FALLBACK_FRAME_MS = 16;
+
+const clamp = (value: number, low: number, high: number, fallback: number) =>
+  Number.isFinite(value) ? Math.min(Math.max(value, low), high) : fallback;
+
+function isOurMesh(url: string): boolean {
+  try {
+    const { origin, pathname } = new URL(url, scope.location.href);
+    return origin === scope.location.origin && pathname.startsWith(MESH_PATH);
+  } catch {
+    return false;
+  }
+}
+
+const nextFrame = (draw: () => void): void => {
+  if (typeof requestAnimationFrame === "function") requestAnimationFrame(draw);
+  else setTimeout(draw, FALLBACK_FRAME_MS);
 };
 
 let spine: SpineScene | null = null;
 let disposed = false;
+/** Set while the scene is built, so dispose can stop the download and close once the half-built scene is let go. */
+let building: { abort: AbortController; done: Promise<void> } | null = null;
+/** W14-U M1: the latest view not yet drawn. Views that arrive faster than the GPU draws are dropped, not queued, so a
+ *  slow GPU answers late and the drive's frame judge sees it. */
+let unseen: View | null = null;
 /** What arrived while the scene was still being built, applied before its first frame (W14-J F1). */
 let latest: {
   view: View | null;
@@ -23,10 +53,15 @@ let latest: {
   levels: DiscLevels | null;
 } = { view: null, size: null, theme: null, levels: null };
 
-async function init(message: Extract<ToWorker, { type: "init" }>): Promise<void> {
+async function init(message: Extract<ToWorker, { type: "init" }>, signal: AbortSignal): Promise<void> {
   try {
+    if (!isOurMesh(message.meshUrl)) throw new Error("mesh-failed");
     const built = await createSpineScene({
       ...message,
+      width: clamp(message.width, 0, MAX_SIDE, 0),
+      height: clamp(message.height, 0, MAX_SIDE, 0),
+      dpr: clamp(message.dpr, 0.5, MAX_DPR, 1),
+      signal,
       onContextLost: () => scope.postMessage({ type: "fail", reason: "context-lost" }),
     });
     if (disposed) return built.dispose();
@@ -36,18 +71,29 @@ async function init(message: Extract<ToWorker, { type: "init" }>): Promise<void>
     if (latest.levels) spine.setLevels(latest.levels);
     scope.postMessage({ type: "ready", boxes: spine.render(latest.view ?? message.view), gpu: spine.gpu });
   } catch (error) {
-    scope.postMessage({ type: "fail", reason: error instanceof Error ? error.message : "error" });
+    if (!disposed) scope.postMessage({ type: "fail", reason: error instanceof Error ? error.message : "error" });
   }
+}
+
+function draw(): void {
+  const view = unseen;
+  unseen = null;
+  if (spine && view) scope.postMessage({ type: "boxes", boxes: spine.render(view) });
 }
 
 function handle(data: ToWorker): void {
   switch (data.type) {
-    case "init":
-      void init(data);
+    case "init": {
+      const abort = new AbortController();
+      const done = init(data, abort.signal).finally(() => (building = null));
+      building = { abort, done };
       return;
+    }
     case "view":
       latest = { ...latest, view: data.view };
-      if (spine) scope.postMessage({ type: "boxes", boxes: spine.render(data.view) });
+      if (!spine) return;
+      if (!unseen) nextFrame(draw);
+      unseen = data.view;
       return;
     case "pick":
       scope.postMessage({ type: "picked", id: data.id, disc: spine?.pick(data.x, data.y) ?? null });
@@ -72,7 +118,10 @@ function handle(data: ToWorker): void {
       disposed = true;
       spine?.dispose();
       spine = null;
-      scope.close();
+      // A scene still being built holds a context already: stop its download and close once it has let go (W14-U L2).
+      if (!building) return scope.close();
+      building.abort.abort();
+      void building.done.then(() => scope.close());
   }
 }
 

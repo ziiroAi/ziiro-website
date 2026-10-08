@@ -4,7 +4,7 @@
 // camera, metal, world, one glowing band and cap per disc gap, and bloom.
 import {
   CylinderGeometry, Group, ImageBitmapLoader, Mesh, PerspectiveCamera, Quaternion, Raycaster, Scene, Vector2, Vector3,
-  WebGLRenderer, type Material, type MeshStandardMaterial, type Object3D, type Texture,
+  WebGLRenderer, LoaderUtils, type Material, type MeshStandardMaterial, type Object3D, type WebGLRenderTarget,
 } from "three";
 import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -18,7 +18,7 @@ import {
   applyCamera, disposeComposer, glow, makeBackground, makeBody, makeComposer, makeEnvironment, makeLights, makeRings, TONE, type Rings,
   type Shared,
 } from "./look-three";
-import { bloomScaleFor, maxDprFor, samplesFor } from "./gpu";
+import { bloomScaleFor, maxDprFor, releaseOnThrow, samplesFor } from "./gpu";
 import { gpuNameOf } from "./pace";
 import type { MeshSize } from "./rules";
 
@@ -34,6 +34,8 @@ export interface SceneOptions {
   /** Absolute path of the crunched mesh. */
   meshUrl: string;
   levels: DiscLevels;
+  /** Aborted when the viewer leaves before the scene is built: the mesh download stops (W14-U L2). */
+  signal?: AbortSignal;
   /** Called once if the GPU drops the context. The viewer then gives the still back. */
   onContextLost(): void;
 }
@@ -97,10 +99,13 @@ interface LoadedMesh {
   parts: { mesh: Mesh; source: MeshStandardMaterial }[];
 }
 
-async function loadMesh(url: string): Promise<LoadedMesh> {
+async function loadMesh(url: string, signal?: AbortSignal): Promise<LoadedMesh> {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).register(imageBitmapTextures);
   try {
-    const gltf = await loader.loadAsync(url);
+    const response = await fetch(url, { signal });
+    if (!response.ok) throw new Error(MESH_FAILED);
+    const gltf = await loader.parseAsync(await response.arrayBuffer(), LoaderUtils.extractUrlBase(url));
+    signal?.throwIfAborted();
     const parts: LoadedMesh["parts"] = [];
     gltf.scene.traverse((node) => {
       const mesh = node as Mesh;
@@ -172,7 +177,7 @@ function disposeTree(root: Object3D): void {
 
 /** Everything a theme sets: the world, the page behind, the lights, the bands and the metal. */
 interface Dressing {
-  environment: Texture;
+  environment: WebGLRenderTarget;
   background: Mesh;
   /** The background's uniforms the body and the bands fade into (worker-3's end fade). */
   shared: Shared;
@@ -182,12 +187,22 @@ interface Dressing {
 }
 
 export async function createSpineScene(options: SceneOptions): Promise<SpineScene> {
-  const { canvas, size } = options;
-  /** Set when dispose gives the context back on purpose, so that loss isn't reported as a failure. */
+  /** Set when the context is given back on purpose, so that loss isn't reported as a failure. */
   let released = false;
-  const renderer = createRenderer(canvas, () => !released && options.onContextLost());
+  const renderer = createRenderer(options.canvas, () => !released && options.onContextLost());
+  const release = () => {
+    released = true;
+    renderer.dispose();
+    // WEBGL_lose_context: the GPU memory goes back now, not when the worker or the canvas is collected (W14-K).
+    renderer.forceContextLoss();
+  };
+  return releaseOnThrow(release, () => buildScene(options, renderer, release));
+}
+
+async function buildScene(options: SceneOptions, renderer: WebGLRenderer, release: () => void): Promise<SpineScene> {
+  const { size } = options;
   const gpu = gpuNameOf(renderer.getContext());
-  const loaded = await loadMesh(options.meshUrl);
+  const loaded = await loadMesh(options.meshUrl, options.signal);
   const scene = new Scene();
   const proxies = GAPS.map(discProxy);
 
@@ -231,7 +246,7 @@ export async function createSpineScene(options: SceneOptions): Promise<SpineScen
       rings,
       bodies,
     };
-    scene.environment = dressing.environment;
+    scene.environment = dressing.environment.texture;
     scene.add(dressing.background, ...dressing.lights);
     return dressing;
   };
@@ -286,6 +301,7 @@ export async function createSpineScene(options: SceneOptions): Promise<SpineScen
   resize(options.width, options.height, options.dpr);
   // Shaders compile in parallel where the GPU allows (KHR_parallel_shader_compile), before the first frame.
   await renderer.compileAsync(scene, camera);
+  options.signal?.throwIfAborted();
 
   return {
     gpu,
@@ -318,13 +334,10 @@ export async function createSpineScene(options: SceneOptions): Promise<SpineScen
       redraw();
     },
     dispose: () => {
-      released = true;
       undress(dressing);
       if (composer) disposeComposer(composer);
       disposeTree(scene);
-      renderer.dispose();
-      // WEBGL_lose_context: the GPU memory goes back now, not when the worker is collected (W14-K).
-      renderer.forceContextLoss();
+      release();
     },
   };
 }
