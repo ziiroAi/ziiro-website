@@ -14,6 +14,11 @@ vi.mock("../plan-chunk", async (importOriginal) => ({
   prefetchPlan: vi.fn(),
   LazyHeroPicturePrefetch: () => null,
 }));
+// S5 shows rupee bands only on India's clock (D10); pin the zone so CI in UTC taps the same buttons.
+vi.mock("../region", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../region")>()),
+  localTimeZone: () => "Asia/Kolkata",
+}));
 vi.mock("@/shared/lib/turnstile", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/shared/lib/turnstile")>()),
   loadTurnstile: vi.fn(async () => null),
