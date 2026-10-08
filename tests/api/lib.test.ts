@@ -97,3 +97,65 @@ describe("the header comment", () => {
     expect(source).toContain("api/funnel/");
   });
 });
+
+describe("turnstileOutcome (§13.2 step 5, §13.3)", () => {
+  const fetchMock = vi.fn();
+  const cloudflare = (body: object) => fetchMock.mockResolvedValue(new Response(JSON.stringify(body)));
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "secret");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("says missing when no token came, without calling Cloudflare", async () => {
+    expect(await lib.turnstileOutcome(undefined, "203.0.113.7")).toBe("missing");
+    expect(await lib.turnstileOutcome("", "203.0.113.7")).toBe("missing");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("passes a good token made for this form", async () => {
+    cloudflare({ success: true, action: "funnel_lead" });
+    expect(await lib.turnstileOutcome("t", "203.0.113.7", { action: "funnel_lead" })).toBe("passed");
+  });
+
+  it("passes when Cloudflare reports no action, as its test keys do", async () => {
+    cloudflare({ success: true });
+    expect(await lib.turnstileOutcome("t", "203.0.113.7", { action: "funnel_lead" })).toBe("passed");
+  });
+
+  it("refuses a token made for another form", async () => {
+    cloudflare({ success: true, action: "contact" });
+    expect(await lib.turnstileOutcome("t", "203.0.113.7", { action: "funnel_lead" })).toBe("refused");
+  });
+
+  it("refuses what Cloudflare refuses", async () => {
+    cloudflare({ success: false, "error-codes": ["timeout-or-duplicate"] });
+    expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("refused");
+  });
+
+  it("refuses when Cloudflare doesn't answer in time", async () => {
+    fetchMock.mockRejectedValue(new DOMException("timed out", "TimeoutError"));
+    expect(await lib.turnstileOutcome("t", "203.0.113.7", { timeoutMs: 2_500 })).toBe("refused");
+    expect((fetchMock.mock.calls[0][1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("refuses, and logs the variable's name, when the secret isn't set", async () => {
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
+    expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("refused");
+    expect(String(vi.mocked(console.error).mock.calls[0]?.[0])).toContain("TURNSTILE_SECRET_KEY");
+  });
+
+  it("keeps verifyTurnstile, /contact's check, as a yes or no", async () => {
+    cloudflare({ success: true });
+    expect(await lib.verifyTurnstile("t", "203.0.113.7")).toBe(true);
+    cloudflare({ success: false });
+    expect(await lib.verifyTurnstile("t", "203.0.113.7")).toBe(false);
+  });
+});

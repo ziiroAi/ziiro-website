@@ -224,44 +224,62 @@ export const readJson = async (req: Request, maxBytes = maxBodyBytes) => {
   return JSON.parse(body || "{}");
 };
 
+const siteverifyUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+/** "missing": no token came. "refused": Cloudflare said no, didn't answer in time, or the secret isn't set. */
+export type TurnstileOutcome = "passed" | "missing" | "refused";
+
 /**
  * Verifies a Cloudflare Turnstile token server-side.
  *
  * This is the control that replaces the in-process Map as the primary defence:
  * it is per-submission, and a fresh isolate cannot reset it the way it resets a
  * counter. Fails CLOSED. A missing secret, a network error or a malformed
- * response all return false, because the alternative is an endpoint that
+ * response are all "refused", because the alternative is an endpoint that
  * silently becomes an open relay the moment configuration drifts.
+ *
+ * "missing" is told apart from "refused" because /api/funnel/lead flags the two
+ * differently on a second try (§13.2). `action`, when given, must match the
+ * widget's; Cloudflare's test keys report none, so an empty one passes and only
+ * a different one is refused. `timeoutMs` bounds the call; /contact passes none.
  *
  * Requires TURNSTILE_SECRET_KEY. The matching public site key belongs on the
  * form as VITE_TURNSTILE_SITE_KEY.
  */
-export const verifyTurnstile = async (
-  token: string,
+export const turnstileOutcome = async (
+  token: string | undefined,
   ip: string,
-): Promise<boolean> => {
+  opts: { action?: string; timeoutMs?: number } = {},
+): Promise<TurnstileOutcome> => {
+  if (!token) return "missing";
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret || !token) return false;
+  if (!secret) {
+    logEvent("error", "turnstile.misconfigured", { missing: "TURNSTILE_SECRET_KEY" });
+    return "refused";
+  }
   try {
     const form = new URLSearchParams({ secret, response: token });
     // Cloudflare treats remoteip as advisory; send it only when the platform
     // gave us a real one rather than the "unknown" placeholder.
     if (ip && ip !== "unknown") form.set("remoteip", ip);
-    const res = await fetch(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: form,
-      },
-    );
-    const data = (await res.json().catch(() => ({}))) as { success?: boolean };
-    return data.success === true;
+    const res = await fetch(siteverifyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form,
+      ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
+    });
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; action?: string };
+    if (data.success !== true) return "refused";
+    return opts.action && data.action && data.action !== opts.action ? "refused" : "passed";
   } catch (error) {
-    console.error("Turnstile verification failed:", error);
-    return false;
+    logEvent("error", "turnstile.unreachable", { name: error instanceof Error ? error.name : "unknown" });
+    return "refused";
   }
 };
+
+/** /contact's check, unchanged: true only when the token passed. */
+export const verifyTurnstile = async (token: string, ip: string): Promise<boolean> =>
+  (await turnstileOutcome(token, ip)) === "passed";
 
 export const clientIp = (req: Request) =>
   req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
