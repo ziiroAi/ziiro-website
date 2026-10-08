@@ -820,7 +820,7 @@ No tests exist in the repo today, and CI runs only CodeQL. The first release add
 - **The spine's files (Playwright and a script, phase 1 for the hero, phase 1b for the rest):**
   - the hero picks: at 390 × 844 at 3× the page fetches `phone-1170`, and on a 1200-wide window at 2× `hero-2560`, in AVIF;
   - theme isolation: a light visit fetches no file under `/spine/r17/dark/`, and a dark visit none under `/light/`;
-  - nothing under `/spine/` is fetched before S5, and no push-in file before the plan paints;
+  - nothing under `/spine/` is fetched before S5 (no r17 still or any other `/spine/` file), and no push-in file before the plan paints. The one exemption is S0's live mesh, `/spine/3d/m1/*`, and only when it loads after the first paint, never on Save-Data or a slow connection (W14-R, 9 Oct);
   - the weight check: a script reads every `manifest.json` and adds up each of the 27 plans' tours in both themes. It fails the build if a tour passes 3 MB on desktop or 1.5 MB on a phone, or a hero file passes its limit in §13.10;
   - compositor parity: the page's compositor and `web/test.js`, copied into the tests as the reference, draw Ananya's beat 1 and one frame on the way from the same files, and the pixels match;
   - the still version (reduced motion, and no AVIF) fetches no frame on the way, only beat 1 and the close-up stills;

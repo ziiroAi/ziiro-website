@@ -3,7 +3,15 @@
 
 import type { StillReason } from "../data/contract";
 
-export type FallbackReason = "save-data" | "slow-connection" | "no-webgl2" | "context-lost" | "mesh-failed" | "error";
+/** "software-gl": S0 only, whose 3D never runs on a software renderer (W14-R). */
+export type FallbackReason =
+  | "save-data"
+  | "slow-connection"
+  | "no-webgl2"
+  | "software-gl"
+  | "context-lost"
+  | "mesh-failed"
+  | "error";
 export type MeshSize = "phone" | "desktop";
 
 /** The still's own split (HeroPicture.tsx): the phone band under 600 px, the landscape still from 600 px. */
@@ -34,7 +42,7 @@ export function preflight({ saveData, effectiveType, webgl2 }: Preflight): Fallb
 export function stillReasonOf(reason: FallbackReason): StillReason {
   if (reason === "save-data") return "save_data";
   if (reason === "slow-connection") return "slow_connection";
-  return reason === "no-webgl2" ? "unsupported" : "failed";
+  return reason === "no-webgl2" || reason === "software-gl" ? "unsupported" : "failed";
 }
 
 export const hasWebGL2 = (scope: object): boolean => "WebGL2RenderingContext" in scope;

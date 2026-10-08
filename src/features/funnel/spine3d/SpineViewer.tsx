@@ -10,6 +10,7 @@ import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
+import { afterQuietLcp, onFirstInput, probeSoftwareGl } from "./first-screen";
 import { shouldRelease } from "./gpu";
 import type { Motion } from "./orbit";
 import { isSoftwareRenderer } from "./pace";
@@ -58,6 +59,11 @@ export interface SpineViewerProps {
   onApi?(api: SpineViewerApi | null): void;
   /** Once live, and on a fallback with its reason: the plan_view record (§9). */
   onPhase?(phase: "live" | "fallback", reason: FallbackReason | null): void;
+  /**
+   * S0 (W14-R): the first tap must never wait on the 3D. No 3D on a software renderer, a start only once the page has
+   * been quiet for a second past its LCP, and none at all if the visitor taps before its first frame.
+   */
+  firstScreen?: boolean;
 }
 
 /** Runs after two frames (the first paint is on screen), then in idle time. Returns a cancel. */
@@ -105,6 +111,7 @@ interface Live {
 
 interface Inputs {
   label: string;
+  firstScreen?: boolean;
   theme: Theme;
   levels: DiscLevels;
   onApi?: (api: SpineViewerApi | null) => void;
@@ -132,6 +139,8 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     }
     let cancelled = false;
     let failed = false;
+    /** S0: the visitor tapped before the first frame, so the 3D never comes (W14-R). */
+    let interrupted = false;
     let asleep = false;
     let nearScreen = true;
     let reportedLive = false;
@@ -153,9 +162,10 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       latest.current.onPhase?.("fallback", reason);
     };
     const begin = async () => {
+      if (cancelled || interrupted) return;
       try {
         const { startSpine } = await import("./host");
-        if (cancelled) return;
+        if (cancelled || interrupted) return;
         const canvas = makeCanvas(latest.current.label);
         box.append(canvas);
         const { width, height } = box.getBoundingClientRect();
@@ -165,6 +175,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
           theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: baseFraming(size) },
           onReady: (boxes, gpu) => {
             if (cancelled || !live.current) return;
+            stopWatching();
             canvas.style.opacity = "1";
             canvas.removeAttribute("aria-hidden");
             const motion = readMotion();
@@ -191,7 +202,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     };
     /** W14-K: off screen while another viewer is live, give the context back; near the screen again, start over. */
     const settle = () => {
-      if (cancelled || failed) return;
+      if (cancelled || failed || interrupted) return;
       if (asleep) {
         if (!nearScreen) return;
         asleep = false;
@@ -217,10 +228,23 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
           );
     near?.observe(box);
     presenceListeners.add(settle);
-    const cancelStart = afterFirstPaint(() => void begin());
+    const firstScreen = latest.current.firstScreen === true;
+    const cancelStart = firstScreen
+      ? afterQuietLcp(() => (probeSoftwareGl() ? fail("software-gl") : void begin()))
+      : afterFirstPaint(() => void begin());
+    /** S0: a tap before the first frame means the visitor is leaving, so the 3D stops wherever it got to. */
+    const interrupt = () => {
+      if (cancelled || failed || live.current?.drive) return;
+      interrupted = true;
+      cancelStart();
+      teardown();
+      setState({ phase: "still", reason: null });
+    };
+    const stopWatching = firstScreen ? onFirstInput(interrupt) : () => undefined;
     return () => {
       cancelled = true;
       cancelStart();
+      stopWatching();
       near?.disconnect();
       presenceListeners.delete(settle);
       teardown();
@@ -257,13 +281,13 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   return { ...state, restyling, spin };
 }
 
-export function SpineViewer({ label, lit, className = "", children, onApi, onPhase }: SpineViewerProps): JSX.Element {
+export function SpineViewer({ label, lit, className = "", children, onApi, onPhase, firstScreen }: SpineViewerProps): JSX.Element {
   const boxRef = useRef<HTMLDivElement>(null);
   const theme = useHtmlTheme();
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason, restyling, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase });
+  const { phase, reason, restyling, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, firstScreen });
   const live = phase === "live";
   return (
     <div

@@ -86,7 +86,8 @@ async function prepare(page: Page, threeD: boolean): Promise<CDPSession> {
 
 /** S0 loads; with the 3D on, the tap waits for the 3D chunk request, so it lands while the spine is loading. */
 async function tapWhileLoading(page: Page, threeD: boolean): Promise<{ probe: Probe; state: string | null }> {
-  const loading = threeD ? page.waitForRequest((r) => CHUNK_URL.test(r.url()), { timeout: 60_000 }) : null;
+  // Since W14-R S0 has no 3D on a software renderer, so on SwiftShader the "3D on" run waits for that fallback.
+  const loading = threeD && GPU === "metal" ? page.waitForRequest((r) => CHUNK_URL.test(r.url()), { timeout: 60_000 }) : null;
   await page.goto("/");
   const option = page.getByRole("button", { name: FIRST_OPTION });
   await expect(option).toBeVisible({ timeout: 30_000 });

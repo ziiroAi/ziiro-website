@@ -40,6 +40,7 @@ describe("stillReasonOf: the reason recorded as still_reason (§9, contract STIL
     ["save-data", "save_data"],
     ["slow-connection", "slow_connection"],
     ["no-webgl2", "unsupported"],
+    ["software-gl", "unsupported"],
     ["context-lost", "failed"],
     ["mesh-failed", "failed"],
     ["error", "failed"],

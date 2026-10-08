@@ -2,24 +2,90 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { answerTeam, at, toTeamQuestion } from "./helpers/flow";
 
-function spineRequests(page: Page): string[] {
-  const paths: string[] = [];
+/**
+ * §12 as amended in W14-R: no r17 still or any other /spine/ file before S5. The one exemption is the live mesh
+ * (/spine/3d/m1/*) on S0, and only when it is asked for after the first paint, never on Save-Data or a slow connection.
+ */
+const LIVE_MESH = /^\/spine\/3d\/m1\//;
+const S0_VIEWER = "[data-testid=landing-spine] [data-testid=spine-viewer]";
+
+interface SpineLog {
+  /** Every /spine/ path asked for, in order. */
+  paths: string[];
+  /** When each live-mesh request and the first paint happened, on this process's clock. */
+  meshAt: number[];
+  paintAt: () => number | null;
+}
+
+async function spineRequests(page: Page): Promise<SpineLog> {
+  const log = { paths: [] as string[], meshAt: [] as number[], paint: null as number | null };
+  await page.exposeFunction("__firstPaint", () => void (log.paint ??= Date.now()));
+  await page.addInitScript(() => {
+    new PerformanceObserver(() => (window as unknown as { __firstPaint(): void }).__firstPaint()).observe({ type: "paint", buffered: true });
+  });
   page.on("request", (r) => {
     const { pathname } = new URL(r.url());
-    if (pathname.startsWith("/spine/")) paths.push(pathname);
+    if (!pathname.startsWith("/spine/")) return;
+    log.paths.push(pathname);
+    if (LIVE_MESH.test(pathname)) log.meshAt.push(Date.now());
   });
-  return paths;
+  return { paths: log.paths, meshAt: log.meshAt, paintAt: () => log.paint };
+}
+
+/** The r17 stills and every other /spine/ file: what §12 still holds back until S5. */
+const held = (paths: readonly string[]) => paths.filter((p) => !LIVE_MESH.test(p));
+
+function expectNothingBeforeS5But(log: SpineLog) {
+  expect(held(log.paths), "nothing under /spine/ before S5 but S0's live mesh (§12)").toEqual([]);
+  const paint = log.paintAt();
+  for (const at of log.meshAt) {
+    expect(paint, "the live mesh only after the first paint (§12)").not.toBeNull();
+    expect(at, "the live mesh only after the first paint (§12)").toBeGreaterThan(paint!);
+  }
 }
 
 async function reachS5(page: Page, time: string) {
   await page.clock.setFixedTime(at(time));
-  const paths = spineRequests(page);
+  const log = await spineRequests(page);
   await page.goto("/");
   await toTeamQuestion(page);
-  expect(paths, "nothing under /spine/ before S5 (§12)").toEqual([]);
+  expectNothingBeforeS5But(log);
   await answerTeam(page);
-  await expect.poll(() => paths.length).toBeGreaterThan(0);
-  return paths;
+  await expect.poll(() => held(log.paths).length).toBeGreaterThan(0);
+  return held(log.paths);
+}
+
+/** Navigator.connection as a browser on Save-Data, or on a slow connection, reports it. */
+async function connection(page: Page, value: { saveData: boolean; effectiveType: string }) {
+  await page.addInitScript((c) => {
+    Object.defineProperty(Navigator.prototype, "connection", {
+      configurable: true,
+      get: () => ({ ...c, addEventListener() {}, removeEventListener() {} }),
+    });
+  }, value);
+}
+
+test("a visitor who stays on S0 gets the live mesh only after the first paint, and nothing else before S5 (§12)", async ({ page }) => {
+  const log = await spineRequests(page);
+  await page.goto("/");
+  // S0's 3D settles one way or the other: live on a real GPU, nothing on a software renderer (W14-R).
+  await expect(page.locator(S0_VIEWER)).toHaveAttribute("data-spine", /live|fallback/, { timeout: 30_000 });
+  await toTeamQuestion(page);
+  expectNothingBeforeS5But(log);
+});
+
+for (const [name, value, reason] of [
+  ["on Save-Data", { saveData: true, effectiveType: "4g" }, "save-data"],
+  ["on a slow connection", { saveData: false, effectiveType: "3g" }, "slow-connection"],
+] as const) {
+  test(`${name}, nothing under /spine/ before S5, not even the live mesh (§12)`, async ({ page }) => {
+    await connection(page, value);
+    const log = await spineRequests(page);
+    await page.goto("/");
+    await expect(page.locator(S0_VIEWER)).toHaveAttribute("data-spine-reason", reason);
+    await toTeamQuestion(page);
+    expect(log.paths, "nothing under /spine/ before S5 (§12)").toEqual([]);
+  });
 }
 
 test("a light visit (10:00) fetches only light files, from S5 on (§6.6, §12)", async ({ page }) => {

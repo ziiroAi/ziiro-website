@@ -8,6 +8,7 @@ import { baseFraming, framingFor } from "./camera";
 import type { StartOptions } from "./host";
 import { discLevels } from "./levels";
 import type { DiscBox } from "./scene";
+import { QUIET_AFTER_LCP_MS } from "./first-screen";
 import { MESH_URLS, SpineViewer } from "./SpineViewer";
 
 let picked: DiscId | null = null;
@@ -483,5 +484,116 @@ describe("the idle spin on a weak GPU (W14-O)", () => {
     });
     flush(2);
     expect(renders()).toBeGreaterThan(paused);
+  });
+});
+
+describe("on the first screen, S0 (W14-R)", () => {
+  const SWIFTSHADER = "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)";
+  let lcp: (() => void)[] = [];
+  const gpuNamed = (name: string) =>
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      RENDERER: 0x1f01,
+      getExtension: (ext: string) => (ext === "WEBGL_lose_context" ? { loseContext: () => undefined } : null),
+      getParameter: () => name,
+    } as unknown as RenderingContext);
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    lcp = [];
+    vi.stubGlobal(
+      "PerformanceObserver",
+      class {
+        static supportedEntryTypes = ["largest-contentful-paint"];
+        constructor(callback: PerformanceObserverCallback) {
+          lcp.push(() => callback({ getEntries: () => [{}] } as unknown as PerformanceObserverEntryList, this as unknown as PerformanceObserver));
+        }
+        observe() {}
+        disconnect() {}
+      },
+    );
+    gpuNamed(HARDWARE_GPU);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  async function mountFirstScreen() {
+    await act(async () => {
+      screen = render(
+        <SpineViewer label="The spine" firstScreen onApi={(next) => (api = next)}>
+          {null}
+        </SpineViewer>,
+      );
+    });
+    act(() => flush(2));
+  }
+  /** Lets timers and the dynamic import of ./host run. */
+  const wait = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+  const lcpPainted = () => act(() => lcp.forEach((emit) => emit()));
+  const tap = () =>
+    act(() => {
+      window.dispatchEvent(new Event("pointerdown"));
+    });
+  /** The handle this viewer got (an earlier describe gives startSpine its own handles). */
+  const started = () => startSpine.mock.results.at(-1)!.value as typeof handle;
+
+  it("starts its 3D only a quiet second after the LCP", async () => {
+    await mountFirstScreen();
+    await wait(5_000);
+    expect(startSpine).not.toHaveBeenCalled();
+    await lcpPainted();
+    await wait(QUIET_AFTER_LCP_MS - 1);
+    expect(startSpine).not.toHaveBeenCalled();
+    await wait(1);
+    await wait(1);
+    expect(startSpine).toHaveBeenCalledTimes(1);
+    expect(viewer().dataset.spine).toBe("loading");
+  });
+
+  it("has no 3D at all on a software renderer, so the layer shows nothing", async () => {
+    gpuNamed(SWIFTSHADER);
+    await mountFirstScreen();
+    await lcpPainted();
+    await wait(QUIET_AFTER_LCP_MS + 1);
+    await wait(1);
+    expect(startSpine).not.toHaveBeenCalled();
+    expect(viewer().dataset.spine).toBe("fallback");
+    expect(viewer().dataset.spineReason).toBe("software-gl");
+    expect(canvas()).toBeNull();
+  });
+
+  it("gives its 3D up when the visitor taps before its first frame: they are leaving S0", async () => {
+    await mountFirstScreen();
+    await lcpPainted();
+    await wait(QUIET_AFTER_LCP_MS + 1);
+    await wait(1);
+    expect(viewer().dataset.spine).toBe("loading");
+    await tap();
+    expect(started().dispose).toHaveBeenCalled();
+    expect(viewer().dataset.spine).toBe("still");
+    expect(canvas()).toBeNull();
+  });
+
+  it("never starts once the visitor has tapped", async () => {
+    await mountFirstScreen();
+    await tap();
+    await lcpPainted();
+    await wait(QUIET_AFTER_LCP_MS + 1);
+    await wait(1);
+    expect(startSpine).not.toHaveBeenCalled();
+    expect(viewer().dataset.spine).toBe("still");
+  });
+
+  it("keeps its 3D for a tap after its first frame", async () => {
+    await mountFirstScreen();
+    await lcpPainted();
+    await wait(QUIET_AFTER_LCP_MS + 1);
+    await wait(1);
+    await ready();
+    await tap();
+    expect(started().dispose).not.toHaveBeenCalled();
+    expect(viewer().dataset.spine).toBe("live");
   });
 });
