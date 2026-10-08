@@ -326,3 +326,95 @@ describe("the viewer API (W14-F builds on it)", () => {
     expect(events.map((e) => [e.disc, e.via])).toEqual([["G06", "hover"], [null, "hover"]]);
   });
 });
+
+describe("giving the GPU back (W14-K)", () => {
+  /** The viewer's own nearness watcher has a rootMargin; the drive's pause watcher has none. */
+  let watchers: { callback: IntersectionObserverCallback; margin?: string; el: Element | null }[] = [];
+
+  beforeEach(() => {
+    watchers = [];
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        private entry: (typeof watchers)[number];
+        constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+          this.entry = { callback, margin: options?.rootMargin, el: null };
+          watchers.push(this.entry);
+        }
+        observe(el: Element) {
+          this.entry.el = el;
+        }
+        unobserve() {}
+        disconnect() {
+          watchers = watchers.filter((w) => w !== this.entry);
+        }
+      },
+    );
+    let n = 0;
+    startSpine.mockImplementation(() => ({ ...handle, dispose: vi.fn(), id: n++ }) as typeof handle);
+  });
+
+  const viewers = () => [...screen!.container.querySelectorAll<HTMLElement>("[data-testid=spine-viewer]")];
+  const nearScreen = (el: HTMLElement, near: boolean) =>
+    act(() =>
+      watchers
+        .filter((w) => w.margin && w.el === el)
+        .forEach((w) => w.callback([{ isIntersecting: near, target: el } as unknown as IntersectionObserverEntry], {} as IntersectionObserver)),
+    );
+  const two = (withTour: boolean) => (
+    <>
+      {ui()}
+      {withTour && (
+        <SpineViewer label="The tour">
+          <img alt="The tour" src="/still.webp" />
+        </SpineViewer>
+      )}
+    </>
+  );
+
+  /** The tour mounts after the hero, as on the plan (and two dynamic imports of a mocked module at once race vitest). */
+  async function mountTwo() {
+    await act(async () => {
+      screen = render(two(false));
+    });
+    await act(async () => flush(2));
+    await vi.waitFor(() => expect(startSpine).toHaveBeenCalledTimes(1));
+    await act(async () => screen!.rerender(two(true)));
+    await act(async () => flush(2));
+    await vi.waitFor(() => expect(startSpine).toHaveBeenCalledTimes(2));
+  }
+
+  it("gives back an off-screen viewer's 3D once another is live, shows its still, and starts again as it nears", async () => {
+    await mountTwo();
+    const [hero, tour] = viewers();
+    const [heroStart, tourStart] = startSpine.mock.calls.map((call, i) => ({ options: call[1], handle: startSpine.mock.results[i].value }));
+    act(() => heroStart.options.onReady([]));
+    act(() => tourStart.options.onReady([]));
+    nearScreen(hero, false);
+    expect(heroStart.handle.dispose).toHaveBeenCalled();
+    expect(hero.dataset.spine).toBe("asleep");
+    expect(hero.querySelector("[data-testid=spine-still]")!.className).not.toContain("invisible");
+    expect(hero.querySelector("[data-testid=spine-canvas]")).toBeNull();
+    expect(tour.dataset.spine).toBe("live");
+    expect(tourStart.handle.dispose).not.toHaveBeenCalled();
+
+    await act(async () => {
+      nearScreen(hero, true);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(startSpine).toHaveBeenCalledTimes(3);
+    expect(hero.dataset.spine).toBe("loading");
+    act(() => startSpine.mock.calls[2][1].onReady([]));
+    expect(hero.dataset.spine).toBe("live");
+    expect(onPhase.mock.calls).toEqual([["live", null]]);
+  });
+
+  it("keeps an off-screen viewer's 3D while no other viewer is live", async () => {
+    await mountTwo();
+    const [hero] = viewers();
+    act(() => startSpine.mock.calls[0][1].onReady([]));
+    nearScreen(hero, false);
+    expect(hero.dataset.spine).toBe("live");
+    expect(startSpine.mock.results[0].value.dispose).not.toHaveBeenCalled();
+  });
+});

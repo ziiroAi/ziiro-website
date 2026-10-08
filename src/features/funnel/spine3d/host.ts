@@ -8,6 +8,9 @@ import type { FromWorker, SpineStart, ToWorker } from "./protocol";
 import { canOffscreen, reasonFor, type FallbackReason } from "./rules";
 import type { DiscBox, SpineScene } from "./scene";
 
+/** How long a disposed worker gets to give its WebGL context back before it is terminated. */
+const DISPOSE_GRACE_MS = 1000;
+
 export interface SpineHandle {
   /** Draws a frame. Its disc boxes arrive through onBoxes. */
   render(view: View): void;
@@ -73,8 +76,9 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
       }),
     setLevels: (levels) => send({ type: "levels", levels }),
     dispose: () => {
+      // The worker loses its context and closes itself; terminate is the backstop if it is stuck (W14-K).
       send({ type: "dispose" });
-      worker.terminate();
+      setTimeout(() => worker.terminate(), DISPOSE_GRACE_MS);
       picks.forEach((resolve) => resolve(null));
       settleThemes();
     },

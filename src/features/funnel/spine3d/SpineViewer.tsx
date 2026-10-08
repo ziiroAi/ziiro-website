@@ -10,6 +10,7 @@ import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
+import { shouldRelease } from "./gpu";
 import type { Motion } from "./orbit";
 import { hasWebGL2, meshFor, preflight, readConnection, type FallbackReason, type MeshSize } from "./rules";
 
@@ -27,7 +28,22 @@ const IDLE_FALLBACK_MS = 300;
 const FRAME_FALLBACK_MS = 16;
 const CANVAS_CLASS = "absolute inset-0 h-full w-full transition-opacity duration-300";
 
-export type SpinePhase = "still" | "loading" | "live" | "fallback";
+/** "asleep": off screen while another viewer is live, so its 3D was given back and its still shows (W14-K). */
+export type SpinePhase = "still" | "loading" | "live" | "asleep" | "fallback";
+
+/** How far off screen a viewer still counts as near: it starts again this early when scrolled back to. */
+const NEAR_MARGIN = "50% 0px";
+
+/** The viewers whose 3D is live. A viewer off screen gives its GPU memory back once another one is in here. */
+const liveViewers = new Set<object>();
+const presenceListeners = new Set<() => void>();
+
+function markLive(viewer: object, isLive: boolean): void {
+  if (liveViewers.has(viewer) === isLive) return;
+  if (isLive) liveViewers.add(viewer);
+  else liveViewers.delete(viewer);
+  presenceListeners.forEach((listener) => listener());
+}
 
 export interface SpineViewerProps {
   /** The still's alt text, given to the canvas once it replaces the still. */
@@ -112,15 +128,22 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       return;
     }
     let cancelled = false;
+    let failed = false;
+    let asleep = false;
+    let nearScreen = true;
+    let reportedLive = false;
+    const me = {};
     const teardown = () => {
       const current = live.current;
       live.current = null;
+      markLive(me, false);
       current?.drive?.dispose();
       current?.handle.dispose();
       current?.canvas.remove();
     };
     const fail = (reason: FallbackReason) => {
       if (cancelled) return;
+      failed = true;
       teardown();
       setState({ phase: "fallback", reason });
       latest.current.onApi?.(null);
@@ -145,8 +168,11 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
             live.current = { ...live.current, drive };
             drive.takeBoxes(boxes);
             setState({ phase: "live", reason: null });
+            markLive(me, true);
             latest.current.onApi?.(drive);
-            latest.current.onPhase?.("live", null);
+            // Once per plan: waking from asleep is not a new plan_view.
+            if (!reportedLive) latest.current.onPhase?.("live", null);
+            reportedLive = true;
           },
           onBoxes: (boxes) => live.current?.drive?.takeBoxes(boxes),
           onFail: fail,
@@ -157,10 +183,40 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         fail("error");
       }
     };
+    /** W14-K: off screen while another viewer is live, give the context back; near the screen again, start over. */
+    const settle = () => {
+      if (cancelled || failed) return;
+      if (asleep) {
+        if (!nearScreen) return;
+        asleep = false;
+        void begin();
+        return;
+      }
+      const othersLive = [...liveViewers].some((viewer) => viewer !== me);
+      if (!live.current || !shouldRelease({ nearScreen, othersLive })) return;
+      teardown();
+      asleep = true;
+      setState({ phase: "asleep", reason: null });
+      latest.current.onApi?.(null);
+    };
+    const near =
+      typeof IntersectionObserver === "undefined"
+        ? null
+        : new IntersectionObserver(
+            ([entry]) => {
+              nearScreen = entry.isIntersecting;
+              settle();
+            },
+            { rootMargin: NEAR_MARGIN },
+          );
+    near?.observe(box);
+    presenceListeners.add(settle);
     const cancelStart = afterFirstPaint(() => void begin());
     return () => {
       cancelled = true;
       cancelStart();
+      near?.disconnect();
+      presenceListeners.delete(settle);
       teardown();
     };
   }, [boxRef]);

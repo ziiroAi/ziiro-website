@@ -65,3 +65,15 @@ describe("the spine worker (W14-J F1)", () => {
     expect(posted.at(-1)).toEqual({ type: "themed", theme: "light" });
   });
 });
+
+describe("disposing (W14-K)", () => {
+  it("frees the scene and closes itself", async () => {
+    const close = vi.spyOn(self, "close").mockImplementation(() => undefined);
+    send(init);
+    build();
+    await vi.waitFor(() => expect(posted.some((m) => m.type === "ready")).toBe(true));
+    send({ type: "dispose" });
+    expect(scene.dispose).toHaveBeenCalled();
+    expect(close).toHaveBeenCalled();
+  });
+});

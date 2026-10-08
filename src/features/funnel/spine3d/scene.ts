@@ -15,9 +15,10 @@ import { GAPS, type Gap } from "./gaps";
 import type { DiscLevels } from "./levels";
 import { LOOK, type Vec3 } from "./look";
 import {
-  applyCamera, glow, makeBackground, makeBody, makeComposer, makeEnvironment, makeLights, makeRings, TONE, type Rings,
+  applyCamera, disposeComposer, glow, makeBackground, makeBody, makeComposer, makeEnvironment, makeLights, makeRings, TONE, type Rings,
   type Shared,
 } from "./look-three";
+import { bloomScaleFor, maxDprFor, samplesFor } from "./gpu";
 import type { MeshSize } from "./rules";
 
 export type SpineCanvas = HTMLCanvasElement | OffscreenCanvas;
@@ -65,7 +66,6 @@ export interface SpineScene {
 export const NO_WEBGL2 = "no-webgl2";
 export const MESH_FAILED = "mesh-failed";
 
-const MAX_DPR = 2;
 const UP = new Vector3(0, 1, 0);
 const RIM_POINTS = 16;
 /** The pick stand-ins: wider and taller than the band, so a finger finds a disc in close-up. Layer 1 never renders. */
@@ -145,7 +145,10 @@ function discBox(k: number, inner: Object3D, camera: PerspectiveCamera, width: n
 }
 
 function createRenderer(canvas: SpineCanvas, onContextLost: () => void): WebGLRenderer {
-  const context = canvas.getContext("webgl2", { alpha: false, antialias: false, powerPreference: "high-performance" });
+  // No depth or MSAA on the canvas: the composer's scene target has them, and the canvas only takes full-screen quads.
+  const context = canvas.getContext("webgl2", {
+    alpha: false, antialias: false, depth: false, stencil: false, powerPreference: "high-performance",
+  });
   if (!context) throw new Error(NO_WEBGL2);
   (canvas as EventTarget).addEventListener("webglcontextlost", (event) => {
     event.preventDefault();
@@ -177,7 +180,9 @@ interface Dressing {
 
 export async function createSpineScene(options: SceneOptions): Promise<SpineScene> {
   const { canvas, size } = options;
-  const renderer = createRenderer(canvas, options.onContextLost);
+  /** Set when dispose gives the context back on purpose, so that loss isn't reported as a failure. */
+  let released = false;
+  const renderer = createRenderer(canvas, () => !released && options.onContextLost());
   const loaded = await loadMesh(options.meshUrl);
   const scene = new Scene();
   const proxies = GAPS.map(discProxy);
@@ -197,7 +202,7 @@ export async function createSpineScene(options: SceneOptions): Promise<SpineScen
   const axis = vec(LOOK.model.axis).normalize();
   let theme = options.theme;
   let levels = options.levels;
-  let px = { width: options.width, height: options.height, ratio: Math.min(options.dpr, MAX_DPR) };
+  let px = { width: options.width, height: options.height, ratio: Math.min(options.dpr, maxDprFor(size)) };
   let view: View | null = null;
   let composer: EffectComposer | null = null;
 
@@ -239,12 +244,15 @@ export async function createSpineScene(options: SceneOptions): Promise<SpineScen
   let dressing = dress();
 
   const rebuildComposer = () => {
-    composer?.dispose();
-    composer = makeComposer(renderer, scene, camera, LOOK.themes[theme], px.width * px.ratio, px.height * px.ratio);
+    if (composer) disposeComposer(composer);
+    composer = makeComposer(renderer, scene, camera, LOOK.themes[theme], px.width * px.ratio, px.height * px.ratio, {
+      samples: samplesFor(size),
+      bloomScale: bloomScaleFor(size, px.ratio),
+    });
   };
 
   const resize = (width: number, height: number, dpr: number) => {
-    px = { width, height, ratio: Math.min(dpr, MAX_DPR) };
+    px = { width, height, ratio: Math.min(dpr, maxDprFor(size)) };
     renderer.setPixelRatio(px.ratio);
     renderer.setSize(width, height, false);
     dressing.shared.uniforms.bgAspect.value = width / Math.max(height, 1);
@@ -305,10 +313,13 @@ export async function createSpineScene(options: SceneOptions): Promise<SpineScen
       redraw();
     },
     dispose: () => {
+      released = true;
       undress(dressing);
-      composer?.dispose();
+      if (composer) disposeComposer(composer);
       disposeTree(scene);
       renderer.dispose();
+      // WEBGL_lose_context: the GPU memory goes back now, not when the worker is collected (W14-K).
+      renderer.forceContextLoss();
     },
   };
 }

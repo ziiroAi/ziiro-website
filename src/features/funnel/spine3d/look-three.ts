@@ -310,21 +310,44 @@ const SANITISE = {
       gl_FragColor = vec4(clamp(c.rgb, 0.0, 64.0), 1.0); }`,
 };
 
-/** MSAA samples on a half-float target. */
-const SAMPLES = 4;
+export interface ComposerOptions {
+  /** MSAA samples on the scene's target. */
+  samples: number;
+  /** The bloom's working size as a multiple of the canvas (it halves that for its first mip). */
+  bloomScale: number;
+}
 
 /**
- * Render, clamp, bloom, output, in device pixels. Gotcha 1: the samples go on the target when it is made, and the
- * composer gets no setPixelRatio, so a new size means a new composer (resizes are rare).
+ * Render, clamp, bloom, output, in device pixels. Gotcha 1: the samples go on the target when it is made, so a new
+ * size means a new composer (resizes are rare).
+ *
+ * W14-K, GPU memory: only the scene's target is multisampled and has depth. The passes after it draw full-screen quads
+ * into a plain one. Both are the canvas's size: the composer's pixel ratio is 1, because addPass multiplies every
+ * pass's size by it and these sizes are already device pixels (the bloom used to run at twice the canvas).
  */
 export function makeComposer(
   renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, t: ThemeLook, width: number, height: number,
+  { samples, bloomScale }: ComposerOptions,
 ): EffectComposer {
-  const target = new THREE.WebGLRenderTarget(width, height, { type: THREE.HalfFloatType, samples: SAMPLES });
-  const composer = new EffectComposer(renderer, target);
+  const sceneTarget = new THREE.WebGLRenderTarget(width, height, { type: THREE.HalfFloatType, samples });
+  const passTarget = new THREE.WebGLRenderTarget(width, height, { type: THREE.HalfFloatType, depthBuffer: false });
+  const composer = new EffectComposer(renderer, passTarget);
+  composer.setPixelRatio(1);
+  // RenderPass draws into the read buffer. Sanitise and Output each swap, so it is the scene's target every frame.
+  composer.renderTarget2.dispose();
+  composer.renderTarget2 = sceneTarget;
+  composer.readBuffer = sceneTarget;
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(new ShaderPass(SANITISE));
-  composer.addPass(new UnrealBloomPass(new THREE.Vector2(width, height), t.bloom.strength, t.bloom.radius, t.bloom.threshold));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(width, height), t.bloom.strength, t.bloom.radius, t.bloom.threshold);
+  composer.addPass(bloom);
+  bloom.setSize(Math.round(width * bloomScale), Math.round(height * bloomScale));
   composer.addPass(new OutputPass());
   return composer;
+}
+
+/** EffectComposer.dispose frees its two targets but not its passes' (the bloom's eleven). */
+export function disposeComposer(composer: EffectComposer): void {
+  composer.passes.forEach((pass) => pass.dispose());
+  composer.dispose();
 }

@@ -9,6 +9,7 @@ import { createSpineScene, type SpineScene } from "./scene";
 
 const scope = self as unknown as {
   postMessage(message: FromWorker): void;
+  close(): void;
   onmessage: ((event: MessageEvent<ToWorker>) => void) | null;
 };
 
@@ -71,6 +72,7 @@ function handle(data: ToWorker): void {
       disposed = true;
       spine?.dispose();
       spine = null;
+      scope.close();
   }
 }
 

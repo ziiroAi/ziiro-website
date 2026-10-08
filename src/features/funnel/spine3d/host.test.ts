@@ -112,3 +112,21 @@ describe("the spine in a worker", () => {
     await expect(change).resolves.toBeUndefined();
   });
 });
+
+describe("ending the worker (W14-K)", () => {
+  it("lets the worker give its context back before ending it", () => {
+    vi.useFakeTimers();
+    try {
+      const handle = startSpine(offscreenCanvas(), options());
+      const worker = FakeWorker.last!;
+      const terminate = vi.spyOn(worker, "terminate");
+      handle.dispose();
+      expect(worker.sent.at(-1)).toEqual({ type: "dispose" });
+      expect(terminate).not.toHaveBeenCalled();
+      vi.runAllTimers();
+      expect(terminate).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
