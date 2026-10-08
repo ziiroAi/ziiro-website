@@ -7,12 +7,17 @@ const POSTER_MAX_BYTES = 90_000; // §13.10
 const onDisk = (url: string) => `public${url}`;
 
 describe("the Business Spine film (§6.5)", () => {
-  it("names its three files ziiro-business-spine-*", () => {
+  it("names its three files ziiro-business-spine-v2-*, the cut without the false claims (12:42 ruling)", () => {
     expect(SPINE_FILM_FILES).toEqual({
-      src: "/media/ziiro-business-spine-master.mp4",
-      narrowSrc: "/media/ziiro-business-spine-phone.mp4",
-      poster: "/media/ziiro-business-spine-poster-1080.jpg",
+      src: "/media/ziiro-business-spine-v2-master.mp4",
+      narrowSrc: "/media/ziiro-business-spine-v2-phone.mp4",
+      poster: "/media/ziiro-business-spine-v2-poster-1080.jpg",
     });
+  });
+
+  it("ships no earlier cut of the Spine film", () => {
+    const spine = readdirSync("public/media").filter((f) => f.startsWith("ziiro-business-spine")).sort();
+    expect(spine).toEqual(Object.values(SPINE_FILM_FILES).map((url) => url.replace("/media/", "")).sort());
   });
 
   it("ships them", () => {

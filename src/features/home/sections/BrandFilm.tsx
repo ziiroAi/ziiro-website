@@ -10,16 +10,17 @@ import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
  * then plays it with sound and controls (§13.10: "never preloaded; poster 90 KB at most; video
  * fetched only on tap"). Narrow screens get the phone encode through the player's <source media>.
  *
- * The files are the renamed film, re-rendered with "BRAIN · LIVE" (§6.5, D5): 56.7 s, 1920 × 1080
- * at 60 fps, H.264 with faststart. A new encode gets a new file name, because /media is served
- * immutable for a year (tests/media/immutable.test.ts).
+ * The files are v2 of the renamed film (§6.5, D5), re-rendered after the claims review (wave10, 12:42
+ * ruling): no live-job count, the app named for the brain, no client card, a Sample chip on
+ * every sample panel. 56.7 s, 1920 × 1080 at 60 fps, H.264 with faststart. A new encode gets a new
+ * file name, because /media is served immutable for a year (tests/media/immutable.test.ts).
  *
  * No VideoObject schema here: the plan isn't a watch page (src/features/watch/videos.ts says why).
  */
 export const SPINE_FILM_FILES = {
-  src: "/media/ziiro-business-spine-master.mp4",
-  narrowSrc: "/media/ziiro-business-spine-phone.mp4",
-  poster: "/media/ziiro-business-spine-poster-1080.jpg",
+  src: "/media/ziiro-business-spine-v2-master.mp4",
+  narrowSrc: "/media/ziiro-business-spine-v2-phone.mp4",
+  poster: "/media/ziiro-business-spine-v2-poster-1080.jpg",
 } as const;
 
 export default function BrandFilm() {
