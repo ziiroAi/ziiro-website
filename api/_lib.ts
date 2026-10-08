@@ -1,11 +1,13 @@
 /**
- * Shared helpers for the Vercel Edge email endpoint (send-contact).
+ * Shared helpers for the site's functions: api/send-contact.ts (Edge) and the
+ * funnel's api/funnel/visit.ts and api/funnel/lead.ts (Node.js, region sin1).
  * Files prefixed with "_" are bundled into functions but never routed themselves.
  *
- * This endpoint replaces the former Supabase Edge Functions. It delivers mail
- * through Resend and intentionally does NOT persist to a database. The previous
- * Supabase insert was the single point of failure whenever the free project
- * auto-paused, silently swallowing every submission. Email delivery is the goal.
+ * /contact delivers mail through Resend and keeps no copy. The Supabase insert
+ * it replaced was the single point of failure whenever the free project
+ * auto-paused, silently swallowing every submission. The funnel is different on
+ * purpose: it saves each lead to Neon Postgres AND sends the team alert, so a
+ * lead survives either one failing. See api/funnel/ and spec §13.2.
  */
 
 export { isValidEmail } from "../src/shared/lib/contact-checks";
@@ -75,10 +77,11 @@ export const sanitizeText = (value: unknown, maxLength = 500) =>
 export const sanitizeHeader = (value: unknown, maxLength = 120) =>
   sanitizeText(value, maxLength).replace(/[\r\n]/g, " ");
 
-export const isRateLimited = (key: string) => {
+/** `max` defaults to the /contact setting, 5 per 10 minutes. /api/funnel/visit passes its own. */
+export const isRateLimited = (key: string, max = rateLimitMax) => {
   const now = Date.now();
   const recent = (rateLimitBuckets.get(key) ?? []).filter((time) => now - time < rateLimitWindowMs);
-  if (recent.length >= rateLimitMax) {
+  if (recent.length >= max) {
     rateLimitBuckets.set(key, recent);
     return true;
   }
@@ -205,16 +208,19 @@ export const isJsonRequest = (req: Request) =>
     .trim()
     .toLowerCase() === "application/json";
 
-export const readJson = async (req: Request) => {
+const maxBodyBytes = 10_000;
+
+/** `maxBytes` defaults to the 10 KB cap /contact and /api/funnel/lead use. /api/funnel/visit passes 4 KB. */
+export const readJson = async (req: Request, maxBytes = maxBodyBytes) => {
   // Cheap pre-check on the declared length before buffering. F4 noted the old
   // order let an attacker make the isolate buffer up to Vercel's 4.5MB cap for
   // a request that was then rejected anyway.
   const declared = Number(req.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declared) && declared > 10_000) {
+  if (Number.isFinite(declared) && declared > maxBytes) {
     throw new Error("Payload too large");
   }
   const body = await req.text();
-  if (body.length > 10_000) throw new Error("Payload too large");
+  if (body.length > maxBytes) throw new Error("Payload too large");
   return JSON.parse(body || "{}");
 };
 
@@ -261,37 +267,49 @@ export const clientIp = (req: Request) =>
   req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
 /**
- * Sends one email through Resend. Throws on a non-2xx response so the caller
- * returns a 500. `from` defaults to Resend's shared sandbox sender; set a
- * RESEND_FROM env var to a verified-domain address (e.g. "Ziiro AI <contact@ziiroai.com>")
- * for reliable delivery to arbitrary recipients.
+ * Sends one email through Resend and returns its id. Throws UpstreamError on a
+ * non-2xx response, or when Resend can't be reached or `timeoutMs` runs out, so
+ * the caller decides what the visitor sees. `from` defaults to Resend's shared
+ * sandbox sender; set a RESEND_FROM env var to a verified-domain address (e.g.
+ * "Ziiro AI <contact@ziiroai.com>") for reliable delivery to arbitrary recipients.
+ *
+ * Give it `html`, `text` or both. With `idempotencyKey`, Resend sends once per key
+ * for 24 hours, however often it's called (spec §13.2). /contact passes neither a
+ * key nor a timeout, and behaves as it always has.
  */
 export const sendResendEmail = async (opts: {
   apiKey: string;
   from: string;
   to: string[];
   subject: string;
-  html: string;
+  html?: string;
+  text?: string;
   /** Only ever pass an address that has already cleared isValidEmail. An
    *  unvalidated Reply-To is the single change that turns this endpoint into a
    *  usable spoofing primitive, which security review F4 called out by name. */
   replyTo?: string;
-}) => {
+  idempotencyKey?: string;
+  timeoutMs?: number;
+}): Promise<{ id: string | null }> => {
+  if (!opts.html && !opts.text) throw new Error("sendResendEmail needs html or text");
   let res: Response;
   try {
     res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${opts.apiKey}`,
-      "Content-Type": "application/json",
-    },
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${opts.apiKey}`,
+        "Content-Type": "application/json",
+        ...(opts.idempotencyKey ? { "Idempotency-Key": opts.idempotencyKey } : {}),
+      },
       body: JSON.stringify({
         from: opts.from,
         to: opts.to,
         subject: opts.subject,
-        html: opts.html,
+        ...(opts.html ? { html: opts.html } : {}),
+        ...(opts.text ? { text: opts.text } : {}),
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
       }),
+      ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
     });
   } catch (error) {
     // Resend unreachable: DNS, TLS, timeout. Same class of outcome for the
@@ -313,7 +331,8 @@ export const sendResendEmail = async (opts: {
     });
     throw new UpstreamError("resend", res.status);
   }
-  return res.json().catch(() => ({}));
+  const data = (await res.json().catch(() => ({}))) as { id?: unknown };
+  return { id: typeof data.id === "string" ? data.id : null };
 };
 
 export const resendFrom = () => process.env.RESEND_FROM || "Ziiro AI <onboarding@resend.dev>";
