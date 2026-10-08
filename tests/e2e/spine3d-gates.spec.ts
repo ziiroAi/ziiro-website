@@ -17,8 +17,8 @@ import { expectPlan, tapThrough } from "./support/questions";
  *
  * What each gate measures:
  * - (a) LCP. The browser's own LCP stops at the first input, and the spine shows only on the plan, after many taps.
- *   So (a) times the plan's paint the same way: from the tap on "Show me my plan" to the frame where the r17 still
- *   has painted, at 4× CPU on Fast 4G. It also checks that the still is what painted first, not the canvas.
+ *   So (a) times the plan's paint the same way: from the moment the plan replaces S8 (which holds 2.1 s after the tap
+ *   on "Show me my plan" by design, §4.3) to the frame where the r17 still has painted, at 4× CPU on Fast 4G. It also checks that the still is what painted first, not the canvas.
  * - (b) INP. A real tap on the plan's hero while the 3D is still loading: Event Timing's duration for that
  *   interaction, the worst of 5 runs at 4× CPU.
  * - (c) The drag. With reduced motion (no idle spin), the canvas takes over from the still; a sideways drag changes
@@ -44,6 +44,8 @@ const FAST_4G = { latency: 165, downloadThroughput: (9_000_000 / 8) * 0.9, uploa
 const LIVE_TIMEOUT_MS = 30_000;
 const SETTLE_MS = 400;
 const DRAG_PX = 160;
+/** Where a desktop drag starts, as a fraction of the canvas width: the middle of the spine's column, right of the words. */
+const DESKTOP_GRAB_X = 0.775;
 const SWIPE_PX = 300;
 
 /**
@@ -71,7 +73,14 @@ const MESH_URL = /\/spine\/3d\/.*\.glb(\?|$)/i;
 const STUB_VISIT = { status: 200, contentType: "application/json", body: '{"success":true}' };
 const STUB_LEAD = { status: 200, contentType: "application/json", body: '{"success":true,"planEmail":"sent"}' };
 
-test.use({ trace: "off", video: "off" });
+/**
+ * Without these, headless Chromium composites in software and never shows a worker's WebGL frames: the canvas reads
+ * back the spine but screenshots black, so (c) can't see a drag. SwiftShader renders on the CPU, which only makes
+ * (b) harder.
+ */
+const WEBGL = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"];
+
+test.use({ trace: "off", video: "off", launchOptions: { args: WEBGL } });
 test.skip(!PREVIEW_URL, "Set PLAYWRIGHT_BASE_URL to the feat/spine-3d Preview");
 test.describe.configure({ mode: "serial" });
 
@@ -139,12 +148,23 @@ async function centreOf(page: Page, selector: string): Promise<{ x: number; y: n
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
-test("(a) the r17 still paints first, within 2.0 s of the send, at 4× CPU on Fast 4G", async ({ page }) => {
+test("(a) the r17 still paints first, within 2.0 s of the plan showing, at 4× CPU on Fast 4G", async ({ page }) => {
   test.setTimeout(240_000);
   await wire(page);
   await toContactStep(page);
   await throttle(page);
-  await page.evaluate(() => performance.mark("spine3d-send"));
+  // S8 holds for S8_MIN_MS (2.1 s, §4.3) by design, so the clock starts when the plan replaces S8, not at the send.
+  await page.evaluate(() => {
+    performance.mark("spine3d-send");
+    const root = document.querySelector(".f-root");
+    if (!root) return;
+    const seen = new MutationObserver(() => {
+      if (root.getAttribute("data-screen") !== "plan") return;
+      performance.mark("spine3d-plan");
+      seen.disconnect();
+    });
+    seen.observe(root, { attributes: true, attributeFilter: ["data-screen"] });
+  });
   await sendContact(page);
   await expectPlan(page);
   const still = page.locator(SEL.still).first();
@@ -152,11 +172,15 @@ test("(a) the r17 still paints first, within 2.0 s of the send, at 4× CPU on Fa
   const paint = await still.evaluate(async (img: HTMLImageElement) => {
     if (!img.complete || img.naturalWidth === 0) await img.decode().catch(() => undefined);
     await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-    const sent = performance.getEntriesByName("spine3d-send")[0]?.startTime ?? 0;
+    const at = (name: string) => performance.getEntriesByName(name)[0]?.startTime ?? 0;
     const live = document.querySelector('[data-testid=spine-viewer][data-spine="live"]') !== null;
-    return { ms: performance.now() - sent, liveBeforeStill: live, src: img.currentSrc };
+    const now = performance.now();
+    return { ms: now - at("spine3d-plan"), fromSend: now - at("spine3d-send"), liveBeforeStill: live, src: img.currentSrc };
   });
-  test.info().annotations.push({ type: "a: still painted", description: `${Math.round(paint.ms)} ms, ${paint.src}` });
+  test.info().annotations.push({
+    type: "a: still painted",
+    description: `${Math.round(paint.ms)} ms after the plan showed (${Math.round(paint.fromSend)} ms after the send), ${paint.src}`,
+  });
   expect(paint.liveBeforeStill, "the canvas went live before the still painted").toBe(false);
   expect(paint.ms).toBeLessThanOrEqual(LCP_LIMIT_MS);
 });
@@ -211,19 +235,21 @@ test("(c) the canvas replaces the still, a sideways drag turns it, a vertical sw
   if (deviceOf(info.project.name) === "phone") {
     const cdp = await page.context().newCDPSession(page);
     await touchDrag(cdp, centre, DRAG_PX, 0);
-    await page.waitForTimeout(SETTLE_MS);
-    expect(await canvasHash(page), "a sideways drag changed no pixel").not.toBe(before);
+    await expect.poll(() => canvasHash(page), { message: "a sideways drag changed no pixel", timeout: 10_000 }).not.toBe(before);
     const scrollBefore = await page.evaluate(() => window.scrollY);
     await touchDrag(cdp, await centreOf(page, SEL.canvas), 0, -SWIPE_PX);
     await page.waitForTimeout(SETTLE_MS);
     expect(await page.evaluate(() => window.scrollY), "a vertical swipe on the canvas didn't scroll").toBeGreaterThan(scrollBefore);
   } else {
-    await page.mouse.move(centre.x, centre.y);
+    // On desktop the words sit over the canvas's left 55 % (and take the pointer there); the spine is on the right.
+    const box = await page.locator(SEL.canvas).first().boundingBox();
+    if (!box) throw new Error(`${SEL.canvas} has no box`);
+    const grab = { x: box.x + box.width * DESKTOP_GRAB_X, y: centre.y };
+    await page.mouse.move(grab.x, grab.y);
     await page.mouse.down();
-    await page.mouse.move(centre.x + DRAG_PX, centre.y, { steps: 12 });
+    await page.mouse.move(grab.x + DRAG_PX, grab.y, { steps: 12 });
     await page.mouse.up();
-    await page.waitForTimeout(SETTLE_MS);
-    expect(await canvasHash(page), "a mouse drag changed no pixel").not.toBe(before);
+    await expect.poll(() => canvasHash(page), { message: "a mouse drag changed no pixel", timeout: 10_000 }).not.toBe(before);
   }
 });
 
