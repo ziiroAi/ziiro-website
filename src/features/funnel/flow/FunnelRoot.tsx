@@ -16,6 +16,7 @@ import { setCtaReporter, setStage } from "./session";
 import { PROGRESS, PROGRESS_TOTAL, createTapGate, funnelStageOf, initialFlow, reduce, type FlowAction, type Screen } from "./state";
 import { FlowNote } from "./ui";
 import { useLeadSend } from "./useLeadSend";
+import { useVisitSaves } from "./useVisitSaves";
 import { rotateVisit, startVisit } from "./visit-id";
 
 /** g.footer sits under the questions (§4.5): S1 to S7. */
@@ -71,11 +72,12 @@ export function FunnelRoot(): JSX.Element {
     prefetchPlan();  // the plan's code loads during S5 to S8 (§13.1)
     setWarm(true);   // and the hero still S9 shows (§6.6)
   }, [state.screen]);
+  const { country } = useVisitSaves(state, { boot, starter, timeZone, introOffsetMs: introOffset });
 
   const env: FlowEnv = {
     boot,
     introOffsetMs: state.nav.seq === 0 && state.screen === "s1" ? introOffset : null,
-    country: null,
+    country,
     timeZone,
     starter,
     send,
