@@ -3,9 +3,9 @@
 //   Both sit under the site's bar, and the canvas fades into the page at its edges.
 // - Its own SpineViewer, started only once the tour reaches the screen, so the hero's viewer has the page to itself
 //   until then. Until the 3D is live the r17 still shows, and it stays as the fallback.
-// - The stop in view is the section crossing the middle of the screen: block 2 (plan_depth 0) holds the overview,
-//   each stop flies into its department's disc, with a pull-back to the full spine between two stops (D30) and a
-//   straight cut under reduced motion (§11.8).
+// - The stop in view is the section crossing the reading line (mid-screen; on a phone, below the band): block 2
+//   (plan_depth 0) holds the overview, each stop flies into its department's disc, with a pull-back to the full spine
+//   between two stops (D30) and a straight cut under reduced motion (§11.8).
 // - The plan's discs are lit (setLit, D28); SpineOverlay adds the buttons, panels, callouts and legend.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { copy, departments as allDepartments } from "../../data";
@@ -85,12 +85,25 @@ function useReached(ref: RefObject<HTMLElement>): boolean {
   return reached;
 }
 
+/** On a phone the band covers the top of the screen, so the stop is read this far into the words left below it. */
+const PHONE_LINE_SHARE = 1 / 3;
+
 /**
- * The plan_depth of the section crossing the screen's middle line, read on scroll and resize at most once a frame; it
- * holds the last one while the line is between sections, and 0 at first. Not an IntersectionObserver: with a negative
+ * Where the stop in view is read: the screen's middle line beside the desktop stage. On a phone it is a third of the
+ * way down the space under the sticky band (W14-M2), so a stop is in view while its heading still shows under the band.
+ */
+function readingLine(variant: Variant, stage: HTMLElement | null): number {
+  if (variant === "desktop" || !stage) return window.innerHeight / 2;
+  const bottom = stage.getBoundingClientRect().bottom;
+  return bottom + (window.innerHeight - bottom) * PHONE_LINE_SHARE;
+}
+
+/**
+ * The plan_depth of the section crossing the reading line, read on scroll and resize at most once a frame; it holds
+ * the last one while the line is between sections, and 0 at first. Not an IntersectionObserver: with a negative
  * rootMargin, Chromium missed the scroll to stop 1 in 6 of 12 runs, while a fresh observer saw it (W14-M probe).
  */
-function useDepthInView(ref: RefObject<HTMLElement>): number {
+function useDepthInView(ref: RefObject<HTMLElement>, stageRef: RefObject<HTMLElement>, variant: Variant): number {
   const [depth, setDepth] = useState(0);
   useEffect(() => {
     const el = ref.current;
@@ -99,7 +112,7 @@ function useDepthInView(ref: RefObject<HTMLElement>): number {
     let frame: number | null = null;
     const measure = () => {
       frame = null;
-      const line = window.innerHeight / 2;
+      const line = readingLine(variant, stageRef.current);
       const crossing = sections.find((section) => {
         const { top, bottom } = section.getBoundingClientRect();
         return top <= line && bottom > line;
@@ -117,7 +130,7 @@ function useDepthInView(ref: RefObject<HTMLElement>): number {
       window.removeEventListener("resize", schedule);
       if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [ref]);
+  }, [ref, stageRef, variant]);
   return depth;
 }
 
@@ -152,12 +165,13 @@ export function SpineTour({ departments, planAgentIds, children }: SpineTourProp
   const theme = useHtmlTheme();
   const tourRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const bandRef = useRef<HTMLDivElement>(null);
   const wordsRef = useRef<HTMLDivElement>(null);
   const [api, setApi] = useState<SpineViewerApi | null>(null);
   const reached = useReached(tourRef);
   const variant = useVariant();
   const view = useSize(stageRef);
-  const depth = useDepthInView(wordsRef);
+  const depth = useDepthInView(wordsRef, bandRef, variant);
 
   const discs = useMemo(
     () => departments.flatMap((id): DiscId[] => allDepartments.filter((d) => d.id === id).map((d) => d.disc)),
@@ -183,6 +197,7 @@ export function SpineTour({ departments, planAgentIds, children }: SpineTourProp
   return (
     <div ref={tourRef} data-testid="spine-tour" className="relative lg:grid lg:grid-cols-[minmax(0,11fr)_minmax(0,9fr)]">
       <div
+        ref={bandRef}
         data-testid="spine-tour-stage"
         data-stop={stop ?? "overview"}
         className="sticky top-[var(--nav-h,84px)] z-20 bg-[color:var(--funnel-bg)] lg:order-2 lg:self-start"

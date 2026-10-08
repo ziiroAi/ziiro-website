@@ -443,7 +443,16 @@
       rgba(0, 0, 0, 0)
     );
   }
-  /* ─── The phone menu (below 640px) ────────────────────────────────────
+  /* The plan (W14-M2): its sticky 3D tour starts flush under the bar, so the
+     glass would show the plan's words sliding under the logo. There the band
+     is the bar's own height and solid page colour, on the same scroll ramp. */
+  nav[data-backdrop="solid"] .site-nav-backdrop {
+    height: 100%;
+    background: var(--background);
+    backdrop-filter: none;
+    mask-image: none;
+  }
+  /* ─── The phone menu (below 640px)────────────────────────────────────
      `.site-menu` is the navbar's own link row, restyled. From 640 up none of
      this applies and the row is exactly what it was; below 640 the element
      becomes a full-screen white sheet under the bar (z-index -1 inside the

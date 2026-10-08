@@ -526,6 +526,8 @@ export default function Navbar() {
       className="fixed left-0 right-0 top-0 z-50 py-5"
       style={pathname === "/" ? FUNNEL_BAR_COLOURS : undefined}
       data-menu-open={open || undefined}
+      // The plan's sticky 3D tour starts right under the bar, so its scrolled text must not show through (W14-M2).
+      data-backdrop={pathname === "/" && stage === "plan" ? "solid" : undefined}
     >
       {/* The progressive blur, and the only thing in this bar that is not a
           control. It is first so it paints behind everything below it, and

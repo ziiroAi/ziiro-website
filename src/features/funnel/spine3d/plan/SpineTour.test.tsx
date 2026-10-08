@@ -248,6 +248,20 @@ describe("SpineTour: scroll flights (§6.2 block 3, D30)", () => {
     expect(stage.dataset.stop).toBe("G05");
   });
 
+  it("on a phone, reads below the sticky band, so a stop is in view while its heading shows under the band (W14-M2)", async () => {
+    vi.stubGlobal("matchMedia", (query: string) =>
+      ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
+    const { stage } = mount();
+    const bandBottom = 494; // 84 px bar + the 390 × 410 band
+    stage.getBoundingClientRect = () => ({ top: 84, bottom: bandBottom, left: 0, right: 390, width: 390, height: 410 }) as DOMRect;
+    pageY = 2000 + 1000 - bandBottom - 16; // stop 1's heading sits 16 px under the band
+    await act(async () => {
+      window.dispatchEvent(new Event("scroll"));
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    });
+    expect(stage.dataset.stop).toBe("G04");
+  });
+
   it("flies nowhere while the still is showing", async () => {
     viewer.nextApi = null;
     const { tour, depth, stage } = mount();

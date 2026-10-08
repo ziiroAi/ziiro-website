@@ -115,6 +115,18 @@ describe("the header (§6.2 block 0)", () => {
     expect(host.querySelector("nav")?.getAttribute("style")).toContain("--background: var(--funnel-bg)");
   });
 
+  it("asks for a solid page-colour backdrop on the plan only, so scrolled plan text never shows through (W14-M2)", () => {
+    show("/");
+    const nav = () => host.querySelector("nav")!;
+    expect(nav().dataset.backdrop).toBeUndefined();
+    act(() => session.set("plan", ANANYA));
+    expect(nav().dataset.backdrop).toBe("solid");
+    act(() => root.unmount());
+    host.remove();
+    show("/mission");
+    expect(nav().dataset.backdrop).toBeUndefined();
+  });
+
   it("keeps the site's colours on every other page", () => {
     show("/mission");
     const nav = host.querySelector("nav");
