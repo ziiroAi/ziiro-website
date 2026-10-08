@@ -1,9 +1,10 @@
 /**
  * (C) S7's send (spec §4.3, §10, §13.2; index §1.3). S8 shows at once, the plan is composed on the device, and the lead
- * goes to /lead with the spam check's token. After S8's lines the visitor sees the plan, or S7 once more (D18).
+ * goes to /lead with the spam check's token, with the fallback plan if the plan's code can't load (review H2). After S8's lines the visitor sees the plan, or S7 once more (D18).
  * S8's clock is Date.now(), counted from the tap.
  */
 import { useCallback, useRef, type Dispatch } from "react";
+import { fallbackLeadPlan } from "./fallback-plan";
 import { loadPlanData, loadPlanPage } from "./plan-chunk";
 import type { CheckedContact, FlowEnv, TokenSource } from "./screens/types";
 import { LEAD_BUDGET_MS, S8_MIN_MS, TOKEN_WAIT_MS, afterSend, leadRequest, postLead } from "./send";
@@ -37,9 +38,14 @@ export function useLeadSend(state: FlowState, dispatch: Dispatch<FlowAction>, st
       try {
         const { teamBand, revenueBand, revenueCurrency } = answers;
         if (!teamBand || !revenueBand || !revenueCurrency) throw new Error("S7 was reached without S4 and S5");
-        const { composePlan } = await loadPlanData();
-        const plan = composePlan({ teamBand, revenueBand, currency: revenueCurrency, chips: words.chips, problemText: words.problemText });
-        dispatch({ type: "planReady", plan });
+        const plan = await loadPlanData().then(
+          ({ composePlan }) => {
+            const composed = composePlan({ teamBand, revenueBand, currency: revenueCurrency, chips: words.chips, problemText: words.problemText });
+            dispatch({ type: "planReady", plan: composed });
+            return composed;
+          },
+          () => fallbackLeadPlan(teamBand, revenueBand),  // its code didn't load: the lead still goes out, and S9 says so
+        );
         const token = await widget.waitForToken(TOKEN_WAIT_MS);
         const body = leadRequest({ visitId: visit.id, retry: isRetry, contact, token, answers, words, plan });
         const result = afterSend(await postLead(body, LEAD_BUDGET_MS), isRetry);
@@ -47,8 +53,8 @@ export function useLeadSend(state: FlowState, dispatch: Dispatch<FlowAction>, st
         if (result.to === "s7") widget.reset();  // a token is single use: the second try needs a fresh one
         dispatch({ type: "sendFinished", result });
       } catch {
-        // The plan couldn't be composed or its code didn't load, twice over: no lead went out. S7 offers the send
-        // once more; after that the plan's frame shows sp.save.fail and the booking link.
+        // Something failed before /lead, so no lead went out. S7 offers the send once more; after that the plan's
+        // frame says the page couldn't show the plan, with the booking link.
         if (!isRetry) widget.reset();
         dispatch({ type: "sendFinished", result: isRetry ? GAVE_UP : FAILED });
       } finally {

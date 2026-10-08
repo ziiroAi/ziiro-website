@@ -1,22 +1,19 @@
 /**
- * (C) S9 when no plan could be made (review H2): the plan's code failed to load on both tries, so no lead went out.
- * The plan's frame still opens, with sp.save.fail and the booking link, so the visitor has a way forward (D18).
+ * (C) S9 when no plan could be made on the device (review H2): its code didn't load, so the lead went with the
+ * fallback plan. The plan's frame still opens with what's true: the plan is on its way by email, or, if the send
+ * failed too, the page couldn't show it. Either way with their booking link (D18, review M4's note).
  */
-import { copy } from "@/features/funnel/data/light";
-import { INTERIM_BOOKING_URL } from "@/features/pricing/entities/rates";
-import { PlanScreen } from "./Plan";
+import { PlanFailed, PlanScreen } from "./Plan";
 import type { ScreenProps } from "./types";
 
-function NoPlan() {
+/** The plan when there is one, else its frame with the note. */
+export function PlanOrNoPlan(props: ScreenProps) {
+  const { plan, visitor, saveNotice } = props.state;
+  if (plan) return <PlanScreen {...props} />;
+  if (!visitor) return null;
   return (
     <div className="f-plan" tabIndex={-1} data-question="">
-      <p className="f-err" role="alert">{copy("sp.save.fail")}</p>
-      <a className="f-act" href={INTERIM_BOOKING_URL}>{copy("nav.btn")}</a>
+      <PlanFailed visitor={visitor} saveNotice={saveNotice} />
     </div>
   );
-}
-
-/** The plan when there is one, else its frame with the notice. */
-export function PlanOrNoPlan(props: ScreenProps) {
-  return props.state.plan ? <PlanScreen {...props} /> : <NoPlan />;
 }

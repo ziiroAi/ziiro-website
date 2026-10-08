@@ -2,8 +2,7 @@
 import { act } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { copy, type LeadRequest } from "@/features/funnel/data/light";
-import { INTERIM_BOOKING_URL } from "@/features/pricing/entities/rates";
+import { calendlyUrl, copy, type LeadRequest } from "@/features/funnel/data/light";
 import { FunnelRoot } from "./FunnelRoot";
 import { loadPlanData, prefetchPlan } from "./plan-chunk";
 import { LEAD_BUDGET_MS } from "./send";
@@ -203,18 +202,33 @@ describe("sending S7 (§4.3, §10, §13.2)", () => {
     expect(planText()).toBe("Ananya · fail");
   });
 
-  it("shows the plan's frame with sp.save.fail and the booking link when the plan's code can't load twice (review H2)", async () => {
-    const lost = new TypeError("Failed to fetch dynamically imported module");
-    vi.mocked(loadPlanData).mockRejectedValueOnce(lost).mockRejectedValueOnce(lost);
+  it("sends the lead with the fallback plan when the plan's code can't load, and says the plan is on its way (review H2)", async () => {
+    vi.mocked(loadPlanData).mockRejectedValueOnce(new TypeError("Failed to fetch dynamically imported module"));
     send();
     await run(2_100);
-    expect(screenNow()).toBe("s7");
+    expect(leads).toHaveLength(1);
+    expect(leads[0].plan).toEqual({
+      template: "A", orderVariant: "A-default", tier: "M",
+      agentIds: ["back-office-money-in", "back-office-finance-reporting", "back-office-records", "back-office-office", "operations-client-comms", "operations-build-ops"],
+      matchedPhrases: [], classifierVersion: "none", agentsVersion: "2026-10-04", fallback: true,
+    });
+    expect(screenNow()).toBe("plan");
+    expect(root().querySelector(".f-plan .f-err")?.textContent).toBe(copy("s9.err.sent", { email: "ananya@example.com" }));
+    expect(root().querySelector<HTMLAnchorElement>(".f-plan a.f-act")?.href).toBe(calendlyUrl("Ananya", "ananya@example.com"));
+  });
+
+  it("never offers S7 a third time when the plan's code and /lead both fail (review H2)", async () => {
+    const lost = new TypeError("Failed to fetch dynamically imported module");
+    vi.mocked(loadPlanData).mockRejectedValueOnce(lost).mockRejectedValueOnce(lost);
+    replies = [json(502, { success: false }), json(502, { success: false })];
+    send();
+    await run(2_100);
     expect(alertLine()).toBe("Something went wrong on our end. Try that again?");
     send();
     await run(2_100);
+    expect(leads.map((lead) => lead.retry)).toEqual([undefined, true]);
     expect(screenNow()).toBe("plan");
-    expect(root().querySelector('.f-plan [role="alert"]')?.textContent).toBe(copy("sp.save.fail"));
-    expect(root().querySelector<HTMLAnchorElement>(`.f-plan a[href="${INTERIM_BOOKING_URL}"]`)?.textContent).toBe("Book a call");
+    expect(root().querySelector(".f-plan .f-err")?.textContent).toBe(copy("s9.err.unsent"));
   });
 
   it("waits out a slow server that saves the lead, instead of calling it a failure (review M2)", async () => {

@@ -96,7 +96,7 @@ test("our server failing twice: S7 with g.error, then the plan with sp.save.fail
   await expect(page.getByText(SAVE_FAIL)).toBeVisible();
 });
 
-test("no answer twice: S8 holds until the drop, S7 with g.error, then the plan with sp.save.unsure", async ({ page, funnelApi }) => {
+test("no answer twice: S8 holds LEAD_BUDGET_MS, S7 with g.error, then the plan with sp.save.unsure", async ({ page, funnelApi }) => {
   test.setTimeout(60_000);
   funnelApi.answerLeadWith(["no-answer", "no-answer"]);
   await fillContact(page);

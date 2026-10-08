@@ -29,7 +29,7 @@ function Painted({ onPaint }: { onPaint(): void }) {
 }
 
 /** The lead was sent, so the plan is in their inbox, unless the save failed or is unsure: then it says only what's true. */
-function PlanFailed({ visitor, saveNotice }: { visitor: { name: string; email: string }; saveNotice: ScreenProps["state"]["saveNotice"] }) {
+export function PlanFailed({ visitor, saveNotice }: { visitor: { name: string; email: string }; saveNotice: ScreenProps["state"]["saveNotice"] }) {
   const line = saveNotice ? copy("s9.err.unsent") : copy("s9.err.sent", { email: visitor.email });
   return <ErrorNote line={line} bookingHref={calendlyUrl(visitor.name, visitor.email)} />;
 }

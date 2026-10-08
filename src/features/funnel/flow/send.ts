@@ -4,7 +4,7 @@
  */
 import {
   CONSENT_VERSION, LEAD_FIELDS, isOneOf,
-  type ChipId, type LeadField, type LeadRequest, type PlanDescriptor, type TeamBand,
+  type ChipId, type LeadField, type LeadPlan, type LeadRequest, type TeamBand,
 } from "@/features/funnel/data/light";
 import type { CheckedContact } from "./screens/types";
 import type { Answers, SendResult } from "./state";
@@ -31,7 +31,7 @@ export interface LeadInput {
   token: string;
   answers: Answers;
   words: { problemText: string; chips: ChipId[] };
-  plan: PlanDescriptor;
+  plan: LeadPlan;
 }
 
 /** The /lead body. Empty keys stay out: no retry on a first try, no phone left blank, no token the widget never gave. */
