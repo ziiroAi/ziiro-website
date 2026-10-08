@@ -1,5 +1,6 @@
 # (C) Spec §12 "CI" and D25: lint, types, unit, API and claims tests, the build, the build
-# checks and Playwright, on every pull request into dev and main.
+# checks and Playwright, on every pull request into dev and main. The spine's 3D end-to-end
+# tests run in their own job, under SwiftShader, one worker at a time (W14-W).
 name: CI
 
 on:
@@ -37,5 +38,28 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  spine3d:
+    name: spine 3D e2e (SwiftShader)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # S0 with its probe told the GPU is real, the plan's hero and tour, the fallbacks and the
+      # /spine/ files. Each spec launches Chromium with --use-angle=swiftshader itself.
+      - run: npm run test:e2e:spine3d
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-spine3d
           path: playwright-report/
           retention-days: 7

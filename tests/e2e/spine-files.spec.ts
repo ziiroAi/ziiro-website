@@ -1,12 +1,17 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { answerTeam, at, toTeamQuestion } from "./helpers/flow";
+import { probeSeesHardware, SWIFTSHADER } from "./support/gpu";
 
 /**
  * §12 as amended in W14-R: no r17 still or any other /spine/ file before S5. The one exemption is the live mesh
- * (/spine/3d/m1/*) on S0, and only when it is asked for after the first paint, never on Save-Data or a slow connection.
+ * (/spine/3d/m1/*) on S0, and only when it is asked for after the first paint, never on Save-Data, a slow connection
+ * or a software renderer. CI draws on SwiftShader, where S0 has no 3D, so the exemption's own check runs with S0's
+ * probe told the GPU is real (W14-W).
  */
 const LIVE_MESH = /^\/spine\/3d\/m1\//;
+// WebGL on SwiftShader, as CI has it: S0's 3D then settles the way §6.6 says for a software renderer.
+test.use({ launchOptions: { args: SWIFTSHADER } });
 const S0_VIEWER = "[data-testid=landing-spine] [data-testid=spine-viewer]";
 
 interface SpineLog {
@@ -72,6 +77,18 @@ test("a visitor who stays on S0 gets the live mesh only after the first paint, a
   await expect(page.locator(S0_VIEWER)).toHaveAttribute("data-spine", /live|fallback/, { timeout: 30_000 });
   await toTeamQuestion(page);
   expectNothingBeforeS5But(log);
+});
+
+test.describe("with S0's probe told the GPU is real (W14-W)", () => {
+  test("S0 asks for its live mesh only after the first paint, and nothing else under /spine/ before S5 (§12)", async ({ page }) => {
+    await probeSeesHardware(page);
+    const log = await spineRequests(page);
+    await page.goto("/");
+    await expect(page.locator(S0_VIEWER)).toHaveAttribute("data-spine", "live", { timeout: 60_000 });
+    expect(log.meshAt.length, "S0 went live without asking for its mesh").toBeGreaterThan(0);
+    await toTeamQuestion(page);
+    expectNothingBeforeS5But(log);
+  });
 });
 
 for (const [name, value, reason] of [

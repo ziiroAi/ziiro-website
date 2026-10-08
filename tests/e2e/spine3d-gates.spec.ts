@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
-import type { CDPSession, Page, Response } from "@playwright/test";
+import type { Browser, BrowserContextOptions, CDPSession, Page, Response } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { expectPlan, tapThrough } from "./support/questions";
 
@@ -9,7 +9,7 @@ import { expectPlan, tapThrough } from "./support/questions";
  * deployed Preview, never in CI: the throttled runs are slow and the numbers mean something only on Vercel.
  *
  *   ( set -a; . ~/.config/ziiro/builders.env; set +a; \
- *     PLAYWRIGHT_BASE_URL=https://<the feat/spine-3d Preview> SPINE3D_CHUNK_GZ_LIMIT=<bytes, once measured> \
+ *     PLAYWRIGHT_BASE_URL=https://<the feat/spine-3d Preview> SPINE3D_GPU=metal|swiftshader \
  *     python3 "$BUS/with-render-lock.py" npx playwright test tests/e2e/spine3d-gates.spec.ts --workers=1 )
  *
  * The bypass secret travels only as a header to the Preview's own origin, and traces and videos are off, because a
@@ -20,22 +20,27 @@ import { expectPlan, tapThrough } from "./support/questions";
  *   So (a) times the plan's paint the same way: from the moment the plan replaces S8 (which holds 2.1 s after the tap
  *   on "Show me my plan" by design, §4.3) to the frame where the r17 still has painted, at 4× CPU on Fast 4G. It also checks that the still is what painted first, not the canvas.
  * - (b) INP. A real tap on the plan's hero while the 3D is still loading: Event Timing's duration for that
- *   interaction, the worst of 5 runs at 4× CPU.
+ *   interaction, the worst of 5 runs at 4× CPU. §13.10 judges it on a real GPU (SPINE3D_GPU=metal) at 100 ms or less;
+ *   on SwiftShader (the default) the 3D-on runs are held to a Save-Data baseline of the same steps: at most one frame
+ *   (16 ms) slower.
  * - (c) The drag. With reduced motion (no idle spin), the canvas takes over from the still; a sideways drag changes
  *   its pixels; on a phone a vertical swipe on it still scrolls the page.
  * - (d) The fallback. No WebGL (getContext stubbed to null, and the worker path removed) and Save-Data each keep the
  *   still; Save-Data fetches no 3D chunk and no mesh.
- * - (e) Transfer. The lazy 3D chunk's gzip size and the mesh's transfer size, reported against the budgets.
+ * - (e) Transfer. The lazy 3D chunk's gzip size and the mesh's transfer size, held to the §13.10 budgets.
  */
 
 const PREVIEW_URL = process.env.PLAYWRIGHT_BASE_URL;
 const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
-/** Set from worker-1's first measured build (spec patch §13.10, "3D spine code"). Unset: (e) reports only. */
-const CHUNK_GZ_LIMIT = Number(process.env.SPINE3D_CHUNK_GZ_LIMIT) || null;
+/** §13.10 "3D spine code": 957a755 measured 172,141 bytes (worker path), rounded up to the next KiB (W14-W). */
+const CHUNK_GZ_LIMIT = 173_056;
 
 const LCP_LIMIT_MS = 2_000;
 const INP_LIMIT_MS = 100;
 const INP_RUNS = 5;
+/** One frame at 60 Hz: how much slower than its 3D-off baseline a SwiftShader run may be (§13.10). */
+const FRAME_MS = 16;
+const GPU = process.env.SPINE3D_GPU === "metal" ? "metal" : "swiftshader";
 const CPU_SLOWDOWN = 4;
 const MESH_LIMIT_BYTES = { phone: 1_500_000, desktop: 3_000_000 } as const;
 /** Chrome DevTools' "Fast 4G" preset: 9 Mbps down, 1.5 Mbps up, 60 ms × 2.75 latency, both × 0.9. */
@@ -78,7 +83,9 @@ const STUB_LEAD = { status: 200, contentType: "application/json", body: '{"succe
  * back the spine but screenshots black, so (c) can't see a drag. SwiftShader renders on the CPU, which only makes
  * (b) harder.
  */
-const WEBGL = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"];
+const WEBGL = GPU === "metal"
+  ? ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist"]
+  : ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"];
 
 test.use({ trace: "off", video: "off", launchOptions: { args: WEBGL } });
 test.skip(!PREVIEW_URL, "Set PLAYWRIGHT_BASE_URL to the feat/spine-3d Preview");
@@ -185,8 +192,22 @@ test("(a) the r17 still paints first, within 2.0 s of the plan showing, at 4× C
   expect(paint.ms).toBeLessThanOrEqual(LCP_LIMIT_MS);
 });
 
-test("(b) a first tap while the 3D loads: worst of 5 at 4× CPU is 100 ms or less", async ({ page }) => {
-  test.setTimeout(INP_RUNS * 180_000);
+/** A cold page sized as the project, for the 3D-off baseline: Save-Data, so the viewer falls back before any 3D loads. */
+async function saveDataPage(browser: Browser, use: BrowserContextOptions): Promise<Page> {
+  const { viewport, deviceScaleFactor, isMobile, hasTouch, userAgent } = use;
+  const context = await browser.newContext({ baseURL: PREVIEW_URL, viewport, deviceScaleFactor, isMobile, hasTouch, userAgent });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "connection", {
+      configurable: true,
+      get: () => ({ saveData: true, effectiveType: "4g", addEventListener() {}, removeEventListener() {} }),
+    });
+  });
+  return page;
+}
+
+/** The worst of INP_RUNS first taps on the plan's hero, each made as the plan opens (with the 3D on: while it loads). */
+async function worstPlanTap(page: Page, threeD: boolean, label: string): Promise<number> {
   await wire(page);
   const worst: number[] = [];
   for (let run = 1; run <= INP_RUNS; run += 1) {
@@ -202,22 +223,38 @@ test("(b) a first tap while the 3D loads: worst of 5 at 4× CPU is 100 ms or les
         }
       }).observe({ type: "event", durationThreshold: 16, buffered: false } as PerformanceObserverInit);
     });
-    const loading = page.waitForRequest((r) => CHUNK_URL.test(r.url()) || MESH_URL.test(r.url()), { timeout: 60_000 });
+    const loading = threeD
+      ? page.waitForRequest((r) => CHUNK_URL.test(r.url()) || MESH_URL.test(r.url()), { timeout: 60_000 })
+      : null;
     await sendContact(page);
     await expectPlan(page);
-    await loading;
+    if (loading) await loading;
     const stateAtTap = await viewerState(page);
     await page.locator(SEL.tapTarget).first().click();
     await page.waitForTimeout(1_000);
     const taps = await page.evaluate(() => (window as unknown as { __spineTaps: number[] }).__spineTaps);
     const tapMs = taps.length ? Math.max(...taps) : 0;
     worst.push(tapMs);
-    test.info().annotations.push({ type: `b: run ${run}`, description: `${tapMs} ms, viewer was "${stateAtTap}"` });
-    expect(stateAtTap, "the tap must land while the 3D is still loading").not.toBe("live");
+    test.info().annotations.push({ type: `b: ${label}, run ${run}`, description: `${tapMs} ms, viewer was "${stateAtTap}"` });
+    if (threeD) expect(stateAtTap, "the tap must land while the 3D is still loading").not.toBe("live");
     await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
     await cdp.detach();
   }
-  expect(Math.max(...worst)).toBeLessThanOrEqual(INP_LIMIT_MS);
+  return Math.max(...worst);
+}
+
+test(`(b) a first tap while the 3D loads, worst of 5 at 4× CPU, on ${GPU} (§13.10)`, async ({ page, browser }, info) => {
+  test.setTimeout(INP_RUNS * 2 * 180_000);
+  const on = await worstPlanTap(page, true, "3D on");
+  if (GPU === "metal") {
+    expect(on).toBeLessThanOrEqual(INP_LIMIT_MS);
+    return;
+  }
+  const baseline = await saveDataPage(browser, info.project.use);
+  const off = await worstPlanTap(baseline, false, "3D off");
+  await baseline.context().close();
+  info.annotations.push({ type: "b: worst of 5", description: `3D on ${on} ms, 3D off ${off} ms` });
+  expect(on).toBeLessThanOrEqual(off + FRAME_MS);
 });
 
 test("(c) the canvas replaces the still, a sideways drag turns it, a vertical swipe scrolls", async ({ page }, info) => {
@@ -317,7 +354,7 @@ test("(e) the lazy 3D chunk and the mesh, against the budgets", async ({ page },
     device,
     chunks: chunks.map((r) => new URL(r.url()).pathname),
     chunkGzBytes: chunkGz,
-    chunkGzLimit: CHUNK_GZ_LIMIT ?? "not set yet",
+    chunkGzLimit: CHUNK_GZ_LIMIT,
     meshes: meshes.map((r) => new URL(r.url()).pathname),
     meshTransferBytes: meshBytes,
     meshLimit: MESH_LIMIT_BYTES[device],
@@ -325,5 +362,5 @@ test("(e) the lazy 3D chunk and the mesh, against the budgets", async ({ page },
   await info.attach("spine3d-transfer.json", { body: JSON.stringify(report, null, 2), contentType: "application/json" });
   info.annotations.push({ type: "e: transfer", description: JSON.stringify(report) });
   expect(meshBytes).toBeLessThanOrEqual(MESH_LIMIT_BYTES[device]);
-  if (CHUNK_GZ_LIMIT) expect(chunkGz).toBeLessThanOrEqual(CHUNK_GZ_LIMIT);
+  expect(chunkGz).toBeLessThanOrEqual(CHUNK_GZ_LIMIT);
 });

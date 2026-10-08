@@ -138,6 +138,7 @@ Our recommendation stands for each of these.
 - **Day-parts, by the visitor's clock:** morning 05:00–11:59, afternoon 12:00–16:59, evening 17:00–04:59.
 - **Second line, in English, by local hour:** `s0.sub.early` 05:00–07:59, `s0.sub.day` 08:00–21:59, `s0.sub.late` 22:00–04:59. Then `s0.promise`.
 - **Motion:** the greeting fades up over about half a second while S1 rises under it, then settles into a small header. There's nothing to press and nothing to wait for.
+- **The live spine (W14-I, W14-R):** a 3D layer under the greeting and S1 that never holds up the first tap, specified in §6.6 under "S0".
 - **Markup:** the greeting carries its own `lang`, plus `dir="rtl"` for Arabic and Urdu once those rows ship.
 - **Static fallback:** the prerendered HTML holds the English hello alone, "Hello.", and an inline script replaces it before the first paint. If the script fails, "Hello." stays.
 
@@ -358,12 +359,20 @@ The first release shows the spine as a live 3D model that the visitor turns by d
 ### 6.6 How the r17 look ships on the web
 **The live 3D spine (D2 vetoed on 8 Oct 2026).** This block overrides everything below it in §6.6 where they disagree. The owner's words: "the whole thing which I asked for you to create that 3d looking website ... why did i generate 3d models if I wanted to ship the still image."
 - **Source.** The owner's Tripo model `funnel/proto/look/owner-models/owner-spine-full-clean.glb` (glTF 2.0, generator Tripo, 67.8 MB). The original files are never edited. The page ships a web derivative of it, reduced and compressed, under `public/spine/3d/<version>/`, cached for a year as immutable like `/spine/`. A new derivative goes into a new folder.
-- **First paint.** Unchanged: the hero `<picture>` with the r17 still (below) is the LCP element. The 3D code is a lazy chunk, imported only after the first paint. No WebGL context exists before then.
+- **First paint.** Unchanged on the hero and the plan: the hero `<picture>` with the r17 still (below) is the LCP element. S0 has no still (see "S0" below). The 3D code is a lazy chunk, imported only after the first paint. No WebGL context exists before then.
 - **Hand-over.** The canvas takes the still's box, with the same size and no layout shift. Its first frame uses a camera matched to the r17 hero camera, and it fades in over the still only once that frame has rendered. Until then the still shows.
-- **The drag is real.** One finger on a phone and the mouse on desktop turn the model in real time. On touch, a vertical swipe still scrolls the page (`touch-action: pan-y`), so only a sideways drag turns it. With keyboard focus, the arrow keys turn it. Nothing on the page needs a turn to be read (§11).
+- **The drag is real.** One finger on a phone and the mouse on desktop turn the model in real time. On touch, a vertical swipe still scrolls the page (`touch-action: pan-y`), so only a sideways drag turns it. The model isn't in the Tab order and takes no keys: nothing on the page needs a turn to be read (§11).
 - **Reduced motion** keeps the live model, with no automatic turning and no inertia. The visitor's own drag still works.
 - **The still is the fallback.** It stays, and the 3D never starts or stops cleanly, when: WebGL is missing or context creation fails (`still_reason` = unsupported); the device saves data (save_data); the connection is 2G or 3G (slow_connection); or the chunk or the mesh fails to load, or the context is lost (failed). §9 records which.
-- **Budgets (§13.10).** The mesh streams after the first paint: 1.5 MB or less on a phone and 3 MB or less on desktop, as transferred. The lazy 3D chunk has its own limit. LCP 2.0 s and INP 100 ms are unchanged, and INP includes a real first tap made while the 3D is loading.
+- **The idle spin (W14-O).** On a software renderer (SwiftShader, llvmpipe: what a low-end phone with weak or no GL falls back to) the model doesn't spin on its own and draws only when moved; the scene names its renderer with its first frame. Elsewhere the spin stops for good if the median of its first 30 frames is over 33 ms, runs at 30 fps at most on a phone, and pauses while the page is out of focus. A drag, a fling and a flight always draw.
+- **S0 (W14-I, W14-R).** On S0 the live spine is a fixed layer under the greeting and S1 that never takes part in layout: from 1200 px it stands in the gutter right of the questions, under that it is a band along the bottom, with a soft page-colour plate behind `g.about` and the footer note so no text sits on it. All nine discs glow. It has no still: the greeting stays the LCP, and when the 3D can't run the layer shows nothing, never an empty box. The first tap must never wait on it, so it starts in this order:
+  1. the same checks as everywhere: Save-Data, a 2G or 3G connection, or no WebGL2 means nothing loads;
+  2. it waits for the LCP and one second more, then for idle time (with a 2-second deadline);
+  3. a 1×1 WebGL2 context on the main thread reads the renderer's name and is given straight back. On a software renderer it stops there, before any 3D code or the mesh loads (`software-gl`);
+  4. otherwise the 3D chunk and the mesh load as on the hero.
+
+  A pointer press or a key before its first frame means the visitor is leaving S0: the 3D gives up there and doesn't come back on that screen. After its first frame it stays. Leaving S0 fades the layer out over 300 ms and then unmounts it, which frees the scene and gives its WebGL context back; Back to S0 mounts it afresh. S0 sends no `plan_view`.
+- **Budgets (§13.10).** The mesh streams after the first paint: 1.5 MB or less on a phone and 3 MB or less on desktop, as transferred. The lazy 3D chunk has its own limit. LCP 2.0 s and INP 100 ms are unchanged, and INP includes a real first tap made while the 3D is loading; §13.10 says how each gate is judged.
 - **The look is the owner's call.** He approves it by eye, from worker-3's sheets and on his own phone on the Preview (§13.8 B8). No metric stands in for that.
 - **Replaced.** The phase 1b lit-disc stills (one base plus glow layers on a canvas) and the scroll sequence (12 pre-rendered push-ins per theme) are replaced by the live model and won't be rendered. What follows below on them is the measured record of that option, not a plan. If plans should light their own discs, that gets specified on the live model.
 
@@ -773,7 +782,7 @@ Target: WCAG 2.2 AA on `/`, the questions and the plan, and on the search pages,
 6. **Form:** visible labels; `autocomplete` set to `name`, `email` and `tel`; errors tied to their field with `aria-describedby` and announced; the consent box is a real checkbox, unticked, with a clickable label.
 7. **S8** lines are announced politely (`aria-live="polite"`). No fake percentage.
 8. **Reduced motion:** no slides or fades. The greeting appears at once. In the first release the plan is the hero still and the words. From phase 1b it's the still version (§6.6): nothing scrubs or cross-fades, and each stop's close-up swaps in without animation. The page scrolls normally either way, with no scroll-jacking.
-9. **The spine is decoration plus a list.** The hero image has `hx.alt.*`. The live 3D canvas (§6.6) carries the same alt text as the still, as an image, and turns with the arrow keys when focused. Every agent, job and mark is HTML text. From phase 1b the disc buttons work from the keyboard (Tab, then Enter), in spine order, labelled with `sp.disc.aria`. Nothing needs a hover or a drag.
+9. **The spine is decoration plus a list.** The hero image has `hx.alt.*`. The live 3D canvas (§6.6) carries the same alt text as the still, as an image, on S0 too. It isn't focusable and takes no keys, since nothing needs a turn. Every agent, job and mark is HTML text. From phase 1b the disc buttons work from the keyboard (Tab, then Enter), in spine order, labelled with `sp.disc.aria`. Nothing needs a hover or a drag.
 10. **Marks are never colour alone.** ● ◐ ○ each have a text label in the legend and an accessible name.
 11. **Film lightbox:** focus moves in, Esc closes it, and focus returns to "See how it works". It has play and pause controls. The film has music and no speech, and its words are on screen, so it needs no captions. A one-line text description sits under it.
 12. **Reflow:** usable at 200 % zoom and 320 px wide with no sideways scrolling.
@@ -812,7 +821,8 @@ No tests exist in the repo today, and CI runs only CodeQL. The first release add
   - reduced motion; from phase 1b also no AVIF, Save-Data, and a push-in file that fails to load, each ending on the still version;
   - the S1b path; every S7 error, including a 403 twice and no answer twice, which must open the plan;
   - Back going one step with the answers kept, and Back from the plan landing on S6;
-  - Ananya's run producing her plan (6 agents, 4 stops in order, the Pilot tag), with her `/lead` body matching the fixture the API test turns into the golden email.
+  - Ananya's run producing her plan (6 agents, 4 stops in order, the Pilot tag), with her `/lead` body matching the fixture the API test turns into the golden email;
+  - the live spine on SwiftShader (§6.6): on S0, with the probe told the GPU is real, it goes live without moving the options, the greeting stays the LCP, and a press before its first frame gives the 3D up and frees its worker; on S0 as a software renderer, Save-Data or a slow connection it fetches no 3D; on the plan, the hero and the tour go live, fly and fall back as §6.6 says.
 - **Preview smoke test:** on each pull request's Vercel Preview, one run to the plan with Cloudflare's test keys, writing to the Neon preview branch and emailing the tester.
 - **Accessibility (axe through Playwright)** on every screen in both themes, plus one full pass with VoiceOver on an iPhone before launch.
 - **HTML check:** `/` without JavaScript contains `g.about`, S1's question and its five options, and the footer links. It keeps at least 40 words outside the header and footer, or `scripts/llms-full.mjs` refuses to build. The sitemap gains no URL in phase 1.
@@ -820,7 +830,7 @@ No tests exist in the repo today, and CI runs only CodeQL. The first release add
 - **The spine's files (Playwright and a script, phase 1 for the hero, phase 1b for the rest):**
   - the hero picks: at 390 × 844 at 3× the page fetches `phone-1170`, and on a 1200-wide window at 2× `hero-2560`, in AVIF;
   - theme isolation: a light visit fetches no file under `/spine/r17/dark/`, and a dark visit none under `/light/`;
-  - nothing under `/spine/` is fetched before S5 (no r17 still or any other `/spine/` file), and no push-in file before the plan paints. The one exemption is S0's live mesh, `/spine/3d/m1/*`, and only when it loads after the first paint, never on Save-Data or a slow connection (W14-R, 9 Oct);
+  - nothing under `/spine/` is fetched before S5 (no r17 still or any other `/spine/` file), and no push-in file before the plan paints. The one exemption is S0's live mesh, `/spine/3d/m1/*`, and only when it loads after the first paint, never on Save-Data, a slow connection or a software renderer (W14-R, 9 Oct). CI runs on SwiftShader, so the check that the mesh comes after the first paint runs with the S0 probe told the GPU is real;
   - the weight check: a script reads every `manifest.json` and adds up each of the 27 plans' tours in both themes. It fails the build if a tour passes 3 MB on desktop or 1.5 MB on a phone, or a hero file passes its limit in §13.10;
   - compositor parity: the page's compositor and `web/test.js`, copied into the tests as the reference, draw Ananya's beat 1 and one frame on the way from the same files, and the pixels match;
   - the still version (reduced motion, and no AVIF) fetches no frame on the way, only beat 1 and the close-up stills;
@@ -828,7 +838,7 @@ No tests exist in the repo today, and CI runs only CodeQL. The first release add
 - **Render checks (worker-2's tools, before any new render goes into the repo):** `layers.py --check` for layer accuracy, `disc_boxes.py` for the anchors, and `readability.py` on every new still that words sit beside (the desktop hero, and each close-up on its words' side), where each text block must reach 4.5, or 3 for large text.
 - **Real devices:** one mid-range Android phone on 4G and one iPhone, in both themes.
 - **Launch gate:** a live test lead on production, using the owner's own email, passes the launch bar in §3. The test row is deleted afterwards with the saved query.
-- **CI:** a GitHub Actions job runs lint, the type check, the unit, API and claims tests, the build and the Playwright run on every pull request into `dev` and `main`.
+- **CI:** a GitHub Actions job runs lint, the type check, the unit, API and claims tests, the build and the Playwright run on every pull request into `dev` and `main`. A second job runs the spine's 3D end-to-end tests (S0, the plan's hero and tour, the fallbacks and the `/spine/` files) under SwiftShader, one worker at a time. The speed gates of §13.10 run by hand against a Preview.
 
 ---
 
@@ -1052,8 +1062,8 @@ Checked with `git fetch ziiroai` and `git show` on 7 Oct.
 
 | Metric | Gate |
 |---|---|
-| LCP | 2.0 s or less. The greeting text is the LCP, painted from static HTML. Wherever the spine shows, the r17 still is its LCP element, never the 3D canvas |
-| INP | 100 ms or less on taps. No network call between steps. It includes a real first tap made while the 3D is loading: the worst of 5 runs at 4× CPU slowdown |
+| LCP | 2.0 s or less. The greeting text is the LCP, painted from static HTML. On the hero and the plan the r17 still is the spine's LCP element, never the 3D canvas. S0's live spine has no still, and the greeting stays S0's LCP |
+| INP | 100 ms or less on taps. No network call between steps. It includes a real first tap made while the 3D is loading (S0's first S1 option, and the plan's hero): the worst of 5 runs at 4× CPU slowdown on Fast 4G. That gate is judged on a real GPU, at 100 ms or less. On SwiftShader, which stands in for a low-end phone's software GL, the runs with the 3D on are held to their own 3D-off baseline (Save-Data, the same steps): their worst tap may be at most one frame (16 ms) slower. S0's gate also times the longest main-thread task up to the tap, held the same way: 50 ms or less on a real GPU, at most one frame over the baseline on SwiftShader |
 | CLS | 0.02 or less |
 | JS before first paint | 150 KB gz or less (entry plus the funnel chunk, which is 25 KB gz at most). No WebGL, Spline, framer-motion or Preloader before the first paint on `/`. The 3D spine's code is a lazy chunk loaded after the first paint (below) |
 | HTML for `/` | 30 KB gz or less, with the head script at 2 KB and the greeting map at 3 KB at most |
@@ -1073,8 +1083,8 @@ Checked with `git fetch ziiroai` and `git show` on 7 Oct.
 | Decoded frames held (1b), superseded by the D2 veto | 9 composed frames at most: the current one and 4 on each side | About 33 MB on desktop and 23 MB on a phone |
 | The still version (1b), superseded by the D2 veto | reduced motion, Save-Data, a 2G or 3G connection, or no AVIF gets the still version (§6.6) | About 53 KB per stop on desktop and 39 KB on a phone, plus beat 1 |
 | Film | never preloaded; poster 90 KB at most; video fetched only on tap | Today's poster is 84 KB (§13.9) |
-| 3D spine code (D2 veto), a lazy chunk loaded after the first paint | Set from worker-1's first measured build on `feat/spine-3d`: the measured gzip size, written into this row, becomes the gate | Not measured yet. worker-1's estimate for three.js, the glTF loader, a decoder and the controls is 180–250 KB gz |
-| 3D spine mesh (D2 veto), streamed after the first paint | 1.5 MB on a phone, 3 MB on desktop, as transferred | Not measured yet. The source GLB is 67.8 MB, so the web derivative must shrink it by about 45× for phones |
+| 3D spine code (D2 veto), a lazy chunk loaded after the first paint | 173,056 bytes (169 KiB) gzip at level 9, all of the 3D code one visit fetches: the size measured on `feat/spine-3d` at 957a755, rounded up to the next KiB so a rebuild's byte jitter doesn't trip it. The gate is `spine3d-gates.spec.ts` (e); growing past it means updating this row first | 957a755: 172,141 bytes on the worker path (`host` 1,245 + `spine.worker` 170,896, three.js inside the worker bundle) and 170,442 on the main-thread path (`host` + `scene` 169,197) |
+| 3D spine mesh (D2 veto), streamed after the first paint | 1.5 MB on a phone, 3 MB on desktop, as transferred | `m1`: 1,402,784 bytes on a phone (94 % of its limit) and 2,674,616 bytes on desktop (89 %), from the 67.8 MB source |
 
 ### 13.11 Top risks
 

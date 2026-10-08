@@ -11,9 +11,11 @@ import { expect, test } from "@playwright/test";
  * baseline, at 4× CPU on Fast 4G. On a Vercel Preview, set VERCEL_AUTOMATION_BYPASS_SECRET: it travels only as a
  * header to the Preview's own origin.
  * - LCP: the browser's own LCP on S0 (it stops at the first input), 2.0 s or less, and it must be the greeting.
- * - INP: Event Timing's duration for a tap on the first S1 option while the 3D is loading, worst of 5: 100 ms or
- *   less, or, where the 3D-off baseline's own tap is already slower, within one frame of it.
- * - Long tasks: every task over 50 ms from navigation to the tap, listed for both; the same rule against 50 ms.
+ * - INP (§13.10): Event Timing's duration for a tap on the first S1 option while the 3D is loading, worst of 5. On a
+ *   real GPU (LANDING_GPU=metal) 100 ms or less. On SwiftShader S0 has no 3D (§6.6 "S0": the probe stops it), so the
+ *   3D-on run is held to its 3D-off baseline instead: at most one frame (16 ms) slower.
+ * - Long tasks: every task over 50 ms from navigation to the tap, listed for both; 50 ms or less on a real GPU, at most
+ *   one frame over the baseline on SwiftShader.
  * On and off runs alternate, each in a cold context, after one unmeasured warm-up load.
  */
 const BASE = process.env.PLAYWRIGHT_BASE_URL;
@@ -137,7 +139,13 @@ test(`S0 on ${GPU}: LCP, the first S1 tap's INP and long tasks, 3D on against th
   info.annotations.push({ type: "worst of 5", description: summary });
   console.log(`[${GPU}] ${info.project.name} worst of ${RUNS}: ${summary}`);
   expect(worst(on, "lcp")).toBeLessThanOrEqual(LCP_LIMIT_MS);
-  // The 3D's own cost: its worst tap and its longest task stay within one frame of the baseline's.
-  expect(worst(on, "tap")).toBeLessThanOrEqual(Math.max(INP_LIMIT_MS, worst(off, "tap") + FRAME_MS));
-  expect(worst(on, "longest")).toBeLessThanOrEqual(Math.max(LONG_TASK_MS, worst(off, "longest") + FRAME_MS));
+  if (GPU === "metal") {
+    // §13.10 is judged here: the spec's own limits.
+    expect(worst(on, "tap")).toBeLessThanOrEqual(INP_LIMIT_MS);
+    expect(worst(on, "longest")).toBeLessThanOrEqual(LONG_TASK_MS);
+    return;
+  }
+  // SwiftShader: the 3D's own cost, against the same steps with the 3D off.
+  expect(worst(on, "tap")).toBeLessThanOrEqual(worst(off, "tap") + FRAME_MS);
+  expect(worst(on, "longest")).toBeLessThanOrEqual(worst(off, "longest") + FRAME_MS);
 });
