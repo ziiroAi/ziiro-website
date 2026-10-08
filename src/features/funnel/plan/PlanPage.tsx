@@ -1,5 +1,6 @@
 // S9 (§6): the plan, drawn on the device from the descriptor lane A passes in (00-index §1.3). It renders §6.2's
-// blocks 1 to 4. Blocks 0 and 5 are the site's own Navbar and footer (lane D).
+// blocks 1 to 4. Blocks 0 and 5 are the site's own Navbar and footer (lane D). Blocks 2 and 3 sit in the 3D tour
+// (W14-F): a sticky spine beside them that flies to each stop's disc.
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { copy } from "../data";
@@ -8,6 +9,7 @@ import { Close } from "./Close";
 import { Hero } from "./Hero";
 import { NeedBlock } from "./NeedBlock";
 import { PartStop } from "./PartStop";
+import { SpineTour } from "../spine3d/plan/SpineTour";
 import { buildPlanView } from "./planView";
 import { SaveBanner } from "./SaveBanner";
 import { usePlanDepth } from "./usePlanDepth";
@@ -20,6 +22,7 @@ export function PlanPage({ plan, visitor, words, saveNotice, onProgress }: PlanP
     () => buildPlanView({ plan, name: visitor.name, problemText: words.problemText }),
     [plan, visitor.name, words.problemText],
   );
+  const lit = useMemo(() => view.stops.map((stop) => stop.department), [view]);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const latest = useRef(onProgress);
   useEffect(() => {
@@ -48,12 +51,14 @@ export function PlanPage({ plan, visitor, words, saveNotice, onProgress }: PlanP
         headingRef={headingRef}
         onBook={onBook}
         onProgress={report}
-        lit={view.stops.map((stop) => stop.department)}
+        lit={lit}
       />
-      <NeedBlock view={view} />
-      {view.stops.map((stop) => (
-        <PartStop key={stop.department} stop={stop} />
-      ))}
+      <SpineTour departments={lit} planAgentIds={plan.agentIds}>
+        <NeedBlock view={view} />
+        {view.stops.map((stop) => (
+          <PartStop key={stop.department} stop={stop} />
+        ))}
+      </SpineTour>
       <Close view={view} name={visitor.name} email={visitor.email} onBook={onBook} />
     </div>
   );

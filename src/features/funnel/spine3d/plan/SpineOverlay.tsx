@@ -1,0 +1,215 @@
+// (C) W14-F part 2: everything laid over the live spine, from the viewer API.
+// - Keyboard: one real button per department disc (§6.2 "Opening a disc"), in spine order from the top, each named
+//   with sp.disc.aria and placed over the disc's hit area (tap.ts). Pointer input passes through to the canvas, so a
+//   drag on a disc still turns the spine; the canvas reports taps and hovers through onDiscPick.
+// - The disc panel: hover, tap or focus opens it; a tap or Enter moves focus into it; Escape gives focus back to the
+//   disc's button (returnFocusTo).
+// - Pinned callouts (§6.7): one per lit disc, re-laid from onDiscBoxes at most once per animation frame.
+// - The lit and quiet legend (sp.legend.*), headed by the hover hint once on desktop (sp.hint.hover), in a strip at
+//   the bottom that the callouts keep out of.
+// Before the 3D is live (the still, or a fallback) it renders nothing: the still has no panels.
+import { createRef, useCallback, useEffect, useMemo, useRef, useState, type FocusEvent, type RefObject } from "react";
+import { copy } from "../../data";
+import type { AgentId, DiscId } from "../../data/contract";
+import type { DiscBox, SpineViewerApi } from "../api";
+import { DiscPanel } from "./DiscPanel";
+import { departmentForDisc, discAria } from "./discCopy";
+import { layoutLabels, type PlacedLabel } from "./labels";
+import { clipBox, hitArea, type ScreenBox } from "./tap";
+import type { Variant } from "./targets";
+import { calloutInputs, LEGEND_STRIP_PX, screenDisc, type Callout } from "./tour";
+
+/** The department discs from the top of the spine down: the keyboard's order. */
+const BUTTON_DISCS: readonly DiscId[] = ["G07", "G06", "G05", "G04", "G03", "G02", "G01"];
+const MICRO = "font-mono text-[11px] uppercase tracking-[0.16em] text-[color:var(--funnel-muted)]";
+/** Small print over the spine needs a backing to stay readable on its bright discs. */
+const BACKED = "rounded-md bg-[color:color-mix(in_srgb,var(--funnel-bg)_82%,transparent)] px-2 py-1";
+
+type OpenedBy = "hover" | "focus" | "tap" | "key";
+interface Opened {
+  disc: DiscId;
+  by: OpenedBy;
+}
+
+export interface SpineOverlayProps {
+  api: SpineViewerApi | null;
+  /** The lit discs' callouts, in plan order (tour.ts calloutsFor). */
+  callouts: readonly Callout[];
+  planAgentIds: readonly AgentId[];
+  variant: Variant;
+  /** The viewer's size in CSS px. */
+  view: { width: number; height: number };
+}
+
+/** The latest disc boxes, at most one update per animation frame. */
+function useDiscBoxes(api: SpineViewerApi | null): readonly DiscBox[] {
+  const [boxes, setBoxes] = useState<readonly DiscBox[]>(() => api?.boxes() ?? []);
+  useEffect(() => {
+    if (!api) return undefined;
+    setBoxes(api.boxes());
+    let latest: readonly DiscBox[] | null = null;
+    let frame: number | null = null;
+    const unsubscribe = api.onDiscBoxes((next) => {
+      latest = next;
+      frame ??= requestAnimationFrame(() => {
+        frame = null;
+        if (latest) setBoxes(latest);
+      });
+    });
+    return () => {
+      unsubscribe();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [api]);
+  return boxes;
+}
+
+/** Where a disc's button sits: its hit area, else its visible box, else nowhere (then it is visually hidden). */
+function buttonArea(box: DiscBox | undefined, variant: Variant, view: SpineOverlayProps["view"]): ScreenBox | null {
+  if (!box || !box.onScreen) return null;
+  const disc = screenDisc(box);
+  return hitArea(disc, variant, view) ?? clipBox(disc.box, view);
+}
+
+function Callouts({ labels, callouts }: { labels: readonly PlacedLabel[]; callouts: readonly Callout[] }): JSX.Element {
+  const shown = labels.filter((l) => !l.hidden);
+  return (
+    <>
+      <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full">
+        {shown.map((l) => (
+          <line key={l.disc} x1={l.leader.x1} y1={l.leader.y1} x2={l.leader.x2} y2={l.leader.y2}
+            stroke="var(--funnel-line)" strokeWidth={1} />
+        ))}
+      </svg>
+      {shown.map((l) => {
+        const callout = callouts.find((c) => c.disc === l.disc)!;
+        return (
+          <div key={l.disc} data-callout={l.disc} aria-hidden="true"
+            className="pointer-events-none absolute overflow-hidden rounded-lg bg-[color:var(--funnel-card)] px-2 py-1.5 text-xs shadow-sm"
+            style={{ left: l.x, top: l.y, width: l.width, height: l.height }}>
+            <p className="font-medium">{callout.head}</p>
+            {!l.compact && callout.lines.map((line) => <p key={line} className="text-[color:var(--funnel-muted)]">{line}</p>)}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/** The legend, with the hover hint on top of it until the first panel opens. Callouts keep out of its strip. */
+function Legend({ hint }: { hint: boolean }): JSX.Element {
+  return (
+    <ul data-legend className={`pointer-events-none absolute bottom-3 right-3 flex flex-col gap-1 ${MICRO} ${BACKED}`}>
+      {hint && <li>{copy("sp.hint.hover")}</li>}
+      <li><span aria-hidden="true" className="text-[color:var(--funnel-accent)]">●</span> {copy("sp.legend.today")}</li>
+      <li><span aria-hidden="true">○</span> {copy("sp.legend.later")}</li>
+    </ul>
+  );
+}
+
+export function SpineOverlay({ api, callouts, planAgentIds, variant, view }: SpineOverlayProps): JSX.Element | null {
+  const boxes = useDiscBoxes(api);
+  const [opened, setOpened] = useState<Opened | null>(null);
+  const [hintSeen, setHintSeen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRefs = useMemo(
+    () => Object.fromEntries(BUTTON_DISCS.map((disc) => [disc, createRef<HTMLButtonElement>()])) as Record<DiscId, RefObject<HTMLButtonElement>>,
+    [],
+  );
+
+  const open = useCallback((disc: DiscId, by: OpenedBy) => {
+    if (!departmentForDisc(disc)) return;
+    setOpened({ disc, by });
+    setHintSeen(true);
+  }, []);
+  /** Set while the panel hands focus back to a disc's button, so that focus doesn't reopen it. */
+  const returning = useRef(false);
+  const close = useCallback(() => {
+    returning.current = true;
+    setOpened(null);
+    setTimeout(() => {
+      returning.current = false;
+    }, 0);
+  }, []);
+  const onButtonFocus = (disc: DiscId) => {
+    if (returning.current) returning.current = false;
+    else open(disc, "focus");
+  };
+
+  useEffect(() => {
+    if (!api) return undefined;
+    return api.onDiscPick(({ disc, via }) => {
+      if (via === "tap") {
+        if (disc) open(disc, "tap");
+        return;
+      }
+      setOpened((current) => {
+        const sticky = current && (current.by === "tap" || current.by === "key");
+        if (sticky) return current;
+        if (!disc) return current?.by === "hover" ? null : current;
+        return departmentForDisc(disc) ? { disc, by: "hover" } : current;
+      });
+      if (disc && departmentForDisc(disc)) setHintSeen(true);
+    });
+  }, [api, open]);
+
+  useEffect(() => {
+    if (!api) setOpened(null);
+  }, [api]);
+
+  const labels = useMemo(() => {
+    const above = { width: view.width, height: Math.max(0, view.height - LEGEND_STRIP_PX[variant]) };
+    return layoutLabels(calloutInputs(boxes, callouts, variant), above).labels;
+  }, [boxes, callouts, variant, view]);
+
+  const onButtonBlur = (event: FocusEvent<HTMLButtonElement>) => {
+    const next = event.relatedTarget as Node | null;
+    const stays = next !== null && (panelRef.current?.contains(next) || BUTTON_DISCS.some((d) => buttonRefs[d].current === next));
+    if (!stays) setOpened((current) => (current?.by === "focus" ? null : current));
+  };
+
+  if (!api) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      <Callouts labels={labels} callouts={callouts} />
+      {BUTTON_DISCS.map((disc) => {
+        const department = departmentForDisc(disc)!;
+        const area = buttonArea(boxes.find((b) => b.disc === disc), variant, view);
+        return (
+          <button
+            key={disc}
+            ref={buttonRefs[disc]}
+            type="button"
+            data-disc={disc}
+            aria-label={discAria(department, planAgentIds)}
+            aria-expanded={opened?.disc === disc}
+            className={`pointer-events-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--funnel-accent)] ${area ? "absolute" : "sr-only"}`}
+            style={area ? { left: area.x0, top: area.y0, width: area.x1 - area.x0, height: area.y1 - area.y0 } : undefined}
+            onFocus={() => onButtonFocus(disc)}
+            onClick={() => open(disc, "key")}
+            onBlur={onButtonBlur}
+          />
+        );
+      })}
+      {opened && (
+        <div
+          ref={panelRef}
+          className={
+            variant === "desktop"
+              ? "pointer-events-auto absolute bottom-16 left-4 max-h-[70%] w-80 overflow-auto"
+              : "pointer-events-auto absolute inset-x-2 top-full mt-2 max-h-[50vh] overflow-auto"
+          }
+        >
+          <DiscPanel
+            disc={opened.disc}
+            planAgentIds={planAgentIds}
+            onClose={close}
+            focusOnOpen={opened.by === "tap" || opened.by === "key"}
+            returnFocusTo={buttonRefs[opened.disc]}
+          />
+        </div>
+      )}
+      <Legend hint={variant === "desktop" && !hintSeen} />
+    </div>
+  );
+}

@@ -16,8 +16,9 @@ vi.mock("../../home/sections/BrandFilm", async () => {
 class FakeObserver {
   static last: FakeObserver | null = null;
   readonly targets: Element[] = [];
-  constructor(private readonly callback: IntersectionObserverCallback) {
-    FakeObserver.last = this;
+  constructor(private readonly callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+    // The plan_depth watcher (usePlanDepth's margin); the 3D tour (W14-F) adds observers of its own.
+    if (options?.rootMargin === "0px 0px -40% 0px") FakeObserver.last = this;
   }
   observe(el: Element): void {
     this.targets.push(el);

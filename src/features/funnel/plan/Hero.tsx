@@ -4,6 +4,7 @@
 import { useCallback, useState, type Ref } from "react";
 import { copy } from "../data";
 import type { CtaFrom, DepartmentId, PlanProgress } from "../data/contract";
+import type { SpineViewerApi } from "../spine3d/api";
 import { stillReasonOf, type FallbackReason } from "../spine3d/rules";
 import { SpineViewer } from "../spine3d/SpineViewer";
 import { BookCallLink } from "./BookCallLink";
@@ -48,9 +49,11 @@ export interface HeroProps {
   onProgress(fields: PlanProgress): void;
   /** The plan's departments: their discs stay lit on the live spine, the rest keep 12 % (D28, W14-C). */
   lit?: readonly DepartmentId[];
+  /** The hero spine's viewer API once live, null on fallback (W14-F). */
+  onApi?(api: SpineViewerApi | null): void;
 }
 
-export function Hero({ heroText, name, email, headingRef, onBook, onProgress, lit }: HeroProps): JSX.Element {
+export function Hero({ heroText, name, email, headingRef, onBook, onProgress, lit, onApi }: HeroProps): JSX.Element {
   const [filmOpen, setFilmOpen] = useState(false);
   const theme = useHtmlTheme();
   // §9's plan_view: "motion" once the live spine runs, "still" with still_reason when it falls back.
@@ -105,6 +108,7 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress, li
             lit={lit}
             className={FADE_OUT}
             onPhase={onPhase}
+            onApi={onApi}
           >
             <HeroPicture className="block h-auto w-full" />
           </SpineViewer>
