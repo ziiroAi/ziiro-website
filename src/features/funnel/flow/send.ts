@@ -3,8 +3,8 @@
  * and S8's lines and timing. Only postLead touches the network; useLeadSend (Task 13) puts them together.
  */
 import {
-  CONSENT_VERSION, LEAD_FIELDS, isOneOf,
-  type ChipId, type LeadField, type LeadPlan, type LeadRequest, type TeamBand,
+  CONSENT_VERSION, LEAD_FIELDS, PLAN_EMAIL_STATUSES, isOneOf,
+  type ChipId, type LeadField, type LeadPlan, type LeadRequest, type PlanEmailStatus, type TeamBand,
 } from "@/features/funnel/data/light";
 import type { CheckedContact } from "./screens/types";
 import type { Answers, SendResult } from "./state";
@@ -65,7 +65,7 @@ export function leadRequest({ visitId, retry, contact, token, answers, words, pl
 }
 
 export type LeadOutcome =
-  | { kind: "saved" }
+  | { kind: "saved"; planEmail: PlanEmailStatus | null }  // null: the answer didn't say
   | { kind: "field"; field: LeadField }
   | { kind: "refused"; status: number }
   | { kind: "timeout" };
@@ -81,8 +81,10 @@ export async function postLead(body: LeadRequest, timeoutMs: number, fetchImpl: 
       body: JSON.stringify(body),
       signal: controller.signal,
     });
-    if (response.ok) return { kind: "saved" };  // the server answers 200 only once the lead is saved (§13.2)
-    const answer = (await response.json().catch(() => null)) as { field?: unknown } | null;
+    const answer = (await response.json().catch(() => null)) as { field?: unknown; planEmail?: unknown } | null;
+    if (response.ok) {  // the server answers 200 only once the lead is saved (§13.2)
+      return { kind: "saved", planEmail: isOneOf(PLAN_EMAIL_STATUSES, answer?.planEmail) ? answer.planEmail : null };
+    }
     const field = answer?.field;
     if (response.status === 400 && isOneOf(LEAD_FIELDS, field)) return { kind: "field", field };
     return { kind: "refused", status: response.status };

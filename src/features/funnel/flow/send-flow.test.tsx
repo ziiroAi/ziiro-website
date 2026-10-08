@@ -217,6 +217,23 @@ describe("sending S7 (§4.3, §10, §13.2)", () => {
     expect(root().querySelector<HTMLAnchorElement>(".f-plan a.f-act")?.href).toBe(calendlyUrl("Ananya", "ananya@example.com"));
   });
 
+  it.each(["held", "failed"])("without a plan, doesn't say the email is on its way when /lead's planEmail is %s (review H2 recheck)", async (planEmail) => {
+    vi.mocked(loadPlanData).mockRejectedValueOnce(new TypeError("Failed to fetch dynamically imported module"));
+    replies = [json(200, { success: true, planEmail })];
+    send();
+    await run(2_100);
+    expect(leads).toHaveLength(1);
+    expect(screenNow()).toBe("plan");
+    expect(root().querySelector(".f-plan .f-err")?.textContent).toBe(copy("s9.err.unsent"));
+  });
+
+  it("with a plan, a held plan email adds no notice: the details were saved (review H2 recheck)", async () => {
+    replies = [json(200, { success: true, planEmail: "held" })];
+    send();
+    await run(2_100);
+    expect(planText()).toBe("Ananya · none");
+  });
+
   it("never offers S7 a third time when the plan's code and /lead both fail (review H2)", async () => {
     const lost = new TypeError("Failed to fetch dynamically imported module");
     vi.mocked(loadPlanData).mockRejectedValueOnce(lost).mockRejectedValueOnce(lost);

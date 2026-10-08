@@ -4,10 +4,11 @@
  * S8's clock is Date.now(), counted from the tap.
  */
 import { useCallback, useRef, type Dispatch } from "react";
+import type { LeadPlan } from "@/features/funnel/data/light";
 import { fallbackLeadPlan } from "./fallback-plan";
 import { loadPlanData, loadPlanPage } from "./plan-chunk";
 import type { CheckedContact, FlowEnv, TokenSource } from "./screens/types";
-import { LEAD_BUDGET_MS, S8_MIN_MS, TOKEN_WAIT_MS, afterSend, leadRequest, postLead } from "./send";
+import { LEAD_BUDGET_MS, S8_MIN_MS, TOKEN_WAIT_MS, afterSend, leadRequest, postLead, type LeadOutcome } from "./send";
 import { setLeadContact } from "./session";
 import type { FlowAction, FlowState, SendResult } from "./state";
 import { markLeadSent } from "./visit-id";
@@ -18,6 +19,15 @@ const wait = (ms: number) => (ms <= 0 ? Promise.resolve() : new Promise<void>((r
 const FAILED: SendResult = { to: "s7", error: "server", field: null, line: "g.error" };
 /** A second try that failed before /lead: never S7 again (D18, review H2). The plan's frame says so and offers a call. */
 const GAVE_UP: SendResult = { to: "plan", notice: "fail", error: "server" };
+
+/**
+ * With no plan on this page, S9 can only point at the email, so it says the plan is on its way only when /lead
+ * says the email went (review H2 recheck). A held or failed email shows s9.err.unsent instead.
+ */
+function withoutPlan(result: SendResult, outcome: LeadOutcome): SendResult {
+  const emailed = outcome.kind === "saved" && outcome.planEmail === "sent";
+  return result.to === "plan" && result.notice === null && !emailed ? { ...result, notice: "unsure" } : result;
+}
 
 export function useLeadSend(state: FlowState, dispatch: Dispatch<FlowAction>, starter: string): FlowEnv["send"] {
   const sending = useRef(false);
@@ -38,17 +48,20 @@ export function useLeadSend(state: FlowState, dispatch: Dispatch<FlowAction>, st
       try {
         const { teamBand, revenueBand, revenueCurrency } = answers;
         if (!teamBand || !revenueBand || !revenueCurrency) throw new Error("S7 was reached without S4 and S5");
-        const plan = await loadPlanData().then(
+        const { plan, composed } = await loadPlanData().then(
           ({ composePlan }) => {
-            const composed = composePlan({ teamBand, revenueBand, currency: revenueCurrency, chips: words.chips, problemText: words.problemText });
-            dispatch({ type: "planReady", plan: composed });
-            return composed;
+            const made = composePlan({ teamBand, revenueBand, currency: revenueCurrency, chips: words.chips, problemText: words.problemText });
+            dispatch({ type: "planReady", plan: made });
+            return { plan: made as LeadPlan, composed: true };
           },
-          () => fallbackLeadPlan(teamBand, revenueBand),  // its code didn't load: the lead still goes out, and S9 says so
+          // its code didn't load: the lead still goes out, and S9 says so
+          () => ({ plan: fallbackLeadPlan(teamBand, revenueBand), composed: false }),
         );
         const token = await widget.waitForToken(TOKEN_WAIT_MS);
         const body = leadRequest({ visitId: visit.id, retry: isRetry, contact, token, answers, words, plan });
-        const result = afterSend(await postLead(body, LEAD_BUDGET_MS), isRetry);
+        const outcome = await postLead(body, LEAD_BUDGET_MS);
+        const sent = afterSend(outcome, isRetry);
+        const result = composed ? sent : withoutPlan(sent, outcome);
         await Promise.all([wait(S8_MIN_MS - elapsed()), result.to === "plan" ? loadPlanPage().catch(() => undefined) : undefined]);
         if (result.to === "s7") widget.reset();  // a token is single use: the second try needs a fresh one
         dispatch({ type: "sendFinished", result });

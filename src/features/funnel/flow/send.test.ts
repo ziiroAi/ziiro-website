@@ -76,7 +76,8 @@ describe("postLead (§13.2)", () => {
   });
 
   it.each<[string, number, unknown, LeadOutcome]>([
-    ["a save", 200, { success: true, planEmail: "held" }, { kind: "saved" }],
+    ["a save", 200, { success: true, planEmail: "held" }, { kind: "saved", planEmail: "held" }],
+    ["a save with no readable planEmail", 200, { success: true }, { kind: "saved", planEmail: null }],
     ["a field the server rejects", 400, { success: false, field: "email" }, { kind: "field", field: "email" }],
     ["a bad payload", 400, { success: false, field: "payload" }, { kind: "field", field: "payload" }],
     ["the spam check", 403, { success: false }, { kind: "refused", status: 403 }],
@@ -105,7 +106,7 @@ describe("postLead (§13.2)", () => {
 
 describe("afterSend (index §1.3, §10, D18)", () => {
   it.each<[string, LeadOutcome, SendResult, SendResult]>([
-    ["200", { kind: "saved" }, { to: "plan", notice: null, error: null }, { to: "plan", notice: null, error: null }],
+    ["200", { kind: "saved", planEmail: "sent" }, { to: "plan", notice: null, error: null }, { to: "plan", notice: null, error: null }],
     ["400 email", { kind: "field", field: "email" }, { to: "s7", error: "email", field: "email", line: null }, { to: "plan", notice: "fail", error: "email" }],
     ["400 payload", { kind: "field", field: "payload" }, { to: "s7", error: "server", field: null, line: "g.error" }, { to: "plan", notice: "fail", error: "server" }],
     ["403", { kind: "refused", status: 403 }, { to: "s7", error: "bot", field: null, line: "s7.err.bot" }, { to: "plan", notice: "fail", error: "bot" }],
