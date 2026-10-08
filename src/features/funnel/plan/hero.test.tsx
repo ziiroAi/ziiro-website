@@ -30,6 +30,14 @@ function renderHero(onBook = vi.fn(), headingRef = createRef<HTMLHeadingElement>
 }
 
 describe("Hero (§6.2 block 1)", () => {
+  it("paints the r17 still inside the live spine viewer, which replaces it once its first frame is drawn (W14-C)", () => {
+    const { container } = renderHero();
+    const still = container.querySelector("[data-testid=spine-viewer] [data-testid=spine-still] picture img");
+    expect(still).not.toBeNull();
+    expect(container.querySelector("[data-testid=spine-viewer]")?.getAttribute("data-spine")).not.toBe("live");
+  });
+
+
   it("shows the eyebrow, both title lines, and their words with the name", () => {
     const { container } = renderHero();
     expect(textOf(container.querySelector("h1"))).toBe(`${copy("hx.h1")} ${copy("hx.h2")}`);
@@ -71,15 +79,15 @@ describe("Hero (§6.2 block 1)", () => {
     }
   });
 
-  it("fades the still's last 15 % into the page, and sets the stats on the page colour, so no edge shows", () => {
+  it("fades the spine's last 15 % into the page, still or live, and sets the stats on the page colour, so no edge shows", () => {
     const { container } = renderHero();
-    expect(container.querySelector("img")?.className).toContain("[mask-image:linear-gradient(to_bottom,#000_85%,transparent)]");
+    expect(container.querySelector("[data-testid=spine-viewer]")?.className).toContain("[mask-image:linear-gradient(to_bottom,#000_85%,transparent)]");
     expect(container.querySelector("ul")?.className).toContain("bg-[color:var(--funnel-bg)]");
   });
 
   it("fades the phone band's first 12 % in from the page too, keeping the bottom fade", () => {
     const { container } = renderHero();
-    expect(container.querySelector("img")?.className).toContain(
+    expect(container.querySelector("[data-testid=spine-viewer]")?.className).toContain(
       "max-[599px]:[mask-image:linear-gradient(to_bottom,transparent,#000_12%,#000_85%,transparent)]",
     );
   });

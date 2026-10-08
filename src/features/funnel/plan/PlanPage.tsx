@@ -48,6 +48,7 @@ export function PlanPage({ plan, visitor, words, saveNotice, onProgress }: PlanP
         headingRef={headingRef}
         onBook={onBook}
         onProgress={report}
+        lit={view.stops.map((stop) => stop.department)}
       />
       <NeedBlock view={view} />
       {view.stops.map((stop) => (

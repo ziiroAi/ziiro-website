@@ -1,0 +1,303 @@
+import { createHash } from "node:crypto";
+import { gzipSync } from "node:zlib";
+import type { CDPSession, Page, Response } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { expectPlan, tapThrough } from "./support/questions";
+
+/**
+ * (C) W14-E: the gates for the live 3D spine (spec patch §6.6 and §13.10, checklist B20). By hand, against a
+ * deployed Preview, never in CI: the throttled runs are slow and the numbers mean something only on Vercel.
+ *
+ *   ( set -a; . ~/.config/ziiro/builders.env; set +a; \
+ *     PLAYWRIGHT_BASE_URL=https://<the feat/spine-3d Preview> SPINE3D_CHUNK_GZ_LIMIT=<bytes, once measured> \
+ *     python3 "$BUS/with-render-lock.py" npx playwright test tests/e2e/spine3d-gates.spec.ts --workers=1 )
+ *
+ * The bypass secret travels only as a header to the Preview's own origin, and traces and videos are off, because a
+ * trace records request headers. /api/funnel/* is stubbed, so no run saves a lead or sends an email.
+ *
+ * What each gate measures:
+ * - (a) LCP. The browser's own LCP stops at the first input, and the spine shows only on the plan, after many taps.
+ *   So (a) times the plan's paint the same way: from the tap on "Show me my plan" to the frame where the r17 still
+ *   has painted, at 4× CPU on Fast 4G. It also checks that the still is what painted first, not the canvas.
+ * - (b) INP. A real tap on the plan's hero while the 3D is still loading: Event Timing's duration for that
+ *   interaction, the worst of 5 runs at 4× CPU.
+ * - (c) The drag. With reduced motion (no idle spin), the canvas takes over from the still; a sideways drag changes
+ *   its pixels; on a phone a vertical swipe on it still scrolls the page.
+ * - (d) The fallback. No WebGL (getContext stubbed to null, and the worker path removed) and Save-Data each keep the
+ *   still; Save-Data fetches no 3D chunk and no mesh.
+ * - (e) Transfer. The lazy 3D chunk's gzip size and the mesh's transfer size, reported against the budgets.
+ */
+
+const PREVIEW_URL = process.env.PLAYWRIGHT_BASE_URL;
+const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+/** Set from worker-1's first measured build (spec patch §13.10, "3D spine code"). Unset: (e) reports only. */
+const CHUNK_GZ_LIMIT = Number(process.env.SPINE3D_CHUNK_GZ_LIMIT) || null;
+
+const LCP_LIMIT_MS = 2_000;
+const INP_LIMIT_MS = 100;
+const INP_RUNS = 5;
+const CPU_SLOWDOWN = 4;
+const MESH_LIMIT_BYTES = { phone: 1_500_000, desktop: 3_000_000 } as const;
+/** Chrome DevTools' "Fast 4G" preset: 9 Mbps down, 1.5 Mbps up, 60 ms × 2.75 latency, both × 0.9. */
+const FAST_4G = { latency: 165, downloadThroughput: (9_000_000 / 8) * 0.9, uploadThroughput: (1_500_000 / 8) * 0.9 };
+/** How long the live model gets to replace the still, unthrottled, before (c) and (e) give up. */
+const LIVE_TIMEOUT_MS = 30_000;
+const SETTLE_MS = 400;
+const DRAG_PX = 160;
+const SWIPE_PX = 300;
+
+/**
+ * Checked against worker-1's SpineViewer on feat/spine-3d (src/features/funnel/spine3d/SpineViewer.tsx). The still is
+ * HeroPicture's <img> inside [data-testid=spine-still]. The viewer's wrapper is [data-testid=spine-viewer] and carries
+ * data-spine="still" | "loading" | "live" | "fallback", with data-spine-reason set to one of rules.ts's FallbackReason
+ * values on fallback; its canvas is [data-testid=spine-canvas].
+ */
+const SEL = {
+  still: '[data-testid=spine-still] img[src*="/spine/r17/"]:visible',
+  viewer: "[data-testid=spine-viewer]",
+  canvas: "[data-testid=spine-canvas]",
+  live: '[data-testid=spine-viewer][data-spine="live"]',
+  fallback: '[data-testid=spine-viewer][data-spine="fallback"]',
+  /** What (b) taps: the plan hero's heading, which is on screen as the plan opens. */
+  tapTarget: 'main h1, [data-screen="plan"] h1',
+} as const;
+const STATE_ATTR = "data-spine";
+const REASON_ATTR = "data-spine-reason";
+/** The lazy 3D code, by URL: host.ts (the switch), the worker bundle (three.js on OffscreenCanvas), and scene.ts
+ *  (three.js on the main thread, where OffscreenCanvas can't run WebGL). */
+const CHUNK_URL = /\/assets\/(host|scene|spine\.worker)-[\w-]+\.js(\?|$)/i;
+const MESH_URL = /\/spine\/3d\/.*\.glb(\?|$)/i;
+
+const STUB_VISIT = { status: 200, contentType: "application/json", body: '{"success":true}' };
+const STUB_LEAD = { status: 200, contentType: "application/json", body: '{"success":true,"planEmail":"sent"}' };
+
+test.use({ trace: "off", video: "off" });
+test.skip(!PREVIEW_URL, "Set PLAYWRIGHT_BASE_URL to the feat/spine-3d Preview");
+test.describe.configure({ mode: "serial" });
+
+type Device = keyof typeof MESH_LIMIT_BYTES;
+const deviceOf = (projectName: string): Device => (projectName === "phone" ? "phone" : "desktop");
+
+/** The bypass header on the Preview's own origin, then the stubs. The newest route wins, so the stubs go last. */
+async function wire(page: Page): Promise<void> {
+  if (PREVIEW_URL && BYPASS) {
+    await page.route(`${new URL(PREVIEW_URL).origin}/**`, (route) =>
+      route.continue({ headers: { ...route.request().headers(), "x-vercel-protection-bypass": BYPASS } }));
+  }
+  await page.route("**/api/funnel/visit", (route) => route.fulfill(STUB_VISIT));
+  await page.route("**/api/funnel/lead", (route) => route.fulfill(STUB_LEAD));
+}
+
+async function throttle(page: Page): Promise<CDPSession> {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: CPU_SLOWDOWN });
+  await cdp.send("Network.enable");
+  await cdp.send("Network.emulateNetworkConditions", { offline: false, ...FAST_4G });
+  return cdp;
+}
+
+/** S0 to S7 the way a person answers, then the contact step, stopping before the send. */
+async function toContactStep(page: Page): Promise<void> {
+  await page.goto("/");
+  await tapThrough(page, "I run a business", "Interior design / architecture", "5–10 years", "6–20", "₹1–5Cr");
+  await tapThrough(page, "Leads don't convert", "That's it");
+  await page.getByLabel("Your name").fill("TEST spine3d");
+  await page.getByLabel("Email", { exact: true }).fill("test@example.com");
+  await page.getByRole("checkbox").check();
+}
+
+const sendContact = (page: Page) => page.getByRole("button", { name: "Show me my plan" }).click();
+
+async function toPlan(page: Page): Promise<void> {
+  await toContactStep(page);
+  await sendContact(page);
+  await expectPlan(page);
+}
+
+const viewerState = (page: Page) =>
+  page.locator(SEL.viewer).first().getAttribute(STATE_ATTR, { timeout: 1_000 }).catch(() => null);
+
+async function canvasHash(page: Page): Promise<string> {
+  const shot = await page.locator(SEL.canvas).first().screenshot({ animations: "allow" });
+  return createHash("sha1").update(shot).digest("hex");
+}
+
+/** A one-finger drag through CDP: Playwright's touchscreen only taps. */
+async function touchDrag(cdp: CDPSession, from: { x: number; y: number }, dx: number, dy: number): Promise<void> {
+  const steps = 12;
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [from] });
+  for (let i = 1; i <= steps; i += 1) {
+    const point = { x: from.x + (dx * i) / steps, y: from.y + (dy * i) / steps };
+    await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [point] });
+  }
+  await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+}
+
+async function centreOf(page: Page, selector: string): Promise<{ x: number; y: number }> {
+  const box = await page.locator(selector).first().boundingBox();
+  if (!box) throw new Error(`${selector} has no box`);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+test("(a) the r17 still paints first, within 2.0 s of the send, at 4× CPU on Fast 4G", async ({ page }) => {
+  test.setTimeout(240_000);
+  await wire(page);
+  await toContactStep(page);
+  await throttle(page);
+  await page.evaluate(() => performance.mark("spine3d-send"));
+  await sendContact(page);
+  await expectPlan(page);
+  const still = page.locator(SEL.still).first();
+  await expect(still).toBeVisible({ timeout: 20_000 });
+  const paint = await still.evaluate(async (img: HTMLImageElement) => {
+    if (!img.complete || img.naturalWidth === 0) await img.decode().catch(() => undefined);
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+    const sent = performance.getEntriesByName("spine3d-send")[0]?.startTime ?? 0;
+    const live = document.querySelector('[data-testid=spine-viewer][data-spine="live"]') !== null;
+    return { ms: performance.now() - sent, liveBeforeStill: live, src: img.currentSrc };
+  });
+  test.info().annotations.push({ type: "a: still painted", description: `${Math.round(paint.ms)} ms, ${paint.src}` });
+  expect(paint.liveBeforeStill, "the canvas went live before the still painted").toBe(false);
+  expect(paint.ms).toBeLessThanOrEqual(LCP_LIMIT_MS);
+});
+
+test("(b) a first tap while the 3D loads: worst of 5 at 4× CPU is 100 ms or less", async ({ page }) => {
+  test.setTimeout(INP_RUNS * 180_000);
+  await wire(page);
+  const worst: number[] = [];
+  for (let run = 1; run <= INP_RUNS; run += 1) {
+    await toContactStep(page);
+    const cdp = await throttle(page);
+    await page.evaluate(() => {
+      const w = window as unknown as { __spineTaps: number[] };
+      w.__spineTaps = [];
+      new PerformanceObserver((list) => {
+        // interactionId isn't in this TypeScript lib's PerformanceEventTiming yet.
+        for (const e of list.getEntries() as (PerformanceEntry & { interactionId?: number })[]) {
+          if (e.interactionId) w.__spineTaps.push(e.duration);
+        }
+      }).observe({ type: "event", durationThreshold: 16, buffered: false } as PerformanceObserverInit);
+    });
+    const loading = page.waitForRequest((r) => CHUNK_URL.test(r.url()) || MESH_URL.test(r.url()), { timeout: 60_000 });
+    await sendContact(page);
+    await expectPlan(page);
+    await loading;
+    const stateAtTap = await viewerState(page);
+    await page.locator(SEL.tapTarget).first().click();
+    await page.waitForTimeout(1_000);
+    const taps = await page.evaluate(() => (window as unknown as { __spineTaps: number[] }).__spineTaps);
+    const tapMs = taps.length ? Math.max(...taps) : 0;
+    worst.push(tapMs);
+    test.info().annotations.push({ type: `b: run ${run}`, description: `${tapMs} ms, viewer was "${stateAtTap}"` });
+    expect(stateAtTap, "the tap must land while the 3D is still loading").not.toBe("live");
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+    await cdp.detach();
+  }
+  expect(Math.max(...worst)).toBeLessThanOrEqual(INP_LIMIT_MS);
+});
+
+test("(c) the canvas replaces the still, a sideways drag turns it, a vertical swipe scrolls", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await wire(page);
+  await toPlan(page);
+  await expect(page.locator(SEL.live)).toHaveCount(1, { timeout: LIVE_TIMEOUT_MS });
+  await expect(page.locator(SEL.canvas).first()).toBeVisible();
+  await expect(page.locator(SEL.still).first()).toBeHidden();
+  await page.locator(SEL.canvas).first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(SETTLE_MS);
+  const before = await canvasHash(page);
+  const centre = await centreOf(page, SEL.canvas);
+  if (deviceOf(info.project.name) === "phone") {
+    const cdp = await page.context().newCDPSession(page);
+    await touchDrag(cdp, centre, DRAG_PX, 0);
+    await page.waitForTimeout(SETTLE_MS);
+    expect(await canvasHash(page), "a sideways drag changed no pixel").not.toBe(before);
+    const scrollBefore = await page.evaluate(() => window.scrollY);
+    await touchDrag(cdp, await centreOf(page, SEL.canvas), 0, -SWIPE_PX);
+    await page.waitForTimeout(SETTLE_MS);
+    expect(await page.evaluate(() => window.scrollY), "a vertical swipe on the canvas didn't scroll").toBeGreaterThan(scrollBefore);
+  } else {
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.down();
+    await page.mouse.move(centre.x + DRAG_PX, centre.y, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(SETTLE_MS);
+    expect(await canvasHash(page), "a mouse drag changed no pixel").not.toBe(before);
+  }
+});
+
+test.describe("(d) the still stays", () => {
+  test("with no WebGL (getContext stubbed to null, no worker path)", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, kind: string, ...rest: unknown[]) {
+        return /webgl/i.test(kind) ? null : (original as (...a: unknown[]) => unknown).call(this, kind, ...rest);
+      } as typeof original;
+      delete (HTMLCanvasElement.prototype as Partial<HTMLCanvasElement>).transferControlToOffscreen;
+    });
+    await wire(page);
+    await toPlan(page);
+    await page.waitForTimeout(5_000);
+    await expect(page.locator(SEL.still).first()).toBeVisible();
+    await expect(page.locator(SEL.live)).toHaveCount(0);
+    const reason = await page.locator(SEL.fallback).first().getAttribute(REASON_ATTR).catch(() => null);
+    test.info().annotations.push({ type: "d: no WebGL", description: `reason "${reason}"` });
+  });
+
+  test("with Save-Data, and nothing 3D is fetched", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, "connection", {
+        configurable: true,
+        get: () => ({ saveData: true, effectiveType: "4g", addEventListener() {}, removeEventListener() {} }),
+      });
+    });
+    const fetched: string[] = [];
+    page.on("request", (r) => { if (CHUNK_URL.test(r.url()) || MESH_URL.test(r.url())) fetched.push(r.url()); });
+    await wire(page);
+    await toPlan(page);
+    await page.waitForTimeout(5_000);
+    await expect(page.locator(SEL.still).first()).toBeVisible();
+    await expect(page.locator(SEL.live)).toHaveCount(0);
+    expect(fetched, "Save-Data fetched 3D files").toEqual([]);
+  });
+});
+
+test("(e) the lazy 3D chunk and the mesh, against the budgets", async ({ page }, info) => {
+  test.setTimeout(120_000);
+  const device = deviceOf(info.project.name);
+  const chunks: Response[] = [];
+  const meshes: Response[] = [];
+  page.on("response", (r) => {
+    if (CHUNK_URL.test(r.url())) chunks.push(r);
+    if (MESH_URL.test(r.url())) meshes.push(r);
+  });
+  await wire(page);
+  await toPlan(page);
+  await expect(page.locator(SEL.live)).toHaveCount(1, { timeout: LIVE_TIMEOUT_MS });
+  expect(chunks.length, "no lazy 3D chunk matched CHUNK_URL").toBeGreaterThan(0);
+  expect(meshes.length, "no mesh matched MESH_URL").toBeGreaterThan(0);
+
+  let chunkGz = 0;
+  for (const r of chunks) chunkGz += gzipSync(await r.body(), { level: 9 }).length;
+  let meshBytes = 0;
+  for (const r of meshes) {
+    const sizes = await r.request().sizes();
+    meshBytes += sizes.responseBodySize + sizes.responseHeadersSize;
+  }
+  const report = {
+    device,
+    chunks: chunks.map((r) => new URL(r.url()).pathname),
+    chunkGzBytes: chunkGz,
+    chunkGzLimit: CHUNK_GZ_LIMIT ?? "not set yet",
+    meshes: meshes.map((r) => new URL(r.url()).pathname),
+    meshTransferBytes: meshBytes,
+    meshLimit: MESH_LIMIT_BYTES[device],
+  };
+  await info.attach("spine3d-transfer.json", { body: JSON.stringify(report, null, 2), contentType: "application/json" });
+  info.annotations.push({ type: "e: transfer", description: JSON.stringify(report) });
+  expect(meshBytes).toBeLessThanOrEqual(MESH_LIMIT_BYTES[device]);
+  if (CHUNK_GZ_LIMIT) expect(chunkGz).toBeLessThanOrEqual(CHUNK_GZ_LIMIT);
+});

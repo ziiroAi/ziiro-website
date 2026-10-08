@@ -3,12 +3,14 @@
 // stats and the scroll line.
 import { useState, type Ref } from "react";
 import { copy } from "../data";
-import type { CtaFrom, PlanProgress } from "../data/contract";
+import type { CtaFrom, DepartmentId, PlanProgress } from "../data/contract";
+import { SpineViewer } from "../spine3d/SpineViewer";
 import { BookCallLink } from "./BookCallLink";
 import { FilmLightbox } from "./FilmLightbox";
 import { HeroPicture } from "./HeroPicture";
 import { heroTitle, type Lines } from "./planView";
 import { Swap } from "./Swap";
+import { useHtmlTheme } from "./useHtmlTheme";
 
 /** §6.5: hx.btn2 shows only once lane D's re-rendered film is in BrandFilm (lane D, day 1). Set false if it slips. */
 export const FILM_READY = true;
@@ -43,10 +45,13 @@ export interface HeroProps {
   headingRef: Ref<HTMLHeadingElement>;
   onBook(from: CtaFrom): void;
   onProgress(fields: PlanProgress): void;
+  /** The plan's departments: their discs stay lit on the live spine, the rest keep 12 % (D28, W14-C). */
+  lit?: readonly DepartmentId[];
 }
 
-export function Hero({ heroText, name, email, headingRef, onBook, onProgress }: HeroProps): JSX.Element {
+export function Hero({ heroText, name, email, headingRef, onBook, onProgress, lit }: HeroProps): JSX.Element {
   const [filmOpen, setFilmOpen] = useState(false);
+  const theme = useHtmlTheme();
   const [firstLine, secondLine] = heroTitle();
   return (
     <section aria-labelledby="plan-hero-title" className="relative">
@@ -87,7 +92,10 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress }: 
           </div>
         </div>
         <div className="relative mt-10 lg:mt-0">
-          <HeroPicture className={`block h-auto w-full ${FADE_OUT}`} />
+          {/* W14-C: the still paints first and stays the fallback; the live spine replaces it once drawn. */}
+          <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={lit} className={FADE_OUT}>
+            <HeroPicture className="block h-auto w-full" />
+          </SpineViewer>
           <svg
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 hidden h-full w-full lg:block"

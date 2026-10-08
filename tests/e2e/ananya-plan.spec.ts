@@ -8,6 +8,9 @@ import { answerProblem, answerRevenue, answerTeam, at, sendContact, toTeamQuesti
 const STOPS = ["deals", "sales", "marketing", "back-office"].map((id) => departments.find((d) => d.id === id)!.name);
 const AGENTS = ["Enquiry responder", "Reply sorter", "Call companion", "Campaign runner", "Marketing analyst", "Numbers agent"];
 const BUDGET = { phone: 500_000, desktop: 800_000 }; // §13.10, everything prefetched before the plan
+/** The live spine's code and mesh stream after the plan paints, under their own §13.10 rows (D2 veto), so they're
+ *  not part of what is prefetched before it. spine3d.spec.ts and spine3d-gates.spec.ts hold them. */
+const LIVE_SPINE = /\/assets\/(host|scene|spine\.worker)-[\w-]+\.js|\/spine\/3d\/.*\.glb/;
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 /** Held 3 s, well under LEAD_BUDGET_MS (send.ts), so axe can read S8 while it is on screen. */
 const SLOW_OK: LeadAnswer = { status: 200, body: { success: true, planEmail: "sent" }, delayMs: 3_000 };
@@ -31,7 +34,7 @@ async function runToPlan(page: Page, time: string, isMobile: boolean) {
   let counting = false;
   const sizes: Promise<number>[] = [];
   page.on("requestfinished", (r) => {
-    if (counting) sizes.push(r.sizes().then((s) => s.responseBodySize));
+    if (counting && !LIVE_SPINE.test(r.url())) sizes.push(r.sizes().then((s) => s.responseBodySize));
   });
 
   await page.goto("/");
