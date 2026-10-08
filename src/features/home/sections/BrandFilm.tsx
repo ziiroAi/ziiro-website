@@ -1,96 +1,38 @@
+import { useMemo } from "react";
+import { copy } from "@/features/funnel/data/light";
 import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
 
 /**
- * The brand film, sitting between the hero and the system directory.
+ * (C) The Business Spine launch film, which the plan opens from "See how it works" (spec §6.5).
  *
- * It runs in "autoplay" mode: muted, it starts itself once the frame is
- * properly on screen and stops the moment the reader scrolls off it. The
- * section stays cheap anyway, because none of the video is fetched until the
- * reader is one screen away — `preload="none"` until an observer says
- * otherwise — and the poster underneath is a lazy <img> rather than the
- * eagerly-fetched `poster` attribute. A reader who never scrolls this far
- * downloads nothing but the markup.
+ * Lane C's lightbox renders it unchanged (00-index §1.3). It is the click-to-play player: the
+ * poster and a play button, and no part of the video loads until the visitor taps play, which
+ * then plays it with sound and controls (§13.10: "never preloaded; poster 90 KB at most; video
+ * fetched only on tap"). Narrow screens get the phone encode through the player's <source media>.
  *
- * The film is the Business Spine launch cut, 1080p at 60fps. Both copies are
- * x264 veryslow encodes straight from its lossless render, and this film is
- * the brand's first impression, so here quality wins over bytes. Wide screens
- * get CRF 14: 35.2 MB at 4.97 Mbps, SSIM 0.9992 against the render. Phones
- * get CRF 18: 22.8 MB at 3.22 Mbps, SSIM 0.9987, and at a phone's frame width
- * the difference does not show. Both are converted to BT.709 and tagged so:
- * browsers read untagged HD video as BT.709, and ffmpeg's untagged BT.601
- * default shifts the orange. High@4.2 keeps 1080p60 within older phones'
- * decoders.
+ * The files are the renamed film, re-rendered with "BRAIN · LIVE" (§6.5, D5): 56.7 s, 1920 × 1080
+ * at 60 fps, H.264 with faststart. A new encode gets a new file name, because /media is served
+ * immutable for a year (tests/media/immutable.test.ts).
  *
- * The poster is the film's reveal: the lockup and "Business Spine" on white.
- * The film opens on white, so poster to first frame is white to white. No
- * poster is baked into frame 0, because it would flash at every autoplay
- * start.
- *
- * A new encode gets a new file name. /media is served `immutable` for a year,
- * so a file replaced under the same name would keep playing the old copy for
- * everyone who has already seen it.
- *
- * It starts muted and it can always be stopped: WCAG 2.2.2 for the moving
- * picture, and plain manners for the sound. See scroll-autoplay-video.tsx for
- * the rules it holds to.
- *
- * No VideoObject schema here, deliberately. videos.ts records what happened
- * last time a video was marked up as structured data on a page that was about
- * something else: Google reported "Video isn't on a watch page" and dropped it.
- * The schema belongs on /watch/<slug>, not on the home page.
+ * No VideoObject schema here: the plan isn't a watch page (src/features/watch/videos.ts says why).
  */
-
-/** The film's files (§6.5): 56.7 s, 1920 × 1080 at 60 fps, re-rendered with "BRAIN · LIVE". */
 export const SPINE_FILM_FILES = {
   src: "/media/ziiro-business-spine-master.mp4",
   narrowSrc: "/media/ziiro-business-spine-phone.mp4",
   poster: "/media/ziiro-business-spine-poster-1080.jpg",
 } as const;
 
-/** Runtime is 56.7s; both encodes are 1920x1080 at 60fps, H.264 with faststart. */
-const BRAND_FILM: VslConfig = {
-  source: { kind: "file", src: SPINE_FILM_FILES.src, narrowSrc: SPINE_FILM_FILES.narrowSrc },
-  // The film's own opening lines, not a claim written for it.
-  title: "Everyone's selling you AI to replace your team. We built the opposite.",
-  // Only the watch-page schema reads this, and this section emits none. Task 5 fills it from r.film.cap.
-  description: "",
-  uploadDate: "2026-09-29",
-  duration: "PT57S",
-  poster: SPINE_FILM_FILES.poster,
-  runtime: "57 sec",
-};
-
-/**
- * How tall the film is allowed to be, as a fraction of the viewport, and the
- * 16:9 the frame actually holds. The cap is applied as a max WIDTH, because the
- * frame is `aspect-video w-full` and width is the only thing it reads: a width
- * of `H * 16/9` is the same statement as a height of H.
- *
- * ITEM 4, PART ONE. The frame used to be sized by width alone, so how much of
- * the screen the film owned was a side effect of how wide the browser happened
- * to be. On a short laptop the 16:9 frame came out 741px tall in a 700px
- * viewport, so the hero above and the directory below were both in view while
- * the film played, all three competing. Tying the height to the viewport
- * instead means the film owns the screen at every shape.
- *
- * On a phone the arithmetic changes nothing: 74svh of a 844px viewport asks for
- * a 1110px wide frame and there are 342px, so width still governs and the
- * section keeps its ordinary padding rather than opening a void around a small
- * video.
- */
-const FILM_MAX_VH = 74;
-const FILM_MAX_WIDTH = `calc(${FILM_MAX_VH}svh * 16 / 9)`;
-
 export default function BrandFilm() {
-  return (
-    // svh, not vh: on mobile browsers vh is the tallest the viewport ever gets,
-    // so a vh-sized section is taller than the screen while the toolbar is out.
-    <section className="relative flex items-center py-24 md:min-h-[100svh] md:py-0">
-      <div className="mx-auto w-full max-w-[1400px] px-6 md:px-10">
-        <div className="mx-auto w-full" style={{ maxWidth: FILM_MAX_WIDTH }}>
-          <VslPlayer vsl={BRAND_FILM} label="The film" mode="autoplay" />
-        </div>
-      </div>
-    </section>
+  const film = useMemo<VslConfig>(
+    () => ({
+      source: { kind: "file", src: SPINE_FILM_FILES.src, narrowSrc: SPINE_FILM_FILES.narrowSrc },
+      title: copy("r.film.title"),
+      description: copy("r.film.cap"),
+      uploadDate: "2026-10-09",
+      duration: "PT57S",
+      poster: SPINE_FILM_FILES.poster,
+    }),
+    [],
   );
+  return <VslPlayer vsl={film} label={copy("r.film.title")} mode="facade" flush />;
 }
