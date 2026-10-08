@@ -52,4 +52,15 @@ describe("the visit ID (§13.2, §4.1)", () => {
     const visit = visits.currentVisit(nextId);
     expect(visits.currentVisit(nextId)).toEqual(visit);
   });
+
+  it("still makes a v4 UUID where crypto.randomUUID is missing (iOS Safari before 15.4, review M5)", () => {
+    vi.stubGlobal("crypto", { getRandomValues: crypto.getRandomValues.bind(crypto) });
+    try {
+      const ids = [visits.rotateVisit().id, visits.rotateVisit().id];
+      for (const id of ids) expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      expect(ids[0]).not.toBe(ids[1]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
