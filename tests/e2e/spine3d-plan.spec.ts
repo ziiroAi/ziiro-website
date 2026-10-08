@@ -10,6 +10,13 @@ import type { Locator, Page } from "@playwright/test";
  */
 const WEBGL = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"];
 const LIVE_TIMEOUT_MS = 30_000;
+/**
+ * SwiftShader runs the GPU in software: for a few seconds after the tour's viewer goes live, and after a camera cut,
+ * the page gets 0.5-1.5 frames a second (W14-M probe), so scroll handling waits on frames. A real GPU settles at once
+ * (worker-2's W14-L: tour INP 32 ms or less). Waits allow for the software renderer; they don't hide a wrong value.
+ */
+const SETTLE_TIMEOUT_MS = 20_000;
+const FLOWING_FPS = 10;
 /** Ananya's stops in scroll order (§5.8): Deals, Sales, Marketing, Back Office. */
 const STOP_DISCS = ["G04", "G05", "G06", "G01"] as const;
 
@@ -21,6 +28,20 @@ async function toPlan(page: Page) {
   await fillContact(page);
   await sendContact(page);
   await expectPlan(page);
+}
+
+/** Waits until the page draws at least FLOWING_FPS frames a second again. */
+async function framesFlowing(page: Page) {
+  await expect.poll(() => page.evaluate(() => new Promise<number>((done) => {
+    let frames = 0;
+    const start = performance.now();
+    const tick = () => {
+      frames += 1;
+      if (performance.now() - start < 500) requestAnimationFrame(tick);
+      else done(frames * 2);
+    };
+    requestAnimationFrame(tick);
+  })), { timeout: SETTLE_TIMEOUT_MS }).toBeGreaterThanOrEqual(FLOWING_FPS);
 }
 
 /** Puts a block's top at the middle line of the screen, where the tour reads the stop in view. */
@@ -37,6 +58,7 @@ async function liveStage(page: Page): Promise<Locator> {
   await expect(stage.getByTestId("spine-viewer")).toHaveAttribute("data-spine", "live", { timeout: LIVE_TIMEOUT_MS });
   await expect(stage.getByTestId("spine-canvas")).toBeVisible();
   await expect(stage.getByTestId("spine-still")).toBeHidden();
+  await framesFlowing(page);
   return stage;
 }
 
@@ -68,20 +90,21 @@ test.describe("the plan's 3D tour", () => {
     await expect(stage).toHaveAttribute("data-stop", "overview");
     for (const [i, disc] of STOP_DISCS.entries()) {
       await scrollToDepth(page, i + 1);
-      await expect(stage).toHaveAttribute("data-stop", disc);
+      await expect(stage).toHaveAttribute("data-stop", disc, { timeout: SETTLE_TIMEOUT_MS });
     }
     await scrollToDepth(page, 0);
-    await expect(stage).toHaveAttribute("data-stop", "overview");
+    await expect(stage).toHaveAttribute("data-stop", "overview", { timeout: SETTLE_TIMEOUT_MS });
   });
 
   test("pins the in-focus disc's callout with its names (§6.7)", async ({ page }) => {
     await toPlan(page);
     const stage = await liveStage(page);
     await scrollToDepth(page, 1);
+    await expect(stage).toHaveAttribute("data-stop", "G04", { timeout: SETTLE_TIMEOUT_MS });
     const deals = stage.locator('[data-callout="G04"]');
-    await expect(deals).toBeVisible();
-    await expect(deals).toContainText("Deals · 3 of 5");
-    await expect(deals).toContainText("Enquiry responder");
+    await expect(deals).toBeVisible({ timeout: SETTLE_TIMEOUT_MS });
+    await expect(deals).toContainText("Deals · 3 of 5", { timeout: SETTLE_TIMEOUT_MS });
+    await expect(deals).toContainText("Enquiry responder", { timeout: SETTLE_TIMEOUT_MS });
   });
 
   test("opens a disc's panel from the keyboard and gives focus back on Escape (§6.2)", async ({ page }) => {

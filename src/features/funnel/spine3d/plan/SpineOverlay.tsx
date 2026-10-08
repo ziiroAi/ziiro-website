@@ -17,7 +17,7 @@ import { departmentForDisc, discAria } from "./discCopy";
 import { layoutLabels, type PlacedLabel } from "./labels";
 import { clipBox, hitArea, type ScreenBox } from "./tap";
 import type { Variant } from "./targets";
-import { calloutInputs, LEGEND_STRIP_PX, screenDisc, type Callout } from "./tour";
+import { byFocus, calloutInputs, LEGEND_STRIP_PX, screenDisc, type Callout } from "./tour";
 
 /** The department discs from the top of the spine down: the keyboard's order. */
 const BUTTON_DISCS: readonly DiscId[] = ["G07", "G06", "G05", "G04", "G03", "G02", "G01"];
@@ -39,6 +39,8 @@ export interface SpineOverlayProps {
   variant: Variant;
   /** The viewer's size in CSS px. */
   view: { width: number; height: number };
+  /** The disc in close-up, whose callout gets the first claim on space; null in the overview. */
+  focus?: DiscId | null;
 }
 
 /** The latest disc boxes, at most one update per animation frame. */
@@ -107,7 +109,7 @@ function Legend({ hint }: { hint: boolean }): JSX.Element {
   );
 }
 
-export function SpineOverlay({ api, callouts, planAgentIds, variant, view }: SpineOverlayProps): JSX.Element | null {
+export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus = null }: SpineOverlayProps): JSX.Element | null {
   const boxes = useDiscBoxes(api);
   const [opened, setOpened] = useState<Opened | null>(null);
   const [hintSeen, setHintSeen] = useState(false);
@@ -159,8 +161,8 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view }: Spi
 
   const labels = useMemo(() => {
     const above = { width: view.width, height: Math.max(0, view.height - LEGEND_STRIP_PX[variant]) };
-    return layoutLabels(calloutInputs(boxes, callouts, variant), above).labels;
-  }, [boxes, callouts, variant, view]);
+    return layoutLabels(calloutInputs(boxes, byFocus(callouts, focus), variant), above).labels;
+  }, [boxes, callouts, variant, view, focus]);
 
   const onButtonBlur = (event: FocusEvent<HTMLButtonElement>) => {
     const next = event.relatedTarget as Node | null;

@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DiscBox, SpineViewerApi } from "../api";
-import { framingFor } from "../camera";
-import { calloutInputs, centredTarget, flightTargets, runFlights, screenDisc, stopForDepth, targetFor, CALLOUT_SIZE } from "./tour";
+import { framingFor, visibleTan } from "../camera";
+import { GAPS } from "../gaps";
+import { LOOK } from "../look";
+import { byFocus, calloutInputs, END_MARGIN, flightTargets, KEEP_OUT_PAD_PX, runFlights, screenDisc, stopForDepth, targetFor, tourFraming, CALLOUT_SIZE } from "./tour";
+import { length, normalize, sub, type Vec3 } from "./vec";
 
 const box = (over: Partial<DiscBox> = {}): DiscBox => ({
   disc: "G04", left: 100, top: 200, width: 80, height: 30, anchor: { x: 180, y: 206 }, onScreen: true, ...over,
@@ -90,11 +93,12 @@ describe("calloutInputs: one pinned callout per lit disc (§6.7)", () => {
   ];
   const boxes = [box(), box({ disc: "G05", top: 120, anchor: { x: 175, y: 126 } }), box({ disc: "G03" })];
 
-  it("keeps plan order, anchors at the box's anchor, and keeps the label off its own disc", () => {
+  it("keeps plan order, anchors at the box's anchor, and keeps the label off its own disc and its glow", () => {
     const inputs = calloutInputs(boxes, callouts, "desktop");
     expect(inputs.map((i) => i.disc)).toEqual(["G04", "G05"]);
     expect(inputs[0].anchor).toEqual({ x: 180, y: 206 });
-    expect(inputs[0].keepOut).toEqual({ x0: 100, y0: 200, x1: 180, y1: 230 });
+    const pad = KEEP_OUT_PAD_PX;
+    expect(inputs[0].keepOut).toEqual({ x0: 100 - pad, y0: 200 - pad, x1: 180 + pad, y1: 230 + pad });
   });
 
   it("sizes each callout by its lines, with the heading alone as its compact form", () => {
@@ -104,6 +108,10 @@ describe("calloutInputs: one pinned callout per lit disc (§6.7)", () => {
     expect(sales.height).toBe(pad + line * 2);
   });
 
+  it("fits a phone callout beside a centred overview spine (390 band, disc right end near x 218)", () => {
+    expect(CALLOUT_SIZE.phone.width).toBeLessThanOrEqual(390 - 8 - 12 - 218);
+  });
+
   it("marks a callout whose disc is off screen not visible, and skips discs with no box yet", () => {
     const inputs = calloutInputs([box({ onScreen: false })], callouts, "desktop");
     expect(inputs).toHaveLength(1);
@@ -111,15 +119,68 @@ describe("calloutInputs: one pinned callout per lit disc (§6.7)", () => {
   });
 });
 
-describe("centredTarget: the tour's own framing (the column is narrower than the hero)", () => {
-  it("keeps r17's pose for the overview and each close-up, but drops the hero's sideways lens shift", () => {
-    for (const size of ["desktop", "phone"] as const) {
-      for (const stop of [null, "G04"] as const) {
-        const target = centredTarget(stop, size);
-        if (target.kind !== "framing") throw new Error("expected a framing target");
-        const hero = framingFor(targetFor(stop), size);
-        expect(target.framing).toEqual({ ...hero, shift: [0, hero.shift[1]] });
-      }
+describe("tourFraming: the tour's own camera, measured on its real canvas (W14-M)", () => {
+  const COLUMN = { width: 648, height: 816 };      // the sticky column at 1440 × 900
+  const BAND = { width: 390, height: 410 };        // the phone band: the lens window's own aspect
+  const dist = (f: { position: Vec3; target: Vec3 }) => length(sub(f.position, f.target));
+  const tanLong = (size: "desktop" | "phone") => LOOK.camera[size].sensorMm / 2 / LOOK.camera[size].lensMm;
+  /** The model height the canvas shows at a framing: desktop portrait uses the long-side angle, phone its window. */
+  const shown = (f: { position: Vec3; target: Vec3 }, size: "desktop" | "phone") =>
+    2 * dist(f) * (size === "desktop" ? tanLong("desktop") : visibleTan(LOOK.camera.phone));
+
+  it("pulls each stop back about 2x from the close-ups worker-2 saw as melted blobs", () => {
+    // What W14-F shipped: CLOSE_UP_HEIGHT through camera.ts, which on the portrait column showed 0.36 units.
+    const before = (size: "desktop" | "phone") => shown(framingFor({ kind: "disc", disc: "G04" }, size), size);
+    const desktop = shown(tourFraming("G04", "desktop", COLUMN, 84), "desktop") / before("desktop");
+    const phone = shown(tourFraming("G04", "phone", BAND, 56), "phone") / before("phone");
+    expect(desktop).toBeGreaterThan(1.9);
+    expect(desktop).toBeLessThan(2.1);
+    expect(phone).toBeCloseTo(2, 5);
+  });
+
+  it("aims each stop at its own gap, with r17's view direction, roll and lens", () => {
+    const f = tourFraming("G05", "desktop", COLUMN, 84);
+    const base = framingFor({ kind: "overview" }, "desktop");
+    expect(f.target).toEqual(GAPS[5].centre);
+    expect(f.rollDeg).toBe(base.rollDeg);
+    expect(f.lensMm).toBe(base.lensMm);
+    const dir = (a: Vec3, b: Vec3) => normalize(sub(a, b));
+    dir(f.position, f.target).forEach((v, i) => expect(v).toBeCloseTo(dir(base.position, base.target)[i], 9));
+  });
+
+  it("fits the whole spine, both end vertebrae included, above the legend strip in the overview", () => {
+    for (const [size, view, strip] of [["desktop", COLUMN, 84], ["phone", BAND, 56]] as const) {
+      const f = tourFraming(null, size, view, strip);
+      const span = length(sub(GAPS[8].centre, GAPS[0].centre)) + 2 * END_MARGIN;
+      expect(shown(f, size) * (1 - strip / view.height)).toBeCloseTo(span, 9);
     }
+  });
+
+  it("centres the target across, and in the part of the canvas above the legend strip", () => {
+    // applyCamera: the window's top row is view[1] - shift[1] * long; the frame's centre row is where the target lands.
+    const { full, view: win } = LOOK.camera.phone;
+    const phone = tourFraming(null, "phone", BAND, 56);
+    const top = win[1] - phone.shift[1] * Math.max(...full);
+    expect((full[1] / 2 - top) / win[3]).toBeCloseTo((1 - 56 / BAND.height) / 2, 9);
+    const desk = tourFraming("G04", "desktop", COLUMN, 84);
+    expect(desk.shift[0]).toBe(0);
+    expect(COLUMN.height / 2 + desk.shift[1] * COLUMN.height).toBeCloseTo((COLUMN.height - 84) / 2, 9);
+  });
+
+  it("works before the canvas has a size", () => {
+    expect(() => tourFraming(null, "desktop", { width: 0, height: 0 }, 84)).not.toThrow();
+    expect(Number.isFinite(dist(tourFraming("G01", "desktop", { width: 0, height: 0 }, 84)))).toBe(true);
+  });
+});
+
+describe("byFocus: the stop in view keeps its callout first (W14-M)", () => {
+  const c = (disc: "G04" | "G05" | "G06" | "G01") => ({ disc, head: disc, lines: [] });
+  it("moves the disc in close-up to the front, keeping plan order for the rest", () => {
+    expect(byFocus([c("G04"), c("G05"), c("G06"), c("G01")], "G06").map((x) => x.disc)).toEqual(["G06", "G04", "G05", "G01"]);
+  });
+  it("keeps plan order in the overview or for a disc outside the plan", () => {
+    const all = [c("G04"), c("G05")];
+    expect(byFocus(all, null)).toEqual(all);
+    expect(byFocus(all, "G07")).toEqual(all);
   });
 });

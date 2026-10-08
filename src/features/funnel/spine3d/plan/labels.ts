@@ -6,7 +6,8 @@
 // - Given the disc's on-screen box (keepOut), a label never covers its own disc: the left side is measured from the
 //   box's left edge, and when neither side fits it sits above the disc, or below, then the same in its compact form,
 //   or is hidden (review L3, N1; phones keep callouts, owner's scope answer). The one-side fallback keeps to this too
-//   (N2). A label that would still collide with a higher-priority one is hidden.
+//   (N2). A label that would still collide with a higher-priority one, or have a leader run through it, is hidden.
+// - A side leader meets its label level with the anchor where it can (W14-M), so stacked leaders stay apart.
 // - A disc off the canvas or behind the camera gets no label: it comes back hidden.
 // - A column taller than the canvas goes compact (heading only), then drops its lowest-priority labels (the end of
 //   the input), and the layout says it overflowed.
@@ -16,6 +17,8 @@ import type { ScreenBox } from "./tap";
 export const LABEL_GAP_PX = 12;       // from the anchor to the label
 export const LABEL_SPACING_PX = 6;    // between two labels in a column
 export const LABEL_MARGIN_PX = 8;     // from the edge of the canvas
+/** A side leader ends on the label's near edge at the anchor's own height, kept this far inside the label (W14-M). */
+export const LEADER_INSET_PX = 6;
 
 export interface LabelInput {
   disc: DiscId;
@@ -115,6 +118,10 @@ function xFor(label: LabelInput, side: ColumnSide, view: Viewport): number {
 const stackHeight = (heights: readonly number[]): number =>
   heights.reduce((sum, h) => sum + h, 0) + LABEL_SPACING_PX * Math.max(0, heights.length - 1);
 
+/** Where a side leader meets its label: level with the anchor, unless the label was pushed off it (W14-M). */
+const leaderEnd = (anchorY: number, top: number, height: number): number =>
+  Math.min(Math.max(anchorY, top + LEADER_INSET_PX), top + height - LEADER_INSET_PX);
+
 /** Tops in anchor order: centred on the anchor, pushed down past the one above, then pulled up from the bottom
  *  edge. Only called on a column that fits, so the spacing always holds. */
 function stackTops(anchorsY: readonly number[], heights: readonly number[], view: Viewport): number[] {
@@ -131,12 +138,14 @@ function stackTops(anchorsY: readonly number[], heights: readonly number[], view
   return tops;
 }
 
-/** One side's labels: full height if they fit, else compact, else without the lowest-priority ones. */
-function placeColumn(labels: readonly LabelInput[], side: ColumnSide, priority: (l: LabelInput) => number, view: Viewport): Column {
+/** Does one label's leader run through another label in the column (a label pushed onto the next disc's anchor)? */
+const tangled = (placed: readonly PlacedLabel[]): boolean =>
+  placed.some((p) => placed.some((q) => q !== p && runsThrough(q.leader, p)));
+
+/** One side's labels at full or compact height, dropping the lowest-priority ones until the column fits. */
+function stackColumn(labels: readonly LabelInput[], side: ColumnSide, priority: (l: LabelInput) => number, view: Viewport,
+  compact: boolean): { placed: PlacedLabel[]; dropped: LabelInput[] } {
   const room = view.height - 2 * LABEL_MARGIN_PX;
-  const full = labels.map((l) => l.height);
-  const overflow = stackHeight(full) > room;
-  const compact = overflow;
   const heightOf = (l: LabelInput): number => (compact ? Math.min(l.height, l.compactHeight ?? l.height) : l.height);
   const kept = [...labels];
   const dropped: LabelInput[] = [];
@@ -154,11 +163,22 @@ function placeColumn(labels: readonly LabelInput[], side: ColumnSide, priority: 
       disc: label.disc, x, y: tops[i], width: label.width, height: heights[i], side, compact, hidden: false,
       leader: {
         x1: side === "right" ? label.anchor.x : leftEdge(label), y1: label.anchor.y,
-        x2: side === "right" ? x : x + label.width, y2: tops[i] + heights[i] / 2,
+        x2: side === "right" ? x : x + label.width, y2: leaderEnd(label.anchor.y, tops[i], heights[i]),
       },
     };
   });
-  return { placed, dropped, overflow };
+  return { placed, dropped };
+}
+
+/**
+ * One side's labels: full height if they fit, else compact, else without the lowest-priority ones. A full-height
+ * column whose leaders tangle (a label pushed down onto the next disc's anchor) goes compact too (W14-M).
+ */
+function placeColumn(labels: readonly LabelInput[], side: ColumnSide, priority: (l: LabelInput) => number, view: Viewport): Column {
+  const overflow = stackHeight(labels.map((l) => l.height)) > view.height - 2 * LABEL_MARGIN_PX;
+  const full = stackColumn(labels, side, priority, view, overflow);
+  const crowded = !overflow && tangled(full.placed);
+  return { ...(crowded ? stackColumn(labels, side, priority, view, true) : full), overflow };
 }
 
 function placeAll(labels: readonly LabelInput[], sides: readonly ColumnSide[], priority: (l: LabelInput) => number, view: Viewport): Column {
@@ -187,11 +207,40 @@ function placeVertical(label: LabelInput, { side, compact }: VerticalFit, box: S
   };
 }
 
-/** Keeps labels in priority order, dropping any that collide with one already kept. */
+/** Does the leader run through the label's inside? Touching its edge doesn't count (Liang-Barsky clipping). */
+function runsThrough(leader: PlacedLabel["leader"], label: PlacedLabel): boolean {
+  const inset = 0.5;
+  const dx = leader.x2 - leader.x1;
+  const dy = leader.y2 - leader.y1;
+  const edges: [number, number][] = [
+    [-dx, leader.x1 - (label.x + inset)],
+    [dx, label.x + label.width - inset - leader.x1],
+    [-dy, leader.y1 - (label.y + inset)],
+    [dy, label.y + label.height - inset - leader.y1],
+  ];
+  let enter = 0;
+  let leave = 1;
+  for (const [p, q] of edges) {
+    if (p === 0) {
+      if (q < 0) return false;
+      continue;
+    }
+    const t = q / p;
+    if (p < 0) enter = Math.max(enter, t);
+    else leave = Math.min(leave, t);
+    if (enter > leave) return false;
+  }
+  return true;
+}
+
+const clash = (a: PlacedLabel, b: PlacedLabel): boolean =>
+  collide(a, b) || runsThrough(a.leader, b) || runsThrough(b.leader, a);
+
+/** Keeps labels in priority order, dropping any that overlap one already kept or cross it with a leader (W14-M). */
 function dropCollisions(placed: readonly PlacedLabel[], priority: (disc: DiscId) => number): PlacedLabel[] {
   const kept: PlacedLabel[] = [];
   [...placed].sort((a, b) => priority(a.disc) - priority(b.disc)).forEach((p) => {
-    if (!kept.some((k) => collide(k, p))) kept.push(p);
+    if (!kept.some((k) => clash(k, p))) kept.push(p);
   });
   return kept;
 }

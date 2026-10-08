@@ -5,7 +5,7 @@ import { composePlan } from "../../data";
 import { render, type Rendered } from "../../plan/test-utils";
 import type { SpineViewerApi } from "../api";
 import { meshFor } from "../rules";
-import { centredTarget, type Stop } from "./tour";
+import { LEGEND_STRIP_PX, tourFraming, type Stop } from "./tour";
 
 /** The viewer stand-in: renders the still and hands over whatever API the test put in `nextApi`. */
 const viewer = vi.hoisted(() => ({ nextApi: null as SpineViewerApi | null, mounts: 0 }));
@@ -40,8 +40,39 @@ function intersect(el: Element) {
     }
   });
 }
-/** What the tour sends flyTo for a stop: its centred framing (tour.ts). */
-const framed = (stop: Stop) => centredTarget(stop, meshFor(window.innerWidth));
+/** What the tour sends flyTo for a stop: its own framing on the stage's size (jsdom: 0 × 0 until resized). */
+const framed = (stop: Stop, view = { width: 0, height: 0 }) =>
+  ({ kind: "framing", framing: tourFraming(stop, meshFor(window.innerWidth), view, LEGEND_STRIP_PX.desktop) });
+
+/** A ResizeObserver the tests drive. */
+class FakeResize {
+  static all: FakeResize[] = [];
+  constructor(readonly callback: ResizeObserverCallback) { FakeResize.all.push(this); }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  resize(width: number, height: number) {
+    act(() => this.callback([{ contentRect: { width, height } } as ResizeObserverEntry], this as unknown as ResizeObserver));
+  }
+}
+/**
+ * The words' sections laid out 1000 px tall from y 2000, so the test can scroll the page: each section's rect follows
+ * the fake scroll position, and scrollToDepth puts a section's top 40 px above the screen's middle line.
+ */
+let pageY = 0;
+function layOut(sections: HTMLElement[]) {
+  sections.forEach((el) => {
+    const top = 2000 + 1000 * Number(el.dataset.depth);
+    el.getBoundingClientRect = () => ({ top: top - pageY, bottom: top + 1000 - pageY, left: 0, right: 600, width: 600, height: 1000 }) as DOMRect;
+  });
+}
+async function scrollToDepth(n: number) {
+  pageY = 2000 + 1000 * n - window.innerHeight / 2 + 40;
+  await act(async () => {
+    window.dispatchEvent(new Event("scroll"));
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+  });
+}
 const settle = () => act(async () => { for (let i = 0; i < 5; i += 1) await Promise.resolve(); });
 
 function fakeApi(reducedMotion = false) {
@@ -72,6 +103,8 @@ beforeEach(() => {
   FakeObserver.all = [];
   viewer.mounts = 0;
   vi.stubGlobal("IntersectionObserver", FakeObserver);
+  FakeResize.all = [];
+  vi.stubGlobal("ResizeObserver", FakeResize);
 });
 afterEach(() => {
   view?.unmount();
@@ -87,6 +120,7 @@ function mount() {
     </SpineTour>,
   );
   const q = (sel: string) => view!.container.querySelector<HTMLElement>(sel)!;
+  layOut([...view.container.querySelectorAll<HTMLElement>("[data-depth]")]);
   return {
     tour: q("[data-testid=spine-tour]"),
     stage: q("[data-testid=spine-tour-stage]"),
@@ -109,6 +143,20 @@ describe("SpineTour: the sticky stage beside the words (blocks 2 and 3)", () => 
     intersect(tour);
     expect(viewer.mounts).toBe(1);
     expect(stage.querySelector("[data-testid=spine-viewer] picture img")).not.toBeNull();
+  });
+
+  it("gives the phone band the lens window's own shape, so the spine isn't stretched (W14-M)", () => {
+    const { stage } = mount();
+    expect(stage.querySelector("picture img")!.className).toContain("max-lg:aspect-[1290/1356]");
+  });
+
+  it("fades the canvas into the page at its edges instead of a hard rectangle (W14-M)", () => {
+    const { tour, stage } = mount();
+    intersect(tour);
+    const soft = stage.querySelector<HTMLElement>("[data-soft-edges]")!;
+    expect(soft.querySelector("[data-testid=spine-viewer]")).not.toBeNull();
+    expect(soft.style.maskImage || soft.style.getPropertyValue("-webkit-mask-image")).toContain("linear-gradient");
+    expect(stage.querySelector("[data-soft-edges] [data-legend], [data-soft-edges] [data-callout]")).toBeNull();
   });
 
   it("starts at once where IntersectionObserver is missing", () => {
@@ -136,15 +184,28 @@ describe("SpineTour: scroll flights (§6.2 block 3, D30)", () => {
     const { tour, stage, depth } = mount();
     intersect(tour);
     await settle();
-    intersect(depth(1));
+    await scrollToDepth(1);
     await settle();
     expect(stage.dataset.stop).toBe("G04");
-    intersect(depth(2));
+    await scrollToDepth(2);
     await settle();
     expect(flights.slice(1)).toEqual([framed("G04"), framed(null), framed("G05")]);
-    intersect(depth(0));
+    await scrollToDepth(0);
     await settle();
     expect(flights.at(-1)).toEqual(framed(null));
+  });
+
+  it("re-frames the stop with a cut when the stage changes size", async () => {
+    const { api, flights } = fakeApi();
+    viewer.nextApi = api;
+    const { tour, depth } = mount();
+    intersect(tour);
+    await settle();
+    await scrollToDepth(1);
+    await settle();
+    FakeResize.all.forEach((o) => o.resize(648, 816));
+    await settle();
+    expect(flights.at(-1)).toEqual({ cut: framed("G04", { width: 648, height: 816 }) });
   });
 
   it("cuts straight from stop to stop under reduced motion", async () => {
@@ -153,25 +214,45 @@ describe("SpineTour: scroll flights (§6.2 block 3, D30)", () => {
     const { tour, depth } = mount();
     intersect(tour);
     await settle();
-    intersect(depth(1));
+    await scrollToDepth(1);
     await settle();
-    intersect(depth(2));
+    await scrollToDepth(2);
     await settle();
     expect(flights.slice(1)).toEqual([framed("G04"), framed("G05")]);
   });
 
-  it("watches the line through the middle of the screen for the stop in view", () => {
-    mount();
-    const watcher = FakeObserver.all.find((o) => o.targets.some((t) => t.hasAttribute("data-depth")))!;
-    expect(watcher.options?.rootMargin).toBe("-50% 0px -50% 0px");
-    expect(watcher.targets).toHaveLength(5);
+  it("reads the section crossing the screen's middle line on scroll, at most once a frame (W14-M)", async () => {
+    // W14-M: an IntersectionObserver with a negative rootMargin missed the scroll to stop 1 in 6 of 12 Chromium runs.
+    const { stage } = mount();
+    await scrollToDepth(3);
+    expect(stage.dataset.stop).toBe("G06");
+    await scrollToDepth(0);
+    expect(stage.dataset.stop).toBe("overview");
+    const spy = vi.fn();
+    const frames = vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => { spy(); return setTimeout(() => cb(0), 0) as unknown as number; });
+    act(() => {
+      for (let i = 0; i < 5; i += 1) window.dispatchEvent(new Event("scroll"));
+    });
+    expect(spy).toHaveBeenCalledTimes(1);
+    frames.mockRestore();
+  });
+
+  it("keeps the last stop while the middle line is between sections", async () => {
+    const { stage } = mount();
+    await scrollToDepth(2);
+    pageY = 99999;
+    await act(async () => {
+      window.dispatchEvent(new Event("scroll"));
+      await new Promise((r) => requestAnimationFrame(() => r(null)));
+    });
+    expect(stage.dataset.stop).toBe("G05");
   });
 
   it("flies nowhere while the still is showing", async () => {
     viewer.nextApi = null;
     const { tour, depth, stage } = mount();
     intersect(tour);
-    intersect(depth(1));
+    await scrollToDepth(1);
     await settle();
     expect(stage.dataset.stop).toBe("G04");
   });

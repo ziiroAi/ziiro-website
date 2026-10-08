@@ -1,31 +1,36 @@
 // (C) W14-F part 2: the plan's 3D tour around blocks 2 and 3 (§6.2), on the owner's locked layout (wave14.md):
-// - Desktop: the canvas is sticky beside the words. Phone: a sticky band above them. Both sit under the site's bar.
+// - Desktop: the canvas is sticky beside the words. Phone: a sticky band above them, in the phone lens window's shape.
+//   Both sit under the site's bar, and the canvas fades into the page at its edges.
 // - Its own SpineViewer, started only once the tour reaches the screen, so the hero's viewer has the page to itself
 //   until then. Until the 3D is live the r17 still shows, and it stays as the fallback.
 // - The stop in view is the section crossing the middle of the screen: block 2 (plan_depth 0) holds the overview,
 //   each stop flies into its department's disc, with a pull-back to the full spine between two stops (D30) and a
 //   straight cut under reduced motion (§11.8).
 // - The plan's discs are lit (setLit, D28); SpineOverlay adds the buttons, panels, callouts and legend.
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { copy, departments as allDepartments } from "../../data";
 import type { AgentId, DepartmentId, DiscId } from "../../data/contract";
 import { HeroPicture } from "../../plan/HeroPicture";
 import { useHtmlTheme } from "../../plan/useHtmlTheme";
-import type { SpineViewerApi } from "../api";
+import type { CameraTarget, SpineViewerApi } from "../api";
 import { meshFor } from "../rules";
 import { SpineViewer } from "../SpineViewer";
 import { SpineOverlay } from "./SpineOverlay";
 import type { Variant } from "./targets";
-import { calloutsFor, centredTarget, flightTargets, runFlights, stopForDepth, type Stop } from "./tour";
+import { calloutsFor, flightTargets, LEGEND_STRIP_PX, runFlights, stopForDepth, tourFraming, type Stop } from "./tour";
 
 const DESKTOP_QUERY = "(min-width: 1024px)";
-/** The line through the middle of the screen: the section crossing it is the stop in view. */
-const MIDDLE_LINE = "-50% 0px -50% 0px";
-/** The still fills the stage: a 40vh band on a phone, the screen under the bar beside the words from 1024 px. The
- *  r17 frame has its spine at x ≈ 0.75; in the narrow column, 95 % brings it near the middle, where the 3D centres it
- *  (centredTarget), so the swap from still to live doesn't jump sideways. */
+/** The still fills the stage. Under 1024 px it is a band with the phone lens window's own shape (look.ts: 1290 ×
+ *  1356), so the 3D isn't stretched (W14-M). From 1024 px it fills the screen under the bar beside the words; the r17
+ *  frame has its spine at x ≈ 0.75, and 95 % brings it near the middle, where the tour's camera centres it. */
 const STILL =
-  "block w-full object-cover h-[40vh] lg:h-[calc(100vh-var(--nav-h,84px))] lg:object-[95%_50%]";
+  "block w-full object-cover max-lg:aspect-[1290/1356] lg:h-[calc(100vh-var(--nav-h,84px))] lg:object-[95%_50%]";
+/** The canvas fades into the page at every edge, instead of showing its background as a hard rectangle (W14-M). */
+const FADE = "linear-gradient(to right, transparent, #000 10%, #000 92%, transparent), " +
+  "linear-gradient(to bottom, transparent, #000 8%, #000 90%, transparent)";
+const SOFT_EDGES: CSSProperties = {
+  maskImage: FADE, WebkitMaskImage: FADE, maskComposite: "intersect", WebkitMaskComposite: "source-in",
+};
 
 export interface SpineTourProps {
   /** The plan's departments in stop order (§5.5). */
@@ -80,25 +85,49 @@ function useReached(ref: RefObject<HTMLElement>): boolean {
   return reached;
 }
 
-/** The plan_depth of the section crossing the middle of the screen; 0 until one does. */
+/**
+ * The plan_depth of the section crossing the screen's middle line, read on scroll and resize at most once a frame; it
+ * holds the last one while the line is between sections, and 0 at first. Not an IntersectionObserver: with a negative
+ * rootMargin, Chromium missed the scroll to stop 1 in 6 of 12 runs, while a fresh observer saw it (W14-M probe).
+ */
 function useDepthInView(ref: RefObject<HTMLElement>): number {
   const [depth, setDepth] = useState(0);
   useEffect(() => {
     const el = ref.current;
-    if (!el || typeof IntersectionObserver === "undefined") return undefined;
-    const observer = new IntersectionObserver((entries) => {
-      const crossing = entries.find((e) => e.isIntersecting);
-      if (crossing) setDepth(Number((crossing.target as HTMLElement).dataset.depth));
-    }, { rootMargin: MIDDLE_LINE });
-    el.querySelectorAll("[data-depth]").forEach((section) => observer.observe(section));
-    return () => observer.disconnect();
+    if (!el) return undefined;
+    const sections = [...el.querySelectorAll<HTMLElement>("[data-depth]")];
+    let frame: number | null = null;
+    const measure = () => {
+      frame = null;
+      const line = window.innerHeight / 2;
+      const crossing = sections.find((section) => {
+        const { top, bottom } = section.getBoundingClientRect();
+        return top <= line && bottom > line;
+      });
+      if (crossing) setDepth(Number(crossing.dataset.depth));
+    };
+    const schedule = () => {
+      frame ??= requestAnimationFrame(measure);
+    };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
   }, [ref]);
   return depth;
 }
 
-/** Flies the camera whenever the stop changes. The first target after the 3D arrives is a cut. */
-function useFlights(api: SpineViewerApi | null, stop: Stop): void {
+/**
+ * Flies the camera whenever the stop changes; `aim` turns a stop into the camera target for the stage's current size.
+ * The first target after the 3D arrives is a cut, and so is a re-frame of the same stop when the stage resizes.
+ */
+function useFlights(api: SpineViewerApi | null, stop: Stop, aim: (stop: Stop) => CameraTarget): void {
   const previous = useRef<Stop | undefined>(undefined);
+  const lastAim = useRef(aim);
   const sequence = useRef(0);
   useEffect(() => {
     if (!api) {
@@ -106,14 +135,17 @@ function useFlights(api: SpineViewerApi | null, stop: Stop): void {
       return;
     }
     const from = previous.current;
+    const reframed = lastAim.current !== aim;
     previous.current = stop;
-    const size = meshFor(window.innerWidth);
-    const targets = flightTargets(from, stop, api.reducedMotion).map((t) =>
-      centredTarget(t.kind === "disc" ? t.disc : null, size));
-    if (targets.length === 0) return;
+    lastAim.current = aim;
+    const moving = from !== undefined && from !== stop;
+    const stops = from === stop
+      ? (reframed ? [stop] : [])
+      : flightTargets(from, stop, api.reducedMotion).map((t) => (t.kind === "disc" ? t.disc : null));
+    if (stops.length === 0) return;
     const mine = ++sequence.current;
-    void runFlights(api, targets, () => sequence.current === mine, from !== undefined);
-  }, [api, stop]);
+    void runFlights(api, stops.map(aim), () => sequence.current === mine, moving);
+  }, [api, stop, aim]);
 }
 
 export function SpineTour({ departments, planAgentIds, children }: SpineTourProps): JSX.Element {
@@ -134,11 +166,18 @@ export function SpineTour({ departments, planAgentIds, children }: SpineTourProp
   const stop = stopForDepth(depth, discs);
   const callouts = useMemo(() => calloutsFor(departments, planAgentIds), [departments, planAgentIds]);
   const onApi = useCallback((next: SpineViewerApi | null) => setApi(next), []);
+  const width = Math.round(view.width);
+  const height = Math.round(view.height);
+  const aim = useCallback(
+    (at: Stop): CameraTarget =>
+      ({ kind: "framing", framing: tourFraming(at, meshFor(window.innerWidth), { width, height }, LEGEND_STRIP_PX[variant]) }),
+    [width, height, variant],
+  );
 
   useEffect(() => {
     api?.setLit(departments);
   }, [api, departments]);
-  useFlights(api, stop);
+  useFlights(api, stop, aim);
 
   const still = <HeroPicture className={STILL} />;
   return (
@@ -149,14 +188,16 @@ export function SpineTour({ departments, planAgentIds, children }: SpineTourProp
         className="sticky top-[var(--nav-h,84px)] z-20 bg-[color:var(--funnel-bg)] lg:order-2 lg:self-start"
       >
         <div ref={stageRef} className="relative">
-          {reached ? (
-            <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={departments} onApi={onApi}>
-              {still}
-            </SpineViewer>
-          ) : (
-            still
-          )}
-          <SpineOverlay api={api} callouts={callouts} planAgentIds={planAgentIds} variant={variant} view={view} />
+          <div data-soft-edges style={SOFT_EDGES}>
+            {reached ? (
+              <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={departments} onApi={onApi}>
+                {still}
+              </SpineViewer>
+            ) : (
+              still
+            )}
+          </div>
+          <SpineOverlay api={api} callouts={callouts} planAgentIds={planAgentIds} variant={variant} view={view} focus={stop} />
         </div>
       </div>
       <div ref={wordsRef} className="lg:order-1">

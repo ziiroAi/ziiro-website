@@ -181,6 +181,13 @@ describe("SpineOverlay: pinned callouts from onDiscBoxes (§6.7)", () => {
     expect(container.querySelector<HTMLElement>('[data-callout="G04"]')!.style.top).not.toBe(before);
   });
 
+  it("gives the stop in view the first claim on space, so its callout wins a clash (W14-M)", async () => {
+    const fake = fakeApi();
+    view = render(<SpineOverlay api={fake.api} callouts={callouts} planAgentIds={ANANYA.agentIds} variant="desktop" view={VIEW} focus="G05" />);
+    await fake.emitBoxes(BOXES);
+    expect([...view.container.querySelectorAll<HTMLElement>("[data-callout]")].map((l) => l.dataset.callout)[0]).toBe("G05");
+  });
+
   it("drops the callout of a disc that leaves the screen", async () => {
     const fake = fakeApi();
     const container = mount(fake.api);

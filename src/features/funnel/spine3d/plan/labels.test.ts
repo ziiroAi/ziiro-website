@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DiscId } from "../../data/contract";
 import { anchorFromBox } from "./tap";
-import { LABEL_GAP_PX, LABEL_MARGIN_PX, LABEL_SPACING_PX, layoutLabels, type LabelInput, type PlacedLabel } from "./labels";
+import { LABEL_GAP_PX, LABEL_MARGIN_PX, LABEL_SPACING_PX, LEADER_INSET_PX, layoutLabels, type LabelInput, type PlacedLabel } from "./labels";
 
 /** §6.7's callout anchors, as fractions of the r17 frame (x across, y down). */
 const ANCHORS: Partial<Record<DiscId, [number, number]>> = {
@@ -295,5 +295,85 @@ describe("re-check N2: the one-side fallback respects keepOut", () => {
       expect(covers, `${p.disc} covers its disc`).toBe(false);
     }
     expect(labels[1].hidden).toBe(false);
+  });
+});
+
+describe("W14-M: leader lines land straight and never run through another callout", () => {
+  /** Does the segment pass through the box's inside (touching its edge doesn't count)? Liang-Barsky. */
+  function crosses(l: PlacedLabel["leader"], b: PlacedLabel): boolean {
+    const inset = 0.5;
+    const [x0, y0, x1, y1] = [b.x + inset, b.y + inset, b.x + b.width - inset, b.y + b.height - inset];
+    const dx = l.x2 - l.x1;
+    const dy = l.y2 - l.y1;
+    let t0 = 0;
+    let t1 = 1;
+    for (const [p, q] of [[-dx, l.x1 - x0], [dx, x1 - l.x1], [-dy, l.y1 - y0], [dy, y1 - l.y1]]) {
+      if (p === 0) { if (q < 0) return false; continue; }
+      const t = q / p;
+      if (p < 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t);
+      if (t0 > t1) return false;
+    }
+    return true;
+  }
+  const expectNoCrossing = (labels: readonly PlacedLabel[]) => {
+    const visible = shown(labels);
+    for (const a of visible) for (const b of visible) {
+      if (a !== b) expect(crosses(a.leader, b), `${a.disc}'s leader runs through ${b.disc}`).toBe(false);
+    }
+  };
+
+  it("drops a callout rather than run a leader through it (worker-2's desktop light d2, 648 × 816 column)", () => {
+    // Disc boxes from tour-report.json, stage-relative; anchors on each box's right edge, 20 % down (§6.7).
+    const box = (x0: number, y0: number, x1: number, y1: number) => ({ x0, y0, x1, y1 });
+    const g05 = box(190, 272, 517, 449);
+    const g06 = box(237, 54, 495, 262);
+    const g04 = box(145, 654, 559, 703);
+    const at = (b: typeof g05) => ({ x: b.x1, y: b.y0 + 0.2 * (b.y1 - b.y0) });
+    const { labels } = layoutLabels([
+      { disc: "G04", anchor: at(g04), width: 230, height: 96, keepOut: g04 },
+      { disc: "G05", anchor: at(g05), width: 230, height: 56, keepOut: g05 },
+      { disc: "G06", anchor: at(g06), width: 230, height: 56, keepOut: g06 },
+    ], { width: 648, height: 816 });
+    expectClean(labels, 648, 816);
+    expectNoCrossing(labels);
+    expect(labels[1].hidden).toBe(false); // the stop in focus keeps its callout
+  });
+
+  it("ends a side leader at the anchor's own height when the label was pushed off it, not at the label's middle", () => {
+    const three: LabelInput[] = (["G06", "G05", "G04"] as DiscId[]).map((disc) => ({
+      disc, anchor: { x: 600, y: 300 }, width: 200, height: 60,
+    }));
+    const { labels } = layoutLabels(three, { width: 1440, height: 810 });
+    for (const p of labels) {
+      expect(p.leader.y2).toBeGreaterThanOrEqual(p.y + LEADER_INSET_PX - 1e-9);
+      expect(p.leader.y2).toBeLessThanOrEqual(p.y + p.height - LEADER_INSET_PX + 1e-9);
+      const nearest = Math.min(Math.max(300, p.y + LEADER_INSET_PX), p.y + p.height - LEADER_INSET_PX);
+      expect(p.leader.y2).toBeCloseTo(nearest, 9);
+    }
+    expectNoCrossing(labels);
+  });
+});
+
+describe("W14-M: a full-height column that tangles its leaders goes compact", () => {
+  it("names all four of Ananya's lit parts in the phone overview band (real boxes from the 390 shot)", () => {
+    // Disc boxes from the band (stage-relative), anchors on each right edge 20 % down; 354 px above the legend strip.
+    // Full height, Deals (84 px) is pushed down onto Back Office's anchor, whose leader then ran through it.
+    const disc = (id: DiscId, [x, y, w, h]: number[], height: number): LabelInput => ({
+      disc: id, anchor: { x: x + w, y: y + 0.2 * h }, width: 150, height, compactHeight: 30,
+      keepOut: { x0: x - 10, y0: y - 10, x1: x + w + 10, y1: y + h + 10 },
+    });
+    const view = { width: 390, height: 354 };
+    const { labels } = layoutLabels([
+      disc("G04", [153, 164, 42, 19], 84), disc("G05", [156, 131, 40, 20], 48),
+      disc("G06", [162, 99, 37, 20], 48), disc("G01", [161, 265, 45, 17], 48),
+    ], view);
+    expect(shown(labels).map((p) => p.disc)).toEqual(["G04", "G05", "G06", "G01"]);
+    expectClean(labels, view.width, view.height);
+    expect(labels.every((p) => p.compact)).toBe(true);
+  });
+
+  it("keeps full callouts when they don't tangle", () => {
+    const { labels } = layoutLabels(inputs(["G04", "G05", "G06", "G01"], 720, 810, [230, 90]), { width: 720, height: 810 });
+    expect(labels.every((p) => !p.compact && !p.hidden)).toBe(true);
   });
 });
