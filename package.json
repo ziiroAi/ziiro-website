@@ -17,6 +17,7 @@
     "hash:immutable": "node scripts/hash-immutable.mjs",
     "test:e2e": "playwright test --grep-invert \"@perf|@preview\"",
     "test:perf": "playwright test --grep @perf",
+    "perf:home": "node scripts/lighthouse-home.mjs",
     "test:preview": "playwright test --grep @preview --project phone",
     "check:build": "vitest run --config vitest.build.config.ts --passWithNoTests"
   },
