@@ -17,7 +17,7 @@ describe("copy", () => {
   });
 
   it("puts a value in as plain text, never as a pattern or a new placeholder", () => {
-    expect(copy("hx.p", { name: "$& {n}" }).startsWith("$& {n}, this is a full Business Spine")).toBe(true);
+    expect(copy("hx.p", { name: "$& {n}" }).startsWith("$& {n}, this is what a full Business Spine looks like")).toBe(true);
   });
 
   it("throws on an unknown ID, Object.prototype's keys included", () => {

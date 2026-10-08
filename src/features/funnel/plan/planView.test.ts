@@ -45,7 +45,7 @@ describe("buildPlanView: Ananya (§5.8)", () => {
   });
 
   it("fills the hero and the close with her name and her count", () => {
-    expect(v.heroText.desktop.startsWith("Ananya, this is a full Business Spine")).toBe(true);
+    expect(v.heroText.desktop.startsWith("Ananya, this is what a full Business Spine looks like")).toBe(true);
     expect(v.heroText.phone.startsWith("Ananya, this is the full spine.")).toBe(true);
     expect(v.later).toEqual({ desktop: copy("sp.later"), phone: "Pay for today's 6. Add the rest later." });
     expect(v.ctaLead.phone).toBe("Start with the 6 you need.");
