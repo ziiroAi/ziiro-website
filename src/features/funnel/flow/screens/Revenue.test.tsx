@@ -9,6 +9,11 @@ vi.mock("@/features/funnel/data/light", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   ...(await import("../test/fake-data")).FAKE_DATA,
 }));
+vi.mock("../plan-chunk", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../plan-chunk")>()),
+  prefetchPlan: vi.fn(),
+  LazyHeroPicturePrefetch: () => null,
+}));
 vi.mock("../region", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../region")>()),
   localTimeZone: vi.fn(() => "Asia/Kolkata"),

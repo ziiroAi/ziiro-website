@@ -2,16 +2,21 @@
  * (C) The funnel at "/" (spec §4; index §1.3): lane D's Index renders <FunnelRoot />.
  * One reducer holds the questions. The screens dispatch, and history, the send and the saves hang off it.
  */
-import { useCallback, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { SEGMENTS, copy, isOneOf } from "@/features/funnel/data/light";
 import { introOffsetMs, introStartMs } from "./boot";
 import { useBoot, useEarlyTap, useFocusOnStep, useFunnelAttributes, useIsoLayoutEffect } from "./hooks";
 import { useFlowHistory } from "./history";
+import { prefetchPlan } from "./plan-chunk";
 import { localTimeZone } from "./region";
 import { SCREEN_UI } from "./screens";
+import { PlanPrefetch } from "./screens/Plan";
 import type { FlowEnv, ScreenProps } from "./screens/types";
+import { setCtaReporter, setStage } from "./session";
 import { PROGRESS, PROGRESS_TOTAL, createTapGate, funnelStageOf, initialFlow, reduce, type FlowAction, type Screen } from "./state";
 import { FlowNote } from "./ui";
+import { useLeadSend } from "./useLeadSend";
+import { rotateVisit, startVisit } from "./visit-id";
 
 /** g.footer sits under the questions (§4.5): S1 to S7. */
 const NOTE_ON: ReadonlySet<Screen> = new Set<Screen>(["s1", "s1b", "s2", "s34", "s5", "s6", "s7"]);
@@ -44,6 +49,28 @@ export function FunnelRoot(): JSX.Element {
   useFocusOnStep(state.nav.seq, state.screen, rootRef);
   const onPop = useCallback((screen: Screen) => dispatch({ type: "popTo", screen }), []);
   useFlowHistory(state.nav, state.screen, onPop);
+  const send = useLeadSend(state, dispatch, starter);
+  const [warm, setWarm] = useState(false);
+  useEffect(() => {
+    startVisit();  // a reload after a send starts a new visit (§4.1)
+    setCtaReporter((from) => dispatch({ type: "progress", fields: { ctaFrom: from, ctaClicked: true } }));
+    return () => {
+      setCtaReporter(null);
+      setStage("questions");
+    };
+  }, []);
+  const stage = funnelStageOf(state);
+  useEffect(() => {
+    setStage(stage);  // the header's links show at S9 only (D6, §6.2)
+  }, [stage]);
+  useEffect(() => {
+    if (state.round > 0) rotateVisit();  // leaving the plan: sending again is a new visit (§4.1)
+  }, [state.round]);
+  useEffect(() => {
+    if (state.screen !== "s5") return;
+    prefetchPlan();  // the plan's code loads during S5 to S8 (§13.1)
+    setWarm(true);   // and the hero still S9 shows (§6.6)
+  }, [state.screen]);
 
   const env: FlowEnv = {
     boot,
@@ -51,7 +78,7 @@ export function FunnelRoot(): JSX.Element {
     country: null,
     timeZone,
     starter,
-    send: () => undefined,
+    send,
   };
   const props: ScreenProps = { state, act, edit: dispatch, env };
   // S7 stays mounted, hidden, while S8 plays, so its fields and the spam check survive a failed send (§10).
@@ -67,6 +94,7 @@ export function FunnelRoot(): JSX.Element {
       {Form && <Form {...props} />}
       {Current && <Current key={state.screen} {...props} />}
       {NOTE_ON.has(state.screen) && <FlowNote />}
+      {warm && state.screen !== "plan" && <PlanPrefetch />}
     </div>
   );
 }
