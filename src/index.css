@@ -1,3 +1,5 @@
+@import "./features/funnel/tokens.css";
+@import "./features/funnel/flow/flow.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -1,0 +1,43 @@
+/* (C) The funnel's colours (spec D9, §11.4; 00-index §1.3). The questions and the plan read only these.
+   Light is also the default, so "/" without JavaScript (no data-theme) gets the funnel's look.
+   Page, ink, muted and line come from worker-2's r17 web look (funnel/proto/look/web/index.html).
+   The accent is the approved sketch's button colour, with a near-black label at 5.2 to 1.
+   title-from and title-to colour hx.h2 (§6.2): grey in light, and the r17 look's blue-white gradient in dark. */
+:root,
+[data-theme="light"] {
+  --funnel-bg: #FAFAF8;
+  --funnel-fg: #141618;
+  --funnel-muted: #5F646B;
+  --funnel-line: #DADCDF;
+  --funnel-card: #FFFFFF;
+  --funnel-accent: #EF4824;
+  --funnel-on-accent: #0B0E14;
+  --funnel-title-from: #5F646B;
+  --funnel-title-to: #5F646B;
+}
+
+[data-theme="dark"] {
+  --funnel-bg: #060911;
+  --funnel-fg: #F4F6FA;
+  --funnel-muted: #A9B3C2;
+  --funnel-line: #2A3140;
+  --funnel-card: #0E1422;
+  --funnel-accent: #EF4824;
+  --funnel-on-accent: #0B0E14;
+  --funnel-title-from: #F4F6FA;
+  --funnel-title-to: #B9CCF2;
+}
+
+/* Only while the funnel is on screen. FunnelRoot sets data-funnel, and every other page keeps its own look.
+   The !important beats the inline color-scheme that next-themes writes for its forced dark theme. */
+html[data-funnel] body,
+html[data-funnel] .site-sheet {
+  background: var(--funnel-bg);
+  color: var(--funnel-fg);
+}
+html[data-funnel][data-theme="light"] {
+  color-scheme: light !important;
+}
+html[data-funnel][data-theme="dark"] {
+  color-scheme: dark !important;
+}
