@@ -30,8 +30,11 @@ const MICRO = "font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--f
 const BUTTON = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium";
 const percent = (fraction: number): string => `${fraction * 100}%`;
 /** The stills end on a hard edge a shade off the page. The last 15 % fades out, so the spine dissolves into the
- *  page colour the stats sit on. The stills are immutable (§6.6), so this is CSS, not new pixels. */
-const FADE_OUT = "[mask-image:linear-gradient(to_bottom,#000_85%,transparent)]";
+ *  page colour the stats sit on. The phone band (under 600 px) also starts mid page, so its first 12 % fades in.
+ *  The stills are immutable (§6.6), so this is CSS, not new pixels. */
+const FADE_OUT =
+  "[mask-image:linear-gradient(to_bottom,#000_85%,transparent)] " +
+  "max-[599px]:[mask-image:linear-gradient(to_bottom,transparent,#000_12%,#000_85%,transparent)]";
 
 export interface HeroProps {
   heroText: Lines;

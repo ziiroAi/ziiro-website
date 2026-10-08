@@ -77,6 +77,13 @@ describe("Hero (§6.2 block 1)", () => {
     expect(container.querySelector("ul")?.className).toContain("bg-[color:var(--funnel-bg)]");
   });
 
+  it("fades the phone band's first 12 % in from the page too, keeping the bottom fade", () => {
+    const { container } = renderHero();
+    expect(container.querySelector("img")?.className).toContain(
+      "max-[599px]:[mask-image:linear-gradient(to_bottom,transparent,#000_12%,#000_85%,transparent)]",
+    );
+  });
+
   it("keeps the callouts out of the accessibility tree, since the stats say the same", () => {
     const { container } = renderHero();
     const hidden = Array.from(container.querySelectorAll('[aria-hidden="true"]')).map(textOf).join(" ");
