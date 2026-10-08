@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type MouseEvent } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { calendlyUrl, copy, type FunnelStage } from "@/features/funnel/data/light";
+import { funnelSession } from "@/features/funnel/flow/session";
+import { INTERIM_BOOKING_URL } from "@/features/pricing/entities/rates";
 import ZiiroMark from "@/shared/ui/ziiro-mark";
 import { CSS_EASE, DURATION, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 import { scrollTo } from "@/shared/motion/SmoothScroll";
@@ -60,15 +63,37 @@ import { scrollTo } from "@/shared/motion/SmoothScroll";
  */
 
 const LINKS = [
-  { label: "Mission", to: "/mission" },
-  { label: "Who We Are", to: "/who-we-are" },
-  { label: "Products", to: "/products" },
+  { copyId: "nav.mission", to: "/mission" },
+  { copyId: "nav.who", to: "/who-we-are" },
+  { copyId: "nav.products", to: "/products" },
   // Three items, and Contact is deliberately not one of them. It was added
   // here briefly when the Book a Call CTA was repointed, on the reasoning that
   // Contact would otherwise leave the header entirely; the human saw the
   // four-item bar and wanted three back. Contact keeps its footer link and its
   // in-body links and is a real page; it simply does not sit in the header.
-];
+] as const;
+
+/** The funnel's stage (D6): on `/` the bar shows only the logo until the plan is on screen. */
+const subscribeStage = (onChange: () => void) => funnelSession.subscribe(onChange);
+const readStage = (): FunnelStage => funnelSession.stage();
+const serverStage = (): FunnelStage => "questions";
+
+/** Calendly with the visitor's name and email once S7 has gone, else the plain event (§6.3, D14). */
+function bookingHref(): string {
+  const lead = funnelSession.leadContact();
+  return lead ? calendlyUrl(lead.name, lead.email) : INTERIM_BOOKING_URL;
+}
+
+/** On `/` the bar takes the funnel's colours (00-index §1.3), so it follows the visitor's theme (D9)
+ *  instead of the site's forced dark (App.tsx Providers). Default, owner can veto. */
+const FUNNEL_BAR_COLOURS = {
+  "--background": "var(--funnel-bg)",
+  "--text-primary": "var(--funnel-fg)",
+  "--text-secondary": "var(--funnel-muted)",
+  "--text-muted": "var(--funnel-muted)",
+  "--border": "var(--funnel-line)",
+  "--border-strong": "var(--funnel-muted)",
+} as CSSProperties;
 
 /** The reveal is pinned at 500ms by the measured spec, and there is no 0.5s in
  *  the duration tokens, so it is written out rather than rounded to a token
@@ -230,6 +255,16 @@ export default function Navbar() {
   // createRoot, so a wrong first value would briefly hide the phone call to
   // action from assistive tech. The server has no window and renders false.
   const [open, setOpen] = useState(false);
+  const stage = useSyncExternalStore(subscribeStage, readStage, serverStage);
+  const logoOnly = pathname === "/" && stage === "questions";
+  useEffect(() => {
+    if (logoOnly) setOpen(false);
+  }, [logoOnly]);
+  const onBook = (e: MouseEvent<HTMLAnchorElement>) => {
+    e.currentTarget.href = bookingHref();
+    funnelSession.reportCta("header");
+    setOpen(false);
+  };
   const [compact, setCompact] = useState(
     () => typeof window !== "undefined" && window.matchMedia(COMPACT_QUERY).matches,
   );
@@ -489,6 +524,7 @@ export default function Navbar() {
     <nav
       ref={navRef}
       className="fixed left-0 right-0 top-0 z-50 py-5"
+      style={pathname === "/" ? FUNNEL_BAR_COLOURS : undefined}
       data-menu-open={open || undefined}
     >
       {/* The progressive blur, and the only thing in this bar that is not a
@@ -525,7 +561,7 @@ export default function Navbar() {
         <Link
           ref={logo}
           to="/"
-          aria-label="Ziiro home"
+          aria-label={copy("nav.home.aria")}
           onMouseEnter={() => canHover.current && setHovered(true)}
           onMouseLeave={() => setHovered(false)}
           onFocus={(e) => {
@@ -641,6 +677,7 @@ export default function Navbar() {
             row's occupied height is the 20px of ink it always was. `leading-5`
             is the last half-pixel: 13px text rides a 19.5px line by default,
             which lands the padded box on 43.5 and just under the target. */}
+        {!logoOnly && (
         <div
           id="site-menu"
           ref={menuRef}
@@ -666,7 +703,7 @@ export default function Navbar() {
               // ("Mission01") or its name for a screen reader.
               data-index={String(i + 1).padStart(2, "0")}
             >
-              {link.label}
+              {copy(link.copyId)}
             </Link>
           ))}
           {/* Phone only: the call to action at the foot of the panel. The row's
@@ -676,12 +713,14 @@ export default function Navbar() {
             className="site-menu-item site-menu-foot sm:hidden"
             style={{ ["--i" as string]: LINKS.length }}
           >
-            <Link
-              to="/book-a-call"
-              onClick={() => setOpen(false)}
+            <a
+              href={INTERIM_BOOKING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onBook}
               className="site-menu-cta"
             >
-              Book a call
+              {copy("nav.btn")}
               <svg
                 aria-hidden="true"
                 width="15"
@@ -695,9 +734,10 @@ export default function Navbar() {
               >
                 <path d="M3 7.5h9M8.4 3.9 12 7.5l-3.6 3.6" />
               </svg>
-            </Link>
+            </a>
           </div>
         </div>
+        )}
 
         {/* ─── Right: the call to action ─────────────────────────────────
             Two elements, and the split is the point. The wrapper carries the
@@ -730,6 +770,7 @@ export default function Navbar() {
             inline styles, hence !important there), and the link turns into the
             outlined pill. The fade was reading as a washed-out grey button on a
             phone. The burger sits to its right on the same row. */}
+        {!logoOnly && (
         <div className="flex items-center gap-2.5">
           <div
             className="site-nav-cta flex items-center"
@@ -747,8 +788,11 @@ export default function Navbar() {
                 : null),
             }}
           >
-            <Link
-              to="/book-a-call"
+            <a
+              href={INTERIM_BOOKING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onBook}
               data-reveal
               tabIndex={ctaIdle ? -1 : undefined}
               aria-hidden={ctaIdle || undefined}
@@ -764,8 +808,8 @@ export default function Navbar() {
               className="flex min-h-[44px] items-center rounded-full bg-[var(--text-primary)] px-5 py-2.5 text-xs font-semibold uppercase tracking-wide text-[var(--background)] hover:opacity-90 max-sm:border max-sm:border-[var(--border)] max-sm:bg-[var(--background)] max-sm:text-[var(--text-primary)] max-[359px]:px-3.5"
               style={micro("opacity")}
             >
-              Book a Call
-            </Link>
+              {copy("nav.btn")}
+            </a>
           </div>
 
           {/* ─── The burger (below sm only) ────────────────────────────────────
@@ -775,7 +819,7 @@ export default function Navbar() {
           <button
             ref={burgerRef}
             type="button"
-            aria-label={open ? "Close menu" : "Open menu"}
+            aria-label={copy("ph.nav.menu")}
             aria-expanded={open}
             aria-controls="site-menu"
             onClick={() => setOpen((v) => !v)}
@@ -807,6 +851,7 @@ export default function Navbar() {
             </span>
           </button>
         </div>
+        )}
       </div>
     </nav>
   );
