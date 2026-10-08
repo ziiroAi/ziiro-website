@@ -11,17 +11,17 @@ import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
  * eagerly-fetched `poster` attribute. A reader who never scrolls this far
  * downloads nothing but the markup.
  *
- * The film is the Business Brain launch cut, 1080p at 60fps. Both copies are
+ * The film is the Business Spine launch cut, 1080p at 60fps. Both copies are
  * x264 veryslow encodes straight from its lossless render, and this film is
  * the brand's first impression, so here quality wins over bytes. Wide screens
- * get CRF 14: 35.8 MB at 5.05 Mbps, SSIM 0.9991 against the render. Phones
- * get CRF 18: 23.0 MB at 3.24 Mbps, SSIM 0.9986, and at a phone's frame width
+ * get CRF 14: 35.2 MB at 4.97 Mbps, SSIM 0.9992 against the render. Phones
+ * get CRF 18: 22.8 MB at 3.22 Mbps, SSIM 0.9987, and at a phone's frame width
  * the difference does not show. Both are converted to BT.709 and tagged so:
  * browsers read untagged HD video as BT.709, and ffmpeg's untagged BT.601
  * default shifts the orange. High@4.2 keeps 1080p60 within older phones'
  * decoders.
  *
- * The poster is the film's reveal: the lockup and "Business Brain" on white.
+ * The poster is the film's reveal: the lockup and "Business Spine" on white.
  * The film opens on white, so poster to first frame is white to white. No
  * poster is baked into frame 0, because it would flash at every autoplay
  * start.
@@ -40,20 +40,23 @@ import VslPlayer, { type VslConfig } from "@/shared/ui/vsl-player";
  * The schema belongs on /watch/<slug>, not on the home page.
  */
 
+/** The film's files (§6.5): 56.7 s, 1920 × 1080 at 60 fps, re-rendered with "BRAIN · LIVE". */
+export const SPINE_FILM_FILES = {
+  src: "/media/ziiro-business-spine-master.mp4",
+  narrowSrc: "/media/ziiro-business-spine-phone.mp4",
+  poster: "/media/ziiro-business-spine-poster-1080.jpg",
+} as const;
+
 /** Runtime is 56.7s; both encodes are 1920x1080 at 60fps, H.264 with faststart. */
 const BRAND_FILM: VslConfig = {
-  source: {
-    kind: "file",
-    src: "/media/ziiro-business-brain-master.mp4",
-    narrowSrc: "/media/ziiro-business-brain-phone.mp4",
-  },
+  source: { kind: "file", src: SPINE_FILM_FILES.src, narrowSrc: SPINE_FILM_FILES.narrowSrc },
   // The film's own opening lines, not a claim written for it.
   title: "Everyone's selling you AI to replace your team. We built the opposite.",
-  description:
-    "The launch film for Business Brain: it maps a business against 137 jobs, keeps only the ones worth automating, and wires its departments into one brain. Agents prepare, people approve.",
+  // Only the watch-page schema reads this, and this section emits none. Task 5 fills it from r.film.cap.
+  description: "",
   uploadDate: "2026-09-29",
   duration: "PT57S",
-  poster: "/media/ziiro-business-brain-poster-1080.jpg",
+  poster: SPINE_FILM_FILES.poster,
   runtime: "57 sec",
 };
 
