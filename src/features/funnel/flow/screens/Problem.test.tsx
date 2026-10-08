@@ -53,6 +53,31 @@ describe("S6 (§4.3, §4.4)", () => {
     expect(root().querySelectorAll(".f-bar .is-on")).toHaveLength(5);
   });
 
+  describe("the cursor on the first blank (copy.md)", () => {
+    let nextFrame: FrameRequestCallback | null;
+    beforeEach(() => {
+      nextFrame = null;
+      vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+        nextFrame = callback;
+        return 1;
+      });
+    });
+
+    it("selects the first blank a frame after the untouched starter gets focus", () => {
+      box()?.focus();
+      nextFrame?.(0);
+      expect([box()?.selectionStart, box()?.selectionEnd]).toEqual([30, 33]);
+    });
+
+    it("leaves a selection made before that frame alone, so select-all then typing replaces the whole box", () => {
+      const field = box()!;
+      field.focus();
+      field.setSelectionRange(0, field.value.length);
+      nextFrame?.(0);
+      expect([field.selectionStart, field.selectionEnd]).toEqual([0, field.value.length]);
+    });
+  });
+
   it("loads the spam check's script when it opens (§4.4)", () => {
     expect(loadTurnstile).toHaveBeenCalled();
   });

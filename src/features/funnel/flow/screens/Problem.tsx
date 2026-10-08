@@ -18,10 +18,15 @@ export function Problem({ state, act, edit, env }: ScreenProps) {
     loadTurnstile(TURNSTILE_SITE_KEY).catch(() => undefined);  // no script: the send goes without a token (§10)
   }, []);
 
-  /** copy.md: "cursor on the first blank". Only on the untouched starter, so an edit keeps their own cursor. */
+  /**
+   * copy.md: "cursor on the first blank". Only on the untouched starter with a bare cursor, checked again a frame
+   * later, so an edit or a selection made in between (select-all, then typing) is theirs to keep.
+   */
   const toFirstBlank = (box: HTMLTextAreaElement) => {
-    if (box.value !== env.starter) return;
+    const untouched = () => box.value === env.starter && box.selectionStart === box.selectionEnd;
+    if (!untouched()) return;
     requestAnimationFrame(() => {
+      if (!untouched()) return;
       const at = box.value.indexOf(BLANK);
       if (at >= 0) box.setSelectionRange(at, at + BLANK.length);
     });
