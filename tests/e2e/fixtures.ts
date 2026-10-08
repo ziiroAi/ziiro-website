@@ -1,5 +1,6 @@
 import { test as base, expect, type Route } from "@playwright/test";
 import type { LeadRequest, LeadResponse, VisitRequest, VisitResponse } from "../../src/features/funnel/data/contract";
+import { LEAD_BUDGET_MS } from "../../src/features/funnel/flow/send";
 
 /**
  * (C) /api/funnel/* answered by route mocks for every spec (spec §12). `vite preview` runs no
@@ -7,7 +8,10 @@ import type { LeadRequest, LeadResponse, VisitRequest, VisitResponse } from "../
  * real functions on a Vercel Preview instead (Task 16).
  */
 
-/** One /lead answer: a status and body, optionally held for delayMs; or "no-answer" (held past LEAD_TIMEOUT_MS, then dropped). */
+/**
+ * One /lead answer: a status and body, optionally held for delayMs; or "no-answer", held past the client's
+ * LEAD_BUDGET_MS, so the send gives up on its own clock (a client timeout, not a dropped connection).
+ */
 export type LeadAnswer = { status: number; body?: LeadResponse; delayMs?: number } | "no-answer";
 
 export interface FunnelApi {
@@ -19,7 +23,8 @@ export interface FunnelApi {
 
 const VISIT_OK: VisitResponse = { success: true, country: "IN" };
 const LEAD_OK: LeadResponse = { success: true, planEmail: "sent" };
-const NO_ANSWER_MS = 12_000;
+/** Past the client's budget (review M2), so its own abort fires first; the route is dropped after. */
+const NO_ANSWER_MS = LEAD_BUDGET_MS + 2_000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const reply = (route: Route, status: number, body: unknown) =>
