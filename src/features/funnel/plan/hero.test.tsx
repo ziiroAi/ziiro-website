@@ -71,6 +71,12 @@ describe("Hero (§6.2 block 1)", () => {
     }
   });
 
+  it("fades the still's last 15 % into the page, and sets the stats on the page colour, so no edge shows", () => {
+    const { container } = renderHero();
+    expect(container.querySelector("img")?.className).toContain("[mask-image:linear-gradient(to_bottom,#000_85%,transparent)]");
+    expect(container.querySelector("ul")?.className).toContain("bg-[color:var(--funnel-bg)]");
+  });
+
   it("keeps the callouts out of the accessibility tree, since the stats say the same", () => {
     const { container } = renderHero();
     const hidden = Array.from(container.querySelectorAll('[aria-hidden="true"]')).map(textOf).join(" ");

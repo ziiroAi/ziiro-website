@@ -29,6 +29,9 @@ const STATS = [
 const MICRO = "font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--funnel-muted)]";
 const BUTTON = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium";
 const percent = (fraction: number): string => `${fraction * 100}%`;
+/** The stills end on a hard edge a shade off the page. The last 15 % fades out, so the spine dissolves into the
+ *  page colour the stats sit on. The stills are immutable (§6.6), so this is CSS, not new pixels. */
+const FADE_OUT = "[mask-image:linear-gradient(to_bottom,#000_85%,transparent)]";
 
 export interface HeroProps {
   heroText: Lines;
@@ -81,7 +84,7 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress }: 
           </div>
         </div>
         <div className="relative mt-10 lg:mt-0">
-          <HeroPicture className="block h-auto w-full" />
+          <HeroPicture className={`block h-auto w-full ${FADE_OUT}`} />
           <svg
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 hidden h-full w-full lg:block"
@@ -109,7 +112,7 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress }: 
           ))}
         </div>
       </div>
-      <ul className="grid grid-cols-3 gap-4 px-4 pt-8 sm:px-6 lg:px-10">
+      <ul className="grid grid-cols-3 gap-4 bg-[color:var(--funnel-bg)] px-4 pt-8 sm:px-6 lg:px-10">
         {STATS.map((s) => (
           <li key={s.number}>
             <span className="block text-3xl font-medium lg:text-4xl">{copy(s.number)}</span>{" "}
