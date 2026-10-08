@@ -74,11 +74,16 @@ describe("S1b and Back", () => {
     start();
     tap(button(root(), "Student, or just curious"));
     tap(button(root(), "Back"));
-    await settle(20);
-    expect(screenNow()).toBe("s1");
+    // Wait for the screen to change, not a fixed time: popstate can land late when the whole suite runs at once.
+    await vi.waitFor(async () => {
+      await settle();
+      expect(screenNow()).toBe("s1");
+    }, { timeout: 2_000, interval: 20 });
     expect(button(root(), "Student, or just curious")?.classList.contains("is-selected")).toBe(true);
     window.history.forward();
-    await settle(20);
-    expect(screenNow()).toBe("s1b");
+    await vi.waitFor(async () => {
+      await settle();
+      expect(screenNow()).toBe("s1b");
+    }, { timeout: 2_000, interval: 20 });
   });
 });
