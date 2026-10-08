@@ -41,4 +41,48 @@ test.describe("the live spine", () => {
     await page.mouse.up();
     await expect.poll(async () => (await viewer.screenshot()).equals(before), { timeout: 5_000 }).toBe(false);
   });
+
+  // W14-J, worker-2's F1: the canvas kept its mount-time look when <html data-theme> changed, so in light the dark
+  // canvas sat behind light-theme words. SwiftShader compiles a new look slowly, hence the long polls.
+  for (const when of ["while the 3D loads", "after it is live"] as const) {
+    test(`follows a theme change made ${when}, and shows the canvas again only in the new look`, async ({ page }) => {
+      test.setTimeout(120_000);
+      await toPlan(page);
+      const viewer = page.getByTestId("spine-viewer");
+      if (when === "after it is live") await expect(viewer).toHaveAttribute("data-spine", "live", { timeout: LIVE_TIMEOUT_MS });
+      const next = await page.evaluate(() => {
+        const flipped = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = flipped;
+        return flipped;
+      });
+      await expect(viewer).toHaveAttribute("data-spine", "live", { timeout: LIVE_TIMEOUT_MS });
+      await expect(page.getByTestId("spine-still")).toBeHidden({ timeout: LIVE_TIMEOUT_MS });
+      await viewer.scrollIntoViewIfNeeded();
+      const looksLight = async () => (await meanLuminance(page, await viewer.screenshot())) > LIGHT_LUMINANCE;
+      await expect.poll(looksLight, { timeout: LIVE_TIMEOUT_MS }).toBe(next === "light");
+    });
+  }
 });
+
+/** Mid-grey: the light look's ground is near white and the dark look's near black, spine included. */
+const LIGHT_LUMINANCE = 128;
+
+/** A screenshot's mean luminance (0–255), decoded in a blank page, so no image library and no page CSP. */
+async function meanLuminance(page: Page, png: Buffer): Promise<number> {
+  const blank = await page.context().newPage();
+  try {
+    return await blank.evaluate(async (base64) => {
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const bitmap = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+      const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+      const context = canvas.getContext("2d")!;
+      context.drawImage(bitmap, 0, 0);
+      const { data } = context.getImageData(0, 0, bitmap.width, bitmap.height);
+      let sum = 0;
+      for (let i = 0; i < data.length; i += 4) sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+      return sum / (data.length / 4);
+    }, png.toString("base64"));
+  } finally {
+    await blank.close();
+  }
+}

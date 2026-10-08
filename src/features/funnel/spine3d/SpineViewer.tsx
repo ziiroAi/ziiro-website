@@ -96,6 +96,8 @@ interface Inputs {
 
 function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   const [state, setState] = useState<{ phase: SpinePhase; reason: FallbackReason | null }>({ phase: "still", reason: null });
+  /** True while a theme change draws: the still (already in the new theme) covers for the canvas (W14-J F1). */
+  const [restyling, setRestyling] = useState(false);
   const latest = useRef(inputs);
   latest.current = inputs;
   const live = useRef<Live | null>(null);
@@ -164,8 +166,25 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   }, [boxRef]);
 
   useEffect(() => {
-    live.current?.handle.setTheme(inputs.theme);
-    live.current?.drive?.wake();
+    const current = live.current;
+    if (!current) return;
+    // While loading, the worker puts the change on its first frame, which the still covers for anyway.
+    if (!current.drive) {
+      void current.handle.setTheme(inputs.theme);
+      return;
+    }
+    let stale = false;
+    current.canvas.style.opacity = "0";
+    setRestyling(true);
+    void current.handle.setTheme(inputs.theme).then(() => {
+      if (stale || live.current !== current) return;
+      current.canvas.style.opacity = "1";
+      setRestyling(false);
+    });
+    current.drive.wake();
+    return () => {
+      stale = true;
+    };
   }, [inputs.theme]);
 
   useEffect(() => {
@@ -173,7 +192,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     live.current?.drive?.wake();
   }, [inputs.levels]);
 
-  return state;
+  return { ...state, restyling };
 }
 
 export function SpineViewer({ label, lit, className = "", children, onApi, onPhase }: SpineViewerProps): JSX.Element {
@@ -182,7 +201,7 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason } = useSpine(boxRef, { label, theme, levels, onApi, onPhase });
+  const { phase, reason, restyling } = useSpine(boxRef, { label, theme, levels, onApi, onPhase });
   const live = phase === "live";
   return (
     <div
@@ -193,7 +212,7 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
       className={`relative ${live ? "cursor-grab select-none" : ""} ${className}`}
       style={live ? { touchAction: "pan-y" } : undefined}
     >
-      <div data-testid="spine-still" className={live ? "invisible" : undefined}>
+      <div data-testid="spine-still" className={live && !restyling ? "invisible" : undefined}>
         {children}
       </div>
     </div>

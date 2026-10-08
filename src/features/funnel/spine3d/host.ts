@@ -13,7 +13,8 @@ export interface SpineHandle {
   render(view: View): void;
   pick(x: number, y: number): Promise<DiscId | null>;
   resize(width: number, height: number, dpr: number): void;
-  setTheme(theme: Theme): void;
+  /** Settles once a frame in the new look is drawn (or the 3D stops), so the viewer can hold the still till then. */
+  setTheme(theme: Theme): Promise<void>;
   setLevels(levels: DiscLevels): void;
   dispose(): void;
 }
@@ -29,15 +30,31 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
   const send = (message: ToWorker, transfer: Transferable[] = []) => worker.postMessage(message, transfer);
   const picks = new Map<number, (disc: DiscId | null) => void>();
   let nextPick = 0;
+  /** Theme changes in the order they were sent, each settled once the worker has drawn it. */
+  let themed: { theme: Theme; settle: () => void }[] = [];
+  const settleThemes = (upTo = themed.length) => {
+    themed.slice(0, upTo).forEach(({ settle }) => settle());
+    themed = themed.slice(upTo);
+  };
   worker.onmessage = ({ data }: MessageEvent<FromWorker>) => {
+    // The first frame wears the latest theme sent while loading, so it settles every change made before it.
+    if (data.type === "ready") settleThemes();
+    if (data.type === "themed") settleThemes(themed.findIndex(({ theme }) => theme === data.theme) + 1);
     if (data.type === "ready") onReady(data.boxes);
+    else if (data.type === "themed") return;
     else if (data.type === "boxes") onBoxes(data.boxes);
     else if (data.type === "picked") {
       picks.get(data.id)?.(data.disc);
       picks.delete(data.id);
-    } else onFail(reasonFor(data.reason));
+    } else {
+      settleThemes();
+      onFail(reasonFor(data.reason));
+    }
   };
-  worker.onerror = () => onFail("error");
+  worker.onerror = () => {
+    settleThemes();
+    onFail("error");
+  };
   const offscreen = canvas.transferControlToOffscreen();
   send({ type: "init", canvas: offscreen, ...start }, [offscreen]);
   return {
@@ -49,12 +66,17 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
         send({ type: "pick", id, x, y });
       }),
     resize: (width, height, dpr) => send({ type: "resize", width, height, dpr }),
-    setTheme: (theme) => send({ type: "theme", theme }),
+    setTheme: (theme) =>
+      new Promise<void>((settle) => {
+        themed = [...themed, { theme, settle }];
+        send({ type: "theme", theme });
+      }),
     setLevels: (levels) => send({ type: "levels", levels }),
     dispose: () => {
       send({ type: "dispose" });
       worker.terminate();
       picks.forEach((resolve) => resolve(null));
+      settleThemes();
     },
   };
 }
@@ -63,14 +85,26 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
   let disposed = false;
   let spine: SpineScene | null = null;
   let latest = start.view;
+  /** Asked for while the scene is built, applied before its first frame (W14-J F1). */
+  let pending: { theme?: Theme; levels?: DiscLevels; size?: [number, number, number] } = {};
+  let themed: (() => void)[] = [];
+  const settleThemes = () => {
+    themed.forEach((settle) => settle());
+    themed = [];
+  };
   void Promise.all([import("./scene")])
     .then(([{ createSpineScene }]) => createSpineScene({ ...start, canvas, onContextLost: () => onFail("context-lost") }))
     .then((built) => {
       if (disposed) return built.dispose();
       spine = built;
+      if (pending.size) spine.resize(...pending.size);
+      if (pending.theme) spine.setTheme(pending.theme);
+      if (pending.levels) spine.setLevels(pending.levels);
       onReady(spine.render(latest));
+      settleThemes();
     })
     .catch((error: unknown) => {
+      settleThemes();
       if (!disposed) onFail(reasonFor(error instanceof Error ? error.message : error));
     });
   return {
@@ -79,13 +113,27 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
       if (spine) onBoxes(spine.render(view));
     },
     pick: async (x, y) => spine?.pick(x, y) ?? null,
-    resize: (width, height, dpr) => spine?.resize(width, height, dpr),
-    setTheme: (theme) => spine?.setTheme(theme),
-    setLevels: (levels) => spine?.setLevels(levels),
+    resize: (width, height, dpr) => {
+      if (spine) spine.resize(width, height, dpr);
+      else pending = { ...pending, size: [width, height, dpr] };
+    },
+    setTheme: (theme) => {
+      if (spine) {
+        spine.setTheme(theme); // draws the new look before it returns
+        return Promise.resolve();
+      }
+      pending = { ...pending, theme };
+      return new Promise<void>((settle) => themed.push(settle));
+    },
+    setLevels: (levels) => {
+      if (spine) spine.setLevels(levels);
+      else pending = { ...pending, levels };
+    },
     dispose: () => {
       disposed = true;
       spine?.dispose();
       spine = null;
+      settleThemes();
     },
   };
 }

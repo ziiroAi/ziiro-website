@@ -15,7 +15,7 @@ const handle = {
   render: vi.fn(),
   pick: vi.fn(async () => picked),
   resize: vi.fn(),
-  setTheme: vi.fn(),
+  setTheme: vi.fn(async (_theme: string) => undefined),
   setLevels: vi.fn(),
   dispose: vi.fn(),
 };
@@ -186,6 +186,24 @@ describe("SpineViewer (W14-C)", () => {
     expect(handle.setTheme).toHaveBeenLastCalledWith("dark");
     screen!.rerender(ui(["marketing"]));
     expect(handle.setLevels).toHaveBeenLastCalledWith(discLevels(["marketing"]));
+  });
+
+  it("shows the still while a theme change draws, and the canvas again once the new look is on it (W14-J F1)", async () => {
+    let drawn: () => void = () => undefined;
+    handle.setTheme.mockImplementationOnce(() => new Promise<undefined>((resolve) => (drawn = () => resolve(undefined))));
+    await mount();
+    ready();
+    await act(async () => {
+      document.documentElement.dataset.theme = "dark";
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(handle.setTheme).toHaveBeenLastCalledWith("dark");
+    expect(viewer().dataset.spine).toBe("live");
+    expect(still().className).not.toContain("invisible");
+    expect(canvas()?.style.opacity).toBe("0");
+    await act(async () => drawn());
+    expect(still().className).toContain("invisible");
+    expect(canvas()?.style.opacity).toBe("1");
   });
 
   it("lets a vertical swipe scroll the page on a phone", async () => {
