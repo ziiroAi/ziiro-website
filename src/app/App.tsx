@@ -7,10 +7,10 @@ import { ThemeProvider } from "next-themes";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
-import Preloader from "@/shared/components/Preloader";
 import PageAtmosphere from "@/shared/components/PageAtmosphere";
 import SmoothScroll, { easeInOutCubic, headerOffset, scrollTo } from "@/shared/motion/SmoothScroll";
 import ScrollProgress from "@/shared/motion/ScrollProgress";
+import { HomeRoute } from "@/app/home-route";
 
 /**
  * EVERY route is code-split, the homepage included. It used to be imported
@@ -24,8 +24,8 @@ import ScrollProgress from "@/shared/motion/ScrollProgress";
  * Splitting it costs `/` one extra request for its own chunk, which is
  * preloaded next to the entry rather than serialised behind it, and saves
  * every other route the whole homepage.
+ * `/` loads through src/app/home-route.tsx, which main.tsx preloads before it mounts on `/`.
  */
-const Index = lazy(() => import("@/pages/Index"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
@@ -203,7 +203,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
+      <Route path="/" element={<HomeRoute />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/mission" element={<Mission />} />
@@ -230,7 +230,6 @@ export function AppRoutes() {
 
 const App = () => (
   <Providers>
-    <Preloader />
     <PageAtmosphere />
     <Toaster />
     <Sonner />
