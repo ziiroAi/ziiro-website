@@ -16,6 +16,7 @@ function setup(options: { limited?: boolean; down?: boolean } = {}) {
     async findLead() { return null; },
     async saveLead() { throw new Error("not used by /visit"); },
     async savePlanEmail() { throw new Error("not used by /visit"); },
+    async countRecentFlagged() { throw new Error("not used by /visit"); },
   };
   const rateLimited = vi.fn((_key: string, _max: number) => options.limited ?? false);
   const handle = createVisitHandler({

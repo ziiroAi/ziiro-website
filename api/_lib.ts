@@ -38,6 +38,19 @@ const rateLimitMax = 5;
  * one; that is a dashboard setting, not code, so it cannot live in this file.
  */
 const rateLimitBuckets = new Map<string, number[]>();
+let lastSweepAt = Date.now();
+
+/** Drops every key whose window has passed, at most once a window, so a long-lived instance doesn't grow (review L6). */
+const sweepRateLimits = (now: number) => {
+  if (now - lastSweepAt < rateLimitWindowMs) return;
+  lastSweepAt = now;
+  for (const [key, times] of rateLimitBuckets) {
+    if (times.every((time) => now - time >= rateLimitWindowMs)) rateLimitBuckets.delete(key);
+  }
+};
+
+/** How many keys the limiter holds. For tests. */
+export const rateLimitKeyCount = () => rateLimitBuckets.size;
 
 /**
  * CORS is NOT a security control here and must not be counted as one: the
@@ -80,6 +93,7 @@ export const sanitizeHeader = (value: unknown, maxLength = 120) =>
 /** `max` defaults to the /contact setting, 5 per 10 minutes. /api/funnel/visit passes its own. */
 export const isRateLimited = (key: string, max = rateLimitMax) => {
   const now = Date.now();
+  sweepRateLimits(now);
   const recent = (rateLimitBuckets.get(key) ?? []).filter((time) => now - time < rateLimitWindowMs);
   if (recent.length >= max) {
     rateLimitBuckets.set(key, recent);
@@ -226,8 +240,15 @@ export const readJson = async (req: Request, maxBytes = maxBodyBytes) => {
 
 const siteverifyUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
-/** "missing": no token came. "refused": Cloudflare said no, didn't answer in time, or the secret isn't set. */
-export type TurnstileOutcome = "passed" | "missing" | "refused";
+/**
+ * "missing": no token came. "refused": Cloudflare said no. "unavailable": the check itself is down, because the
+ * secret isn't set, Cloudflare rejects it, or Cloudflare didn't answer in time (review M1). Kept apart from
+ * "refused" so an outage doesn't look like a spam wave.
+ */
+export type TurnstileOutcome = "passed" | "missing" | "refused" | "unavailable";
+
+/** Cloudflare's error codes that mean our secret is wrong, not the visitor's token. */
+const SECRET_ERRORS = new Set(["missing-input-secret", "invalid-input-secret"]);
 
 /**
  * Verifies a Cloudflare Turnstile token server-side.
@@ -241,7 +262,10 @@ export type TurnstileOutcome = "passed" | "missing" | "refused";
  * "missing" is told apart from "refused" because /api/funnel/lead flags the two
  * differently on a second try (§13.2). `action`, when given, must match the
  * widget's; Cloudflare's test keys report none, so an empty one passes and only
- * a different one is refused. `timeoutMs` bounds the call; /contact passes none.
+ * a different one is refused. `hostnames`, when given, must include the one the
+ * token was made on (review L2); Production passes its own. `timeoutMs` bounds
+ * the call; /contact passes none. /contact's verifyTurnstile still treats
+ * everything but "passed" as a no.
  *
  * Requires TURNSTILE_SECRET_KEY. The matching public site key belongs on the
  * form as VITE_TURNSTILE_SITE_KEY.
@@ -249,13 +273,13 @@ export type TurnstileOutcome = "passed" | "missing" | "refused";
 export const turnstileOutcome = async (
   token: string | undefined,
   ip: string,
-  opts: { action?: string; timeoutMs?: number } = {},
+  opts: { action?: string; hostnames?: readonly string[]; timeoutMs?: number } = {},
 ): Promise<TurnstileOutcome> => {
   if (!token) return "missing";
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) {
     logEvent("error", "turnstile.misconfigured", { missing: "TURNSTILE_SECRET_KEY" });
-    return "refused";
+    return "unavailable";
   }
   try {
     const form = new URLSearchParams({ secret, response: token });
@@ -268,12 +292,19 @@ export const turnstileOutcome = async (
       body: form,
       ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
     });
-    const data = (await res.json().catch(() => ({}))) as { success?: boolean; action?: string };
-    if (data.success !== true) return "refused";
-    return opts.action && data.action && data.action !== opts.action ? "refused" : "passed";
+    const data = (await res.json().catch(() => ({}))) as {
+      success?: boolean; action?: string; hostname?: string; "error-codes"?: string[];
+    };
+    if (data.success !== true) {
+      if (!(data["error-codes"] ?? []).some((code) => SECRET_ERRORS.has(code))) return "refused";
+      logEvent("error", "turnstile.misconfigured", { rejected: "TURNSTILE_SECRET_KEY" });
+      return "unavailable";
+    }
+    if (opts.action && data.action && data.action !== opts.action) return "refused";
+    return opts.hostnames && !opts.hostnames.includes(data.hostname ?? "") ? "refused" : "passed";
   } catch (error) {
     logEvent("error", "turnstile.unreachable", { name: error instanceof Error ? error.name : "unknown" });
-    return "refused";
+    return "unavailable";
   }
 };
 

@@ -1,7 +1,7 @@
 // Neon access for the funnel (spec §13.5): Neon's HTTP driver, one round trip per call, no pool.
 import { neon } from "@neondatabase/serverless";
 import type { LeadFlag, PlanEmailStatus, StepId, VisitRequest } from "../../src/features/funnel/data/contract";
-import { CONTACT_INSERT, FIND_LEAD, PLAN_EMAIL_INSERT, VISIT_UPSERT } from "./_sql";
+import { CONTACT_INSERT, COUNT_RECENT_FLAGGED, FIND_LEAD, PLAN_EMAIL_INSERT, VISIT_UPSERT } from "./_sql";
 
 /** A visits row by its column names, as VISIT_UPSERT's record list spells them. */
 export type VisitRecord = {
@@ -55,6 +55,8 @@ export interface FunnelDb {
   /** One transaction: the visit's final snapshot, then the contact (§13.2, write 1). */
   saveLead(visit: VisitRecord, contact: ContactRecord): Promise<SavedLead>;
   savePlanEmail(row: PlanEmailRecord): Promise<void>;
+  /** Flagged contacts saved in the last hour (review H1). */
+  countRecentFlagged(): Promise<number>;
 }
 
 export function createDb(url: string | undefined = process.env.DATABASE_URL): FunnelDb {
@@ -78,6 +80,10 @@ export function createDb(url: string | undefined = process.env.DATABASE_URL): Fu
     },
     async savePlanEmail(row) {
       await sql.query(PLAN_EMAIL_INSERT, [JSON.stringify(row)]);
+    },
+    async countRecentFlagged() {
+      const rows = await sql.query(COUNT_RECENT_FLAGGED);
+      return Number(rows[0]?.n ?? 0);
     },
   };
 }

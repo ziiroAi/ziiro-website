@@ -88,6 +88,7 @@ const SPAM_CHECK: Record<SpamCheck, string> = {
   passed: "passed",
   missing: "no token came with it",
   refused: "refused",
+  unavailable: "DOWN (Cloudflare or our secret), so this is probably a real person",
   skipped: "not run, because this connection hit the rate limit",
 };
 
@@ -153,7 +154,7 @@ export function buildAlertEmail(input: AlertInput): Email {
     ? ["", "If they're real, send them this, then run saved query 6 with their email:", "", `Subject: ${planEmail.subject}`, "", planEmail.text]
     : [];
   return {
-    subject: `New funnel lead: ${name}, ${business}, team of ${team}`,
+    subject: `${flag === "turnstile_unavailable" ? "SPAM CHECK DOWN, not spam: " : ""}New funnel lead: ${name}, ${business}, team of ${team}`,
     text: `${[...lines, ...byHand].join("\n").trimEnd()}\n`,
   };
 }
@@ -171,6 +172,21 @@ export function buildSendByHandAlert(input: { lead: LeadRequest; errorName: stri
       `Subject: ${planEmail.subject}`,
       "",
       planEmail.text,
+    ].join("\n"),
+  };
+}
+
+/**
+ * The one alert that stands in for every flagged lead past the hour's ceiling (review H1). It carries nothing a
+ * sender typed, so a flood can't use it to reach the team.
+ */
+export function buildFloodAlert(ceiling: number): Email {
+  return {
+    subject: `Flagged funnel leads: more than ${ceiling} this hour`,
+    text: [
+      `More than ${ceiling} flagged leads were saved in the last hour, so their alerts are paused until the hour is out.`,
+      "Every one is in the database, with its plan email held. Read them with the saved query for flagged contacts.",
+      "If they look real, check the spam check first: a Turnstile outage flags every lead.",
     ].join("\n"),
   };
 }

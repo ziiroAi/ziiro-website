@@ -11,13 +11,16 @@ import {
 import { cleanName } from "../../src/shared/lib/contact-checks";
 import { createDb, type FunnelDb, type StoredPlanEmailStatus, type VisitAnswers, type VisitRecord } from "./_db";
 import {
-  alertRecipients, buildAlertEmail, buildPlanEmail, buildSendByHandAlert, type Email, type SpamCheck,
+  alertRecipients, buildAlertEmail, buildFloodAlert, buildPlanEmail, buildSendByHandAlert, type Email, type SpamCheck,
 } from "./_email";
 import { countryOf, parseLead, visitIdOf } from "./_validate";
 
 export const config = { runtime: "nodejs", maxDuration: 15 };
 
 const LEAD_RATE_MAX = 5;              // per connection per 10 minutes, the /contact setting (§13.2 step 4)
+const RETRY_RATE_MAX = 2;             // second tries per connection per 10 minutes: retry is the client's word (review H1)
+const FLAGGED_ALERT_CEILING = 10;     // flagged leads alerted one by one per hour, then one flood alert (review H1)
+const PRODUCTION_HOSTS = ["ziiroai.com", "www.ziiroai.com"];  // where a Production token may come from (review L2)
 const CALL_TIMEOUT_MS = 2_500;        // each Turnstile or Resend call, so most answers land inside S8's 8 s
 const PLAN_EMAIL_TRIES = 2;           // two tries, then failed (§10)
 const RESEND_KEY_ALREADY_USED = 409;  // Resend: this idempotency key is in flight, or was used with another body
@@ -34,6 +37,8 @@ export interface LeadEnv {
   planFrom: string;
   planReplyTo: string;
   alertFrom: string;
+  /** VERCEL_ENV is production. Anywhere else, the plan email goes only to teamInbox (review H2). */
+  production: boolean;
 }
 
 export interface LeadDeps {
@@ -46,7 +51,7 @@ export interface LeadDeps {
   now(): Date;
 }
 
-type Gate = { refuse: 403 | 429 | null; flag: LeadFlag | null; spamCheck: SpamCheck };
+type Gate = { refuse: 403 | 429 | 503 | null; flag: LeadFlag | null; spamCheck: SpamCheck };
 type Saved = { contactId: string; answers: VisitAnswers } | "duplicate" | null;
 type PlanResult = { status: PlanEmailStatus; resendId: string | null; errorName: string | null };
 
@@ -72,19 +77,29 @@ async function earlierResult(deps: LeadDeps, visitId: string): Promise<PlanEmail
   }
 }
 
-/** §13.2 steps 4 and 5. A first try that fails stops here; a second try is saved with its flag. */
+const FLAG_FOR: Record<Exclude<TurnstileOutcome, "passed">, LeadFlag> = {
+  missing: "turnstile_unverified",
+  refused: "turnstile_failed",
+  unavailable: "turnstile_unavailable",
+};
+
+/**
+ * §13.2 steps 4 and 5. A first try that fails stops here: 429, 403, or 503 while the spam check is down (review M1).
+ * A second try has its own per-connection limit, because retry is the client's word (review H1), and always gets
+ * the spam check: it, not the shared-IP limit, decides the flag (review M2).
+ */
 async function checkSender(deps: LeadDeps, request: Request, lead: LeadRequest): Promise<Gate> {
   const retry = lead.retry === true;
   const ip = clientIp(request);
-  if (deps.rateLimited(`funnel-lead:${ip}`, LEAD_RATE_MAX)) {
-    return retry
-      ? { refuse: null, flag: "rate_limited", spamCheck: "skipped" }
-      : { refuse: 429, flag: null, spamCheck: "skipped" };
+  const limited = deps.rateLimited(`funnel-lead:${ip}`, LEAD_RATE_MAX);
+  if (!retry && limited) return { refuse: 429, flag: null, spamCheck: "skipped" };
+  if (retry && deps.rateLimited(`funnel-lead-retry:${ip}`, RETRY_RATE_MAX)) {
+    return { refuse: 429, flag: null, spamCheck: "skipped" };
   }
   const outcome = await deps.turnstile(lead.turnstileToken, ip);
   if (outcome === "passed") return { refuse: null, flag: null, spamCheck: outcome };
-  if (!retry) return { refuse: 403, flag: null, spamCheck: outcome };
-  return { refuse: null, flag: outcome === "missing" ? "turnstile_unverified" : "turnstile_failed", spamCheck: outcome };
+  if (!retry) return { refuse: outcome === "unavailable" ? 503 : 403, flag: null, spamCheck: outcome };
+  return { refuse: null, flag: FLAG_FOR[outcome], spamCheck: outcome };
 }
 
 const visitSnapshot = (lead: LeadRequest, country: string | null, jobIds: string[]): VisitRecord => ({
@@ -127,14 +142,10 @@ async function saveContact(
   }
 }
 
-/** Write 2, and the send-by-hand alert. A 409 means an alert under this key has gone or is going. */
-async function sendAlert(deps: LeadDeps, lead: LeadRequest, email: Email, idempotencyKey: string): Promise<boolean> {
-  const env = deps.env();
+/** One team email. A 409 means an email under this key has gone or is going. */
+async function deliver(deps: LeadDeps, email: OutgoingEmail): Promise<boolean> {
   try {
-    await deps.send({
-      ...email, to: alertRecipients(env.teamInbox, env.planReplyTo), from: env.alertFrom,
-      replyTo: lead.email.trim(), idempotencyKey,
-    });
+    await deps.send(email);
     return true;
   } catch (error) {
     if (error instanceof UpstreamError && error.status === RESEND_KEY_ALREADY_USED) return true;
@@ -142,6 +153,40 @@ async function sendAlert(deps: LeadDeps, lead: LeadRequest, email: Email, idempo
     return false;
   }
 }
+
+/** Write 2, and the send-by-hand alert. */
+function sendAlert(deps: LeadDeps, lead: LeadRequest, email: Email, idempotencyKey: string): Promise<boolean> {
+  const env = deps.env();
+  return deliver(deps, {
+    ...email, to: alertRecipients(env.teamInbox, env.planReplyTo), from: env.alertFrom,
+    replyTo: lead.email.trim(), idempotencyKey,
+  });
+}
+
+/** True past the hour's ceiling of flagged saves. A count that can't be read alerts as before (review H1). */
+async function pastFloodCeiling(deps: LeadDeps): Promise<boolean> {
+  try {
+    return (await deps.db().countRecentFlagged()) > FLAGGED_ALERT_CEILING;
+  } catch (error) {
+    logEvent("error", "funnel.lead.flood_count", { name: errorNameOf(error) });
+    return false;
+  }
+}
+
+/** One flood alert per hour, to TEAM_INBOX only, in place of every flagged lead's own (review H1). */
+function sendFloodAlert(deps: LeadDeps): Promise<boolean> {
+  const env = deps.env();
+  const hour = deps.now().toISOString().slice(0, 13);
+  return deliver(deps, {
+    ...buildFloodAlert(FLAGGED_ALERT_CEILING), to: [env.teamInbox], from: env.alertFrom, idempotencyKey: `flood-${hour}`,
+  });
+}
+
+/** Outside Production, a plan email to anyone but TEAM_INBOX is held (review H2). */
+const heldOutsideProduction = (env: LeadEnv, to: string): boolean =>
+  !env.production && to.trim().toLowerCase() !== env.teamInbox.trim().toLowerCase();
+
+const HELD: PlanResult = { status: "held", resendId: null, errorName: null };
 
 /** Write 3: two tries under one key, then failed (§10). */
 async function sendPlanEmail(deps: LeadDeps, lead: LeadRequest, email: Email): Promise<PlanResult> {
@@ -177,14 +222,16 @@ async function save(deps: LeadDeps, request: Request, lead: LeadRequest, gate: G
     lead, flag: gate.flag, spamCheck: gate.spamCheck, answers: saved?.answers ?? null, country,
     receivedAt: deps.now().toISOString(), planEmail,
   });
-  const alerted = await sendAlert(deps, lead, alert, `alert-${lead.visitId}`);
+  // Only a lead that's in the database can skip its own alert.
+  const capped = gate.flag !== null && saved !== null && await pastFloodCeiling(deps);
+  const alerted = capped ? await sendFloodAlert(deps) : await sendAlert(deps, lead, alert, `alert-${lead.visitId}`);
   if (!saved && !alerted) {
     logEvent("error", "funnel.lead.lost", { requestId: requestId(request) });
     return answer(request, { success: false }, 502);
   }
-  const plan: PlanResult = gate.flag
-    ? { status: "held", resendId: null, errorName: null }
-    : await sendPlanEmail(deps, lead, planEmail);
+  const previewHeld = !gate.flag && heldOutsideProduction(deps.env(), lead.email);
+  if (previewHeld) logEvent("info", "funnel.lead.preview_held", { requestId: requestId(request) });
+  const plan: PlanResult = gate.flag || previewHeld ? HELD : await sendPlanEmail(deps, lead, planEmail);
   if (plan.status === "failed") {
     const byHand = buildSendByHandAlert({ lead, errorName: plan.errorName, planEmail });
     await sendAlert(deps, lead, byHand, `alert-failed-${lead.visitId}`);
@@ -250,7 +297,11 @@ const sendWithResend = (email: OutgoingEmail): Promise<{ id: string | null }> =>
 const handle = createLeadHandler({
   db: () => createDb(),
   rateLimited: isRateLimited,
-  turnstile: (token, ip) => turnstileOutcome(token, ip, { action: TURNSTILE_ACTION, timeoutMs: CALL_TIMEOUT_MS }),
+  turnstile: (token, ip) => turnstileOutcome(token, ip, {
+    action: TURNSTILE_ACTION,
+    timeoutMs: CALL_TIMEOUT_MS,
+    ...(process.env.VERCEL_ENV === "production" ? { hostnames: PRODUCTION_HOSTS } : {}),
+  }),
   send: sendWithResend,
   jobIdsFor,
   env: () => ({
@@ -258,6 +309,7 @@ const handle = createLeadHandler({
     planFrom: process.env.PLAN_FROM || resendFrom(),
     planReplyTo: process.env.PLAN_REPLY_TO || teamInbox(),
     alertFrom: resendFrom(),
+    production: process.env.VERCEL_ENV === "production",
   }),
   now: () => new Date(),
 });

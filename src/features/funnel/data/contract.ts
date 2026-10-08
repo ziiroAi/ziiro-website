@@ -268,8 +268,11 @@ export type VisitResponse =
 export const LEAD_FIELDS = ["name", "email", "phone", "consent", "payload"] as const;
 export type LeadField = (typeof LEAD_FIELDS)[number];
 
-/** contacts.flag: a second try saved although the spam check or the rate limit failed (§10). */
-export const LEAD_FLAGS = ["turnstile_unverified", "turnstile_failed", "rate_limited"] as const;
+/**
+ * contacts.flag: a second try saved although the spam check failed or was down (§10, review M1). rate_limited
+ * stays for rows saved before review M2, which now runs the spam check on a limited second try.
+ */
+export const LEAD_FLAGS = ["turnstile_unverified", "turnstile_failed", "turnstile_unavailable", "rate_limited"] as const;
 export type LeadFlag = (typeof LEAD_FLAGS)[number];
 
 /** What /lead answers. plan_emails.status can also be sent_by_hand, delivered, bounced or complained. */

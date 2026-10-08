@@ -17,7 +17,11 @@ type Options = {
   dbDown?: boolean;
   stored?: StoredPlanEmailStatus | null;              // this visit already has a lead, with this plan email status
   raceLost?: boolean;                                 // another request saves this visit's lead first
-  limited?: boolean;
+  limited?: boolean;                                  // the first-try limit, per connection
+  limitedRetry?: boolean;                             // the second-try limit, per connection (review H1)
+  recentFlagged?: number;                             // flagged contacts saved in the last hour, this one included
+  countDown?: boolean;                                // the flagged count can't be read
+  production?: boolean;                               // VERCEL_ENV is production (default true)
   turnstile?: TurnstileOutcome;
   failSend?: (email: OutgoingEmail) => number | null; // a Resend status to throw, or null to send
 };
@@ -45,10 +49,14 @@ function setup(options: Options = {}) {
       if (options.dbDown) throw new Error("connection refused");
       rows.push(row);
     },
+    async countRecentFlagged() {
+      if (options.dbDown || options.countDown) throw new Error("connection refused");
+      return options.recentFlagged ?? 1;
+    },
   };
   const handle = createLeadHandler({
     db: () => db,
-    rateLimited: () => options.limited ?? false,
+    rateLimited: (key) => (key.startsWith("funnel-lead-retry:") ? options.limitedRetry : options.limited) ?? false,
     turnstile,
     async send(email) {
       tries.push(email);
@@ -61,6 +69,7 @@ function setup(options: Options = {}) {
     env: () => ({
       teamInbox: "team@ziiroai.com", planFrom: "Adyut at ziiro <adyut@ziiroai.com>",
       planReplyTo: "team@ziiroai.com", alertFrom: "Ziiro AI <contact@ziiroai.com>",
+      production: options.production ?? true,
     }),
     now: () => new Date("2026-10-19T06:30:00.000Z"),
   });
@@ -152,18 +161,107 @@ describe("POST /api/funnel/lead (§13.2)", () => {
       expect(turnstile).not.toHaveBeenCalled();
     });
 
-    it("saves a second try past the limit, flagged rate_limited, and holds the plan email", async () => {
-      const { handle, saved, sent } = setup({ limited: true });
+    it("still asks Turnstile on a second try past the limit, and sends the plan when it passes (review M2)", async () => {
+      const { handle, saved, sent, turnstile } = setup({ limited: true });
+      const res = await handle(send(lead({ retry: true })));
+      expect(await res.json()).toEqual({ success: true, planEmail: "sent" });
+      expect(turnstile).toHaveBeenCalledOnce();
+      expect(saved[0].contact.flag).toBeNull();
+      expect(keys(sent)).toEqual([`alert-${ID}`, `plan-${ID}`]);
+    });
+
+    it("flags a second try past the limit by its spam check when that fails (review M2)", async () => {
+      const { handle, saved, sent } = setup({ limited: true, turnstile: "missing" });
       const res = await handle(send(lead({ retry: true })));
       expect(await res.json()).toEqual({ success: true, planEmail: "held" });
-      expect(saved[0].contact.flag).toBe("rate_limited");
+      expect(saved[0].contact.flag).toBe("turnstile_unverified");
       expect(keys(sent)).toEqual([`alert-${ID}`]);
+    });
+
+    it("answers 429 to a second try past the second-try limit, and saves and sends nothing (review H1)", async () => {
+      const { handle, saved, tries, turnstile } = setup({ limitedRetry: true });
+      const res = await handle(send(lead({ retry: true })));
+      expect(res.status).toBe(429);
+      expect(saved).toEqual([]);
+      expect(tries).toEqual([]);
+      expect(turnstile).not.toHaveBeenCalled();
+    });
+
+    it("answers 503 on a first try when the spam check is down, and saves nothing (review M1)", async () => {
+      const { handle, saved, tries } = setup({ turnstile: "unavailable" });
+      const res = await handle(send(lead()));
+      expect(res.status).toBe(503);
+      expect(saved).toEqual([]);
+      expect(tries).toEqual([]);
+    });
+
+    it("saves a second try while the spam check is down, flagged turnstile_unavailable, and says so in the subject (review M1)", async () => {
+      const { handle, saved, sent } = setup({ turnstile: "unavailable" });
+      const res = await handle(send(lead({ retry: true })));
+      expect(await res.json()).toEqual({ success: true, planEmail: "held" });
+      expect(saved[0].contact.flag).toBe("turnstile_unavailable");
+      expect(sent[0].subject.startsWith("SPAM CHECK DOWN, not spam: ")).toBe(true);
     });
 
     it("asks Turnstile with the token and the connection's address", async () => {
       const { handle, turnstile } = setup();
       await handle(send(lead()));
       expect(turnstile).toHaveBeenCalledWith("XXXX.DUMMY.TOKEN.XXXX", IP);
+    });
+  });
+
+  describe("a flood of flagged saves (review H1)", () => {
+    const flagged = { turnstile: "missing" as const };
+
+    it("alerts a flagged lead while this hour's flagged saves are at the ceiling", async () => {
+      const { handle, sent } = setup({ ...flagged, recentFlagged: 10 });
+      await handle(send(lead({ retry: true })));
+      expect(keys(sent)).toEqual([`alert-${ID}`]);
+    });
+
+    it("past the ceiling, saves the lead, skips its alert, and sends one flood alert for the hour", async () => {
+      const { handle, saved, sent, rows } = setup({ ...flagged, recentFlagged: 11 });
+      const res = await handle(send(lead({ retry: true })));
+      expect(await res.json()).toEqual({ success: true, planEmail: "held" });
+      expect(saved).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ status: "held" });
+      expect(keys(sent)).toEqual(["flood-2026-10-19T06"]);
+      expect(sent[0].to).toEqual(["team@ziiroai.com"]);
+      expect(sent[0].replyTo).toBeUndefined();
+      expect(sent[0].subject).toBe("Flagged funnel leads: more than 10 this hour");
+      expect(sent[0].text).not.toContain(ananya.email);
+    });
+
+    it("alerts as before when the count can't be read", async () => {
+      const { handle, sent } = setup({ ...flagged, recentFlagged: 50, countDown: true });
+      await handle(send(lead({ retry: true })));
+      expect(keys(sent)).toEqual([`alert-${ID}`]);
+    });
+
+    it("never caps an unflagged lead", async () => {
+      const { handle, sent } = setup({ recentFlagged: 50 });
+      await handle(send(lead()));
+      expect(keys(sent)).toEqual([`alert-${ID}`, `plan-${ID}`]);
+    });
+  });
+
+  describe("outside Production (review H2)", () => {
+    it("holds and logs a plan email to anyone but TEAM_INBOX", async () => {
+      const { handle, sent, rows } = setup({ production: false });
+      const res = await handle(send(lead()));
+      expect(await res.json()).toEqual({ success: true, planEmail: "held" });
+      expect(keys(sent)).toEqual([`alert-${ID}`]);
+      expect(rows[0]).toMatchObject({ status: "held", resend_id: null });
+      expect(logs.some((line) => line.includes("funnel.lead.preview_held"))).toBe(true);
+      expect(logs.join("\n")).not.toContain(ananya.email);
+    });
+
+    it("sends the plan email when it's addressed to TEAM_INBOX, in any case", async () => {
+      const { handle, sent } = setup({ production: false });
+      const res = await handle(send(lead({ email: "Team@ZiiroAI.com" })));
+      expect(await res.json()).toEqual({ success: true, planEmail: "sent" });
+      expect(keys(sent)).toEqual([`alert-${ID}`, `plan-${ID}`]);
+      expect(sent[1].to).toEqual(["Team@ZiiroAI.com"]);
     });
   });
 

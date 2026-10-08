@@ -32,6 +32,19 @@ describe("isRateLimited", () => {
     const key = `test-${Math.random()}`;
     expect(Array.from({ length: 6 }, () => lib.isRateLimited(key))).toEqual([false, false, false, false, false, true]);
   });
+
+  it("drops keys whose window has passed, so a long-lived instance doesn't grow (review L6)", () => {
+    vi.useFakeTimers();
+    try {
+      for (let i = 0; i < 50; i += 1) lib.isRateLimited(`sweep-${i}`);
+      expect(lib.rateLimitKeyCount()).toBeGreaterThanOrEqual(50);
+      vi.advanceTimersByTime(11 * 60 * 1000);
+      lib.isRateLimited("sweep-new");
+      expect(lib.rateLimitKeyCount()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("sendResendEmail", () => {
@@ -140,15 +153,29 @@ describe("turnstileOutcome (§13.2 step 5, §13.3)", () => {
     expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("refused");
   });
 
-  it("refuses when Cloudflare doesn't answer in time", async () => {
+  it("says unavailable, not refused, when Cloudflare doesn't answer in time (review M1)", async () => {
     fetchMock.mockRejectedValue(new DOMException("timed out", "TimeoutError"));
-    expect(await lib.turnstileOutcome("t", "203.0.113.7", { timeoutMs: 2_500 })).toBe("refused");
+    expect(await lib.turnstileOutcome("t", "203.0.113.7", { timeoutMs: 2_500 })).toBe("unavailable");
     expect((fetchMock.mock.calls[0][1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
   });
 
-  it("refuses, and logs the variable's name, when the secret isn't set", async () => {
+  it("says unavailable when Cloudflare rejects our secret (review M1)", async () => {
+    cloudflare({ success: false, "error-codes": ["invalid-input-secret"] });
+    expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("unavailable");
+  });
+
+  it("refuses a token from another hostname when hostnames are given (review L2)", async () => {
+    cloudflare({ success: true, hostname: "ziiroai.com.evil.example" });
+    expect(await lib.turnstileOutcome("t", "203.0.113.7", { hostnames: ["ziiroai.com", "www.ziiroai.com"] })).toBe("refused");
+    cloudflare({ success: true, hostname: "www.ziiroai.com" });
+    expect(await lib.turnstileOutcome("t", "203.0.113.7", { hostnames: ["ziiroai.com", "www.ziiroai.com"] })).toBe("passed");
+    cloudflare({ success: true, hostname: "example.com" });
+    expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("passed");
+  });
+
+  it("says unavailable, and logs the variable's name, when the secret isn't set (review M1)", async () => {
     vi.stubEnv("TURNSTILE_SECRET_KEY", "");
-    expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("refused");
+    expect(await lib.turnstileOutcome("t", "203.0.113.7")).toBe("unavailable");
     expect(String(vi.mocked(console.error).mock.calls[0]?.[0])).toContain("TURNSTILE_SECRET_KEY");
   });
 
@@ -156,6 +183,8 @@ describe("turnstileOutcome (§13.2 step 5, §13.3)", () => {
     cloudflare({ success: true });
     expect(await lib.verifyTurnstile("t", "203.0.113.7")).toBe(true);
     cloudflare({ success: false });
+    expect(await lib.verifyTurnstile("t", "203.0.113.7")).toBe(false);
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "");
     expect(await lib.verifyTurnstile("t", "203.0.113.7")).toBe(false);
   });
 });

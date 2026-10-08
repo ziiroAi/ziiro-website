@@ -68,7 +68,7 @@ create table contacts (
   matched_phrases    text[],
   consent_version    text not null,                    -- version of the exact s7.consent wording
   consent_at         timestamptz not null,
-  flag               text check (flag in ('turnstile_unverified','turnstile_failed','rate_limited')),
+  flag               text check (flag in ('turnstile_unverified','turnstile_failed','turnstile_unavailable','rate_limited')),
   withdrawn_at       timestamptz
 );
 
