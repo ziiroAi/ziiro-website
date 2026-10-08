@@ -209,6 +209,22 @@ describe("POST /api/funnel/lead (§13.2)", () => {
       expect(saved[0].contact.flag).toBe("turnstile_unavailable");
     });
 
+    it("caps passing over-limit second tries at 10 per IP, then 429 with no save (recheck M2 follow-up)", async () => {
+      const { handle, saved, sent } = setup({ realLimiter: true });
+      const ip = `198.51.100.${Math.floor(Math.random() * 250) + 1}-${Date.now()}-cap`;
+      const answers: number[] = [];
+      for (let visitor = 0; visitor < 30; visitor += 1) {
+        const body = lead({ visitId: crypto.randomUUID() });
+        const first = await handle(send(body, "application/json", ip));
+        const final = first.status === 429 ? await handle(send({ ...body, retry: true }, "application/json", ip)) : first;
+        answers.push(final.status);
+      }
+      // 5 first tries, 2 second tries under their limit, then 10 passing over-limit second tries.
+      expect(saved).toHaveLength(17);
+      expect(answers.filter((status) => status === 429)).toHaveLength(13);
+      expect(sent).toHaveLength(34);
+    });
+
     it("saves all 9 visitors on one shared IP with valid tokens, with the real limiter (worker-3's recheck repro)", async () => {
       const { handle, saved } = setup({ realLimiter: true });
       const ip = `198.51.100.${Math.floor(Math.random() * 250) + 1}-${Date.now()}`;

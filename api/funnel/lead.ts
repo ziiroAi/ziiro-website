@@ -19,6 +19,9 @@ export const config = { runtime: "nodejs", maxDuration: 15 };
 
 const LEAD_RATE_MAX = 5;              // per connection per 10 minutes, the /contact setting (§13.2 step 4)
 const RETRY_RATE_MAX = 2;             // second tries per connection per 10 minutes: retry is the client's word (review H1)
+// Passing second tries past that limit, per connection per 10 minutes: room for an office or a carrier IP, a
+// ceiling for one sender solving challenges in a loop (recheck M2 follow-up).
+const PASSED_RETRY_RATE_MAX = 10;
 // Flagged leads alerted one by one per 24 hours, then one flood alert a day (review H1, recheck). Resend's free
 // plan sends 100 a day and each alert may count twice, so 20 leaves room for real leads' alerts and plan emails.
 const FLAGGED_ALERT_CEILING = 20;
@@ -90,6 +93,7 @@ const FLAG_FOR: Record<Exclude<TurnstileOutcome, "passed">, LeadFlag> = {
  * A second try always gets the spam check: it, not the shared-IP limit, decides the flag (review M2). Past its own
  * per-connection limit (review H1), a second try is saved only when its token passes or the check is down, so a
  * busy office or carrier IP loses no real lead (recheck M2) while a forged retry, with no passing token, gets 429.
+ * Passing ones past that limit have a ceiling of their own, so a loop of solved challenges stops too.
  */
 async function checkSender(deps: LeadDeps, request: Request, lead: LeadRequest): Promise<Gate> {
   const retry = lead.retry === true;
@@ -98,7 +102,10 @@ async function checkSender(deps: LeadDeps, request: Request, lead: LeadRequest):
   if (!retry && limited) return { refuse: 429, flag: null, spamCheck: "skipped" };
   const retryOverLimit = retry && deps.rateLimited(`funnel-lead-retry:${ip}`, RETRY_RATE_MAX);
   const outcome = await deps.turnstile(lead.turnstileToken, ip);
-  if (outcome === "passed") return { refuse: null, flag: null, spamCheck: outcome };
+  if (outcome === "passed") {
+    const overCeiling = retryOverLimit && deps.rateLimited(`funnel-lead-retry-passed:${ip}`, PASSED_RETRY_RATE_MAX);
+    return { refuse: overCeiling ? 429 : null, flag: null, spamCheck: outcome };
+  }
   if (!retry) return { refuse: outcome === "unavailable" ? 503 : 403, flag: null, spamCheck: outcome };
   if (retryOverLimit && outcome !== "unavailable") return { refuse: 429, flag: null, spamCheck: outcome };
   return { refuse: null, flag: FLAG_FOR[outcome], spamCheck: outcome };
