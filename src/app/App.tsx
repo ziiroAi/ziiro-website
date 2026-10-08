@@ -7,6 +7,7 @@ import PageAtmosphere from "@/shared/components/PageAtmosphere";
 import SmoothScroll, { easeInOutCubic, headerOffset, scrollTo } from "@/shared/motion/SmoothScroll";
 import ScrollProgress from "@/shared/motion/ScrollProgress";
 import { HomeRoute } from "@/app/home-route";
+import { RouteBoundary } from "@/app/RouteBoundary";
 
 /**
  * EVERY route is code-split, the homepage included. It used to be imported
@@ -232,9 +233,11 @@ const App = () => (
           it (index.css, SITE FOOTER). The server entry wraps its page the same
           way, so the prerendered first paint is already layered. */}
       <div className="site-sheet">
-        <Suspense fallback={<div className="min-h-screen" />}>
-          <AppRoutes />
-        </Suspense>
+        <RouteBoundary>
+          <Suspense fallback={<div className="min-h-screen" />}>
+            <AppRoutes />
+          </Suspense>
+        </RouteBoundary>
       </div>
       <Footer />
     </BrowserRouter>
