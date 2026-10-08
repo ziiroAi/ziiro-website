@@ -200,3 +200,61 @@ describe("review M4: a column taller than the canvas never overlaps silently", (
     expect(labels.filter((p) => p.hidden).every((p) => p.hiddenReason === "overflow")).toBe(true);
   });
 });
+
+describe("review L3: a phone close-up label never covers its own disc", () => {
+  // 390 close-up (proj.py): the disc fills 0.6 of the band, 236 px wide, its anchor (the band's right end) near x 313.
+  // That leaves 57 px right of the anchor and 57 px left of the disc, so a 150 px label fits on neither side.
+  const W = 390;
+  const H = 410;
+  const disc = { x0: 77, y0: 150, x1: 313, y1: 250 };
+  const focused: LabelInput = { disc: "G04", anchor: { x: 313, y: 170 }, width: 150, height: 36, keepOut: disc };
+  const covers = (p: PlacedLabel, box: typeof disc) =>
+    !(p.x + p.width <= box.x0 || box.x1 <= p.x || p.y + p.height <= box.y0 || box.y1 <= p.y);
+
+  it("puts the label above the disc, clear of it, with the leader to the label's bottom edge", () => {
+    const { labels } = layoutLabels([focused], { width: W, height: H });
+    const [p] = labels;
+    expect(p.hidden).toBe(false);
+    expect(covers(p, disc)).toBe(false);
+    expect(p.side).toBe("above");
+    expect(p.y + p.height).toBeLessThanOrEqual(disc.y0 - LABEL_GAP_PX + 1e-9);
+    expect([p.leader.x1, p.leader.y1]).toEqual([313, 170]);
+    expect(p.leader.y2).toBe(p.y + p.height);
+    expectClean(labels, W, H);
+  });
+
+  it("goes below when there's no room above", () => {
+    const high = { x0: 77, y0: 20, x1: 313, y1: 120 };
+    const { labels } = layoutLabels([{ ...focused, anchor: { x: 313, y: 40 }, keepOut: high }], { width: W, height: H });
+    const [p] = labels;
+    expect(p.side).toBe("below");
+    expect(covers(p, high)).toBe(false);
+    expect(p.y).toBeGreaterThanOrEqual(high.y1 + LABEL_GAP_PX - 1e-9);
+    expect(p.leader.y2).toBe(p.y);
+    expectClean(labels, W, H);
+  });
+
+  it("keeps a left-side label clear of its disc too, measuring from the disc's left edge", () => {
+    const narrow = { x0: 220, y0: 150, x1: 313, y1: 250 };
+    const { labels } = layoutLabels([{ ...focused, keepOut: narrow }], { width: W, height: H });
+    const [p] = labels;
+    expect(p.side).toBe("left");
+    expect(covers(p, narrow)).toBe(false);
+    expect(p.leader.x1).toBe(narrow.x0);
+  });
+
+  it("hides it rather than cover the disc when neither above nor below fits", () => {
+    const tall = { x0: 77, y0: 30, x1: 313, y1: 380 };
+    const { labels, overflow } = layoutLabels([{ ...focused, keepOut: tall }], { width: W, height: H });
+    expect(labels[0]).toMatchObject({ hidden: true, hiddenReason: "overflow" });
+    expect(overflow).toBe(true);
+  });
+
+  it("drops the lower-priority label when a column label would collide with an above label", () => {
+    const neighbour: LabelInput = { disc: "G05", anchor: { x: 300, y: 100 }, width: 150, height: 36 };
+    const { labels } = layoutLabels([focused, neighbour], { width: W, height: H });
+    expectClean(labels, W, H);
+    expect(labels[0].hidden).toBe(false);
+    expect(covers(labels[0], disc)).toBe(false);
+  });
+});

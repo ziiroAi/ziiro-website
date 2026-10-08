@@ -3,10 +3,14 @@
 // on screen, at 390 px and at 1440.
 // - A label sits right of its disc, or left when the right has no room; within a side the labels keep their discs'
 //   order, so their leader lines never cross. If the two sides would collide, every label goes to one side.
+// - Given the disc's on-screen box (keepOut), a label never covers its own disc: the left side is measured from the
+//   box's left edge, and when neither side fits it sits above the disc, or below, or is hidden (review L3; phones keep
+//   callouts, owner's scope answer). A label that would still collide with a higher-priority one is hidden.
 // - A disc off the canvas or behind the camera gets no label: it comes back hidden.
 // - A column taller than the canvas goes compact (heading only), then drops its lowest-priority labels (the end of
 //   the input), and the layout says it overflowed.
 import type { DiscId } from "../../data/contract";
+import type { ScreenBox } from "./tap";
 
 export const LABEL_GAP_PX = 12;       // from the anchor to the label
 export const LABEL_SPACING_PX = 6;    // between two labels in a column
@@ -19,9 +23,11 @@ export interface LabelInput {
   height: number;
   compactHeight?: number;              // its height with the heading only, when it has a compact form
   visible?: boolean;                   // false when the projection puts the disc behind the camera
+  keepOut?: ScreenBox;                 // the disc's on-screen box, which its label must not cover
 }
 
-export type Side = "left" | "right";
+export type Side = "left" | "right" | "above" | "below";
+type ColumnSide = "left" | "right";
 export type HiddenReason = "offscreen" | "overflow";
 
 export interface PlacedLabel {
@@ -56,19 +62,26 @@ interface Column {
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(Math.max(v, lo), Math.max(lo, hi));
 const rightRoom = (l: LabelInput, view: Viewport): number => view.width - LABEL_MARGIN_PX - (l.anchor.x + LABEL_GAP_PX);
-const leftRoom = (l: LabelInput): number => l.anchor.x - LABEL_GAP_PX - LABEL_MARGIN_PX;
+/** Where a left-side label is measured from: the disc's left edge when its box is known, else the anchor. */
+const leftEdge = (l: LabelInput): number => l.keepOut?.x0 ?? l.anchor.x;
+const leftRoom = (l: LabelInput): number => leftEdge(l) - LABEL_GAP_PX - LABEL_MARGIN_PX;
 
 const onScreen = (l: LabelInput, view: Viewport): boolean =>
   l.visible !== false && l.anchor.x >= 0 && l.anchor.x <= view.width && l.anchor.y >= 0 && l.anchor.y <= view.height;
 
-function sideFor(label: LabelInput, view: Viewport): Side {
+/** The label's side, or null when its disc's box leaves no room anywhere that doesn't cover the disc. */
+function sideFor(label: LabelInput, view: Viewport): Side | null {
   if (rightRoom(label, view) >= label.width) return "right";
   if (leftRoom(label) >= label.width) return "left";
-  return rightRoom(label, view) >= leftRoom(label) ? "right" : "left";
+  const box = label.keepOut;
+  if (!box) return rightRoom(label, view) >= leftRoom(label) ? "right" : "left";
+  if (box.y0 - LABEL_GAP_PX - LABEL_MARGIN_PX >= label.height) return "above";
+  if (view.height - LABEL_MARGIN_PX - (box.y1 + LABEL_GAP_PX) >= label.height) return "below";
+  return null;
 }
 
-function xFor(label: LabelInput, side: Side, view: Viewport): number {
-  const wanted = side === "right" ? label.anchor.x + LABEL_GAP_PX : label.anchor.x - LABEL_GAP_PX - label.width;
+function xFor(label: LabelInput, side: ColumnSide, view: Viewport): number {
+  const wanted = side === "right" ? label.anchor.x + LABEL_GAP_PX : leftEdge(label) - LABEL_GAP_PX - label.width;
   return clamp(wanted, LABEL_MARGIN_PX, view.width - LABEL_MARGIN_PX - label.width);
 }
 
@@ -92,7 +105,7 @@ function stackTops(anchorsY: readonly number[], heights: readonly number[], view
 }
 
 /** One side's labels: full height if they fit, else compact, else without the lowest-priority ones. */
-function placeColumn(labels: readonly LabelInput[], side: Side, priority: (l: LabelInput) => number, view: Viewport): Column {
+function placeColumn(labels: readonly LabelInput[], side: ColumnSide, priority: (l: LabelInput) => number, view: Viewport): Column {
   const room = view.height - 2 * LABEL_MARGIN_PX;
   const full = labels.map((l) => l.height);
   const overflow = stackHeight(full) > room;
@@ -112,13 +125,16 @@ function placeColumn(labels: readonly LabelInput[], side: Side, priority: (l: La
     const x = xFor(label, side, view);
     return {
       disc: label.disc, x, y: tops[i], width: label.width, height: heights[i], side, compact, hidden: false,
-      leader: { x1: label.anchor.x, y1: label.anchor.y, x2: side === "right" ? x : x + label.width, y2: tops[i] + heights[i] / 2 },
+      leader: {
+        x1: side === "right" ? label.anchor.x : leftEdge(label), y1: label.anchor.y,
+        x2: side === "right" ? x : x + label.width, y2: tops[i] + heights[i] / 2,
+      },
     };
   });
   return { placed, dropped, overflow };
 }
 
-function placeAll(labels: readonly LabelInput[], sides: readonly Side[], priority: (l: LabelInput) => number, view: Viewport): Column {
+function placeAll(labels: readonly LabelInput[], sides: readonly ColumnSide[], priority: (l: LabelInput) => number, view: Viewport): Column {
   const columns = (["left", "right"] as const).map((side) =>
     placeColumn(labels.filter((_, i) => sides[i] === side), side, priority, view));
   return {
@@ -128,9 +144,29 @@ function placeAll(labels: readonly LabelInput[], sides: readonly Side[], priorit
   };
 }
 
+const EPSILON = 1e-9;
 const collide = (a: PlacedLabel, b: PlacedLabel): boolean =>
-  !(a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height + LABEL_SPACING_PX <= b.y ||
-    b.y + b.height + LABEL_SPACING_PX <= a.y);
+  !(a.x + a.width <= b.x + EPSILON || b.x + b.width <= a.x + EPSILON ||
+    a.y + a.height + LABEL_SPACING_PX <= b.y + EPSILON || b.y + b.height + LABEL_SPACING_PX <= a.y + EPSILON);
+
+/** A label above or below its disc's box (sideFor has checked it fits), centred on the box across. */
+function placeVertical(label: LabelInput, side: "above" | "below", box: ScreenBox, view: Viewport): PlacedLabel {
+  const x = clamp((box.x0 + box.x1) / 2 - label.width / 2, LABEL_MARGIN_PX, view.width - LABEL_MARGIN_PX - label.width);
+  const y = side === "above" ? box.y0 - LABEL_GAP_PX - label.height : box.y1 + LABEL_GAP_PX;
+  return {
+    disc: label.disc, x, y, width: label.width, height: label.height, side, compact: false, hidden: false,
+    leader: { x1: label.anchor.x, y1: label.anchor.y, x2: x + label.width / 2, y2: side === "above" ? y + label.height : y },
+  };
+}
+
+/** Keeps labels in priority order, dropping any that collide with one already kept. */
+function dropCollisions(placed: readonly PlacedLabel[], priority: (disc: DiscId) => number): PlacedLabel[] {
+  const kept: PlacedLabel[] = [];
+  [...placed].sort((a, b) => priority(a.disc) - priority(b.disc)).forEach((p) => {
+    if (!kept.some((k) => collide(k, p))) kept.push(p);
+  });
+  return kept;
+}
 
 const sidesCollide = (placed: readonly PlacedLabel[]): boolean =>
   placed.some((a) => a.side === "left" && placed.some((b) => b.side === "right" && collide(a, b)));
@@ -146,17 +182,28 @@ function hiddenLabel(label: LabelInput, reason: HiddenReason): PlacedLabel {
 export function layoutLabels(labels: readonly LabelInput[], view: Viewport): LabelLayout {
   const shown = labels.filter((l) => onScreen(l, view));
   const priority = (l: LabelInput): number => labels.indexOf(l);
-  let result = placeAll(shown, shown.map((l) => sideFor(l, view)), priority, view);
-  if (sidesCollide(result.placed)) {
-    const right = shown.reduce((sum, l) => sum + rightRoom(l, view), 0);
-    const left = shown.reduce((sum, l) => sum + leftRoom(l), 0);
-    const one: Side = right >= left ? "right" : "left";
-    result = placeAll(shown, shown.map(() => one), priority, view);
+  const sides = new Map(shown.map((l) => [l, sideFor(l, view)]));
+  const isColumn = (side: Side | null | undefined): side is ColumnSide => side === "left" || side === "right";
+  const inColumns = shown.filter((l) => isColumn(sides.get(l)));
+  let columns = placeAll(inColumns, inColumns.map((l) => sides.get(l) as ColumnSide), priority, view);
+  if (sidesCollide(columns.placed)) {
+    const right = inColumns.reduce((sum, l) => sum + rightRoom(l, view), 0);
+    const left = inColumns.reduce((sum, l) => sum + leftRoom(l), 0);
+    const one: ColumnSide = right >= left ? "right" : "left";
+    columns = placeAll(inColumns, inColumns.map(() => one), priority, view);
   }
-  const byDisc = new Map(result.placed.map((p) => [p.disc, p]));
+  const vertical = shown.flatMap((l) => {
+    const side = sides.get(l);
+    return l.keepOut && (side === "above" || side === "below") ? [placeVertical(l, side, l.keepOut, view)] : [];
+  });
+  const candidates = [...columns.placed, ...vertical];
+  const discPriority = (disc: DiscId): number => labels.findIndex((l) => l.disc === disc);
+  const kept = dropCollisions(candidates, discPriority);
+  const byDisc = new Map(kept.map((p) => [p.disc, p]));
   const out = labels.map((label) => {
     if (!onScreen(label, view)) return hiddenLabel(label, "offscreen");
     return byDisc.get(label.disc) ?? hiddenLabel(label, "overflow");
   });
-  return { labels: out, overflow: result.overflow };
+  const lost = out.some((p) => p.hiddenReason === "overflow");
+  return { labels: out, overflow: columns.overflow || lost };
 }
