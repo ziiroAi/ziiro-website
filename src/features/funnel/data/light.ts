@@ -3,3 +3,5 @@
 // Lane C adds its light exports below this line until the module satisfies FunnelLight (contract.ts).
 export * from "./contract";
 export { copy, COPY_LINES } from "./copy";
+export { calendlyUrl } from "./calendly";
+export { currencyFor } from "./currency";

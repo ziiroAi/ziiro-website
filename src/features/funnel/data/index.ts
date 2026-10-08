@@ -2,3 +2,4 @@
 // Lane C adds its exports below this line until the module satisfies FunnelData (contract.ts).
 export * from "./light";
 export { AGENTS_VERSION, agentById, agents, departments, jobIdsFor, stopsFor } from "./agents";
+export { tierFor } from "./tier";
