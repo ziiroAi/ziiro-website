@@ -25,14 +25,6 @@ describe.each([
   });
 });
 
-describe("/api/funnel/lead, until Task 9", () => {
-  it("answers 501", async () => {
-    const res = await lead.POST(post("{}"));
-    expect(res.status).toBe(501);
-    expect(await res.json()).toEqual({ success: false });
-  });
-});
-
 describe("vercel.json", () => {
   it("pins the functions to Singapore (§13.2)", () => {
     expect(vercel.regions).toEqual(["sin1"]);
