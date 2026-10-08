@@ -23,9 +23,11 @@ describe.each([
     expect(res.status).toBe(415);
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
+});
 
-  it("answers 501 until lane B builds it", async () => {
-    const res = await fn.POST(post("{}"));
+describe("/api/funnel/lead, until Task 9", () => {
+  it("answers 501", async () => {
+    const res = await lead.POST(post("{}"));
     expect(res.status).toBe(501);
     expect(await res.json()).toEqual({ success: false });
   });
