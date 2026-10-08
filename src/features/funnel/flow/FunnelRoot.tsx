@@ -6,6 +6,7 @@ import { useCallback, useReducer, useRef, useState } from "react";
 import { SEGMENTS, copy, isOneOf } from "@/features/funnel/data/light";
 import { introOffsetMs, introStartMs } from "./boot";
 import { useBoot, useEarlyTap, useFocusOnStep, useFunnelAttributes, useIsoLayoutEffect } from "./hooks";
+import { useFlowHistory } from "./history";
 import { SCREEN_UI } from "./screens";
 import type { FlowEnv, ScreenProps } from "./screens/types";
 import { PROGRESS, PROGRESS_TOTAL, createTapGate, funnelStageOf, initialFlow, reduce, type FlowAction, type Screen } from "./state";
@@ -39,6 +40,8 @@ export function FunnelRoot(): JSX.Element {
     if (isOneOf(SEGMENTS, id)) dispatch({ type: "segment", value: id });
   });
   useFocusOnStep(state.nav.seq, state.screen, rootRef);
+  const onPop = useCallback((screen: Screen) => dispatch({ type: "popTo", screen }), []);
+  useFlowHistory(state.nav, state.screen, onPop);
 
   const env: FlowEnv = {
     boot,
