@@ -14,6 +14,15 @@ describe("isValidEmail", () => {
     expect(isValidEmail(email)).toBe(false);
   });
 
+  it.each(["first.last+tag@studio.example.co.in", "a_b-c@my-firm.in", "O'Brien@example.ie"])("accepts %j", (email) => {
+    expect(isValidEmail(email)).toBe(true);
+  });
+
+  it.each(["a@b.com,c", "a;b@example.com", 'a"b@example.com', "a@ex(ample).com", "a@[127.0.0.1]", "a\\b@example.com",
+    "a:b@example.com", "a@example..com", "a@.example.com", "a@example_x.com"])("refuses %j, which Resend would refuse (review L8)", (email) => {
+    expect(isValidEmail(email)).toBe(false);
+  });
+
   it("refuses a throwaway domain in any case, from the list /contact has always used", () => {
     expect(isDisposableEmail("x@MAILINATOR.com")).toBe(true);
     expect(isValidEmail("x@mailinator.com")).toBe(false);

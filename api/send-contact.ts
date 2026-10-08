@@ -107,7 +107,13 @@ export default async function handler(req: Request): Promise<Response> {
       return unsendable(req, 500);
     }
 
-    const payload = await readJson(req);
+    const body: unknown = await readJson(req);
+    // null, an array or a bare value is the client's mistake, not ours (server review L4).
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      logEvent("info", "contact.rejected", { reason: "validation", status: 400, rid });
+      return jsonResponse(req, { success: false, error: "Invalid submission" }, 400);
+    }
+    const payload = body as Record<string, unknown>;
     const name = sanitizeText(payload.name, 100);
     const email = sanitizeText(payload.email, 254).toLowerCase();
     const phone = sanitizeText(payload.phone, 40);

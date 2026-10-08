@@ -18,7 +18,8 @@ export const DISPOSABLE_DOMAINS: ReadonlySet<string> = new Set([
   "wegwerfmail.net", "wegwerfmail.org", "abcmail.email", "armyspy.com",
 ]);
 
-const EMAIL_SHAPE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+// No characters Resend refuses in either part, and a domain of dot-separated labels (server review L8).
+const EMAIL_SHAPE = /^[^\s@<>,;:"()[\]\\]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/;
 const MAX_EMAIL = 254;
 
 export const isDisposableEmail = (email: string): boolean =>
