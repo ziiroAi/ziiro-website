@@ -28,6 +28,7 @@ export const isDisposableEmail = (email: string): boolean =>
 export const isValidEmail = (email: string): boolean =>
   EMAIL_SHAPE.test(email) && email.length <= MAX_EMAIL && !isDisposableEmail(email);
 
+// eslint-disable-next-line no-control-regex -- matching control characters is the point: they're refused or stripped.
 const CONTROL = /[\u0000-\u001f\u007f]/gu;
 const LINK = /\b(?:https?:\/\/|www\.)\S*/giu;
 const EMAIL_ADDRESS = /\S+@\S+/gu;

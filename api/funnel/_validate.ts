@@ -23,7 +23,9 @@ const SLUG = /^[a-z0-9-]+$/;
 const HOST = /^[A-Za-z0-9.-]+$/;
 const ZONE = /^[A-Za-z0-9/_+-]+$/;
 const LOCALE = /^[A-Za-z0-9-]+$/;
+// eslint-disable-next-line no-control-regex -- matching control characters is the point: they're refused or stripped.
 const ONE_LINE = /^[^\u0000-\u001f\u007f]*$/u;
+// eslint-disable-next-line no-control-regex -- matching control characters is the point: they're refused or stripped.
 const LINES = /^[^\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]*$/u;
 const MAX_TOKEN = 2_048;
 
