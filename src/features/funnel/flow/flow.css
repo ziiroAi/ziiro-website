@@ -85,7 +85,7 @@
 html[data-funnel] .f-intro-on .f-intro {
   position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center;
   justify-content: center; padding: 0 1.5rem; text-align: center; pointer-events: none;
-  animation: f-fade-up 500ms ease-out both, f-intro-out 450ms ease-in both;
+  animation: f-greet-in 500ms ease-out both, f-intro-out 450ms ease-in both;
   animation-delay: var(--f-t, 0ms), calc(var(--f-t, 0ms) + 900ms);
 }
 .f-intro-greet { font-size: clamp(2.75rem, 12vw, 4.5rem); font-weight: 800; line-height: 1.02; letter-spacing: -0.03em; color: var(--funnel-fg); }
@@ -116,6 +116,9 @@ html[data-funnel] .f-s8 span { display: inline-block; animation: f-fade-up 300ms
 .f-plan { outline: none; }
 
 @keyframes f-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* The greeting's fade starts at 1 %, not 0: the browser skips a fully transparent element when it times the first
+   paint, so a fade from 0 made the LCP wait for the next frame, after the page's script had run (§13.10). */
+@keyframes f-greet-in { from { opacity: 0.01; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes f-intro-out { to { opacity: 0; transform: translateY(-18svh) scale(0.6); visibility: hidden; } }
 @keyframes f-rise { from { transform: translateY(58svh); } to { transform: none; } }
 @keyframes f-in-right { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
