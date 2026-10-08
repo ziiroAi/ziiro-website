@@ -1,5 +1,6 @@
 // (C) W14-F (e): the disc panel, §6.2 "Opening a disc", with its content and copy IDs unchanged. Hover, tap or
-// keyboard focus on a disc opens it; Escape closes it. A panel opened by a tap or Enter takes focus, and gives it back
+// keyboard focus on a disc opens it; Escape closes it while focus is in the panel or on its disc, so a layer above
+// (the film lightbox, which never prevents the event) keeps its own Escape. A panel opened by a tap or Enter takes focus, and gives it back
 // (to returnFocusTo, else to what had it) when it closes or moves to another disc; one opened by hover or focus leaves
 // focus where it is.
 import { type RefObject, useEffect, useId, useRef } from "react";
@@ -24,25 +25,30 @@ export function DiscPanel({
 }: DiscPanelProps): JSX.Element | null {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   const department = departmentForDisc(disc);
 
   useEffect(() => {
     if (!department) return undefined;
     const onKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      if (event.key === "Escape") onClose();
+      if (event.defaultPrevented || event.key !== "Escape") return;
+      const active = document.activeElement;
+      const owners = [panelRef.current, returnFocusTo?.current, openerRef.current];
+      if (active && owners.some((owner) => owner?.contains(active))) onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [department, onClose]);
+  }, [department, onClose, returnFocusTo]);
 
   useEffect(() => {
     const panel = panelRef.current;
     if (!focusOnOpen || !panel) return undefined;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const giveBackTo = returnFocusTo?.current ?? previous;
+    openerRef.current = previous === document.body ? null : previous;
     panel.focus();
     return () => {
+      openerRef.current = null;
       const active = document.activeElement;
       const focusLeftWithPanel = active === null || active === document.body || panel.contains(active);
       if (focusLeftWithPanel) giveBackTo?.focus();

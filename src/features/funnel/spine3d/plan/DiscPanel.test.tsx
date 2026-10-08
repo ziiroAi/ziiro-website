@@ -114,8 +114,8 @@ describe("DiscPanel: §6.2 'Opening a disc'", () => {
     });
   });
 
-  it("closes on Escape", () => {
-    const { onClose } = open();
+  it("closes on Escape while focus is in the panel", () => {
+    const { onClose } = open({ focusOnOpen: true });
     act(() => {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     });
@@ -188,6 +188,34 @@ describe("DiscPanel: §6.2 'Opening a disc'", () => {
     const { onClose } = open();
     escape(true);
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("leaves Escape to the film lightbox when focus is there, even though it never calls preventDefault (L2 re-check)", () => {
+    // FilmLightbox.tsx:74-82 listens on document, added after the panel's, and never prevents the event.
+    const { onClose } = open({ focusOnOpen: true });
+    const lightboxClose = document.createElement("button");
+    document.body.appendChild(lightboxClose);
+    lightboxClose.focus();
+    const lightbox = vi.fn();
+    const onLightboxKey = (e: KeyboardEvent) => { if (e.key === "Escape") lightbox(); };
+    document.addEventListener("keydown", onLightboxKey);
+    escape();
+    document.removeEventListener("keydown", onLightboxKey);
+    lightboxClose.remove();
+    expect(lightbox).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("closes on Escape while focus is on its disc (L2 re-check)", () => {
+    const disc = document.createElement("button");
+    document.body.appendChild(disc);
+    const ref = createRef<HTMLButtonElement>();
+    (ref as { current: HTMLButtonElement | null }).current = disc;
+    const { onClose } = open({ returnFocusTo: ref });
+    disc.focus();
+    escape();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    disc.remove();
   });
 
   it("renders nothing for an end disc", () => {

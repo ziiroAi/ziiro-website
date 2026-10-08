@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DiscId } from "../../data/contract";
+import { anchorFromBox } from "./tap";
 import { LABEL_GAP_PX, LABEL_MARGIN_PX, LABEL_SPACING_PX, layoutLabels, type LabelInput, type PlacedLabel } from "./labels";
 
 /** §6.7's callout anchors, as fractions of the r17 frame (x across, y down). */
@@ -256,5 +257,43 @@ describe("review L3: a phone close-up label never covers its own disc", () => {
     expectClean(labels, W, H);
     expect(labels[0].hidden).toBe(false);
     expect(covers(labels[0], disc)).toBe(false);
+  });
+});
+
+describe("re-check N1: an above/below callout goes compact before it is hidden", () => {
+  it("keeps the named 150 × 90 callout on a 390 × 260 band, compact above its disc", () => {
+    // Probe: box 116–274 × 104–165; 84 px above and 75 px below, so 90 px fits neither way, but 28 px does.
+    const box = { x0: 116, y0: 104, x1: 274, y1: 165 };
+    const { labels } = layoutLabels(
+      [{ disc: "G05", anchor: anchorFromBox(box), width: 150, height: 90, compactHeight: 28, keepOut: box }],
+      { width: 390, height: 260 },
+    );
+    const [p] = labels;
+    expect(p).toMatchObject({ hidden: false, compact: true, height: 28, side: "above" });
+    expect(p.y + p.height).toBeLessThanOrEqual(box.y0 - LABEL_GAP_PX + 1e-9);
+    expect(p.leader.y2).toBe(p.y + p.height);
+    expectClean(labels, 390, 260);
+  });
+});
+
+describe("re-check N2: the one-side fallback respects keepOut", () => {
+  it("doesn't clamp G04's label onto its own disc when both labels are forced right", () => {
+    // Probe: two discs side by side at 390, G05 box 20–100 and G04 box 280–330; the old fallback put G04 at x 232.
+    const g05 = { x0: 20, y0: 150, x1: 100, y1: 250 };
+    const g04 = { x0: 280, y0: 150, x1: 330, y1: 250 };
+    const { labels } = layoutLabels(
+      [
+        { disc: "G05", anchor: anchorFromBox(g05), width: 150, height: 36, keepOut: g05 },
+        { disc: "G04", anchor: anchorFromBox(g04), width: 150, height: 36, keepOut: g04 },
+      ],
+      { width: 390, height: 410 },
+    );
+    expectClean(labels, 390, 410);
+    for (const [p, box] of [[labels[0], g05], [labels[1], g04]] as const) {
+      if (p.hidden) continue;
+      const covers = !(p.x + p.width <= box.x0 || box.x1 <= p.x || p.y + p.height <= box.y0 || box.y1 <= p.y);
+      expect(covers, `${p.disc} covers its disc`).toBe(false);
+    }
+    expect(labels[1].hidden).toBe(false);
   });
 });

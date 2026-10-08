@@ -4,8 +4,9 @@
 // - A label sits right of its disc, or left when the right has no room; within a side the labels keep their discs'
 //   order, so their leader lines never cross. If the two sides would collide, every label goes to one side.
 // - Given the disc's on-screen box (keepOut), a label never covers its own disc: the left side is measured from the
-//   box's left edge, and when neither side fits it sits above the disc, or below, or is hidden (review L3; phones keep
-//   callouts, owner's scope answer). A label that would still collide with a higher-priority one is hidden.
+//   box's left edge, and when neither side fits it sits above the disc, or below, then the same in its compact form,
+//   or is hidden (review L3, N1; phones keep callouts, owner's scope answer). The one-side fallback keeps to this too
+//   (N2). A label that would still collide with a higher-priority one is hidden.
 // - A disc off the canvas or behind the camera gets no label: it comes back hidden.
 // - A column taller than the canvas goes compact (heading only), then drops its lowest-priority labels (the end of
 //   the input), and the layout says it overflowed.
@@ -69,15 +70,41 @@ const leftRoom = (l: LabelInput): number => leftEdge(l) - LABEL_GAP_PX - LABEL_M
 const onScreen = (l: LabelInput, view: Viewport): boolean =>
   l.visible !== false && l.anchor.x >= 0 && l.anchor.x <= view.width && l.anchor.y >= 0 && l.anchor.y <= view.height;
 
-/** The label's side, or null when its disc's box leaves no room anywhere that doesn't cover the disc. */
-function sideFor(label: LabelInput, view: Viewport): Side | null {
+interface VerticalFit {
+  side: "above" | "below";
+  compact: boolean;
+}
+type Choice = ColumnSide | VerticalFit | null;
+
+/** Above or below the disc's box: full height above, then below, then compact above, then below; null if none fits. */
+function verticalFit(label: LabelInput, box: ScreenBox, view: Viewport): VerticalFit | null {
+  const above = box.y0 - LABEL_GAP_PX - LABEL_MARGIN_PX;
+  const below = view.height - LABEL_MARGIN_PX - (box.y1 + LABEL_GAP_PX);
+  const compactHeight = label.compactHeight ?? label.height;
+  const tries: [number, VerticalFit][] = [
+    [label.height, { side: "above", compact: false }],
+    [label.height, { side: "below", compact: false }],
+    [compactHeight, { side: "above", compact: true }],
+    [compactHeight, { side: "below", compact: true }],
+  ];
+  const fit = tries.find(([height, { side }]) => (side === "above" ? above : below) >= height);
+  return fit ? fit[1] : null;
+}
+
+/** The label's side; null when its disc's box leaves no room anywhere that doesn't cover the disc. */
+function sideFor(label: LabelInput, view: Viewport): Choice {
   if (rightRoom(label, view) >= label.width) return "right";
   if (leftRoom(label) >= label.width) return "left";
   const box = label.keepOut;
   if (!box) return rightRoom(label, view) >= leftRoom(label) ? "right" : "left";
-  if (box.y0 - LABEL_GAP_PX - LABEL_MARGIN_PX >= label.height) return "above";
-  if (view.height - LABEL_MARGIN_PX - (box.y1 + LABEL_GAP_PX) >= label.height) return "below";
-  return null;
+  return verticalFit(label, box, view);
+}
+
+/** The fallback's choice: the one side, unless it would put the label over its own disc (N2). */
+function forcedSide(label: LabelInput, one: ColumnSide, view: Viewport): Choice {
+  const room = one === "right" ? rightRoom(label, view) : leftRoom(label);
+  if (!label.keepOut || room >= label.width) return one;
+  return verticalFit(label, label.keepOut, view);
 }
 
 function xFor(label: LabelInput, side: ColumnSide, view: Viewport): number {
@@ -150,12 +177,13 @@ const collide = (a: PlacedLabel, b: PlacedLabel): boolean =>
     a.y + a.height + LABEL_SPACING_PX <= b.y + EPSILON || b.y + b.height + LABEL_SPACING_PX <= a.y + EPSILON);
 
 /** A label above or below its disc's box (sideFor has checked it fits), centred on the box across. */
-function placeVertical(label: LabelInput, side: "above" | "below", box: ScreenBox, view: Viewport): PlacedLabel {
+function placeVertical(label: LabelInput, { side, compact }: VerticalFit, box: ScreenBox, view: Viewport): PlacedLabel {
+  const height = compact ? Math.min(label.height, label.compactHeight ?? label.height) : label.height;
   const x = clamp((box.x0 + box.x1) / 2 - label.width / 2, LABEL_MARGIN_PX, view.width - LABEL_MARGIN_PX - label.width);
-  const y = side === "above" ? box.y0 - LABEL_GAP_PX - label.height : box.y1 + LABEL_GAP_PX;
+  const y = side === "above" ? box.y0 - LABEL_GAP_PX - height : box.y1 + LABEL_GAP_PX;
   return {
-    disc: label.disc, x, y, width: label.width, height: label.height, side, compact: false, hidden: false,
-    leader: { x1: label.anchor.x, y1: label.anchor.y, x2: x + label.width / 2, y2: side === "above" ? y + label.height : y },
+    disc: label.disc, x, y, width: label.width, height, side, compact, hidden: false,
+    leader: { x1: label.anchor.x, y1: label.anchor.y, x2: x + label.width / 2, y2: side === "above" ? y + height : y },
   };
 }
 
@@ -179,31 +207,40 @@ function hiddenLabel(label: LabelInput, reason: HiddenReason): PlacedLabel {
   };
 }
 
+const isColumn = (choice: Choice | undefined): choice is ColumnSide => choice === "left" || choice === "right";
+
+function placeChoices(shown: readonly LabelInput[], choices: Map<LabelInput, Choice>, priority: (l: LabelInput) => number,
+  view: Viewport): Column {
+  const inColumns = shown.filter((l) => isColumn(choices.get(l)));
+  const columns = placeAll(inColumns, inColumns.map((l) => choices.get(l) as ColumnSide), priority, view);
+  const vertical = shown.flatMap((l) => {
+    const choice = choices.get(l);
+    return l.keepOut && choice && !isColumn(choice) ? [placeVertical(l, choice, l.keepOut, view)] : [];
+  });
+  return { placed: [...columns.placed, ...vertical], dropped: columns.dropped, overflow: columns.overflow };
+}
+
 export function layoutLabels(labels: readonly LabelInput[], view: Viewport): LabelLayout {
   const shown = labels.filter((l) => onScreen(l, view));
   const priority = (l: LabelInput): number => labels.indexOf(l);
-  const sides = new Map(shown.map((l) => [l, sideFor(l, view)]));
-  const isColumn = (side: Side | null | undefined): side is ColumnSide => side === "left" || side === "right";
-  const inColumns = shown.filter((l) => isColumn(sides.get(l)));
-  let columns = placeAll(inColumns, inColumns.map((l) => sides.get(l) as ColumnSide), priority, view);
-  if (sidesCollide(columns.placed)) {
-    const right = inColumns.reduce((sum, l) => sum + rightRoom(l, view), 0);
-    const left = inColumns.reduce((sum, l) => sum + leftRoom(l), 0);
+  let result = placeChoices(shown, new Map(shown.map((l) => [l, sideFor(l, view)])), priority, view);
+  if (sidesCollide(result.placed)) {
+    const right = shown.reduce((sum, l) => sum + rightRoom(l, view), 0);
+    const left = shown.reduce((sum, l) => sum + leftRoom(l), 0);
     const one: ColumnSide = right >= left ? "right" : "left";
-    columns = placeAll(inColumns, inColumns.map(() => one), priority, view);
+    const choices = new Map(shown.map((l): [LabelInput, Choice] => {
+      const own = sideFor(l, view);
+      return [l, isColumn(own) ? forcedSide(l, one, view) : own];
+    }));
+    result = placeChoices(shown, choices, priority, view);
   }
-  const vertical = shown.flatMap((l) => {
-    const side = sides.get(l);
-    return l.keepOut && (side === "above" || side === "below") ? [placeVertical(l, side, l.keepOut, view)] : [];
-  });
-  const candidates = [...columns.placed, ...vertical];
   const discPriority = (disc: DiscId): number => labels.findIndex((l) => l.disc === disc);
-  const kept = dropCollisions(candidates, discPriority);
+  const kept = dropCollisions(result.placed, discPriority);
   const byDisc = new Map(kept.map((p) => [p.disc, p]));
   const out = labels.map((label) => {
     if (!onScreen(label, view)) return hiddenLabel(label, "offscreen");
     return byDisc.get(label.disc) ?? hiddenLabel(label, "overflow");
   });
   const lost = out.some((p) => p.hiddenReason === "overflow");
-  return { labels: out, overflow: columns.overflow || lost };
+  return { labels: out, overflow: result.overflow || lost };
 }
