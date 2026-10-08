@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.api.json && tsc -p tsconfig.test.json",
+    "hash:immutable": "node scripts/hash-immutable.mjs",
     "test:e2e": "playwright test --grep-invert \"@perf|@preview\"",
     "test:perf": "playwright test --grep @perf",
     "test:preview": "playwright test --grep @preview --project phone",
