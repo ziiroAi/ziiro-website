@@ -7,6 +7,7 @@ import { SEGMENTS, copy, isOneOf } from "@/features/funnel/data/light";
 import { introOffsetMs, introStartMs } from "./boot";
 import { useBoot, useEarlyTap, useFocusOnStep, useFunnelAttributes, useIsoLayoutEffect } from "./hooks";
 import { useFlowHistory } from "./history";
+import { localTimeZone } from "./region";
 import { SCREEN_UI } from "./screens";
 import type { FlowEnv, ScreenProps } from "./screens/types";
 import { PROGRESS, PROGRESS_TOTAL, createTapGate, funnelStageOf, initialFlow, reduce, type FlowAction, type Screen } from "./state";
@@ -24,6 +25,7 @@ export function FunnelRoot(): JSX.Element {
     typeof window === "undefined" ? 0 : introOffsetMs(introStartMs(window, boot.t0), performance.now()),
   );
   const rootRef = useRef<HTMLDivElement>(null);
+  const [timeZone] = useState(() => (typeof window === "undefined" ? null : localTimeZone()));
 
   const act = useCallback(
     (action: FlowAction) => {
@@ -47,7 +49,7 @@ export function FunnelRoot(): JSX.Element {
     boot,
     introOffsetMs: state.nav.seq === 0 && state.screen === "s1" ? introOffset : null,
     country: null,
-    timeZone: null,
+    timeZone,
     starter,
     send: () => undefined,
   };
