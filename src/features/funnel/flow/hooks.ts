@@ -21,6 +21,11 @@ export function useFunnelAttributes(theme: Theme, stage: FunnelStage): void {
   useIsoLayoutEffect(() => () => clearFunnelAttributes(window), []);
 }
 
+/** The first match outside a [hidden] subtree. At S8 the hidden S7 form comes first and can't take focus (review M1). */
+function firstShown(root: HTMLElement, selector: string): HTMLElement | null {
+  return [...root.querySelectorAll<HTMLElement>(selector)].find((el) => !el.closest("[hidden]")) ?? null;
+}
+
 /**
  * On each step, focus moves to the new question (§11.2): the screen's [data-focus-first], else its H2.
  * A new screen starts at the top. A step within a screen scrolls only as far as the focus needs.
@@ -31,8 +36,7 @@ export function useFocusOnStep(seq: number, screen: Screen, root: RefObject<HTML
     const moved = lastScreen.current !== screen;
     lastScreen.current = screen;
     if (seq === 0 || !root.current) return;  // landing keeps the browser's own focus
-    const target =
-      root.current.querySelector<HTMLElement>("[data-focus-first]") ?? root.current.querySelector<HTMLElement>("[data-question]");
+    const target = firstShown(root.current, "[data-focus-first]") ?? firstShown(root.current, "[data-question]");
     if (moved) window.scrollTo(0, 0);
     target?.focus({ preventScroll: moved });
   }, [seq]);
