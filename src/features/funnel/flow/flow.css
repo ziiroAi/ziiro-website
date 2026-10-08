@@ -94,6 +94,35 @@ html[data-funnel] .f-intro-on .f-intro {
 html[data-funnel] .f-intro-on .f-head { animation: f-fade-up 350ms ease-out both; animation-delay: calc(var(--f-t, 0ms) + 1000ms); }
 html[data-funnel] .f-intro-on .f-s1 { animation: f-rise 450ms cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--f-t, 0ms) + 900ms); }
 
+/* W14-I: S0's live spine (LandingSpine), a fixed layer under S0's words and options. It never takes part in layout,
+   so it never pushes the options down. isolate on S0 only: z-index -1 then sits under everything in .f-root yet over
+   the page colour, and the plan's own layers (its lightbox) never get trapped under the header. */
+.f-root[data-screen="s1"] { isolation: isolate; }
+.f-spine {
+  position: fixed; z-index: -1; left: 0; right: 0; bottom: 0;
+  height: calc(100vw * 1230 / 1170);   /* under 600 px: r17's phone band, whose camera frames exactly this aspect */
+  pointer-events: none; opacity: 0; transition: opacity 300ms ease;
+  mask-image: linear-gradient(to bottom, transparent, #000 30%);
+}
+/* Under 1200 px the band sits under S0's small lines (g.about, the footer note), so it shows at 60 % to keep them legible. */
+.f-spine[data-visible] { opacity: 0.6; }
+.f-spine-viewer { width: 100%; height: 100%; }
+@media (min-width: 600px) { .f-spine { height: calc(100vw * 9 / 16); } }  /* r17's hero camera frames the box itself */
+/* From 1200 px the spine stands in the gutter right of the 40rem questions: a 16:9 hero frame as tall as the screen
+   under the header, slid so the spine (0.74 of r17's frame width) lands mid-gutter. Drags there turn it. */
+@media (min-width: 1200px) {
+  .f-spine {
+    --f-spine-w: calc((100svh - var(--nav-h, 84px)) * 16 / 9);
+    top: var(--nav-h, 84px); right: auto; height: auto; width: var(--f-spine-w);
+    left: calc(75vw + 10rem - 0.74 * var(--f-spine-w));
+    pointer-events: auto;
+    /* the canvas paints r17's own background: fade its left and top edges into the page so no box edge shows */
+    mask-image: linear-gradient(to right, transparent, #000 45%), linear-gradient(to bottom, transparent, #000 10%);
+    mask-composite: intersect;
+  }
+  .f-spine[data-visible] { opacity: 1; }
+}
+
 /* Each step slides in within a quarter of a second (§4.1), from the left on Back. */
 html[data-funnel] .f-screen[data-dir="forward"] { animation: f-in-right 250ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 html[data-funnel] .f-screen[data-dir="back"] { animation: f-in-left 250ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
