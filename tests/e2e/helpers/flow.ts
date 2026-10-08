@@ -26,7 +26,7 @@ export const at = (time: string) => new Date(`2026-10-12T${time}:00+05:30`);
  */
 const TAP_PACE_MS = 400;
 
-async function tap(page: Page, name: string) {
+export async function tap(page: Page, name: string) {
   await page.waitForTimeout(TAP_PACE_MS);
   await page.getByRole("button", { name, exact: true }).click();
 }
