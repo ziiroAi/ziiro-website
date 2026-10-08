@@ -54,14 +54,38 @@ export function poseAt(scroll: number, waypoints: readonly Waypoint[], options: 
 }
 
 /** Two waypoints per section, so each stop's pose holds through the middle `hold` share of its section and the
- *  camera flies only across the boundary between two sections. */
+ *  camera flies only across the boundary between two sections. `hold` is at least 0 and under 1: at 1 the camera
+ *  would jump at the section edge. */
 export function holdWaypoints(sections: readonly Section[], poses: readonly CameraPose[], hold: number): Waypoint[] {
   if (sections.length !== poses.length) throw new Error("holdWaypoints: one pose per section");
+  if (!(hold >= 0 && hold < 1)) throw new Error(`holdWaypoints: hold must be at least 0 and under 1, got ${hold}`);
   return sections.flatMap((section, i) => {
     const margin = ((section.end - section.start) * (1 - hold)) / 2;
     return [
       { at: section.start + margin, pose: poses[i] },
       { at: section.end - margin, pose: poses[i] },
     ];
+  });
+}
+
+/**
+ * The plan's tour: section 0 holds the overview (poses[0], as stopPoses builds it), then one close-up per stop.
+ * Between two close-ups the camera pulls back to the full spine at the boundary, then flies into the next disc
+ * (D30, §6.2 block 3, §6.7 beat 3). Under reduced motion there is no pull-back: one cut per boundary, straight from
+ * close-up to close-up (§11.8).
+ */
+export function tourWaypoints(
+  sections: readonly Section[],
+  poses: readonly CameraPose[],
+  hold: number,
+  options: FlightOptions = {},
+): Waypoint[] {
+  const held = holdWaypoints(sections, poses, hold);
+  if (options.reducedMotion) return held;
+  const overview = poses[0];
+  return sections.flatMap((section, i) => {
+    const own = held.slice(i * 2, i * 2 + 2);
+    const pullBack = i >= 2 ? [{ at: section.start, pose: overview }] : [];
+    return [...pullBack, ...own];
   });
 }

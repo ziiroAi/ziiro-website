@@ -22,9 +22,22 @@ export const departmentForDisc = (disc: DiscId): Department | null =>
 const neededIn = (department: Department, planAgentIds: readonly AgentId[]): number =>
   department.agentIds.filter((id) => planAgentIds.includes(id)).length;
 
-/** sp.disc.call: "{Department} · {k} of {m}". */
-export const discCallout = (department: Department, planAgentIds: readonly AgentId[]): string =>
-  copy("sp.disc.call", { Department: department.name, k: neededIn(department, planAgentIds), m: department.agentIds.length });
+export interface DiscCallout {
+  head: string;              // sp.disc.call
+  lines: string[];           // one sp.vert.title per plan agent in the department
+}
+
+/** §6.7's pinned callout: sp.disc.call "{Department} · {k} of {m}", then the plan's agents in this department by
+ *  name (sp.vert.title), in plan order. */
+export function discCallout(department: Department, planAgentIds: readonly AgentId[]): DiscCallout {
+  const head = copy("sp.disc.call", { Department: department.name, k: neededIn(department, planAgentIds), m: department.agentIds.length });
+  const lines = planAgentIds
+    .filter((id) => department.agentIds.includes(id))
+    .map((id) => agents.find((a) => a.id === id))
+    .filter((a): a is Agent => a !== undefined)
+    .map((a) => copy("sp.vert.title", { v: a.number, "agent name": a.name }));
+  return { head, lines };
+}
 
 /** The disc button's label: sp.disc.aria, or sp.disc.aria.none when the plan needs nothing there. */
 export function discAria(department: Department, planAgentIds: readonly AgentId[]): string {

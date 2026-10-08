@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ease, holdWaypoints, poseAt, type Waypoint } from "./flight";
-import type { CameraPose } from "./targets";
+import { ease, holdWaypoints, poseAt, tourWaypoints, type Waypoint } from "./flight";
+import { GAPS, HERO_DESKTOP } from "./geometry.fixture";
+import { overviewPose, stopPoses, type CameraPose } from "./targets";
 
 const pose = (x: number, fovDeg = 30): CameraPose => ({ position: [x, 0, 1], target: [x, 0, 0], rollDeg: 0, fovDeg });
 const A = pose(0, 40);
@@ -92,5 +93,57 @@ describe("holdWaypoints: each stop holds while its section fills the middle of t
 
   it("needs one pose per section", () => {
     expect(() => holdWaypoints(sections, [A], 0.5)).toThrow(/one pose per section/);
+  });
+
+  // Review L1: hold = 1 jumps at the section edge, and above 1 the waypoints fall out of order mid-scroll.
+  it.each([1, 1.2, -0.1])("refuses a hold of %s; it must be at least 0 and under 1", (hold) => {
+    expect(() => holdWaypoints(sections, [A, B], hold)).toThrow(/hold/);
+  });
+
+  it("takes a hold of 0: each stop is a single point", () => {
+    expect(holdWaypoints(sections, [A, B], 0).map((w) => w.at)).toEqual([200, 200, 700, 700]);
+  });
+});
+
+describe("tourWaypoints: Ananya's real tour, with D30's pull-back between stops", () => {
+  // Review H1 and T1: real poses from stopPoses, through the waypoints, through poseAt.
+  const ANANYA = [{ disc: "G04" }, { disc: "G05" }, { disc: "G06" }, { disc: "G01" }] as const;
+  const poses = stopPoses(ANANYA, GAPS, HERO_DESKTOP, "desktop", 0.9);
+  const overview = overviewPose(HERO_DESKTOP);
+  const sections = [0, 800, 1600, 2400, 3200].map((start) => ({ start, end: start + 800 }));
+
+  it("passes through the full spine at each of the 3 boundaries between close-ups", () => {
+    const way = tourWaypoints(sections, poses, 0.5);
+    for (const boundary of [1600, 2400, 3200]) expect(poseAt(boundary, way)).toEqual(overview);
+  });
+
+  it("holds each close-up through the middle of its stop", () => {
+    const way = tourWaypoints(sections, poses, 0.5);
+    [400, 1200, 2000, 2800, 3600].forEach((y, i) => expect(poseAt(y, way)).toEqual(poses[i]));
+  });
+
+  it("goes from the overview into the first close-up with no extra pull-back", () => {
+    const way = tourWaypoints(sections, poses, 0.5);
+    const same = (p: CameraPose) => JSON.stringify(p) === JSON.stringify(overview);
+    expect(way.filter((w) => same(w.pose))).toHaveLength(2 + 3);
+  });
+
+  it("under reduced motion cuts straight from one close-up to the next, never through the overview", () => {
+    const way = tourWaypoints(sections, poses, 0.5, { reducedMotion: true });
+    expect(poseAt(1590, way, { reducedMotion: true })).toEqual(poses[1]);
+    expect(poseAt(1610, way, { reducedMotion: true })).toEqual(poses[2]);
+    for (let y = 810; y <= 4000; y += 25) expect(poseAt(y, way, { reducedMotion: true })).not.toEqual(overview);
+  });
+
+  it("flies a one-stop plan (§5.5): the overview, then its close-up", () => {
+    const one = stopPoses([{ disc: "G04" }], GAPS, HERO_DESKTOP, "desktop", 0.9);
+    const way = tourWaypoints(sections.slice(0, 2), one, 0.5);
+    expect(way).toHaveLength(4);
+    expect(poseAt(0, way)).toEqual(overview);
+    expect(poseAt(1600, way)).toEqual(one[1]);
+  });
+
+  it("needs one pose per section", () => {
+    expect(() => tourWaypoints(sections, poses.slice(0, 3), 0.5)).toThrow(/one pose per section/);
   });
 });

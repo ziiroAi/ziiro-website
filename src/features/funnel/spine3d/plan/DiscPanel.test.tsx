@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { agents, copy, departments } from "../../data";
+import { agents, composePlan, copy, departments } from "../../data";
 import type { AgentId } from "../../data/contract";
 import { render, type Rendered } from "../../plan/test-utils";
 import { DiscPanel } from "./DiscPanel";
@@ -10,6 +10,18 @@ import { departmentForDisc, discAria, discCallout, panelRows } from "./discCopy"
 const BACK_OFFICE = departments.find((d) => d.id === "back-office")!;
 const LIVE = "runs_on_our_company_today";
 const agent = (id: AgentId) => agents.find((a) => a.id === id)!;
+/** Ananya (§5.8): B-convert, tier M, 6 agents. */
+const ANANYA = composePlan({
+  teamBand: "6_20", revenueBand: "band_3", currency: "INR", chips: [],
+  problemText: "Enquiries come in, but by the time someone calls back they've gone cold.",
+});
+const escape = (prevented = false) => {
+  const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+  if (prevented) event.preventDefault();
+  act(() => {
+    document.dispatchEvent(event);
+  });
+};
 
 let view: Rendered | null = null;
 afterEach(() => {
@@ -25,11 +37,20 @@ describe("discCopy: the disc's words, from the plan's copy IDs", () => {
     expect(departmentForDisc("G08")).toBeNull();
   });
 
-  it("writes the callout as sp.disc.call: {Department} · {k} of {m}", () => {
-    const plan = [BACK_OFFICE.agentIds[2]];
-    expect(discCallout(BACK_OFFICE, plan)).toBe(
-      copy("sp.disc.call", { Department: BACK_OFFICE.name, k: 1, m: BACK_OFFICE.agentIds.length }),
-    );
+  it("writes Ananya's Deals callout as §6.7 prints it: 3 of 5, then her three names in plan order (review M1, T3)", () => {
+    const deals = departments.find((d) => d.id === "deals")!;
+    const callout = discCallout(deals, ANANYA.agentIds);
+    expect(callout.head).toBe("Deals · 3 of 5");
+    expect(callout.lines.map((line) => line.replace(/^\d+\. /, ""))).toEqual(["Enquiry responder", "Reply sorter", "Call companion"]);
+    callout.lines.forEach((line) => expect(line).toMatch(/^\d+\. [A-Z]/));
+  });
+
+  it("gives Ananya's other lit discs one name each (§6.7)", () => {
+    const names = (id: string) =>
+      discCallout(departments.find((d) => d.id === id)!, ANANYA.agentIds).lines.map((l) => l.replace(/^\d+\. /, ""));
+    expect(names("sales")).toEqual(["Campaign runner"]);
+    expect(names("marketing")).toEqual(["Marketing analyst"]);
+    expect(names("back-office")).toEqual(["Numbers agent"]);
   });
 
   it("labels the disc button with sp.disc.aria, or sp.disc.aria.none when the plan needs nothing there", () => {
@@ -117,6 +138,56 @@ describe("DiscPanel: §6.2 'Opening a disc'", () => {
     const before = document.activeElement;
     open({ focusOnOpen: false });
     expect(document.activeElement).toBe(before);
+  });
+
+  it("lists Ananya's Back Office panel with her Numbers agent first (§6.2, review T3)", () => {
+    view = render(<DiscPanel disc="G01" planAgentIds={ANANYA.agentIds} onClose={() => undefined} />);
+    const first = view.container.querySelector("li")!;
+    expect(first.textContent).toContain("Numbers agent");
+    expect(first.textContent).toContain("You need this one today");
+    expect(view.container.querySelectorAll('li[data-today="true"]')).toHaveLength(1);
+  });
+
+  it("puts focus back on the disc after Escape, once the parent removes the panel (review M5)", () => {
+    const disc = document.createElement("button");
+    document.body.appendChild(disc);
+    disc.focus();
+    const { onClose } = open({ focusOnOpen: true });
+    expect(document.activeElement).not.toBe(disc);
+    escape();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    view?.unmount();
+    view = null;
+    expect(document.activeElement).toBe(disc);
+    disc.remove();
+  });
+
+  it("returns focus to returnFocusTo when the caller names the disc", () => {
+    const disc = document.createElement("button");
+    document.body.appendChild(disc);
+    const ref = createRef<HTMLButtonElement>();
+    (ref as { current: HTMLButtonElement | null }).current = disc;
+    open({ focusOnOpen: true, returnFocusTo: ref });
+    view?.unmount();
+    view = null;
+    expect(document.activeElement).toBe(disc);
+    disc.remove();
+  });
+
+  it("moves focus to the new content when the disc changes while the panel stays open", () => {
+    const elsewhere = document.createElement("button");
+    document.body.appendChild(elsewhere);
+    open({ focusOnOpen: true });
+    elsewhere.focus();
+    view!.rerender(<DiscPanel disc="G04" planAgentIds={own} onClose={() => undefined} focusOnOpen />);
+    expect((document.activeElement as HTMLElement).dataset.disc).toBe("G04");
+    elsewhere.remove();
+  });
+
+  it("leaves an Escape that another layer already handled alone (review L2)", () => {
+    const { onClose } = open();
+    escape(true);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("renders nothing for an end disc", () => {

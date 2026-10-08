@@ -1,7 +1,8 @@
 // (C) W14-F (e): the disc panel, §6.2 "Opening a disc", with its content and copy IDs unchanged. Hover, tap or
-// keyboard focus on a disc opens it; Escape closes it, and the caller puts focus back on the disc. A panel opened by
-// a tap or Enter takes focus; one opened by hover or focus leaves it where it is.
-import { useEffect, useId, useRef } from "react";
+// keyboard focus on a disc opens it; Escape closes it. A panel opened by a tap or Enter takes focus, and gives it back
+// (to returnFocusTo, else to what had it) when it closes or moves to another disc; one opened by hover or focus leaves
+// focus where it is.
+import { type RefObject, useEffect, useId, useRef } from "react";
 import { copy } from "../../data";
 import type { AgentId, DiscId } from "../../data/contract";
 import { departmentForDisc, panelRows } from "./discCopy";
@@ -13,10 +14,14 @@ export interface DiscPanelProps {
   planAgentIds: readonly AgentId[];
   onClose: () => void;
   focusOnOpen?: boolean;
+  /** Where focus goes when the panel closes; defaults to whatever had focus when it took focus. */
+  returnFocusTo?: RefObject<HTMLElement>;
   className?: string;
 }
 
-export function DiscPanel({ disc, planAgentIds, onClose, focusOnOpen = false, className = "" }: DiscPanelProps): JSX.Element | null {
+export function DiscPanel({
+  disc, planAgentIds, onClose, focusOnOpen = false, returnFocusTo, className = "",
+}: DiscPanelProps): JSX.Element | null {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const department = departmentForDisc(disc);
@@ -24,6 +29,7 @@ export function DiscPanel({ disc, planAgentIds, onClose, focusOnOpen = false, cl
   useEffect(() => {
     if (!department) return undefined;
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       if (event.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
@@ -31,8 +37,17 @@ export function DiscPanel({ disc, planAgentIds, onClose, focusOnOpen = false, cl
   }, [department, onClose]);
 
   useEffect(() => {
-    if (focusOnOpen) panelRef.current?.focus();
-  }, [focusOnOpen]);
+    const panel = panelRef.current;
+    if (!focusOnOpen || !panel) return undefined;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const giveBackTo = returnFocusTo?.current ?? previous;
+    panel.focus();
+    return () => {
+      const active = document.activeElement;
+      const focusLeftWithPanel = active === null || active === document.body || panel.contains(active);
+      if (focusLeftWithPanel) giveBackTo?.focus();
+    };
+  }, [focusOnOpen, disc, returnFocusTo]);
 
   if (!department) return null;
   return (
