@@ -45,7 +45,7 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress }: 
   return (
     <section aria-labelledby="plan-hero-title" className="relative">
       <div className="lg:relative">
-        <div className="px-4 pt-10 sm:px-6 lg:absolute lg:inset-y-0 lg:left-0 lg:z-10 lg:flex lg:w-[55%] lg:flex-col lg:justify-center lg:px-10 lg:pt-0">
+        <div className="px-4 pt-24 sm:px-6 lg:absolute lg:inset-y-0 lg:left-0 lg:z-10 lg:flex lg:w-[55%] lg:flex-col lg:justify-center lg:px-10 lg:pt-0">
           <p className={MICRO}>{copy("hx.eyebrow")}</p>
           <h1
             id="plan-hero-title"
