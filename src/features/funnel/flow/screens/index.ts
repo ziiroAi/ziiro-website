@@ -1,7 +1,8 @@
-/** (C) Which component shows each screen. Tasks 12 and 13 add theirs. */
+/** (C) Which component shows each screen. Task 13 adds the rest. */
 import type { ComponentType } from "react";
 import type { Screen } from "../state";
 import { BusinessType } from "./BusinessType";
+import { ContactForm } from "./ContactForm";
 import { Landing } from "./Landing";
 import { NonOwner } from "./NonOwner";
 import { Problem } from "./Problem";
@@ -16,4 +17,5 @@ export const SCREEN_UI: Readonly<Partial<Record<Screen, ComponentType<ScreenProp
   s34: YearsTeam,
   s5: Revenue,
   s6: Problem,
+  s7: ContactForm,
 };
