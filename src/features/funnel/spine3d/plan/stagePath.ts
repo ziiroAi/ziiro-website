@@ -1,44 +1,39 @@
-// (C) W15-B, re-choreographed by W16-A: the plan's one 3D stage, scrubbed by the scroll. One stage, one WebGL
-// context. The owner (wave16.md W16-A):
+// (C) W15-B, re-choreographed by W16-A and W17-S: the plan's one 3D stage, scrubbed by the scroll. One stage, one
+// WebGL context, one model: the big spine (wave17.md, the owner: "we don't require the smaller bone ... the scrolling
+// effects from left to right, alternating left-right, can be done by the longer vertebra only").
 //   (a) the hero: the full spine on the right, beside the words, at r17's camera;
-//   (b) block 2: the dive. It travels left while the camera zooms in on his close-up model and turns a little, and the
-//       full spine crossfades into the close-up, timed to the zoom (CROSSFADE);
-//   (c) each department stop: the close-up alternates sides, left, then right with a little turn, then left..., and
-//       the text takes the other side;
-//   (d) the close: it pulls back out to the full spine, on the left, with the text on the right.
+//   (b) block 2: it travels left and the camera zooms in a little on the lit discs (W15-B2);
+//   (c) each department stop: the camera zooms in on that department's disc, 2-3 vertebrae around it, with a little
+//       turn; the stops alternate sides, left first, and the text takes the other side;
+//   (d) the close: it pulls back out to the whole spine, on the left, with the text on the right.
 // Between keyframes the camera blends on an eased curve of the scroll. Under reduced motion it cuts at each keyframe
 // (§11.8). Pure: PlanStage measures the anchors.
 import { DISCS, type DiscId } from "../../data/contract";
 import { baseFraming, blendFraming, easeInOut, type Framing } from "../camera";
-import { CLOSEUP } from "../closeup";
 import { GAPS } from "../gaps";
 import type { MeshSize } from "../rules";
 import type { Variant } from "./targets";
 import { END_MARGIN, shiftXFor, shiftYFor, shownTan } from "./tour";
 import { add, length, normalize, scale, sub, type Vec3 } from "./vec";
 
-/** Where the model stands across the stage, from the left: the hero's spine right of its words, the close-up left or
- *  right of a section's text, the close's spine left of it. A phone's band keeps the close-up near its middle. */
+/** Where the spine stands across the stage, from the left: right of the hero's words, left of block 2's, left or right
+ *  of a department's text, left of the close's. A phone's band keeps it near its middle. */
 export const ACROSS: Readonly<Record<Variant, { hero: number; need: number; left: number; right: number; close: number }>> = {
   desktop: { hero: 0.74, need: 0.27, left: 0.27, right: 0.73, close: 0.27 },
   phone: { hero: 0.5, need: 0.5, left: 0.4, right: 0.6, close: 0.5 },
 };
-/** How much of the model (LOOK units) the stage shows top to bottom at the close-up: all of it, its top plate and its
- *  cut base, with a little room at the top. Its vertebrae are about twice the full spine's, so this reads as a zoom in. */
-export const CLOSEUP_HEIGHT = 0.85;
-/** Where the camera aims on the close-up: the middle of the whole model on screen, which sits this far below its
- *  middle vertebra's centre (the top plate is short, the cut base long). By eye on the W16-A strips. */
-const CLOSEUP_DROP = 0.11;
-export const CLOSEUP_AIM: Vec3 = [CLOSEUP.pivot[0], CLOSEUP.pivot[1] - CLOSEUP_DROP, CLOSEUP.pivot[2]];
+/** Block 2's zoom on the hero (W15-B2): the owner reads a subtle change as none, so it shows the spine half as big
+ *  again as the hero does, aimed at the lit discs. */
+export const NEED_ZOOM = 1.5;
+/** How much of the spine (LOOK units) a department stop shows top to bottom: about four vertebrae (each about 0.12),
+ *  so the stop's disc sits in the middle with 2-3 vertebrae round it, the size the owner liked on the close-up. */
+export const STOP_VIEW_HEIGHT: Readonly<Record<MeshSize, number>> = { desktop: 0.5, phone: 0.5 };
 const DEG = Math.PI / 180;
-/** The little turn of the model (added to its yaw) at block 2, and at each department with the close-up on the right. */
-export const TURN = { need: -12 * DEG, left: 0, right: 18 * DEG } as const;
-/** The crossfade between the full spine and the close-up, as a share of a travel's eased progress: it starts once the
- *  zoom is under way and is done before the camera arrives (W16-A: "a crossfade/dissolve timed to the zoom"). */
-export const CROSSFADE = { from: 0.35, to: 0.8 } as const;
+/** The little turn of the model (added to its yaw) at a department stop, by the side it stands on. */
+export const TURN = { left: -10 * DEG, right: 14 * DEG } as const;
 
-/** Which side of the stage department i's close-up stands on: left first, then alternating. */
-export const closeupSide = (i: number): "left" | "right" => (i % 2 === 0 ? "left" : "right");
+/** Which side of the stage department i's stop stands on: left first, then alternating. */
+export const stopSide = (i: number): "left" | "right" => (i % 2 === 0 ? "left" : "right");
 
 export interface StageKey {
   framing: Framing;
@@ -47,8 +42,8 @@ export interface StageKey {
   stop: DiscId | null;
   /** Where the model stands across the stage: the still (no 3D) follows it with a slide. */
   across: number;
-  /** 0 shows the full spine, 1 the close-up, between them a dissolve. */
-  closeup: number;
+  /** 1 at a zoomed department stop, 0 on the whole spine: the whole spine's overlay and legend leave as it rises. */
+  zoomed: number;
   /** A turn about the column added to the model's yaw, in radians. */
   turn: number;
 }
@@ -83,10 +78,16 @@ function framingAt(centre: Vec3, distance: number, across: number, size: MeshSiz
   };
 }
 
+const centreOf = (disc: DiscId): Vec3 => GAPS[DISCS.indexOf(disc)].centre;
+/** The middle of the plan's lit discs, where block 2 aims: the spine's middle when there are none. */
+const litCentre = (discs: readonly DiscId[]): Vec3 =>
+  discs.length === 0 ? MIDDLE : scale(discs.map(centreOf).reduce((sum, c) => add(sum, c)), 1 / discs.length);
+
 /**
  * The stage's keyframes on its canvas, in scroll order: hero, block 2, one per department, the close. On desktop the
  * hero is r17's own camera, the frame the still and the viewer's first draw show; a phone's band shows the whole
- * spine. Block 2 and the stops frame the close-up, which needs no legend strip below it.
+ * spine. Block 2 comes NEED_ZOOM times closer than the hero, on the lit discs. Each stop aims at its own disc and
+ * shows STOP_VIEW_HEIGHT of the spine, with no legend strip below it.
  */
 export function stageKeys(
   discs: readonly DiscId[],
@@ -99,17 +100,24 @@ export function stageKeys(
   const share = stripShare(view, stripPx);
   const tan = shownTan(size, baseFraming(size).lensMm, view);
   const wholeAt = (at: number): Framing => framingAt(MIDDLE, WHOLE / (1 - share) / (2 * tan), at, size, view, share);
-  const closeAt = (at: number): Framing => framingAt(CLOSEUP_AIM, CLOSEUP_HEIGHT / (2 * tan), at, size, view, 0);
   const hero: StageKey = {
     framing: variant === "desktop" ? baseFraming(size) : wholeAt(across.hero),
-    hold: 0, stop: null, across: across.hero, closeup: 0, turn: 0,
+    hold: 0, stop: null, across: across.hero, zoomed: 0, turn: 0,
   };
-  const need: StageKey = { framing: closeAt(across.need), hold: 1, stop: null, across: across.need, closeup: 1, turn: TURN.need };
+  const heroDistance = length(sub(hero.framing.position, hero.framing.target));
+  const need: StageKey = {
+    framing: framingAt(litCentre(discs), heroDistance / NEED_ZOOM, across.need, size, view, share),
+    hold: 0, stop: null, across: across.need, zoomed: 0, turn: 0,
+  };
+  const stopDistance = STOP_VIEW_HEIGHT[size] / (2 * tan);
   const stops = discs.map((disc, i): StageKey => {
-    const side = closeupSide(i);
-    return { framing: closeAt(across[side]), hold: 1, stop: disc, across: across[side], closeup: 1, turn: TURN[side] };
+    const side = stopSide(i);
+    return {
+      framing: framingAt(centreOf(disc), stopDistance, across[side], size, view, 0),
+      hold: 1, stop: disc, across: across[side], zoomed: 1, turn: TURN[side],
+    };
   });
-  const close: StageKey = { framing: wholeAt(across.close), hold: 0, stop: null, across: across.close, closeup: 0, turn: 0 };
+  const close: StageKey = { framing: wholeAt(across.close), hold: 0, stop: null, across: across.close, zoomed: 0, turn: 0 };
   return [hero, need, ...stops, close];
 }
 
@@ -142,11 +150,11 @@ export function needWordsOpacity(across: number, variant: Variant): number {
 }
 
 /** Words in the left column show from where the model stands at WORDS_LEFT_FROM (none) to WORDS_LEFT_FULL_AT (all):
- *  the close-up's left edge, about 0.1 left of that, is then clear of the 46 % column (W16-A). */
+ *  the zoomed spine's left edge, about 0.1 left of that, is then clear of the 46 % column (W16-A, W17-S). */
 export const WORDS_LEFT_FROM = 0.55;
 export const WORDS_LEFT_FULL_AT = 0.6;
 
-/** How much of a left-column section's words show, 0 to 1: they wait for the close-up to reach the right. Always on a
+/** How much of a left-column section's words show, 0 to 1: they wait for the spine to reach the right. Always on a
  *  phone. */
 export function wordsLeftOpacity(across: number, variant: Variant): number {
   if (variant === "phone") return 1;
@@ -159,12 +167,12 @@ export const LEGEND_BACK_FROM = NEED_WORDS_FULL_AT;
 export const LEGEND_BACK_FULL_AT = 0.35;
 
 /** How much of the legend shows, 0 to 1: under the full spine on the hero, gone while it travels past block 2's rising
- *  words, back under it on the left, and gone over the close-up (its discs aren't the legend's). Always on a phone,
+ *  words, back under it on the left, and gone at a zoomed department stop (it names the whole spine's discs). Always on a phone,
  *  whose band sits clear of the text. */
-export function legendOpacity(across: number, variant: Variant, closeup: number): number {
+export function legendOpacity(across: number, variant: Variant, zoomed: number): number {
   if (variant === "phone") return 1;
   const back = clamp01((LEGEND_BACK_FROM - across) / (LEGEND_BACK_FROM - LEGEND_BACK_FULL_AT));
-  return Math.max(heroWordsOpacity(across, variant), back) * (1 - closeup);
+  return Math.max(heroWordsOpacity(across, variant), back) * (1 - zoomed);
 }
 
 /** Over this share of the screen, as the plan's end rises past the screen's bottom, the stage's legend leaves. */
@@ -177,15 +185,8 @@ export function stageShown(endOnScreen: number, screenHeight: number): number {
   return clamp01(1 - (screenHeight - endOnScreen) / (screenHeight * LEAVE_SHARE));
 }
 
-/** How far a travel's crossfade has gone, 0 to 1, at its eased progress e: smooth at both ends of its window. */
-function fadeAt(e: number): number {
-  const t = clamp01((e - CROSSFADE.from) / (CROSSFADE.to - CROSSFADE.from));
-  return t * t * (3 - 2 * t);
-}
-
 /**
- * Where the stage is at a scroll position: on a keyframe at its anchor, blended between two on an eased curve, the
- * crossfade inside its window of that curve. Under reduced motion it holds each keyframe until the next travel starts
+ * Where the stage is at a scroll position: on a keyframe at its anchor, blended between two on an eased curve. Under reduced motion it holds each keyframe until the next travel starts
  * and cuts. Before anything is measured it shows `fallback`.
  */
 export function stageAt(anchors: readonly StageAnchor[], scrollY: number, reducedMotion: boolean, fallback: StageKey): StageKey {
@@ -206,7 +207,7 @@ export function stageAt(anchors: readonly StageAnchor[], scrollY: number, reduce
     hold: mix(from.key.hold, to.key.hold, e),
     stop: from.key.stop,
     across: mix(from.key.across, to.key.across, e),
-    closeup: mix(from.key.closeup, to.key.closeup, fadeAt(e)),
+    zoomed: mix(from.key.zoomed, to.key.zoomed, e),
     turn: mix(from.key.turn, to.key.turn, e),
   };
 }

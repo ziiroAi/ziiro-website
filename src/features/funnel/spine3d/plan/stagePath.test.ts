@@ -1,14 +1,14 @@
-// (C) W15-B, re-choreographed by W16-A: the one plan stage's scroll path. The owner (wave16.md W16-A): the hero keeps
-// the full spine on the right; scrolling into the departments it dives (zoom, a little turn, a crossfade) into his
-// close-up model, which then alternates sides per department while the text takes the other side.
+// (C) W15-B, re-choreographed by W16-A and W17-S: the one plan stage's scroll path. The owner (wave17.md): no close-up
+// any more; the big spine alone zooms to each department's disc with a little turn, alternating sides, while the text
+// takes the other side.
 import { describe, expect, it } from "vitest";
-import type { DiscId } from "../../data/contract";
+import { DISCS as ALL_DISCS, type DiscId } from "../../data/contract";
 import { baseFraming, type Framing } from "../camera";
-import { CLOSEUP } from "../closeup";
+import { GAPS } from "../gaps";
 import {
-  ACROSS, CLOSEUP_AIM, CROSSFADE, closeupSide, HERO_WORDS_GONE_AT, heroWordsOpacity, LEGEND_BACK_FULL_AT, legendOpacity, NEED_WORDS_FROM,
-  NEED_WORDS_FULL_AT, needWordsOpacity, stageAnchors, stageAt, stageKeys, stageShown, WORDS_LEFT_FROM, WORDS_LEFT_FULL_AT,
-  wordsLeftOpacity, type StageAnchor,
+  ACROSS, HERO_WORDS_GONE_AT, heroWordsOpacity, LEGEND_BACK_FULL_AT, legendOpacity, NEED_WORDS_FROM,
+  NEED_WORDS_FULL_AT, needWordsOpacity, stageAnchors, stageAt, stageKeys, stageShown, STOP_VIEW_HEIGHT, stopSide,
+  WORDS_LEFT_FROM, WORDS_LEFT_FULL_AT, wordsLeftOpacity, type StageAnchor,
 } from "./stagePath";
 
 const DESKTOP_VIEW = { width: 1440, height: 816 };
@@ -19,8 +19,11 @@ const DISCS: DiscId[] = ["G04", "G05", "G06", "G01"];
 const scaleOf = (f: Framing): number => 1 / Math.hypot(...f.position.map((v, i) => v - f.target[i]));
 const gap = (a: Framing, b: Framing): number =>
   Math.hypot(...a.position.map((v, i) => v - b.position[i])) + Math.hypot(a.shift[0] - b.shift[0], a.shift[1] - b.shift[1]);
+const discCentre = (disc: DiscId) => GAPS[ALL_DISCS.indexOf(disc)].centre;
+/** The full spine's mean distance between neighbouring discs: one vertebra. */
+const VERTEBRA = Math.hypot(...GAPS[GAPS.length - 1].centre.map((v, i) => v - GAPS[0].centre[i])) / (GAPS.length - 1);
 
-describe("the stage's keyframes (W16-A)", () => {
+describe("the stage's keyframes (W17-S: the big spine only)", () => {
   const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
   const [hero, need, ...rest] = keys;
   const stops = rest.slice(0, DISCS.length);
@@ -34,51 +37,56 @@ describe("the stage's keyframes (W16-A)", () => {
   it("shows the full spine on the right in the hero, at r17's own camera, with no turn", () => {
     expect(hero.framing).toEqual(baseFraming("desktop"));
     expect(hero.across).toBe(ACROSS.desktop.hero);
-    expect(hero.closeup).toBe(0);
+    expect(hero.zoomed).toBe(0);
     expect(hero.turn).toBe(0);
     expect(hero.hold).toBe(0);
   });
 
-  it("dives into the close-up at block 2: zoomed in on it, turned a little, fully crossfaded", () => {
-    expect(need.closeup).toBe(1);
-    expect(need.turn).not.toBe(0);
-    // The close-up's vertebrae are about twice the full spine's (W16-C), so framing all of it at about the hero's
-    // distance doubles a vertebra on screen.
-    expect(scaleOf(need.framing)).toBeGreaterThanOrEqual(scaleOf(hero.framing));
-    need.framing.target.forEach((v, i) => expect(v).toBeCloseTo(CLOSEUP_AIM[i], 6));
-    expect(Math.hypot(...CLOSEUP_AIM.map((v, i) => v - CLOSEUP.pivot[i]))).toBeLessThan(0.2); // on the close-up
-    expect(need.hold).toBe(1);
+  it("travels left at block 2 and zooms in a little, the full spine still whole enough for its legend", () => {
+    expect(need.across).toBe(ACROSS.desktop.need);
+    expect(need.zoomed).toBe(0);
+    expect(scaleOf(need.framing)).toBeGreaterThan(scaleOf(hero.framing));
   });
 
-  it("alternates the close-up per department: left, right with a little turn, left...", () => {
-    expect(DISCS.map((_, i) => closeupSide(i))).toEqual(["left", "right", "left", "right"]);
+  it("zooms each department in on its own disc on the big spine, 2-3 vertebrae around it", () => {
     stops.forEach((stop, i) => {
-      expect(stop.closeup).toBe(1);
+      stop.framing.target.forEach((v, k) => expect(v).toBeCloseTo(discCentre(DISCS[i])[k], 6));
+      expect(scaleOf(stop.framing)).toBeGreaterThan(scaleOf(need.framing));
+      expect(stop.zoomed).toBe(1);
       expect(stop.hold).toBe(1);
-      expect(stop.across).toBe(closeupSide(i) === "left" ? ACROSS.desktop.left : ACROSS.desktop.right);
     });
+    expect(STOP_VIEW_HEIGHT.desktop / VERTEBRA).toBeGreaterThanOrEqual(3);
+    expect(STOP_VIEW_HEIGHT.desktop / VERTEBRA).toBeLessThanOrEqual(5);
+  });
+
+  it("alternates sides per department: left, then right, left..., with a little turn that differs per side", () => {
+    expect(DISCS.map((_, i) => stopSide(i))).toEqual(["left", "right", "left", "right"]);
+    stops.forEach((stop, i) => expect(stop.across).toBe(stopSide(i) === "left" ? ACROSS.desktop.left : ACROSS.desktop.right));
     expect(stops[0].across).toBeLessThan(0.4);
     expect(stops[1].across).toBeGreaterThan(0.6);
+    expect(stops[0].turn).not.toBe(0);
     expect(stops[1].turn).not.toBe(stops[0].turn);
     expect(stops[2].turn).toBe(stops[0].turn);
     expect(stops[3].turn).toBe(stops[1].turn);
   });
 
-  it("pulls back out to the full spine on the left at the close, with the text on the right", () => {
-    expect(close.closeup).toBe(0);
+  it("pulls back out to the whole spine on the left at the close, with the text on the right", () => {
+    expect(close.zoomed).toBe(0);
     expect(close.turn).toBe(0);
     expect(close.hold).toBe(0);
-    expect(close.across).toBe(ACROSS.desktop.left);
-    expect(scaleOf(close.framing)).toBeLessThan(scaleOf(need.framing));
+    expect(close.across).toBe(ACROSS.desktop.close);
+    expect(scaleOf(close.framing)).toBeLessThan(scaleOf(stops[0].framing));
   });
 
-  it("keeps a phone's close-up inside the band, alternating its offset", () => {
+  it("keeps a phone's stops inside the band, alternating their offset and turn", () => {
     const phone = stageKeys(DISCS, "phone", "phone", PHONE_VIEW, 0);
     expect(phone[0].across).toBe(0.5);
     const across = phone.slice(2, 2 + DISCS.length).map((k) => k.across);
     expect(across).toEqual([ACROSS.phone.left, ACROSS.phone.right, ACROSS.phone.left, ACROSS.phone.right]);
     across.forEach((a) => expect(Math.abs(a - 0.5)).toBeLessThanOrEqual(0.15));
     expect(phone[2].turn).not.toBe(phone[3].turn);
+    phone.slice(2, 2 + DISCS.length).forEach((k, i) =>
+      k.framing.target.forEach((v, j) => expect(v).toBeCloseTo(discCentre(DISCS[i])[j], 6)));
   });
 
   it("shows the phone band the whole spine in the hero (W15-B2)", () => {
@@ -87,37 +95,20 @@ describe("the stage's keyframes (W16-A)", () => {
   });
 });
 
-describe("the dive's crossfade is timed to the zoom (W16-A)", () => {
+describe("the zoom into a department blends with the camera (W17-S)", () => {
   const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
-  const anchors: StageAnchor[] = [{ at: 0, key: keys[0] }, { at: 1000, key: keys[1] }];
+  const anchors: StageAnchor[] = [{ at: 0, key: keys[1] }, { at: 1000, key: keys[2] }];
   const at = (y: number) => stageAt(anchors, y, false, keys[0]);
 
-  it("keeps the full spine over the start of the zoom, the close-up over its end", () => {
-    expect(CROSSFADE.from).toBeGreaterThan(0);
-    expect(CROSSFADE.to).toBeLessThan(1);
-    expect(at(100).closeup).toBe(0);
-    expect(at(950).closeup).toBe(1);
-  });
-
-  it("crossfades once, rising with the scroll, while the camera is still moving in", () => {
-    const ws = Array.from({ length: 1001 }, (_, y) => at(y).closeup);
+  it("rises once with the scroll, from 0 at block 2 to 1 at the stop", () => {
+    const ws = Array.from({ length: 1001 }, (_, y) => at(y).zoomed);
     ws.slice(1).forEach((w, i) => expect(w).toBeGreaterThanOrEqual(ws[i]));
-    const start = ws.findIndex((w) => w > 0);
-    const end = ws.findIndex((w) => w === 1);
-    expect(start).toBeGreaterThan(200);
-    expect(end).toBeLessThan(1000);
-    expect(gap(at(start).framing, keys[1].framing)).toBeGreaterThan(0);
-  });
-
-  it("pulls back the same way at the close: the full spine fades back in as the camera leaves the close-up", () => {
-    const back: StageAnchor[] = [{ at: 0, key: keys.at(-2)! }, { at: 1000, key: keys.at(-1)! }];
-    expect(stageAt(back, 100, false, keys[0]).closeup).toBe(1);
-    expect(stageAt(back, 950, false, keys[0]).closeup).toBe(0);
+    expect(ws[0]).toBe(0);
+    expect(ws[1000]).toBe(1);
   });
 
   it("blends the turn with the camera", () => {
-    const mid = at(500);
-    expect(mid.turn).toBeCloseTo(keys[1].turn / 2, 5);
+    expect(at(500).turn).toBeCloseTo(keys[2].turn / 2, 5);
   });
 });
 
@@ -143,7 +134,7 @@ describe("scrubbing between keyframes (W15-B)", () => {
       const now = at(y);
       expect(gap(before.framing, now.framing)).toBeLessThan(total / 100);
       expect(Math.abs(now.hold - before.hold)).toBeLessThan(0.01);
-      expect(Math.abs(now.closeup - before.closeup)).toBeLessThan(0.02);
+      expect(Math.abs(now.zoomed - before.zoomed)).toBeLessThan(0.02);
       expect(Math.abs(now.turn - before.turn)).toBeLessThan(0.01);
       before = now;
     }
@@ -151,7 +142,7 @@ describe("scrubbing between keyframes (W15-B)", () => {
 
   it("goes straight from one department to the next, with no pull-back to the whole spine between (D30 dropped)", () => {
     const between = at(2 * 800 + 400);
-    expect(between.closeup).toBe(1);
+    expect(between.zoomed).toBe(1);
     expect(between.across).toBeCloseTo((keys[2].across + keys[3].across) / 2, 5);
   });
 
@@ -197,14 +188,14 @@ describe("reduced motion cuts at the start of each travel (W15-B4 M3)", () => {
   });
 });
 
-describe("the legend keeps off the words (W15-B4 M1, W16-A)", () => {
+describe("the legend keeps off the words (W15-B4 M1, W17-S)", () => {
   it("shows on the hero and once the full spine stands left, and is gone while it travels", () => {
     expect(legendOpacity(ACROSS.desktop.hero, "desktop", 0)).toBe(1);
     [0.6, 0.5, NEED_WORDS_FROM, NEED_WORDS_FULL_AT].forEach((a) => expect(legendOpacity(a, "desktop", 0)).toBe(0));
     expect(legendOpacity(ACROSS.desktop.left, "desktop", 0)).toBe(1);
   });
 
-  it("is gone over the close-up: it names the full spine's discs", () => {
+  it("is gone at a zoomed department stop: it names the whole spine's discs, and the spine may stand right", () => {
     expect(legendOpacity(ACROSS.desktop.left, "desktop", 1)).toBe(0);
     expect(legendOpacity(ACROSS.desktop.right, "desktop", 1)).toBe(0);
     expect(legendOpacity(ACROSS.desktop.left, "desktop", 0.5)).toBeCloseTo(0.5, 5);
@@ -248,13 +239,13 @@ describe("the words make way for the spine on either side (W15-B3, W16-A)", () =
     expect(needWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(1);
   });
 
-  it("shows words on the left only once the close-up stands right, clear of the left column", () => {
+  it("shows words on the left only once the spine stands right, clear of the left column", () => {
     expect(wordsLeftOpacity(ACROSS.desktop.left, "desktop")).toBe(0);
     expect(wordsLeftOpacity(0.5, "desktop")).toBe(0);
     expect(wordsLeftOpacity(WORDS_LEFT_FROM, "desktop")).toBe(0);
     expect(wordsLeftOpacity(WORDS_LEFT_FULL_AT, "desktop")).toBe(1);
     expect(wordsLeftOpacity(ACROSS.desktop.right, "desktop")).toBe(1);
-    // Never both sides at once: the close-up crossing the middle has words on neither side.
+    // Never both sides at once: the spine crossing the middle has words on neither side.
     expect(WORDS_LEFT_FROM).toBeGreaterThan(NEED_WORDS_FROM);
   });
 
