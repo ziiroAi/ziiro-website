@@ -419,3 +419,47 @@ describe("W14-X: callouts never sit over the spine, and keep their right margin"
     expect(kept.side).not.toBe("right");
   });
 });
+
+// W19-RING: m5's gaps re-centred inside their rims moved the phone hero's discs by a few px, and the Deals callout
+// (G04) vanished: the right column pushed its taller label down beside lower vertebrae, whose band reaches further
+// right than G04's own anchor (the spine curves right lower down), so onSpine hid it. Inputs captured from the live
+// phone hero (390 px, m5b, gaps 0/2/3 re-centred).
+describe("W19-RING: a label pushed down its column clears the spine beside its new height", () => {
+  const view = {
+    width: 390, height: 410, marginRight: 8,
+    avoid: [
+      { x0: 136, y0: 56, x1: 212, y1: 100 }, { x0: 125, y0: 83, x1: 209, y1: 131 }, { x0: 112, y0: 116, x1: 206, y1: 167 },
+      { x0: 99, y0: 150, x1: 204, y1: 206 }, { x0: 93, y0: 185, x1: 204, y1: 248 }, { x0: 109, y0: 225, x1: 209, y1: 294 },
+      { x0: 97, y0: 270, x1: 218, y1: 334 }, { x0: 107, y0: 306, x1: 216, y1: 372 },
+    ],
+  };
+  const hero: LabelInput[] = [
+    { disc: "G04", anchor: { x: 204, y: 197 }, width: 150, height: 84, compactHeight: 30, keepOut: { x0: 145, y0: 175, x1: 214, y1: 216 } },
+    { disc: "G05", anchor: { x: 206, y: 162 }, width: 150, height: 48, compactHeight: 30, keepOut: { x0: 150, y0: 140, x1: 216, y1: 177 } },
+    { disc: "G06", anchor: { x: 209, y: 128 }, width: 150, height: 48, compactHeight: 30, keepOut: { x0: 157, y0: 106, x1: 219, y1: 141 } },
+    { disc: "G01", anchor: { x: 219, y: 321 }, width: 150, height: 48, compactHeight: 30, keepOut: { x0: 158, y0: 296, x1: 229, y1: 344 } },
+  ];
+  const overSpine = (p: PlacedLabel) =>
+    view.avoid.some((b) => p.x < b.x1 && p.x + p.width > b.x0 && p.y < b.y1 && p.y + p.height > b.y0);
+
+  it("keeps every callout of the phone hero, the first (Deals) above all", () => {
+    const { labels } = layoutLabels(hero, view);
+    expect(labels.filter((l) => l.hidden).map((l) => l.disc)).toEqual([]);
+    shown(labels).forEach((p) => expect(overSpine(p)).toBe(false));
+    expectClean(labels, view.width, view.height);
+  });
+
+  it("still keeps them all however the gap centres nudge the discs a few px", () => {
+    for (let dx = -6; dx <= 6; dx += 3) {
+      const moved = hero.map((l) => ({ ...l, anchor: { x: l.anchor.x + dx, y: l.anchor.y }, keepOut: { ...l.keepOut!, x0: l.keepOut!.x0 + dx, x1: l.keepOut!.x1 + dx } }));
+      const { labels } = layoutLabels(moved, { ...view, avoid: view.avoid.map((b) => ({ ...b, x0: b.x0 + dx, x1: b.x1 + dx })) });
+      expect(labels.find((l) => l.disc === "G04")!.hidden).toBe(false);
+      shown(labels).forEach((p) => expect(view.avoid.some((b) => p.x < b.x1 + dx && p.x + p.width > b.x0 + dx && p.y < b.y1 && p.y + p.height > b.y0)).toBe(false));
+    }
+  });
+
+  it("still hides a label that no slide can clear of the spine", () => {
+    const wall = { ...view, avoid: [{ x0: 0, y0: 0, x1: 390, y1: 410 }] };
+    expect(layoutLabels(hero, wall).labels.every((l) => l.hidden)).toBe(true);
+  });
+});
