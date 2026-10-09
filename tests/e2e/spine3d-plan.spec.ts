@@ -338,15 +338,16 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
     const buttons = stage.locator("button[data-disc]");
     await expect(buttons).toHaveCount(7);
     // At each disc's middle the pointer reaches the stage (its canvas picks the disc, or the disc's own button), never
-    // a faded section or one of its cards (W16-R found the last department's words there).
-    const blocked = await buttons.evaluateAll((list) => list.flatMap((button) => {
+    // a faded section or one of its cards (W16-R found the last department's words there). Polled: on a slow renderer
+    // the discs' boxes trail the scroll by a few frames.
+    await expect.poll(() => buttons.evaluateAll((list) => list.flatMap((button) => {
       const r = button.getBoundingClientRect();
       if (r.width === 0 || r.bottom < 0 || r.top > window.innerHeight) return [];
       const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const section = hit?.closest<HTMLElement>("[data-depth]");
       const onStage = hit?.closest("[data-testid=spine-stage]");
-      return onStage ? [] : [`${(button as HTMLElement).dataset.disc} under ${hit?.tagName} ${hit?.closest("[data-depth]") ? "(a section)" : ""}`];
-    }));
-    expect(blocked).toEqual([]);
+      return onStage ? [] : [`${(button as HTMLElement).dataset.disc} under ${hit?.tagName} ${section ? `(section ${section.dataset.depth})` : ""}`];
+    })), { timeout: SETTLE_TIMEOUT_MS }).toEqual([]);
     const deals = (await stage.locator('button[data-disc="G04"]').boundingBox())!;
     await page.mouse.move(deals.x + deals.width / 2, deals.y + deals.height / 2);
     await expect(stage.getByRole("dialog")).toBeVisible({ timeout: SETTLE_TIMEOUT_MS });
