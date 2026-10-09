@@ -11,6 +11,7 @@ import type { Page } from "@playwright/test";
 const WEBGL = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"];
 const LIVE_TIMEOUT_MS = 30_000;
 const DRAG_PX = 160;
+const DRAG_FRAME_TIMEOUT_MS = 15_000;
 
 async function toPlan(page: Page) {
   // W14-X: no viewer runs 3D on a software renderer, so the probe is told the GPU is real; the scene still draws on
@@ -43,7 +44,9 @@ test.describe("the live spine", () => {
     await page.mouse.down();
     await page.mouse.move(x - DRAG_PX, y, { steps: 8 });
     await page.mouse.up();
-    await expect.poll(async () => (await viewer.screenshot()).equals(before), { timeout: 5_000 }).toBe(false);
+    // W15-A: 15 s, not 5. Under a loaded machine SwiftShader can take several seconds to draw the turned frame (the base
+    // commit failed 3 of 4 runs at load 108 with 5 s); the drag itself always lands.
+    await expect.poll(async () => (await viewer.screenshot()).equals(before), { timeout: DRAG_FRAME_TIMEOUT_MS }).toBe(false);
   });
 
   // W14-J, worker-2's F1: the canvas kept its mount-time look when <html data-theme> changed, so in light the dark

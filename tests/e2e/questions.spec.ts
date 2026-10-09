@@ -25,11 +25,23 @@ test.describe("the greeting and the theme (§4.2, D4, D9)", () => {
     await expect(page.locator(".f-head").getByText("Late one? I'll keep it quick.")).toBeVisible();
   });
 
-  test("is dark at 10:00 when the device asks for dark", async ({ page }) => {
-    await atHour(page, 10);
+  test("is light at 10:16 even when the device asks for dark (W15-A, the owner's IST morning)", async ({ page }) => {
+    await page.clock.setFixedTime(new Date("2026-10-15T10:16:00+05:30"));
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  });
+
+  test("switches with the header toggle, live, and keeps the choice after a reload (W15-A)", async ({ page }) => {
+    await atHour(page, 10);
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await page.getByRole("button", { name: "Switch to dark" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(6, 9, 17)");
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.getByRole("button", { name: "Switch to light" })).toBeVisible();
   });
 });
 

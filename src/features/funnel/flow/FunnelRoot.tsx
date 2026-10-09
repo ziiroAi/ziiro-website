@@ -10,6 +10,7 @@ import { useFlowHistory } from "./history";
 import { prefetchPlan } from "./plan-chunk";
 import { localTimeZone } from "./region";
 import { SCREEN_UI } from "./screens";
+import { useChosenTheme } from "./theme";
 import { LandingSpineSlot } from "./LandingSpineSlot";
 import { keepPlan, resumedPlan } from "./resume";
 import { PlanPrefetch } from "./screens/Plan";
@@ -48,7 +49,7 @@ export function FunnelRoot(): JSX.Element {
   useIsoLayoutEffect(() => {
     if (state.nav.seq > 0) gate.lock(performance.now());
   }, [state.nav.seq]);
-  useFunnelAttributes(boot.theme, funnelStageOf(state));
+  useFunnelAttributes(useChosenTheme(boot.theme), funnelStageOf(state));
   useEarlyTap(boot, (id) => {
     if (isOneOf(SEGMENTS, id)) dispatch({ type: "segment", value: id });
   });

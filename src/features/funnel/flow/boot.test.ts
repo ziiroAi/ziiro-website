@@ -4,6 +4,8 @@ import {
   applyFunnelAttributes, clearFunnelAttributes, computeBoot, dayPartFor, introOffsetMs, introStartMs, pickRow,
   readBoot, readGreetingMap, subFor, themeFor, type GreetingRow,
 } from "./boot";
+import { THEME_KEY } from "./theme";
+import { stubLocalStorage } from "./test/memory-storage";
 
 const EN: GreetingRow = { lang: "en", checked: true, lines: ["Hello, good morning.", "Hello, good afternoon.", "Hello, good evening."] };
 const HI: GreetingRow = { lang: "hi", checked: false, lines: ["नमस्ते, सुप्रभात।", "नमस्ते, शुभ दोपहर।", "नमस्ते, शुभ संध्या।"] };
@@ -21,11 +23,24 @@ describe("the second line (§4.2)", () => {
   );
 });
 
-describe("the theme (D9)", () => {
-  it.each([[4, "dark"], [5, "light"], [16, "light"], [17, "dark"]])("%i:xx on a device with no setting is %s", (hour, theme) =>
-    expect(themeFor(hour, false)).toBe(theme),
+describe("the theme (D9, W15-A)", () => {
+  it.each([[0, "dark"], [5, "dark"], [6, "light"], [10, "light"], [17, "light"], [18, "dark"], [23, "dark"]])(
+    "%i:xx with no choice saved is %s", (hour, theme) => expect(themeFor(hour, null)).toBe(theme),
   );
-  it("a device set to dark wins at 10:00", () => expect(themeFor(10, true)).toBe("dark"));
+  it("the visitor's own choice wins, day or night", () => {
+    expect(themeFor(10, "dark")).toBe("dark");
+    expect(themeFor(22, "light")).toBe("light");
+  });
+  it("ignores a device set to dark: at 10:16 it's light (the owner's IST morning)", () => {
+    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+    stubLocalStorage();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 9, 10, 16));
+    expect(readBoot(window).theme).toBe("light");
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    clearFunnelAttributes(window);
+  });
 });
 
 describe("the greeting's language (D4)", () => {
@@ -43,13 +58,13 @@ describe("the greeting's language (D4)", () => {
 
 describe("computeBoot", () => {
   it("puts it together", () => {
-    expect(computeBoot({ hour: 19, deviceDark: false, languages: ["hi-IN"], map: [EN, HI_ON], t0: 42 })).toEqual({
+    expect(computeBoot({ hour: 19, saved: null, languages: ["hi-IN"], map: [EN, HI_ON], t0: 42 })).toEqual({
       hour: 19, t0: 42, dayPart: "evening", theme: "dark", sub: "s0.sub.day",
       lang: "hi", greeting: "नमस्ते, शुभ संध्या।", early: null, ready: false,
     });
   });
   it("keeps the static hello when the map is missing (§4.2)", () => {
-    expect(computeBoot({ hour: 9, deviceDark: false, languages: ["en"], map: null, t0: 0 })).toMatchObject({ lang: "en", greeting: "Hello." });
+    expect(computeBoot({ hour: 9, saved: null, languages: ["en"], map: null, t0: 0 })).toMatchObject({ lang: "en", greeting: "Hello." });
   });
 });
 
@@ -83,14 +98,17 @@ describe("on the client", () => {
   });
 
   it("uses the head script's result when there is one", () => {
-    const fromHead = computeBoot({ hour: 9, deviceDark: false, languages: ["en"], map: [EN], t0: 1 });
+    const fromHead = computeBoot({ hour: 9, saved: null, languages: ["en"], map: [EN], t0: 1 });
     (window as Window & { __funnelBoot?: unknown }).__funnelBoot = fromHead;
     expect(readBoot(window)).toBe(fromHead);
   });
 
-  it("works one out when the visitor came from another page of the site", () => {
-    vi.stubGlobal("matchMedia", () => ({ matches: true }));
+  it("works one out when the visitor came from another page of the site, with their saved choice", () => {
+    stubLocalStorage().setItem(THEME_KEY, "dark");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(2026, 9, 9, 11, 0));
     expect(readBoot(window)).toMatchObject({ theme: "dark", greeting: "Hello." });
+    vi.useRealTimers();
   });
 
   it("sets data-theme and data-funnel, and clears both, with the boot, on the way out", () => {

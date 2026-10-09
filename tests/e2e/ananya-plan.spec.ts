@@ -98,9 +98,9 @@ for (const theme of [{ name: "light", time: "10:00" }, { name: "dark", time: "22
   });
 }
 
-test.describe("a device set to dark", () => {
-  test.use({ colorScheme: "dark" });
-  test("gets the dark plan at 10:00 (D9)", async ({ page, isMobile, funnelApi }) => {
+test.describe("a visitor who chose dark with the header toggle", () => {
+  test("gets the dark plan at 10:00 (D9, W15-A)", async ({ page, isMobile, funnelApi }) => {
+    await page.addInitScript(() => window.localStorage.setItem("ziiro-theme", "dark"));
     funnelApi.answerLeadWith([SLOW_OK]);
     await runToPlan(page, "10:00", isMobile);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

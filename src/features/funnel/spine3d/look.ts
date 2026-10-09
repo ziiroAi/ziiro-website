@@ -6,6 +6,8 @@
  * their node transform undoes the quantisation.
  */
 
+import { PAGE_RGB, baseForPage } from "./page-match";
+
 export type Vec2 = readonly [number, number];
 export type Vec3 = readonly [number, number, number];
 export type Theme = "light" | "dark";
@@ -34,8 +36,9 @@ export interface EnvPanel {
 
 export interface ThemeLook {
   background: {
-    base: Vec3;            // the page colour, drawn in the canvas so bloom and edges blend with it
-    vignette: number;      // 0-1, darkening towards the corners
+    base: Vec3;            // the page colour, drawn in the canvas so bloom and edges blend with it. W15-A: worked out
+                           // backwards through the tone mapping (page-match.ts), so it comes out as the page exactly
+    vignette: number;      // 0-1, darkening towards the corners. W15-A: 0, or the edges sit darker than the page
     shaft: { from: Vec2; to: Vec2; width: number; colour: Vec3; intensity: number } | null;  // screen fractions
     bokeh: { count: number; seed: number; size: Vec2; colour: Vec3; intensity: number } | null;
   };
@@ -124,7 +127,7 @@ export const LOOK = {
 
   themes: {
     light: {
-      background: { base: [0.89, 0.89, 0.88], vignette: 0.08, shaft: null, bokeh: null },
+      background: { base: baseForPage(PAGE_RGB.light), vignette: 0, shaft: null, bokeh: null },
       body: {
         colour: [0.06, 0.06, 0.062], metalness: 0.85, roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.4,
         normalScale: 0.6, envIntensity: 0.7,
@@ -149,11 +152,12 @@ export const LOOK = {
         spill: { colour: [1, 0.3, 0.03], intensity: 1.2, distanceK: 0.2 },
       },
       toneMapping: "neutral", exposure: 1,
-      bloom: { strength: 0.45, radius: 0.3, threshold: 1.2 },
+      // W15-A: 2, over the page-matched background (luminance 1.87), so the page itself never blooms; the rings sit far above
+      bloom: { strength: 0.45, radius: 0.3, threshold: 2 },
     } as ThemeLook,
     dark: {
       background: {
-        base: [0.005, 0.0065, 0.011], vignette: 0.35,
+        base: baseForPage(PAGE_RGB.dark), vignette: 0,
         shaft: { from: [0.12, -0.05], to: [0.62, 0.62], width: 0.16, colour: [0.25, 0.32, 0.55], intensity: 0.12 },
         bokeh: { count: 22, seed: 7, size: [0.006, 0.022], colour: [0.45, 0.55, 0.9], intensity: 0.08 },
       },
