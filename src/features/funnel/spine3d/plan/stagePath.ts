@@ -3,8 +3,9 @@
 // effects from left to right, alternating left-right, can be done by the longer vertebra only").
 //   (a) the hero: the full spine on the right, beside the words, at r17's camera;
 //   (b) block 2: it travels left and the camera zooms in a little on the lit discs (W15-B2);
-//   (c) each department stop: the camera zooms in on that department's disc, 2-3 vertebrae around it, with a little
-//       turn; the stops alternate sides, left first, and the text takes the other side;
+//   (c) each department stop: the camera zooms in on that department's disc, 2-3 vertebrae around it, and the spine
+//       turns so that disc's glowing front faces the stop's text (W18-D, facing.ts), the short way round; the stops
+//       alternate sides, left first, and the text takes the other side;
 //   (d) the close: it pulls back out to the whole spine, on the left, with the text on the right.
 // Between keyframes the camera blends on an eased curve of the scroll. Under reduced motion it cuts at each keyframe
 // (§11.8). Pure: PlanStage measures the anchors.
@@ -12,6 +13,7 @@ import { DISCS, type DiscId } from "../../data/contract";
 import { baseFraming, blendFraming, type Framing } from "../camera";
 import { GAPS } from "../gaps";
 import type { MeshSize } from "../rules";
+import { faceTurn, nearestTurn, turnedCentre } from "./facing";
 import type { Variant } from "./targets";
 import { END_MARGIN, shiftXFor, shiftYFor, shownTan } from "./tour";
 import { add, length, normalize, scale, sub, type Vec3 } from "./vec";
@@ -32,9 +34,6 @@ export const NEED_ZOOM = 1.5;
  *  close-up; that is about 1.6x closer than block 2, so the zoom reads as a move (W16-R's bar). A phone's band is
  *  shorter, so it shows a little more. */
 export const STOP_VIEW_HEIGHT: Readonly<Record<MeshSize, number>> = { desktop: 0.4, phone: 0.6 };
-const DEG = Math.PI / 180;
-/** The little turn of the model (added to its yaw) at a department stop, by the side it stands on. */
-export const TURN = { left: -10 * DEG, right: 14 * DEG } as const;
 
 /** Which side of the stage department i's stop stands on: left first, then alternating. */
 export const stopSide = (i: number): "left" | "right" => (i % 2 === 0 ? "left" : "right");
@@ -114,14 +113,19 @@ export function stageKeys(
     hold: 0, stop: null, across: across.need, zoomed: 0, turn: 0,
   };
   const stopDistance = STOP_VIEW_HEIGHT[size] / (2 * tan);
+  let previous = need.turn;
   const stops = discs.map((disc, i): StageKey => {
     const side = stopSide(i);
+    const turn = nearestTurn(faceTurn(DISCS.indexOf(disc), side, size), previous);
+    previous = turn;
     return {
-      framing: framingAt(centreOf(disc), stopDistance, across[side], size, view, 0),
-      hold: 1, stop: disc, across: across[side], zoomed: 1, turn: TURN[side],
+      framing: framingAt(turnedCentre(centreOf(disc), turn), stopDistance, across[side], size, view, 0),
+      hold: 1, stop: disc, across: across[side], zoomed: 1, turn,
     };
   });
-  const close: StageKey = { framing: wholeAt(across.close), hold: 0, stop: null, across: across.close, zoomed: 0, turn: 0 };
+  const close: StageKey = {
+    framing: wholeAt(across.close), hold: 0, stop: null, across: across.close, zoomed: 0, turn: nearestTurn(0, previous),
+  };
   return [hero, need, ...stops, close];
 }
 
