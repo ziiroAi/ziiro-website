@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { afterLcpThenIdle, NO_LCP_MS, probeSoftwareGl, WAIT_AFTER_LCP_MS } from "./first-screen";
+import { afterLcpThenIdle, isSoftwareGl, NO_LCP_MS, PROBE_TIMEOUT_MS, probeSoftwareGl, WAIT_AFTER_LCP_MS } from "./first-screen";
 
 const UNMASKED_RENDERER = 0x9246;
 function canvasWith(gpu: string | null) {
@@ -34,6 +34,7 @@ const idleNow = (go: () => void) => {
 };
 
 afterEach(() => {
+  vi.restoreAllMocks();
   FakeLcpObserver.all = [];
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -54,6 +55,44 @@ describe("the S0 renderer probe (W14-R)", () => {
 
   it("leaves a browser that can't make a context to the viewer's own failure path", () => {
     expect(probeSoftwareGl(() => canvasWith(null).canvas)).toBe(false);
+  });
+});
+
+describe("asking off the main thread (W14-X)", () => {
+  /** A worker that answers as the probe worker would. */
+  const workerAnswering = (software: boolean | null) =>
+    class {
+      onmessage: ((event: { data: unknown }) => void) | null = null;
+      onerror: (() => void) | null = null;
+      terminate = vi.fn();
+      constructor() {
+        if (software !== null) queueMicrotask(() => this.onmessage?.({ data: { software } }));
+      }
+    };
+
+  it("asks a worker, so the first WebGL context (1.4 s cold on SwiftShader at 4× CPU) never blocks a tap", async () => {
+    vi.stubGlobal("OffscreenCanvas", class {});
+    vi.stubGlobal("Worker", workerAnswering(true));
+    const getContext = vi.spyOn(HTMLCanvasElement.prototype, "getContext");
+    await expect(isSoftwareGl()).resolves.toBe(true);
+    expect(getContext).not.toHaveBeenCalled();
+    vi.stubGlobal("Worker", workerAnswering(false));
+    await expect(isSoftwareGl()).resolves.toBe(false);
+  });
+
+  it("lets the 3D try when the worker never answers, and its own fallbacks take over", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("OffscreenCanvas", class {});
+    vi.stubGlobal("Worker", workerAnswering(null));
+    const answer = isSoftwareGl();
+    vi.advanceTimersByTime(PROBE_TIMEOUT_MS);
+    await expect(answer).resolves.toBe(false);
+  });
+
+  it("probes on the main thread where a worker can't make a context", async () => {
+    vi.stubGlobal("OffscreenCanvas", undefined);
+    const { canvas } = canvasWith("llvmpipe (LLVM 15.0.7, 256 bits)");
+    await expect(isSoftwareGl(() => canvas)).resolves.toBe(true);
   });
 });
 

@@ -30,6 +30,36 @@ export function probeSoftwareGl(makeCanvas: () => HTMLCanvasElement = () => docu
   return software;
 }
 
+/** How long the probe worker gets to answer before the 3D is let try anyway (its own fallbacks still apply). */
+export const PROBE_TIMEOUT_MS = 5000;
+
+/**
+ * W14-X: true when the browser's WebGL runs on a software renderer, asked off the main thread where a worker can make
+ * a context (gl-probe.worker.ts), so the first context's cold start never blocks a tap. Elsewhere (older Safari, which
+ * has no software GL fallback to speak of) the main-thread probe answers.
+ */
+export function isSoftwareGl(makeCanvas?: () => HTMLCanvasElement): Promise<boolean> {
+  if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined") {
+    return Promise.resolve(probeSoftwareGl(makeCanvas));
+  }
+  return new Promise((resolve) => {
+    let worker: Worker | null = null;
+    const answer = (software: boolean) => {
+      clearTimeout(timer);
+      worker?.terminate();
+      resolve(software);
+    };
+    const timer = setTimeout(() => answer(false), PROBE_TIMEOUT_MS);
+    try {
+      worker = new Worker(new URL("./gl-probe.worker.ts", import.meta.url), { type: "module", name: "gl-probe" });
+      worker.onmessage = ({ data }: MessageEvent<{ software?: unknown }>) => answer(data?.software === true);
+      worker.onerror = () => answer(false);
+    } catch {
+      answer(false);
+    }
+  });
+}
+
 /** Calls `go` after the first paint (two frames; none come while the tab is hidden). Returns a cancel. */
 function afterFirstPaint(go: () => void): () => void {
   let cancelled = false;

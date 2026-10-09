@@ -10,7 +10,7 @@ import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
-import { afterLcpThenIdle, onOptionPress, probeSoftwareGl } from "./first-screen";
+import { afterLcpThenIdle, isSoftwareGl, onOptionPress } from "./first-screen";
 import { shouldRelease } from "./gpu";
 import type { Motion } from "./orbit";
 import { isSoftwareRenderer } from "./pace";
@@ -213,8 +213,8 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
             if (!reportedLive) latest.current.onPhase?.("live", null);
             reportedLive = true;
           },
-          onBoxes: (boxes) => {
-            if (mine()) live.current?.drive?.takeBoxes(boxes);
+          onBoxes: (boxes, frameMs) => {
+            if (mine()) live.current?.drive?.takeBoxes(boxes, frameMs);
           },
           onFail: (reason) => {
             if (mine()) fail(reason);
@@ -257,8 +257,13 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     presenceListeners.add(settle);
     const firstScreen = latest.current.firstScreen === true;
     /** W14-X: no viewer runs its 3D on a software renderer; the still stays (worker-2's W14-S, SwiftShader phone tour
-     *  taps of 3-10 s). The probe is a 1×1 context, read and given back before any 3D code loads. */
-    const start = () => (probeSoftwareGl() ? fail("software-gl") : void begin());
+     *  taps of 3-10 s). The probe is a 1×1 context in a worker, read and given back before any 3D code loads. */
+    const start = () =>
+      void isSoftwareGl().then((software) => {
+        if (cancelled || interrupted || failed) return;
+        if (software) fail("software-gl");
+        else void begin();
+      });
     const cancelStart = firstScreen ? afterLcpThenIdle(start) : afterFirstPaint(start);
     /** S0: an option pressed before the first frame means the visitor is leaving, so the 3D stops wherever it got to. */
     const interrupt = () => {
