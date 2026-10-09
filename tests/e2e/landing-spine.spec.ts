@@ -24,6 +24,10 @@ const GONE_MS = 1_500;
  */
 const WORKER_GONE_MS = 10_000;
 const FIRST_OPTION = "I run a business";
+/** S0's 3D code and its mesh. */
+const THREE_D = /\/assets\/(host|scene|spine\.worker)-[\w-]+\.js|\/spine\/3d\//;
+/** first-screen.ts's WAIT_AFTER_LCP_MS plus a margin: past it, S0's 3D would have started. */
+const START_WAIT_MS = 1_500;
 
 const SEL = {
   layer: "[data-testid=landing-spine]",
@@ -125,6 +129,42 @@ test.describe("the live spine on S0", () => {
     await expect(page.locator(SEL.canvas)).toHaveCount(0);
     await expect.poll(() => page.workers().length, { timeout: WORKER_GONE_MS }).toBe(0);
     expect(await phases(page)).not.toContain("live");
+  });
+
+  test("never loads its 3D after a press that lands before its layer mounts (W14-X, the phone tap at about 470 ms)", async ({ page }) => {
+    await asHardware(page);
+    const done: string[] = [];
+    page.context().on("requestfinished", (request) => {
+      if (THREE_D.test(request.url())) done.push(new URL(request.url()).pathname);
+    });
+    // Hold the lazy layer back, so the press is sure to land before S0's viewer exists.
+    let layerAsked: () => void = () => undefined;
+    const asked = new Promise<void>((resolve) => (layerAsked = resolve));
+    let releaseLayer: () => void = () => undefined;
+    const released = new Promise<void>((resolve) => (releaseLayer = resolve));
+    await page.route(/\/assets\/LandingSpine-[\w-]+\.js/, async (route) => {
+      layerAsked();
+      await released;
+      await route.continue();
+    });
+    await page.goto("/");
+    await asked;
+    // A press on the option itself (it may still be rising in), not yet acted on: the visitor is still on S1, as in
+    // worker-2's phone run, where S2 came about a second later.
+    await page.getByRole("button", { name: FIRST_OPTION }).dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true });
+    releaseLayer();
+    await expect(page.locator(SEL.viewer)).toHaveAttribute("data-spine-left", "", { timeout: LIVE_TIMEOUT_MS });
+    // Wait out the 3D's own start condition (its LCP, the second after it, idle time, two frames), then look.
+    await page.evaluate((waitMs) => new Promise<void>((resolve) => {
+      new PerformanceObserver((_list, observer) => {
+        observer.disconnect();
+        setTimeout(() => requestIdleCallback(() => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))), waitMs);
+      }).observe({ type: "largest-contentful-paint", buffered: true });
+    }), START_WAIT_MS);
+    await expect(page.locator(SEL.viewer)).toHaveAttribute("data-spine", "still");
+    await expect(page.locator(SEL.canvas)).toHaveCount(0);
+    expect(page.workers()).toHaveLength(0);
+    expect(done, "no 3D code or /spine/3d request completes after an early press").toEqual([]);
   });
 
   test("frees its worker once the first S1 tap has faded it out (§6.6 S0)", async ({ page }) => {

@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { probeSeesHardware } from "./support/gpu";
 import { answerAsAnanya, expectPlan, fillContact, sendContact } from "./support/questions";
 import type { Page } from "@playwright/test";
 
@@ -12,6 +13,9 @@ const LIVE_TIMEOUT_MS = 30_000;
 const DRAG_PX = 160;
 
 async function toPlan(page: Page) {
+  // W14-X: no viewer runs 3D on a software renderer, so the probe is told the GPU is real; the scene still draws on
+  // SwiftShader underneath (spine3d-software.spec.ts covers what a software-GL visitor really gets).
+  await probeSeesHardware(page);
   await page.goto("/");
   await answerAsAnanya(page);
   await fillContact(page);

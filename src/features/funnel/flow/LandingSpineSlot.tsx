@@ -3,7 +3,12 @@
  * (LandingSpine), which in turn loads the 3D in idle time, so the prerendered greeting stays the LCP. On the first tap
  * into S1 the layer fades out, and it unmounts only after the fade, so the tap itself costs a class change.
  */
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+// W14-X: loaded with the page, so a press on an S1 option is recorded before the lazy layer mounts.
+import { markS0Entry } from "../spine3d/option-press";
+
+/** useLayoutEffect warns on the server; the press reset only matters in the browser. */
+const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 const LandingSpine = lazy(() => import("./LandingSpine").then((m) => ({ default: m.LandingSpine })));
 
@@ -17,6 +22,10 @@ export function LandingSpineSlot({ on }: { on: boolean }): JSX.Element | null {
   const [entry, setEntry] = useState(0);
   const wasOn = useRef(on);
   useEffect(() => setHydrated(true), []);
+  // Before the new layer's own effects run: Back to S0 starts a fresh visit, whose 3D the last press must not stop.
+  useBrowserLayoutEffect(() => {
+    if (on && !wasOn.current) markS0Entry();
+  }, [on]);
   useEffect(() => {
     const entering = on && !wasOn.current;
     wasOn.current = on;

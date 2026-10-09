@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { probeSeesHardware } from "./support/gpu";
 import { answerAsAnanya, expectPlan, fillContact, sendContact } from "./support/questions";
 import type { Locator, Page } from "@playwright/test";
 
@@ -23,6 +24,9 @@ const STOP_DISCS = ["G04", "G05", "G06", "G01"] as const;
 test.use({ reducedMotion: "reduce", launchOptions: { args: WEBGL } });
 
 async function toPlan(page: Page) {
+  // W14-X: no viewer runs 3D on a software renderer, so the probe is told the GPU is real; the scene still draws on
+  // SwiftShader underneath (spine3d-software.spec.ts covers what a software-GL visitor really gets).
+  await probeSeesHardware(page);
   await page.goto("/");
   await answerAsAnanya(page);
   await fillContact(page);

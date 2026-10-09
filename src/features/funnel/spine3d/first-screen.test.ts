@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { afterLcpThenIdle, NO_LCP_MS, onOptionPress, probeSoftwareGl, WAIT_AFTER_LCP_MS } from "./first-screen";
+import { afterLcpThenIdle, NO_LCP_MS, probeSoftwareGl, WAIT_AFTER_LCP_MS } from "./first-screen";
 
 const UNMASKED_RENDERER = 0x9246;
 function canvasWith(gpu: string | null) {
@@ -114,52 +114,5 @@ describe("starting a second past the LCP, in idle time (W14-R)", () => {
     expect(run).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(run).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("leaving S0: pressing one of S1's options (W14-R, W14-U L1)", () => {
-  function option() {
-    const s1 = document.createElement("div");
-    s1.className = "f-s1";
-    s1.innerHTML = '<div class="f-options"></div>';
-    const button = document.createElement("button");
-    s1.firstElementChild!.append(button);
-    document.body.append(s1);
-    return button;
-  }
-  const key = (target: EventTarget, name: string) => target.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true }));
-  const press = (target: EventTarget) => target.dispatchEvent(new Event("pointerdown", { bubbles: true }));
-
-  afterEach(() => {
-    document.body.replaceChildren();
-  });
-
-  it("fires once, on a press of an option or Enter or Space on one, and not after it is stopped", () => {
-    const button = option();
-    const run = vi.fn();
-    const stop = onOptionPress(run);
-    press(button);
-    key(button, "Enter");
-    expect(run).toHaveBeenCalledTimes(1);
-    stop();
-    const later = vi.fn();
-    onOptionPress(later)();
-    press(button);
-    expect(later).not.toHaveBeenCalled();
-    const spaced = vi.fn();
-    onOptionPress(spaced);
-    key(button, " ");
-    expect(spaced).toHaveBeenCalledTimes(1);
-  });
-
-  it("ignores a Tab, a screen-reader key, a press outside the options and a key on the page", () => {
-    const button = option();
-    const run = vi.fn();
-    onOptionPress(run);
-    key(button, "Tab");
-    key(button, "ArrowDown");
-    key(document.body, "Enter");
-    press(document.body);
-    expect(run).not.toHaveBeenCalled();
   });
 });

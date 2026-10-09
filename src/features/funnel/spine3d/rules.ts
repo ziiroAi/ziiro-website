@@ -3,7 +3,7 @@
 
 import type { StillReason } from "../data/contract";
 
-/** "software-gl": S0 only, whose 3D never runs on a software renderer (W14-R). "timeout": the 3D took too long to draw
+/** "software-gl": no viewer's 3D runs on a software renderer (W14-R for S0, W14-X for the plan's hero and tour). "timeout": the 3D took too long to draw
  *  its first frame (a stalled mesh fetch or worker), so the still stays (W14-V T6). */
 export type FallbackReason =
   | "save-data"

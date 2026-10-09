@@ -146,11 +146,28 @@ describe("ending the worker (W14-K)", () => {
       const handle = startSpine(offscreenCanvas(), options());
       const worker = FakeWorker.last!;
       const terminate = vi.spyOn(worker, "terminate");
+      worker.reply({ type: "ready", boxes: [], gpu: "Worker GPU" });
       handle.dispose();
       expect(worker.sent.at(-1)).toEqual({ type: "dispose" });
       expect(terminate).not.toHaveBeenCalled();
       vi.runAllTimers();
       expect(terminate).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("leaving before the first frame (W14-X)", () => {
+  it("ends a worker that hasn't drawn yet at once, so its script, its mesh download and its context all stop", () => {
+    vi.useFakeTimers();
+    try {
+      const handle = startSpine(offscreenCanvas(), options());
+      const terminate = vi.spyOn(FakeWorker.last!, "terminate");
+      handle.dispose();
+      expect(terminate).toHaveBeenCalledTimes(1);
+      vi.runAllTimers();
+      expect(terminate).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }

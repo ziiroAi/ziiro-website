@@ -3,6 +3,7 @@
 import { act, useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, type Rendered } from "../plan/test-utils";
+import { markS0Entry, optionPressed } from "../spine3d/option-press";
 import { LandingSpineSlot } from "./LandingSpineSlot";
 
 const mounts = vi.fn();
@@ -19,6 +20,8 @@ afterEach(() => {
   screen?.unmount();
   screen = null;
   mounts.mockClear();
+  markS0Entry();
+  document.body.querySelectorAll(".f-s1").forEach((el) => el.remove());
 });
 
 describe("LandingSpineSlot", () => {
@@ -40,5 +43,21 @@ describe("LandingSpineSlot", () => {
     await vi.waitFor(() => expect(mounts).toHaveBeenCalledTimes(1));
     await act(async () => screen!.rerender(<LandingSpineSlot on />));
     expect(mounts).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets the press that left S0 when the visitor comes back, so the new layer may start its 3D (W14-X)", async () => {
+    await act(async () => {
+      screen = render(<LandingSpineSlot on />);
+    });
+    const s1 = document.createElement("div");
+    s1.className = "f-s1";
+    s1.innerHTML = '<div class="f-options"><button>I run a business</button></div>';
+    document.body.append(s1);
+    s1.querySelector("button")!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    expect(optionPressed()).toBe(true);
+    await act(async () => screen!.rerender(<LandingSpineSlot on={false} />));
+    expect(optionPressed()).toBe(true);
+    await act(async () => screen!.rerender(<LandingSpineSlot on />));
+    expect(optionPressed()).toBe(false);
   });
 });

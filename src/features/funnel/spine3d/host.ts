@@ -36,6 +36,8 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
   const worker = new Worker(new URL("./spine.worker.ts", import.meta.url), { type: "module", name: "spine" });
   const send = (message: ToWorker, transfer: Transferable[] = []) => worker.postMessage(message, transfer);
   const picks = new Map<number, (disc: DiscId | null) => void>();
+  /** Until the first frame, dispose ends the worker at once (W14-X). */
+  let drawn = false;
   let nextPick = 0;
   /** Theme changes in the order they were sent, each settled once the worker has drawn it. */
   let themed: { theme: Theme; settle: () => void }[] = [];
@@ -50,7 +52,10 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
   worker.onmessage = ({ data }: MessageEvent<unknown>) => {
     if (!isFromWorker(data)) return fail();
     // The first frame wears the latest theme sent while loading, so it settles every change made before it.
-    if (data.type === "ready") settleThemes();
+    if (data.type === "ready") {
+      drawn = true;
+      settleThemes();
+    }
     if (data.type === "themed") settleThemes(themed.findIndex(({ theme }) => theme === data.theme) + 1);
     if (data.type === "ready") onReady(data.boxes, data.gpu);
     else if (data.type === "themed") return;
@@ -88,9 +93,12 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
       worker.onmessage = null;
       worker.onerror = null;
       worker.onmessageerror = null;
-      // The worker loses its context and closes itself; terminate is the backstop if it is stuck (W14-K).
+      // The worker loses its context and closes itself; terminate is the backstop if it is stuck (W14-K). Before the
+      // first frame the visitor is leaving (S0's early tap): end it now, so its script, its mesh download and any
+      // context stop at once (W14-X).
       send({ type: "dispose" });
-      setTimeout(() => worker.terminate(), DISPOSE_GRACE_MS);
+      if (drawn) setTimeout(() => worker.terminate(), DISPOSE_GRACE_MS);
+      else worker.terminate();
       picks.forEach((resolve) => resolve(null));
       settleThemes();
     },

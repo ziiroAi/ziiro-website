@@ -9,6 +9,7 @@ import type { StartOptions } from "./host";
 import { discLevels } from "./levels";
 import type { DiscBox } from "./scene";
 import { WAIT_AFTER_LCP_MS } from "./first-screen";
+import { markS0Entry } from "./option-press";
 import { LOAD_TIMEOUT_MS, MESH_URLS, SpineViewer } from "./SpineViewer";
 
 let picked: DiscId | null = null;
@@ -474,6 +475,29 @@ describe("giving the GPU back (W14-K)", () => {
   });
 });
 
+describe("every viewer on a software renderer (W14-X)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows the plan's still, loads no 3D code and records the fallback", async () => {
+    const loseContext = vi.fn();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      RENDERER: 0x1f01,
+      getExtension: (ext: string) => (ext === "WEBGL_lose_context" ? { loseContext } : null),
+      getParameter: () => "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    } as unknown as RenderingContext);
+    await mount();
+    expect(startSpine).not.toHaveBeenCalled();
+    expect(viewer().dataset.spine).toBe("fallback");
+    expect(viewer().dataset.spineReason).toBe("software-gl");
+    expect(still().className).not.toContain("invisible");
+    expect(canvas()).toBeNull();
+    expect(onPhase).toHaveBeenCalledWith("fallback", "software-gl");
+    expect(loseContext).toHaveBeenCalled();
+  });
+});
+
 describe("the idle spin on a weak GPU (W14-O)", () => {
   const SWIFTSHADER = "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)";
   const renders = () => handle.render.mock.calls.length;
@@ -567,6 +591,7 @@ describe("on the first screen, S0 (W14-R)", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    markS0Entry();
   });
 
   async function mountFirstScreen() {
@@ -632,6 +657,17 @@ describe("on the first screen, S0 (W14-R)", () => {
     expect(started().dispose).toHaveBeenCalled();
     expect(viewer().dataset.spine).toBe("still");
     expect(canvas()).toBeNull();
+  });
+
+  it("never starts when an option was pressed before it mounted (W14-X: the phone tap at about 470 ms)", async () => {
+    await tap();
+    await mountFirstScreen();
+    await lcpPainted();
+    await wait(WAIT_AFTER_LCP_MS + 1);
+    await wait(1);
+    expect(startSpine).not.toHaveBeenCalled();
+    expect(viewer().dataset.spine).toBe("still");
+    expect(viewer().dataset.spineLeft).toBe("");
   });
 
   it("never starts once the visitor has tapped", async () => {

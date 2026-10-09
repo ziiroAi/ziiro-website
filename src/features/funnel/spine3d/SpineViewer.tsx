@@ -64,8 +64,8 @@ export interface SpineViewerProps {
   /** Once live, and on a fallback with its reason: the plan_view record (§9). */
   onPhase?(phase: "live" | "fallback", reason: FallbackReason | null): void;
   /**
-   * S0 (W14-R): the first tap must never wait on the 3D. No 3D on a software renderer, a start a second past the LCP
-   * in idle time, and none at all if the visitor presses one of S1's options before its first frame.
+   * S0 (W14-R): the first tap must never wait on the 3D. A start a second past the LCP in idle time, and none at all
+   * if the visitor presses one of S1's options before its first frame, even before this viewer mounts (W14-X).
    */
   firstScreen?: boolean;
 }
@@ -128,6 +128,8 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   const [restyling, setRestyling] = useState(false);
   /** False where the idle spin is off: reduced motion, a software renderer, or a GPU too slow for it (W14-O). */
   const [spin, setSpin] = useState(true);
+  /** S0: the visitor has left, so this viewer's 3D will never start (W14-X). */
+  const [left, setLeft] = useState(false);
   const latest = useRef(inputs);
   latest.current = inputs;
   const live = useRef<Live | null>(null);
@@ -143,7 +145,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     }
     let cancelled = false;
     let failed = false;
-    /** S0: the visitor tapped before the first frame, so the 3D never comes (W14-R). */
+    /** S0: the visitor pressed an S1 option before the first frame, so the 3D never comes (W14-R, W14-X). */
     let interrupted = false;
     let asleep = false;
     let nearScreen = true;
@@ -254,15 +256,17 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     near?.observe(box);
     presenceListeners.add(settle);
     const firstScreen = latest.current.firstScreen === true;
-    const cancelStart = firstScreen
-      ? afterLcpThenIdle(() => (probeSoftwareGl() ? fail("software-gl") : void begin()))
-      : afterFirstPaint(() => void begin());
+    /** W14-X: no viewer runs its 3D on a software renderer; the still stays (worker-2's W14-S, SwiftShader phone tour
+     *  taps of 3-10 s). The probe is a 1×1 context, read and given back before any 3D code loads. */
+    const start = () => (probeSoftwareGl() ? fail("software-gl") : void begin());
+    const cancelStart = firstScreen ? afterLcpThenIdle(start) : afterFirstPaint(start);
     /** S0: an option pressed before the first frame means the visitor is leaving, so the 3D stops wherever it got to. */
     const interrupt = () => {
       if (cancelled || failed || live.current?.drive) return;
       interrupted = true;
       cancelStart();
       teardown();
+      setLeft(true);
       setState({ phase: "still", reason: null });
     };
     const stopWatching = firstScreen ? onOptionPress(interrupt) : () => undefined;
@@ -319,7 +323,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     live.current?.drive?.wake();
   }, [inputs.levels]);
 
-  return { ...state, restyling, spin };
+  return { ...state, restyling, spin, left };
 }
 
 export function SpineViewer({ label, lit, className = "", children, onApi, onPhase, firstScreen }: SpineViewerProps): JSX.Element {
@@ -328,7 +332,7 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason, restyling, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, firstScreen });
+  const { phase, reason, restyling, spin, left } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, firstScreen });
   const live = phase === "live";
   return (
     <div
@@ -336,6 +340,7 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
       data-testid="spine-viewer"
       data-spine={phase}
       data-spine-reason={reason ?? undefined}
+      data-spine-left={left ? "" : undefined}
       data-spine-spin={live ? (spin ? "on" : "off") : undefined}
       className={`relative ${live ? "cursor-grab select-none" : ""} ${className}`}
       style={live ? { touchAction: "pan-y" } : undefined}

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import type { Browser, BrowserContextOptions, CDPSession, Page, Response } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { probeSeesHardware } from "./support/gpu";
 import { expectPlan, tapThrough } from "./support/questions";
 
 /**
@@ -21,8 +22,8 @@ import { expectPlan, tapThrough } from "./support/questions";
  *   on "Show me my plan" by design, §4.3) to the frame where the r17 still has painted, at 4× CPU on Fast 4G. It also checks that the still is what painted first, not the canvas.
  * - (b) INP. A real tap on the plan's hero while the 3D is still loading: Event Timing's duration for that
  *   interaction, the worst of 5 runs at 4× CPU. §13.10 judges it on a real GPU (SPINE3D_GPU=metal) at 100 ms or less;
- *   on SwiftShader (the default) the 3D-on runs are held to a Save-Data baseline of the same steps: at most one frame
- *   (16 ms) slower.
+ *   on SwiftShader (the default) the 3D-on runs are what a software-GL visitor gets, the still and no 3D (W14-X), held
+ *   to a Save-Data baseline of the same steps: at most one frame (16 ms) slower.
  * - (c) The drag. With reduced motion (no idle spin), the canvas takes over from the still; a sideways drag changes
  *   its pixels; on a phone a vertical swipe on it still scrolls the page.
  * - (d) The fallback. No WebGL (getContext stubbed to null, and the worker path removed) and Save-Data each keep the
@@ -223,7 +224,9 @@ async function worstPlanTap(page: Page, threeD: boolean, label: string): Promise
         }
       }).observe({ type: "event", durationThreshold: 16, buffered: false } as PerformanceObserverInit);
     });
-    const loading = threeD
+    // W14-X: on SwiftShader the "3D on" page is what a software-GL visitor gets: the probe keeps the still, so there is
+    // no 3D request to wait for, and the tap is held to the Save-Data baseline.
+    const loading = threeD && GPU === "metal"
       ? page.waitForRequest((r) => CHUNK_URL.test(r.url()) || MESH_URL.test(r.url()), { timeout: 60_000 })
       : null;
     await sendContact(page);
@@ -236,7 +239,7 @@ async function worstPlanTap(page: Page, threeD: boolean, label: string): Promise
     const tapMs = taps.length ? Math.max(...taps) : 0;
     worst.push(tapMs);
     test.info().annotations.push({ type: `b: ${label}, run ${run}`, description: `${tapMs} ms, viewer was "${stateAtTap}"` });
-    if (threeD) expect(stateAtTap, "the tap must land while the 3D is still loading").not.toBe("live");
+    if (threeD && GPU === "metal") expect(stateAtTap, "the tap must land while the 3D is still loading").not.toBe("live");
     await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
     await cdp.detach();
   }
@@ -261,6 +264,8 @@ test("(c) the canvas replaces the still, a sideways drag turns it, a vertical sw
   test.setTimeout(120_000);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await wire(page);
+  // W14-X: the 3D runs only where the probe sees a real GPU; on SwiftShader it is told so, to test the drag itself.
+  if (GPU === "swiftshader") await probeSeesHardware(page);
   await toPlan(page);
   await expect(page.locator(SEL.live)).toHaveCount(1, { timeout: LIVE_TIMEOUT_MS });
   await expect(page.locator(SEL.canvas).first()).toBeVisible();
@@ -338,6 +343,7 @@ test("(e) the lazy 3D chunk and the mesh, against the budgets", async ({ page },
     if (MESH_URL.test(r.url())) meshes.push(r);
   });
   await wire(page);
+  if (GPU === "swiftshader") await probeSeesHardware(page);
   await toPlan(page);
   await expect(page.locator(SEL.live)).toHaveCount(1, { timeout: LIVE_TIMEOUT_MS });
   expect(chunks.length, "no lazy 3D chunk matched CHUNK_URL").toBeGreaterThan(0);
