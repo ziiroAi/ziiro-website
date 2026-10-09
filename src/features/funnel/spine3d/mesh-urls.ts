@@ -7,10 +7,12 @@ import type { MeshSize } from "./rules";
  *  m4 is m3 with the close-up's machined black-titanium finish baked onto its own UVs (W17-M): metal 0.92, roughness
  *  0.12, machining marks, scratches, speckle; look.ts body.maps makes the viewer read these maps.
  *  m5 is the owner's own Tripo "Futuristic Coil" (W19): his mesh and PBR maps, his painted disc glow moved out of the
- *  base colour into the emissive disc mask, the base colour darkened as he asked, placed on m4's column. */
+ *  base colour into the emissive disc mask, the base colour darkened as he asked, placed on m4's column. m5b is m5 with
+ *  the base colour turned graphite and the disc bands darkened to the metal round them (W19 r2: light mode's brown tint
+ *  and grey smears under quiet discs). */
 export const MESH_URLS: Readonly<Record<MeshSize, string>> = {
-  phone: "/spine/3d/m5/spine-phone.glb",
-  desktop: "/spine/3d/m5/spine-desktop.glb",
+  phone: "/spine/3d/m5b/spine-phone.glb",
+  desktop: "/spine/3d/m5b/spine-desktop.glb",
 };
 
 /** W15-M6: every mesh the plan's 3D loads, in the order it needs them; the funnel downloads them during the

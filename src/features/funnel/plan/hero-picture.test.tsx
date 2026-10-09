@@ -28,7 +28,7 @@ const sources = () =>
   }));
 
 const set = (name: string, widths: number[], ext: string) =>
-  widths.map((w) => `/spine/r19/light/hero/${name}-${w}.${ext} ${w}w`).join(", ");
+  widths.map((w) => `/spine/r20/light/hero/${name}-${w}.${ext} ${w}w`).join(", ");
 const phone = (ext: string) => set("phone", [585], ext);
 const tablet = (ext: string) => set("tablet", [1024, 1536], ext);
 const wide = (ext: string) => set("hero", [1280, 1920, 2880], ext);
@@ -53,7 +53,7 @@ describe("HeroPicture (§6.6)", () => {
     screen = render(<HeroPicture />);
     const img = screen.container.querySelector("img");
     expect([img?.getAttribute("src"), img?.getAttribute("width"), img?.getAttribute("height"), img?.getAttribute("decoding"), img?.alt]).toEqual([
-      "/spine/r19/light/hero/hero-1920.webp", "2880", "1632", "async", copy("hx.alt.light"),
+      "/spine/r20/light/hero/hero-1920.webp", "2880", "1632", "async", copy("hx.alt.light"),
     ]);
     expect(img?.hasAttribute("fetchpriority")).toBe(false);
     expect(img?.hasAttribute("loading")).toBe(false);
@@ -65,7 +65,7 @@ describe("HeroPicture (§6.6)", () => {
       document.documentElement.dataset.theme = "dark";
     });
     expect(screen.container.querySelector("img")?.alt).toBe(copy("hx.alt.dark"));
-    expect(sources().every((s) => s.srcset?.includes("/spine/r19/dark/hero/"))).toBe(true);
+    expect(sources().every((s) => s.srcset?.includes("/spine/r20/dark/hero/"))).toBe(true);
   });
 
   it("can be mounted early, out of sight and out of the accessibility tree", () => {

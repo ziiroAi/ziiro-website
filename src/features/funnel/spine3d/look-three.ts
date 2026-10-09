@@ -244,11 +244,15 @@ const CAP_FRAG = `uniform vec3 edge, mid, core, centre; uniform float intensity,
 
 export interface Rings { group: THREE.Group; setLevels(levels: readonly number[]): void }
 
+/** A band at or below this level (quiet is 0.12) is hidden: it would draw black. */
+const BAND_SHOWS_ABOVE = 0.2;
+
 /** One emissive band per gap, a full ring: the rims hide its back, and its facing term makes the camera-side arc. */
 export function makeRings(t: ThemeLook, gaps: readonly Gap[], shared: Shared): Rings {
   const R = LOOK.ring;
   const group = new THREE.Group();
   const mats: THREE.ShaderMaterial[] = [];
+  const bands: THREE.Mesh[] = [];
   gaps.forEach((g) => {
     const mat = new THREE.ShaderMaterial({
       uniforms: {
@@ -264,6 +268,7 @@ export function makeRings(t: ThemeLook, gaps: readonly Gap[], shared: Shared): R
     ring.position.copy(v3(g.centre));
     ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v3(g.normal).normalize());
     group.add(ring);
+    bands.push(ring);
     if (R.capK > 0) {                                         // the disc's own face, glowing towards the camera-side rim
       const capMat = new THREE.ShaderMaterial({
         side: THREE.DoubleSide, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
@@ -282,6 +287,9 @@ export function makeRings(t: ThemeLook, gaps: readonly Gap[], shared: Shared): R
     setLevels(levels) {
       levels.forEach((l, k) => {
         mats[k].uniforms.level.value = l;
+        // W19 r2 (review M1): a quiet band (level 0.12, cubed in the shader) draws black, and at the stage's top fade
+        // its edges showed through as a dotted dark arc in light mode, so a band shows only above the quiet level.
+        bands[k].visible = l > BAND_SHOWS_ABOVE;
         (shared.uniforms.uGapLevel.value as number[])[k] = glow(l);
       });
     },
