@@ -50,7 +50,7 @@ test("one real run to the plan on the Preview (§12)", { tag: "@preview" }, asyn
 
   await previewStep("the plan's hero comes from /spine/ under the immutable cache rule (lane B)", async () => {
     const hero = await page.evaluate(() =>
-      performance.getEntriesByType("resource").map((e) => e.name).find((name) => name.includes("/spine/r18/")),
+      performance.getEntriesByType("resource").map((e) => e.name).find((name) => name.includes("/spine/r19/")),
     );
     expect(hero, "the hero still loaded").toBeTruthy();
     const res = await page.request.get(hero!, { headers: bypassHeader });

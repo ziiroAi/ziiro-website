@@ -62,7 +62,7 @@ const SWIPE_PX = 300;
  * values on fallback; its canvas is [data-testid=spine-canvas].
  */
 const SEL = {
-  still: '[data-testid=spine-still] img[src*="/spine/r18/"]:visible',
+  still: '[data-testid=spine-still] img[src*="/spine/r19/"]:visible',
   viewer: "[data-testid=spine-viewer]",
   canvas: "[data-testid=spine-canvas]",
   live: '[data-testid=spine-viewer][data-spine="live"]',
