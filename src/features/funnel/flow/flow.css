@@ -30,6 +30,8 @@
 .f-hint { margin-top: 0.375rem; font-size: 0.875rem; color: var(--funnel-muted); }
 .f-options { display: grid; gap: 0.625rem; margin-top: 1.25rem; }
 .f-row2 { margin-top: 2rem; }
+/* W16-B: short labels (years, team size, revenue) sit two to a row, so each screen fits without scrolling. */
+.f-short { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .f-option,
 .f-tile,
 .f-chip {
@@ -75,6 +77,55 @@
   outline: 2px solid var(--funnel-fg); outline-offset: 2px;
 }
 
+/* W16-B: the questions never scroll (the owner: "the forms can't be scrollable"). On a short screen (a 1280 × 720
+   laptop, a 360 × 640 phone) the spacing tightens and the type steps down; tap targets stay 44 px or more (§11.3). */
+@media (max-height: 760px) {
+  .f-root { padding-top: calc(var(--nav-h, 84px) - 0.5rem); padding-bottom: 0.75rem; }
+  .f-top { margin-bottom: 0.5rem; }
+  .f-q { font-size: 1.25rem; }
+  .f-hint { margin-top: 0.25rem; font-size: 0.8125rem; }
+  .f-options { gap: 0.5rem; margin-top: 0.75rem; }
+  .f-option { min-height: 44px; padding: 0.5rem 0.875rem; }
+  .f-row2 { margin-top: 1.25rem; }
+  .f-tiles, .f-chips { gap: 0.375rem; margin-top: 0.5rem; }
+  .f-tile, .f-chip { padding: 0.375rem 0.75rem; font-size: 0.875rem; }
+  .f-box { min-height: 4.5rem; margin-top: 0.625rem; }
+  .f-label { margin: 0.625rem 0 0.25rem; }
+  .f-field { min-height: 44px; padding: 0.5rem 0.875rem; }
+  .f-small { font-size: 0.75rem; line-height: 1.4; }
+  .f-box + .f-small { margin-top: 0.375rem; }
+  .f-consent { margin-top: 0.75rem; }
+  .f-act { min-height: 48px; margin-top: 1rem; }
+  .f-about { margin-top: 1rem; }
+  .f-note { padding-top: 0.75rem; }
+  .f-s1 { margin-top: 0.75rem; }
+}
+
+/* A phone's S6 chips: smaller, so two or three share a row instead of one or two. */
+@media (max-width: 599px) {
+  .f-chips { gap: 0.375rem; }
+  .f-chip { padding: 0.375rem 0.625rem; font-size: 0.8125rem; }
+}
+/* A small phone (360 × 640): one more step. */
+@media (max-height: 700px) {
+  .f-q { font-size: 1.125rem; }
+  .f-box { min-height: 3.75rem; }
+  .f-bridge { margin-bottom: 0.25rem; }
+  .f-label { margin: 0.5rem 0 0.25rem; }
+  .f-consent { margin-top: 0.5rem; }
+  .f-act { margin-top: 0.75rem; }
+  .f-note { padding-top: 0.5rem; }
+  .f-top { margin-bottom: 0.25rem; }
+  .f-label { margin-top: 0.25rem; }
+  .f-small { line-height: 1.3; }
+  .f-act { min-height: 44px; }
+}
+/* A small phone's S6 chips: three to a row, so all nine fit in three rows above the button. */
+@media (max-height: 700px) and (max-width: 599px) {
+  .f-chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .f-chip { padding: 0.25rem 0.5rem; border-radius: 0.875rem; font-size: 0.75rem; line-height: 1.2; }
+}
+
 /* S0 (§4.2): the greeting fades up big, then settles into the header while S1 rises under it.
    --f-t is 0 in the prerendered HTML. React sets it to minus the time since first paint, because
    createRoot rebuilds these nodes and they must carry on where the prerendered ones were. */
@@ -97,44 +148,6 @@ html[data-funnel] .f-intro-on .f-s1 { animation: f-rise 450ms cubic-bezier(0.2, 
    option for about a second (worker-2's W14-Y). It waits until the options have landed (900 + 450 ms). */
 html[data-funnel] .f-root:has(.f-intro-on) .f-note { animation: f-fade-up 300ms ease-out both; animation-delay: calc(var(--f-t, 0ms) + 1350ms); }
 
-/* W14-I: S0's live spine (LandingSpine), a fixed layer under S0's words and options. It never takes part in layout,
-   so it never pushes the options down. isolate on S0 only: z-index -1 then sits under everything in .f-root yet over
-   the page colour, and the plan's own layers (its lightbox) never get trapped under the header. */
-.f-root[data-screen="s1"] { isolation: isolate; }
-.f-spine {
-  position: fixed; z-index: -1; left: 0; right: 0; bottom: 0;
-  height: calc(100vw * 1230 / 1170);   /* under 600 px: r17's phone band, whose camera frames exactly this aspect */
-  pointer-events: none; opacity: 0; transition: opacity 300ms ease;
-  mask-image: linear-gradient(to bottom, transparent, #000 30%);
-}
-.f-spine[data-visible] { opacity: 1; }
-.f-spine-viewer { width: 100%; height: 100%; }
-/* Under 1200 px the band runs under S0's small lines (g.about, the footer note). Each gets a soft plate of the page
-   colour behind it, so no text sits on the busy spine and the spine can show at full strength everywhere else. The
-   plate is a later z-index -1 sibling of the spine in .f-root's stacking context: over the spine, under the text. */
-@media (max-width: 1199px) {
-  .f-root[data-screen="s1"] :is(.f-about, .f-note) { position: relative; }
-  .f-root[data-screen="s1"] :is(.f-about, .f-note)::before {
-    content: ""; position: absolute; z-index: -1; inset: -0.5rem -0.75rem;
-    border-radius: 1rem; background: var(--funnel-bg); filter: blur(8px); pointer-events: none;
-  }
-  .f-root[data-screen="s1"] .f-note::before { top: 1rem; }  /* the note's 1.5rem padding-top holds no text */
-}
-@media (min-width: 600px) { .f-spine { height: calc(100vw * 9 / 16); } }  /* r17's hero camera frames the box itself */
-/* From 1200 px the spine stands in the gutter right of the 40rem questions: a 16:9 hero frame as tall as the screen
-   under the header, slid so the spine (0.74 of r17's frame width) lands mid-gutter. Drags there turn it. */
-@media (min-width: 1200px) {
-  .f-spine {
-    --f-spine-w: calc((100svh - var(--nav-h, 84px)) * 16 / 9);
-    top: var(--nav-h, 84px); right: auto; height: auto; width: var(--f-spine-w);
-    left: calc(75vw + 10rem - 0.74 * var(--f-spine-w));
-    pointer-events: auto;
-    /* W15-A: no fade. The canvas paints the page colour exactly at its edges (spine3d/page-match.ts, the shader's edge
-       fade), and the old 45 % CSS fade drew the last few levels of difference as vertical bands. */
-    mask-image: none;
-  }
-  .f-spine[data-visible] { opacity: 1; }
-}
 
 /* Each step slides in within a quarter of a second (§4.1), from the left on Back. */
 html[data-funnel] .f-screen[data-dir="forward"] { animation: f-in-right 250ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }

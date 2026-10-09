@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mountRoot } from "@/app/mount";
 import type { Boot } from "./boot";
 import { FunnelRoot } from "./FunnelRoot";
-import { button, click, mount, stubBrowser, type Mounted } from "./test/dom";
+import { button, click, mount, settle, stubBrowser, type Mounted } from "./test/dom";
 
 vi.mock("@/features/funnel/data/light", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -87,6 +87,12 @@ describe("FunnelRoot on landing (S0 + S1)", () => {
     view = mount(<FunnelRoot />);
     expect(screenOf()).toBe("s2");
     expect(boot).toMatchObject({ ready: true, early: null });
+  });
+
+  it("shows no spine on S0, neither 3D nor a still: it belongs to the plan only (W16-B)", async () => {
+    view = mount(<FunnelRoot />);
+    for (let i = 0; i < 20; i++) await settle(50);  // long enough for a lazy layer to load
+    expect(view.container.querySelector("[data-testid=landing-spine], [data-testid=spine-viewer], .f-spine")).toBeNull();
   });
 
   it("answers an early S1 tap when the first mount is a transition (W15-E)", async () => {

@@ -3,6 +3,7 @@ import { ThemeProvider } from "next-themes";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
+import { SiteSheet } from "@/shared/components/funnel-form";
 import PageAtmosphere from "@/shared/components/PageAtmosphere";
 import SmoothScroll, { easeInOutCubic, headerOffset, scrollTo } from "@/shared/motion/SmoothScroll";
 import ScrollProgress from "@/shared/motion/ScrollProgress";
@@ -232,13 +233,13 @@ const App = () => (
       {/* The page is one sheet that scrolls up off the footer pinned behind
           it (index.css, SITE FOOTER). The server entry wraps its page the same
           way, so the prerendered first paint is already layered. */}
-      <div className="site-sheet">
+      <SiteSheet>
         <RouteBoundary>
           <Suspense fallback={<div className="min-h-screen" />}>
             <AppRoutes />
           </Suspense>
         </RouteBoundary>
-      </div>
+      </SiteSheet>
       <Footer />
     </BrowserRouter>
   </Providers>

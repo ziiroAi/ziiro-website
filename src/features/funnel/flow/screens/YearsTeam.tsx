@@ -11,7 +11,7 @@ export function YearsTeam({ state, act }: ScreenProps) {
       <TopRow screen="s34" />
       <Question id="f-s3-q">{copy("s3.q")}</Question>
       <p className="f-hint">{copy("s3.why")}</p>
-      <div className="f-options" role="group" aria-labelledby="f-s3-q">
+      <div className="f-options f-short" role="group" aria-labelledby="f-s3-q">
         {yearsOptions().map((option) => (
           <OptionButton
             key={option.id}
@@ -24,7 +24,7 @@ export function YearsTeam({ state, act }: ScreenProps) {
       <div className={`f-row2${state.teamRowForward ? " is-forward" : ""}`}>
         <Question id="f-s4-q" focusFirst={state.teamRowForward}>{copy("s4.q")}</Question>
         <p className="f-hint">{copy("s4.why")}</p>
-        <div className="f-options" role="group" aria-labelledby="f-s4-q">
+        <div className="f-options f-short" role="group" aria-labelledby="f-s4-q">
           {teamOptions().map((option) => (
             <OptionButton
               key={option.id}

@@ -1008,6 +1008,11 @@ html:not(.js) [data-reveal] {
    the viewport for good, links and all. Footer.tsx measures it and sets
    `data-static`, which puts it back in the flow, where it simply scrolls.
    The prerendered HTML ships pinned; the check runs on mount. */
+/* W16-B: the funnel's questions have no footer under them (funnel-form.tsx), so their sheet ends square. */
+.site-sheet[data-flat] {
+  border-radius: 0;
+}
+
 .site-footer {
   position: sticky;
   bottom: 0;

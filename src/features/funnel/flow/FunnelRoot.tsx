@@ -10,7 +10,6 @@ import { useFlowHistory } from "./history";
 import { prefetchPlan } from "./plan-chunk";
 import { SCREEN_UI } from "./screens";
 import { useChosenTheme } from "./theme";
-import { LandingSpineSlot } from "./LandingSpineSlot";
 import { keepPlan, resumedPlan } from "./resume";
 import { PlanPrefetch } from "./screens/Plan";
 import type { FlowEnv, ScreenProps } from "./screens/types";
@@ -98,7 +97,6 @@ export function FunnelRoot(): JSX.Element {
 
   return (
     <div ref={rootRef} className={`f-root${state.screen === "plan" ? " is-plan" : ""}`} data-screen={state.screen}>
-      <LandingSpineSlot on={state.screen === "s1"} />
       <p className="sr-only" aria-live="polite">
         {step ? copy("g.progress", { n: step, total: PROGRESS_TOTAL }) : ""}
       </p>
