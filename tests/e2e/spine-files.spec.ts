@@ -8,8 +8,10 @@ import { probeSeesHardware, SWIFTSHADER } from "./support/gpu";
  * (/spine/3d/m1/*) on S0, and only when it is asked for after the first paint, never on Save-Data, a slow connection
  * or a software renderer. CI draws on SwiftShader, where S0 has no 3D, so the exemption's own check runs with S0's
  * probe told the GPU is real (W14-W).
+ * W15-M6: the plan's meshes (m1 and the W16-C close-up, PLAN_MESHES) are downloaded during the questions on a real
+ * GPU, so the plan's 3D does not wait on them; they share the exemption, and its "after the first paint" rule.
  */
-const LIVE_MESH = /^\/spine\/3d\/m1\//;
+const LIVE_MESH = /^\/spine\/3d\/(m1|closeup)\//;
 // WebGL on SwiftShader, as CI has it: S0's 3D then settles the way §6.6 says for a software renderer.
 test.use({ launchOptions: { args: SWIFTSHADER } });
 const S0_VIEWER = "[data-testid=landing-spine] [data-testid=spine-viewer]";

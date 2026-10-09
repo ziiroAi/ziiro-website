@@ -40,6 +40,12 @@ describe("the warm mesh (W15-M6)", () => {
     expect(meshFetch).toHaveBeenCalledTimes(1);
   });
 
+  it("says when the download is over, so the next mesh can wait its turn, and never rejects", async () => {
+    await expect(warmMesh(URL_A)).resolves.toBeUndefined();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+    await expect(warmMesh("/spine/3d/closeup/phone.glb")).resolves.toBeUndefined();
+  });
+
   it("has nothing to hand over for a mesh nobody warmed", () => {
     expect(takeWarmMesh(URL_A)).toBeUndefined();
   });

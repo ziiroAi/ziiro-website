@@ -1,8 +1,8 @@
 // (C) W15-M6: the plan's mesh downloads during the questions on a real GPU, so the plan's 3D does not wait on it.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetWarmMeshes, takeWarmMesh } from "./mesh-warm";
-import { MESH_URLS } from "./mesh-urls";
-import { warmPlanMesh, type WarmEnv } from "./plan-warm";
+import { CLOSEUP_MESH_URLS, MESH_URLS, PLAN_MESHES } from "./mesh-urls";
+import { SPINE_WORKER_SCRIPT, forgetWarmFiles, warmPlanMesh, type WarmEnv } from "./plan-warm";
 
 const bytes = new Uint8Array([4, 5, 6]).buffer;
 let meshFetch: ReturnType<typeof vi.fn>;
@@ -14,6 +14,8 @@ function env(over: Partial<WarmEnv> = {}, software = false, probeMs = 0): WarmEn
     connection: { saveData: false, effectiveType: "4g" },
     webgl2: true,
     width: 390,
+    meshes: [MESH_URLS],
+    scripts: [],
     probe: () => {
       probes++;
       return new Promise((resolve) => setTimeout(() => resolve(software), probeMs));
@@ -24,6 +26,7 @@ function env(over: Partial<WarmEnv> = {}, software = false, probeMs = 0): WarmEn
 
 beforeEach(() => {
   forgetWarmMeshes();
+  forgetWarmFiles();
   probes = 0;
   meshFetch = vi.fn(async () => new Response(bytes));
   vi.stubGlobal("fetch", meshFetch);
@@ -88,6 +91,63 @@ describe("warming the plan's mesh during the questions (W15-M6)", () => {
     left.abort();
     expect(await warmPlanMesh(left.signal, env())).toBe(false);
     expect(probes).toBe(0);
+  });
+
+  it("warms the plan's meshes from the constants: m1 first, then the owner's close-up (W16-C), one size class each", () => {
+    expect(PLAN_MESHES).toEqual([MESH_URLS, CLOSEUP_MESH_URLS]);
+    expect(CLOSEUP_MESH_URLS).toEqual({ phone: "/spine/3d/closeup/phone.glb", desktop: "/spine/3d/closeup/desktop.glb" });
+  });
+
+  it("asks for m1 and the close-up in the visitor's size class only, one request each", async () => {
+    await warmPlanMesh(new AbortController().signal, env({ meshes: PLAN_MESHES }));
+    await warmPlanMesh(new AbortController().signal, env({ meshes: PLAN_MESHES }));
+    expect(meshFetch.mock.calls.map(([url]) => url)).toEqual([MESH_URLS.phone, CLOSEUP_MESH_URLS.phone]);
+  });
+
+  it("warms every mesh the plan needs, one after another, the first in the list first, one request each", async () => {
+    vi.useFakeTimers();
+    try {
+      const closeUp = { phone: "/spine/3d/closeup/phone.glb", desktop: "/spine/3d/closeup/desktop.glb" };
+      meshFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(new Response(bytes)), 100)));
+      const warming = warmPlanMesh(new AbortController().signal, env({ meshes: [MESH_URLS, closeUp] }));
+      await vi.advanceTimersByTimeAsync(50);
+      expect(meshFetch.mock.calls.map(([url]) => url)).toEqual([MESH_URLS.phone]);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(meshFetch.mock.calls.map(([url]) => url)).toEqual([MESH_URLS.phone, closeUp.phone]);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(await warming).toBe(true);
+      expect(takeWarmMesh(closeUp.phone)).toBeDefined();
+      expect(meshFetch).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts no further mesh once the visitor has left the funnel", async () => {
+    vi.useFakeTimers();
+    try {
+      const closeUp = { phone: "/spine/3d/closeup/phone.glb", desktop: "/spine/3d/closeup/desktop.glb" };
+      meshFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(new Response(bytes)), 100)));
+      const leaving = new AbortController();
+      const warming = warmPlanMesh(leaving.signal, env({ meshes: [MESH_URLS, closeUp] }));
+      await vi.advanceTimersByTimeAsync(50);
+      leaving.abort();
+      await vi.advanceTimersByTimeAsync(200);
+      await warming;
+      expect(meshFetch.mock.calls.map(([url]) => url)).toEqual([MESH_URLS.phone]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("downloads the 3D worker's script first, then the meshes, each once", async () => {
+    await warmPlanMesh(new AbortController().signal, env({ scripts: ["/assets/spine.worker-abc.js"] }));
+    await warmPlanMesh(new AbortController().signal, env({ scripts: ["/assets/spine.worker-abc.js"] }));
+    expect(meshFetch.mock.calls.map(([url]) => url)).toEqual(["/assets/spine.worker-abc.js", MESH_URLS.phone]);
+  });
+
+  it("warms the worker the 3D host starts (spine.worker.ts, as built)", () => {
+    expect(SPINE_WORKER_SCRIPT).toMatch(/spine\.worker/);
   });
 
   it("makes one mesh request in all, however often it is asked", async () => {

@@ -1,6 +1,7 @@
 /**
- * (C) W15-M6: as the visitor leaves S1, the funnel starts downloading the plan's mesh, so the plan's 3D is ready
- * soon after S8 ends instead of starting its 1.15 MB download then. Once per funnel, in idle time so S1's tap
+ * (C) W15-M6: as the visitor leaves S1, the funnel starts downloading the plan's 3D (its worker's script, then each
+ * mesh in PLAN_MESHES), so the plan's 3D is ready soon after S8 ends instead of starting its downloads then
+ * (1.15 MB, 1.8 s on a Fast 4G phone, worker-2's W15-R). Once per funnel, in idle time so S1's tap
  * never waits on it, from its own small chunk (the probe and the rules decide whether the 3D would run at all), and
  * never after the visitor leaves the funnel.
  */

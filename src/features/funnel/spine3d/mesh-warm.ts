@@ -11,10 +11,12 @@ interface Warm {
 
 const warm = new Map<string, Warm>();
 
-/** Starts downloading the mesh at `url`, unless this page already asked for it. Network only. */
-export function warmMesh(url: string): void {
-  if (warm.has(url)) return;
-  warm.set(url, { prefetch: prefetchMesh(url), taken: false });
+/** Starts downloading the mesh at `url`, unless this page already asked for it. Network only. Resolves when the
+ *  download is over, whether or not it worked; it never rejects. */
+export function warmMesh(url: string): Promise<void> {
+  const entry = warm.get(url) ?? { prefetch: prefetchMesh(url), taken: false };
+  if (!warm.has(url)) warm.set(url, entry);
+  return entry.prefetch.bytes.then(() => undefined);
 }
 
 /** The warmed bytes of the mesh at `url` for the build asking, or undefined when none were warmed or another build
