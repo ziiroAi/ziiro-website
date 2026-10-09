@@ -1,10 +1,11 @@
 // (C) W15-B, re-choreographed by W16-A and W17-S: the one plan stage's scroll path. The owner (wave17.md): no close-up
-// any more; the big spine alone zooms to each department's disc with a little turn, alternating sides, while the text
-// takes the other side.
+// any more; the big spine alone zooms to each department's disc, alternating sides, while the text takes the other
+// side; W18-D turns the disc's glowing front toward that text (facing.test.ts).
 import { describe, expect, it } from "vitest";
 import { DISCS as ALL_DISCS, type DiscId } from "../../data/contract";
 import { baseFraming, type Framing } from "../camera";
 import { GAPS } from "../gaps";
+import { turnedCentre } from "./facing";
 import {
   ACROSS, HERO_WORDS_GONE_AT, heroWordsOpacity, LEGEND_BACK_FULL_AT, legendOpacity, NEED_WORDS_FROM,
   NEED_WORDS_FULL_AT, needWordsOpacity, stageAnchors, stageAt, stageKeys, stageShown, STOP_VIEW_HEIGHT, stopSide,
@@ -19,7 +20,8 @@ const DISCS: DiscId[] = ["G04", "G05", "G06", "G01"];
 const scaleOf = (f: Framing): number => 1 / Math.hypot(...f.position.map((v, i) => v - f.target[i]));
 const gap = (a: Framing, b: Framing): number =>
   Math.hypot(...a.position.map((v, i) => v - b.position[i])) + Math.hypot(a.shift[0] - b.shift[0], a.shift[1] - b.shift[1]);
-const discCentre = (disc: DiscId) => GAPS[ALL_DISCS.indexOf(disc)].centre;
+/** Where a disc stands once the stop's turn has carried it round the column (W18-D). */
+const discCentre = (disc: DiscId, turn: number) => turnedCentre(GAPS[ALL_DISCS.indexOf(disc)].centre, turn);
 /** The full spine's mean distance between neighbouring discs: one vertebra. */
 const VERTEBRA = Math.hypot(...GAPS[GAPS.length - 1].centre.map((v, i) => v - GAPS[0].centre[i])) / (GAPS.length - 1);
 
@@ -50,7 +52,7 @@ describe("the stage's keyframes (W17-S: the big spine only)", () => {
 
   it("zooms each department in on its own disc on the big spine, 2-3 vertebrae around it", () => {
     stops.forEach((stop, i) => {
-      stop.framing.target.forEach((v, k) => expect(v).toBeCloseTo(discCentre(DISCS[i])[k], 6));
+      stop.framing.target.forEach((v, k) => expect(v).toBeCloseTo(discCentre(DISCS[i], stop.turn)[k], 6));
       expect(scaleOf(stop.framing)).toBeGreaterThan(scaleOf(need.framing));
       expect(stop.zoomed).toBe(1);
       expect(stop.hold).toBe(1);
@@ -59,15 +61,14 @@ describe("the stage's keyframes (W17-S: the big spine only)", () => {
     expect(STOP_VIEW_HEIGHT.desktop / VERTEBRA).toBeLessThanOrEqual(5);
   });
 
-  it("alternates sides per department: left, then right, left..., with a little turn that differs per side", () => {
+  it("alternates sides per department: left, then right, left..., turning each disc's front toward its text (W18-D)", () => {
     expect(DISCS.map((_, i) => stopSide(i))).toEqual(["left", "right", "left", "right"]);
     stops.forEach((stop, i) => expect(stop.across).toBe(stopSide(i) === "left" ? ACROSS.desktop.left : ACROSS.desktop.right));
     expect(stops[0].across).toBeLessThan(0.4);
     expect(stops[1].across).toBeGreaterThan(0.6);
-    expect(stops[0].turn).not.toBe(0);
-    expect(stops[1].turn).not.toBe(stops[0].turn);
-    expect(stops[2].turn).toBe(stops[0].turn);
-    expect(stops[3].turn).toBe(stops[1].turn);
+    stops.forEach((stop) => expect(stop.turn).not.toBe(0));
+    expect(stops[1].turn).toBeLessThan(stops[0].turn);
+    expect(stops[3].turn).toBeLessThan(stops[2].turn);
   });
 
   it("pulls back out to the whole spine on the left at the close, with the text on the right", () => {
@@ -86,7 +87,7 @@ describe("the stage's keyframes (W17-S: the big spine only)", () => {
     across.forEach((a) => expect(Math.abs(a - 0.5)).toBeLessThanOrEqual(0.15));
     expect(phone[2].turn).not.toBe(phone[3].turn);
     phone.slice(2, 2 + DISCS.length).forEach((k, i) =>
-      k.framing.target.forEach((v, j) => expect(v).toBeCloseTo(discCentre(DISCS[i])[j], 6)));
+      k.framing.target.forEach((v, j) => expect(v).toBeCloseTo(discCentre(DISCS[i], k.turn)[j], 6)));
   });
 
   it("shows the phone band the whole spine in the hero (W15-B2)", () => {
