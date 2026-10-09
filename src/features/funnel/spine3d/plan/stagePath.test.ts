@@ -95,6 +95,24 @@ describe("the stage's keyframes (W17-S: the big spine only)", () => {
   });
 });
 
+describe("the zoom reads as a move at normal scroll speed (W16-R's bar for W17-S)", () => {
+  it("zooms in at least 1.6x from block 2 to a department stop", () => {
+    const [, need, stop] = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
+    expect(scaleOf(stop.framing) / scaleOf(need.framing)).toBeGreaterThanOrEqual(1.6);
+  });
+
+  it("over a one-screen travel, no 10 px of scroll moves the zoom more than about 1 %", () => {
+    const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
+    const anchors: StageAnchor[] = [{ at: 0, key: keys[1] }, { at: 900, key: keys[2] }];
+    let before = scaleOf(stageAt(anchors, 0, false, keys[0]).framing);
+    for (let y = 10; y <= 900; y += 10) {
+      const now = scaleOf(stageAt(anchors, y, false, keys[0]).framing);
+      expect(Math.abs(now / before - 1)).toBeLessThanOrEqual(0.01);
+      before = now;
+    }
+  });
+});
+
 describe("the zoom into a department blends with the camera (W17-S)", () => {
   const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
   const anchors: StageAnchor[] = [{ at: 0, key: keys[1] }, { at: 1000, key: keys[2] }];
@@ -247,6 +265,16 @@ describe("the words make way for the spine on either side (W15-B3, W16-A)", () =
     expect(wordsLeftOpacity(ACROSS.desktop.right, "desktop")).toBe(1);
     // Never both sides at once: the spine crossing the middle has words on neither side.
     expect(WORDS_LEFT_FROM).toBeGreaterThan(NEED_WORDS_FROM);
+  });
+
+  it("has words fully gone before the zoomed spine's edge reaches their column (W16-R L1)", () => {
+    // The zoomed spine reaches about 0.12 of the stage's width either side of where it stands; the columns are 46 %.
+    const HALF = 0.12;
+    const COLUMN = 0.46;
+    expect(wordsLeftOpacity(COLUMN + HALF, "desktop")).toBe(0);
+    expect(needWordsOpacity(1 - COLUMN - HALF, "desktop")).toBe(0);
+    expect(wordsLeftOpacity(ACROSS.desktop.right, "desktop")).toBe(1);
+    expect(needWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(1);
   });
 
   it("leaves the phone's words alone: the band sits between them", () => {

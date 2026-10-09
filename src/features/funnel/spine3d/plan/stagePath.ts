@@ -9,7 +9,7 @@
 // Between keyframes the camera blends on an eased curve of the scroll. Under reduced motion it cuts at each keyframe
 // (§11.8). Pure: PlanStage measures the anchors.
 import { DISCS, type DiscId } from "../../data/contract";
-import { baseFraming, blendFraming, easeInOut, type Framing } from "../camera";
+import { baseFraming, blendFraming, type Framing } from "../camera";
 import { GAPS } from "../gaps";
 import type { MeshSize } from "../rules";
 import type { Variant } from "./targets";
@@ -25,9 +25,10 @@ export const ACROSS: Readonly<Record<Variant, { hero: number; need: number; left
 /** Block 2's zoom on the hero (W15-B2): the owner reads a subtle change as none, so it shows the spine half as big
  *  again as the hero does, aimed at the lit discs. */
 export const NEED_ZOOM = 1.5;
-/** How much of the spine (LOOK units) a department stop shows top to bottom: about four vertebrae (each about 0.12),
- *  so the stop's disc sits in the middle with 2-3 vertebrae round it, the size the owner liked on the close-up. */
-export const STOP_VIEW_HEIGHT: Readonly<Record<MeshSize, number>> = { desktop: 0.5, phone: 0.5 };
+/** How much of the spine (LOOK units) a department stop shows top to bottom: about three and a third vertebrae (each
+ *  about 0.12), so the stop's disc sits in the middle with 2-3 vertebrae round it, the size the owner liked on the
+ *  close-up; on desktop that is 1.6x closer than block 2, so the zoom reads as a move (W16-R's bar). */
+export const STOP_VIEW_HEIGHT: Readonly<Record<MeshSize, number>> = { desktop: 0.4, phone: 0.5 };
 const DEG = Math.PI / 180;
 /** The little turn of the model (added to its yaw) at a department stop, by the side it stands on. */
 export const TURN = { left: -10 * DEG, right: 14 * DEG } as const;
@@ -139,8 +140,8 @@ export function heroWordsOpacity(across: number, variant: Variant): number {
 
 /** Block 2's words show from where the spine stands at NEED_WORDS_FROM (none) to NEED_WORDS_FULL_AT (all): its right
  *  edge, about 0.12 right of that, is then clear of the 46 % column's text (from about 0.57 of the width). */
-export const NEED_WORDS_FROM = 0.45;
-export const NEED_WORDS_FULL_AT = 0.4;
+export const NEED_WORDS_FROM = 0.38;
+export const NEED_WORDS_FULL_AT = 0.32;
 
 /** How much of block 2's words show, 0 to 1: they enter at the bottom right while the spine is still leaving the right,
  *  so they wait for it to clear their column (W15-B3). Always on a phone. */
@@ -151,8 +152,8 @@ export function needWordsOpacity(across: number, variant: Variant): number {
 
 /** Words in the left column show from where the model stands at WORDS_LEFT_FROM (none) to WORDS_LEFT_FULL_AT (all):
  *  the zoomed spine's left edge, about 0.1 left of that, is then clear of the 46 % column (W16-A, W17-S). */
-export const WORDS_LEFT_FROM = 0.55;
-export const WORDS_LEFT_FULL_AT = 0.6;
+export const WORDS_LEFT_FROM = 0.62;
+export const WORDS_LEFT_FULL_AT = 0.68;
 
 /** How much of a left-column section's words show, 0 to 1: they wait for the spine to reach the right. Always on a
  *  phone. */
@@ -164,7 +165,7 @@ export function wordsLeftOpacity(across: number, variant: Variant): number {
 /** The legend comes back from LEGEND_BACK_FROM (none) to LEGEND_BACK_FULL_AT (all) of the stage's width: after block
  *  2's words are fully in, and far enough left that its right edge stays out of their column (W15-B4 M1). */
 export const LEGEND_BACK_FROM = NEED_WORDS_FULL_AT;
-export const LEGEND_BACK_FULL_AT = 0.35;
+export const LEGEND_BACK_FULL_AT = 0.3;
 
 /** How much of the legend shows, 0 to 1: under the full spine on the hero, gone while it travels past block 2's rising
  *  words, back under it on the left, and gone at a zoomed department stop (it names the whole spine's discs). Always on a phone,
@@ -185,6 +186,10 @@ export function stageShown(endOnScreen: number, screenHeight: number): number {
   return clamp01(1 - (screenHeight - endOnScreen) / (screenHeight * LEAVE_SHARE));
 }
 
+/** The stage's ease: smoothstep, whose steepest point is 1.5x its average, so a travel never snaps at normal scroll
+ *  speed (W16-R: the cubic ease's 3x let the dive pass in about 50 ms). */
+const smooth = (t: number): number => t * t * (3 - 2 * t);
+
 /**
  * Where the stage is at a scroll position: on a keyframe at its anchor, blended between two on an eased curve. Under reduced motion it holds each keyframe until the next travel starts
  * and cuts. Before anything is measured it shows `fallback`.
@@ -200,7 +205,7 @@ export function stageAt(anchors: readonly StageAnchor[], scrollY: number, reduce
   // Under reduced motion it cuts as the travel starts, so the model is already where the next section's words need
   // it gone from before they rise (W15-B4 M3).
   if (reducedMotion) return to.key;
-  const e = easeInOut(clamp01((scrollY - from.at) / Math.max(to.at - from.at, 1)));
+  const e = smooth(clamp01((scrollY - from.at) / Math.max(to.at - from.at, 1)));
   const mix = (a: number, b: number, t: number): number => a + (b - a) * t;
   return {
     framing: blendFraming(from.key.framing, to.key.framing, e),

@@ -17,7 +17,7 @@ export function Close({ view, name, email, onBook }: CloseProps): JSX.Element {
     <section
       data-depth={view.closeDepth}
       aria-labelledby="plan-close-title"
-      className="border-t border-[color:var(--funnel-line)] px-4 py-20 sm:px-6 lg:px-10 lg:py-28 lg:opacity-[var(--words-right,1)]"
+      className="border-t border-[color:var(--funnel-line)] px-4 py-20 sm:px-6 lg:px-10 lg:py-28 lg:opacity-[var(--words-right,1)] lg:group-data-[words-right-off]/stage:pointer-events-none"
     >
       <Swap as="p" lines={view.later} className="max-w-2xl text-lg" />
       <p className="mt-2 max-w-2xl text-[color:var(--funnel-muted)]">{copy("sp.later.sub")}</p>
