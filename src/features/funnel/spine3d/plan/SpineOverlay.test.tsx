@@ -147,6 +147,20 @@ describe("SpineOverlay: the disc panel docks on the spine's side (W15-B4 H1)", (
     expect(panelBox(container)).not.toMatch(/(^| )bottom-16( |$)/);
   });
 
+  it("scrolls inside the panel itself, so its rounded frame ends whole above the legend instead of being cut (W16-R M2)", () => {
+    // worker-2: the dock scrolled and clipped the panel, so a long department showed no bottom edge at the legend line.
+    for (const variant of ["desktop", "phone"] as const) {
+      const fake = fakeApi();
+      const container = mount(fake.api, variant, 0, "right");
+      fake.pick({ disc: "G04", via: "tap", box: BOXES[3] });
+      const dialog = container.querySelector<HTMLElement>("[role=dialog]")!;
+      expect(dialog.className, variant).toMatch(/(^| )overflow-y-auto( |$)/);
+      expect(dialog.className, variant).toMatch(/(^| )min-h-0( |$)/);
+      expect(panelBox(container), variant).toMatch(/(^| )flex-col( |$)/);
+      expect(panelBox(container), variant).not.toMatch(/overflow-auto/);
+    }
+  });
+
   it("opens on the left while the spine stands left (the stops), clear of the text column", () => {
     const fake = fakeApi();
     const container = mount(fake.api, "desktop", 0, "left");

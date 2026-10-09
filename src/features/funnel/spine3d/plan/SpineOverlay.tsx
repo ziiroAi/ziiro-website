@@ -232,16 +232,18 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
           className={
             variant === "desktop"
               // On the right (the hero) it sits above the hero's scroll cue at the bottom right (W16-H).
-              ? `pointer-events-auto absolute ${spineSide === "right" ? "bottom-32 right-4" : "bottom-16 left-4"} max-h-[70%] w-80 overflow-auto`
-              : "pointer-events-auto absolute inset-x-2 top-full mt-2 max-h-[50vh] overflow-auto"
+              ? `pointer-events-auto absolute ${spineSide === "right" ? "bottom-32 right-4" : "bottom-16 left-4"} flex max-h-[70%] w-80 flex-col`
+              : "pointer-events-auto absolute inset-x-2 top-full mt-2 flex max-h-[50vh] flex-col"
           }
         >
+          {/* The panel scrolls its own list, so its rounded frame always ends whole inside the dock (W16-R M2). */}
           <DiscPanel
             disc={opened.disc}
             planAgentIds={planAgentIds}
             onClose={close}
             focusOnOpen={opened.by === "tap" || opened.by === "key"}
             returnFocusTo={buttonRefs[opened.disc]}
+            className="min-h-0 overflow-y-auto"
           />
         </div>
       )}
