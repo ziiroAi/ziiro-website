@@ -54,6 +54,12 @@ describe("Hero (§6.2 block 1)", () => {
     expect(cue.querySelector("[aria-hidden=true]")).not.toBeNull(); // the mouse icon says nothing to a screen reader
   });
 
+  it("lets the stage fade the scroll cue out on the first scroll, on every width, and hide it once gone (W18-E N1)", () => {
+    const cue = renderHero().container.querySelector<HTMLElement>("[data-scroll-cue]")!;
+    expect(cue.className).toContain("opacity-[var(--scroll-cue,1)]");
+    expect(cue.className).toContain("group-data-[cue-gone]/stage:invisible");
+  });
+
   it("keeps a hold under the hero from 1024 px, so block 2 starts over a screen down and the stage holds the hero first (W16-H)", () => {
     // PlanStage starts the hero's travel a screen above block 2 (line + travel = 100vh): with the stats moved up into
     // the hero, block 2 came within a screen and reduced motion cut to the close-up at scroll 0. This keeps the

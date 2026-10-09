@@ -51,7 +51,7 @@ function ScrollCue({ guest }: { guest: boolean }): JSX.Element {
   return (
     <div
       data-scroll-cue
-      className="mt-8 flex items-center gap-4 px-4 sm:px-6 lg:absolute lg:bottom-[calc(1.5rem-var(--nav-h,84px))] lg:right-10 lg:mt-0 lg:px-0"
+      className="mt-8 flex items-center gap-4 px-4 opacity-[var(--scroll-cue,1)] group-data-[cue-gone]/stage:invisible sm:px-6 lg:absolute lg:bottom-[calc(1.5rem-var(--nav-h,84px))] lg:right-10 lg:mt-0 lg:px-0"
     >
       <span aria-hidden="true" className="relative hidden h-12 w-7 rounded-full border border-[color:var(--funnel-muted)] lg:block">
         <span className="absolute left-1/2 top-2.5 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[color:var(--funnel-fg)]" />

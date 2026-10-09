@@ -379,6 +379,19 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(root.className).toContain("group/stage");
   });
 
+  it("fades the hero's scroll cue as the visitor starts to scroll, and hides it once gone (W18-E N1)", async () => {
+    mount();
+    const root = view!.container.firstElementChild as HTMLElement;
+    await scrollTo(0);
+    expect(root.style.getPropertyValue("--scroll-cue")).toBe("1");
+    expect(root.hasAttribute("data-cue-gone")).toBe(false);
+    await scrollTo(200);
+    expect(root.style.getPropertyValue("--scroll-cue")).toBe("0");
+    expect(root.hasAttribute("data-cue-gone")).toBe(true);
+    await scrollTo(0);
+    expect(root.hasAttribute("data-cue-gone")).toBe(false);
+  });
+
   it("keeps block 2's words faded out while the spine is still on their side, and shows them once it's left (W15-B3)", async () => {
     mount();
     const root = view!.container.firstElementChild as HTMLElement;
