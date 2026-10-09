@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createRef } from "react";
+import { createRef, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { calendlyUrl, copy } from "../data";
 import { FILM_READY, Hero } from "./Hero";
@@ -22,27 +22,29 @@ afterEach(() => {
   allowNavigation();
 });
 
-function renderHero(onBook = vi.fn(), headingRef = createRef<HTMLHeadingElement>(), onProgress = vi.fn()) {
+function renderHero(onBook = vi.fn(), headingRef = createRef<HTMLHeadingElement>(), onProgress = vi.fn(), stage?: ReactNode) {
   screen = render(
-    <Hero heroText={heroText} name="Ananya" email="ananya@studio.in" headingRef={headingRef} onBook={onBook} onProgress={onProgress} />,
+    <Hero heroText={heroText} name="Ananya" email="ananya@studio.in" headingRef={headingRef} onBook={onBook} onProgress={onProgress} stage={stage} />,
   );
   return screen;
 }
 
 describe("Hero (§6.2 block 1)", () => {
-  it("records plan_view as the still, and why, when the live spine can't run (§9): here, no WebGL2", () => {
-    const onProgress = vi.fn();
-    renderHero(vi.fn(), createRef<HTMLHeadingElement>(), onProgress);
-    expect(onProgress).toHaveBeenCalledWith({ planView: "still", stillReason: "unsupported" });
+  it("puts the plan's stage between the words and the stats, so a phone reads the words first (D34, W15-B)", () => {
+    const { container } = renderHero(vi.fn(), createRef<HTMLHeadingElement>(), vi.fn(), <div data-testid="stage-slot" />);
+    const order = [...container.querySelectorAll("h1, [data-testid=stage-slot], ul")].map((el) => el.tagName);
+    expect(order).toEqual(["H1", "DIV", "UL"]);
   });
 
-  it("paints the r17 still inside the live spine viewer, which replaces it once its first frame is drawn (W14-C)", () => {
+  it("sits over the stage from 1024 px: the words in the left 55 %, and only they take the pointer (W15-B)", () => {
     const { container } = renderHero();
-    const still = container.querySelector("[data-testid=spine-viewer] [data-testid=spine-still] picture img");
-    expect(still).not.toBeNull();
-    expect(container.querySelector("[data-testid=spine-viewer]")?.getAttribute("data-spine")).not.toBe("live");
+    const section = container.querySelector("section")!;
+    expect(section.className).toContain("lg:z-10");
+    expect(section.className).toContain("lg:pointer-events-none");
+    const words = container.querySelector("h1")!.parentElement!;
+    expect(words.className).toContain("lg:w-[55%]");
+    expect(words.className).toContain("lg:pointer-events-auto");
   });
-
 
   it("shows the eyebrow, both title lines, and their words with the name", () => {
     const { container } = renderHero();
@@ -82,27 +84,6 @@ describe("Hero (§6.2 block 1)", () => {
     const stats = textOf(container.querySelector("ul"));
     for (const id of ["hx.stat1.n", "hx.stat1.l", "hx.stat2.n", "hx.stat2.l", "ph.hx.stat2.l", "hx.stat3.n", "hx.stat3.l"]) {
       expect(stats).toContain(copy(id));
-    }
-  });
-
-  it("fades the spine's last 15 % into the page, still or live, and sets the stats on the page colour, so no edge shows", () => {
-    const { container } = renderHero();
-    expect(container.querySelector("[data-testid=spine-viewer]")?.className).toContain("[mask-image:linear-gradient(to_bottom,#000_85%,transparent)]");
-    expect(container.querySelector("ul")?.className).toContain("bg-[color:var(--funnel-bg)]");
-  });
-
-  it("fades the phone band's first 12 % in from the page too, keeping the bottom fade", () => {
-    const { container } = renderHero();
-    expect(container.querySelector("[data-testid=spine-viewer]")?.className).toContain(
-      "max-[599px]:[mask-image:linear-gradient(to_bottom,transparent,#000_12%,#000_85%,transparent)]",
-    );
-  });
-
-  it("keeps the callouts out of the accessibility tree, since the stats say the same", () => {
-    const { container } = renderHero();
-    const hidden = Array.from(container.querySelectorAll('[aria-hidden="true"]')).map(textOf).join(" ");
-    for (const id of ["hx.call1.n", "hx.call1.l", "hx.call2.n", "hx.call2.l"]) {
-      expect(hidden).toContain(copy(id));
     }
   });
 });

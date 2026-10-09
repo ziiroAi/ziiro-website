@@ -14,7 +14,7 @@ export function NeedBlock({ view }: { view: PlanViewModel }): JSX.Element {
       aria-labelledby="plan-need-title"
       className="border-t border-[color:var(--funnel-line)] px-4 py-16 sm:px-6 lg:px-10 lg:py-24"
     >
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-16">
+      <div className="grid gap-10">
         <div>
           <p className={`${MICRO} flex flex-wrap items-center gap-3`}>
             <span>{copy("sp.hero.eyebrow")}</span>

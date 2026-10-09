@@ -1,0 +1,175 @@
+// (C) W15-B: the plan's one 3D stage, scrubbed by the scroll (wave15.md item 5, the owner: "when i scroll down, the big
+// spine is not transitioning"). One spine, one WebGL context, fixed behind the plan. Its keyframes:
+//   (a) the hero: the whole spine on the right, beside the words;
+//   (b) block 2, "you need only {n}": it travels to the left and the camera starts zooming in;
+//   (c) each department stop: in to that disc, still on the left, the model holding its side view (W14-X);
+//   (d) the close: it pulls back.
+// Between keyframes the camera blends on an eased curve of the scroll, with a pull-back to the whole spine between two
+// stops (D30). Under reduced motion it cuts at each keyframe (§11.8). Pure: PlanStage measures the anchors.
+import { DISCS, type DiscId } from "../../data/contract";
+import { baseFraming, blendFraming, easeInOut, type Framing } from "../camera";
+import { GAPS } from "../gaps";
+import type { MeshSize } from "../rules";
+import type { Variant } from "./targets";
+import { END_MARGIN, shiftXFor, shiftYFor, shownTan, STOP_ACROSS, STOP_HEIGHT } from "./tour";
+import { add, length, normalize, scale, sub, type Vec3 } from "./vec";
+
+/** Where the spine stands across the stage, from the left: right of the hero's words, then left of the text column. */
+export const ACROSS: Readonly<Record<Variant, { hero: number; left: number }>> = {
+  desktop: { hero: 0.74, left: 0.27 },
+  phone: { hero: 0.5, left: 0.5 },
+};
+/** Block 2's zoom, as a share of the whole spine's height: the start of the move in. */
+export const NEED_ZOOM = 0.8;
+/** Block 2 aims this share of the way from the spine's middle to the first stop's disc. */
+const NEED_LEAN = 0.25;
+
+/** What a keyframe looks at: a point on the spine, how much of the model fills the stage, and where across it sits.
+ *  `hold` 1 turns the model to its side view and stops the idle spin; 0 lets it spin. */
+export interface StageAim {
+  centre: Vec3;
+  height: number;
+  across: number;
+  hold: number;
+  stop: DiscId | null;
+}
+
+export interface StageKey {
+  framing: Framing;
+  hold: number;
+  stop: DiscId | null;
+  /** Where the spine stands across the stage: the still (no 3D) follows it with a slide. */
+  across: number;
+}
+
+/** A keyframe and the scroll position (window.scrollY) where the stage reaches it. The same key twice in a row holds
+ *  it still between the two. */
+export interface StageAnchor {
+  at: number;
+  key: StageKey;
+}
+
+const mix3 = (a: Vec3, b: Vec3, t: number): Vec3 => add(a, scale(sub(b, a), t));
+const centreOf = (disc: DiscId): Vec3 => GAPS[DISCS.indexOf(disc)].centre;
+const FIRST = GAPS[0].centre;
+const LAST = GAPS[GAPS.length - 1].centre;
+const MIDDLE = mix3(FIRST, LAST, 0.5);
+/** The whole spine with its end vertebrae. */
+const WHOLE = length(sub(LAST, FIRST)) + 2 * END_MARGIN;
+
+const whole = (across: number, hold: number, height = WHOLE): StageAim => ({ centre: MIDDLE, height, across, hold, stop: null });
+
+/** The keyframes in scroll order: hero, block 2, one per stop, the close. */
+export function stageAims(discs: readonly DiscId[], size: MeshSize, variant: Variant): StageAim[] {
+  const { hero, left } = ACROSS[variant];
+  const stopAcross = variant === "desktop" ? left : STOP_ACROSS[size];
+  const lean = discs.length > 0 ? mix3(MIDDLE, centreOf(discs[0]), NEED_LEAN) : MIDDLE;
+  return [
+    whole(hero, 0),
+    { centre: lean, height: WHOLE * NEED_ZOOM, across: left, hold: 0, stop: null },
+    ...discs.map((disc): StageAim => ({ centre: centreOf(disc), height: STOP_HEIGHT[size], across: stopAcross, hold: 1, stop: disc })),
+    whole(left, 0),
+  ];
+}
+
+/** The pull-back between two stops (D30): the whole spine where the stops stand, still in its side view. */
+export const pulledAim = (size: MeshSize, variant: Variant): StageAim =>
+  whole(variant === "desktop" ? ACROSS.desktop.left : STOP_ACROSS[size], 1);
+
+/**
+ * An aim as a camera on the stage's real canvas, as tour.ts's tourFraming does it: r17's view direction, roll and lens,
+ * the aim's point `across` the canvas and in the middle of the height above the legend strip. A whole-spine aim fits
+ * above that strip.
+ */
+export function aimFraming(aim: StageAim, size: MeshSize, view: { width: number; height: number }, stripPx: number): Framing {
+  const base = baseFraming(size);
+  const share = view.height > 0 ? Math.min(0.5, stripPx / view.height) : 0;
+  const height = aim.stop ? aim.height : aim.height / (1 - share);
+  const distance = height / (2 * shownTan(size, base.lensMm, view));
+  const back = normalize(sub(base.position, base.target));
+  return {
+    ...base,
+    target: aim.centre,
+    position: add(aim.centre, scale(back, distance)),
+    shift: [shiftXFor(size, view, aim.across), shiftYFor(size, view, (1 - share) / 2)],
+  };
+}
+
+const keyOf = (aim: StageAim, size: MeshSize, view: { width: number; height: number }, stripPx: number): StageKey =>
+  ({ framing: aimFraming(aim, size, view, stripPx), hold: aim.hold, stop: aim.stop, across: aim.across });
+
+/**
+ * The stage's keyframes on its canvas, and the pull-back between stops. The hero is r17's own camera ("as now"), the
+ * frame the still and the viewer's first draw show, so the 3D arriving never jumps. A phone's band already shows r17's
+ * close crop there, so it holds that through block 2 and only zooms in from it, towards the stops.
+ */
+export function stageKeys(
+  discs: readonly DiscId[],
+  size: MeshSize,
+  variant: Variant,
+  view: { width: number; height: number },
+  stripPx: number,
+): { keys: StageKey[]; pulled: StageKey } {
+  const [heroAim, needAim, ...rest] = stageAims(discs, size, variant);
+  const hero: StageKey = { framing: baseFraming(size), hold: heroAim.hold, stop: null, across: heroAim.across };
+  const need = variant === "phone" ? hero : keyOf(needAim, size, view, stripPx);
+  return {
+    keys: [hero, need, ...rest.map((aim) => keyOf(aim, size, view, stripPx))],
+    pulled: keyOf(pulledAim(size, variant), size, view, stripPx),
+  };
+}
+
+const clamp01 = (t: number): number => Math.min(1, Math.max(0, t));
+
+/**
+ * Where the stage is at a scroll position: on a keyframe at its anchor, blended between two on an eased curve, with
+ * a pull-back between two stops. Under reduced motion it holds each keyframe until the next anchor and cuts.
+ */
+export function stageAt(anchors: readonly StageAnchor[], scrollY: number, reducedMotion: boolean, pulled: StageKey): StageKey {
+  if (anchors.length === 0) return pulled;
+  const next = anchors.findIndex((anchor) => anchor.at > scrollY);
+  if (next === 0) return anchors[0].key;
+  if (next === -1) return anchors[anchors.length - 1].key;
+  const from = anchors[next - 1];
+  const to = anchors[next];
+  if (reducedMotion || from.key === to.key) return from.key;
+  const t = clamp01((scrollY - from.at) / Math.max(to.at - from.at, 1));
+  if (from.key.stop && to.key.stop) {
+    const framing = t < 0.5
+      ? blendFraming(from.key.framing, pulled.framing, easeInOut(t * 2))
+      : blendFraming(pulled.framing, to.key.framing, easeInOut(t * 2 - 1));
+    return { framing, hold: 1, stop: from.key.stop, across: from.key.across };
+  }
+  const e = easeInOut(t);
+  return {
+    framing: blendFraming(from.key.framing, to.key.framing, e),
+    hold: from.key.hold + (to.key.hold - from.key.hold) * e,
+    stop: from.key.stop,
+    across: from.key.across + (to.key.across - from.key.across) * e,
+  };
+}
+
+/** A section's top and bottom in page px (window.scrollY + its rect). */
+export interface Span {
+  top: number;
+  bottom: number;
+}
+
+/**
+ * The scroll anchors for the keyframes: the hero's from the top of the page, then one per section after it (block 2,
+ * each stop, the close). A keyframe is reached as its section's top meets the reading line (`line` px from the top of
+ * the screen) and held until `travel` px of scroll before the next one's, so the camera rests while a section is read
+ * and moves over the last `travel` px. Anchors never run backwards.
+ */
+export function stageAnchors(keys: readonly StageKey[], spans: readonly Span[], line: number, travel: number): StageAnchor[] {
+  const count = Math.min(spans.length, keys.length - 1);
+  const arrivals = spans.slice(0, count).map((span) => span.top - line);
+  const anchors: StageAnchor[] = [];
+  const push = (at: number, key: StageKey) => anchors.push({ at: Math.max(at, anchors.at(-1)?.at ?? 0), key });
+  push(0, keys[0]);
+  arrivals.forEach((arrival, i) => {
+    push(arrival - travel, keys[i]);
+    push(arrival, keys[i + 1]);
+  });
+  return anchors;
+}

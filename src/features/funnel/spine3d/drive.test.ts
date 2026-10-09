@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DiscId } from "../data/contract";
 import type { DiscPickEvent } from "./api";
+import { baseFraming, framingFor } from "./camera";
 import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import type { DiscBox } from "./scene";
@@ -296,5 +297,69 @@ describe("reduced motion turned on while it runs (T8)", () => {
     drive!.setMotion({ spin: true, inertia: true });
     flush(3);
     expect(yaw()).toBeGreaterThan(still);
+  });
+});
+
+describe("scrubbed by the scroll (W15-B, the one plan stage)", () => {
+  const TURN = 2 * Math.PI;
+  const pitch = () => handle.render.mock.calls.at(-1)![0].pitch as number;
+  const framingNow = () => handle.render.mock.calls.at(-1)![0].framing;
+  const close = framingFor({ kind: "disc", disc: "G04" }, "desktop");
+
+  it("draws the camera it is given at once, every scroll frame", () => {
+    start({ spin: false });
+    drive!.scrub(close, 0);
+    flush();
+    expect(framingNow()).toEqual(close);
+    drive!.scrub(baseFraming("desktop"), 0);
+    flush();
+    expect(framingNow()).toEqual(baseFraming("desktop"));
+  });
+
+  it("turns the model towards its side view as hold rises, continuously, and stops the idle spin", () => {
+    start();
+    flush(100);
+    const spun = yaw();
+    const side = Math.round(spun / TURN) * TURN;
+    drive!.scrub(close, 0.5);
+    flush();
+    expect(yaw()).toBeCloseTo(spun + (side - spun) * 0.5, 6);
+    drive!.scrub(close, 1);
+    flush(30);
+    expect(yaw()).toBeCloseTo(side, 6);
+    expect(pitch()).toBeCloseTo(0, 6);
+    const drawn = handle.render.mock.calls.length;
+    flush(30);
+    expect(handle.render.mock.calls.length, "no idle spin while held").toBe(drawn);
+  });
+
+  it("still turns under a drag while held, and spins again once hold is back to 0", () => {
+    start();
+    flush(50);
+    drive!.scrub(close, 1);
+    flush();
+    const held = yaw();
+    pointer("pointerdown", 100);
+    pointer("pointermove", 200);
+    pointer("pointerup", 200);
+    flush(400);
+    expect(Math.abs(yaw() - held)).toBeGreaterThan(0.5);
+    drive!.scrub(baseFraming("desktop"), 0);
+    flush(3);
+    const before = yaw();
+    flush(30);
+    expect(yaw()).toBeGreaterThan(before);
+  });
+
+  it("ends a flight in progress", async () => {
+    start({ spin: false });
+    let landed = false;
+    void drive!.flyTo({ kind: "disc", disc: "G05" }).then(() => (landed = true));
+    flush(3);
+    drive!.scrub(close, 0);
+    await Promise.resolve();
+    expect(landed).toBe(true);
+    flush();
+    expect(framingNow()).toEqual(close);
   });
 });

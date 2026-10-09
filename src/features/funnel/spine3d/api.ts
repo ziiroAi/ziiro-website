@@ -1,7 +1,7 @@
 // (C) The viewer API other builders use (W14-F: scroll flights, disc panels, pinned labels). SpineViewer hands it
 // over through `apiRef` once the 3D is live, and sets it back to null if the still comes back.
 import type { DepartmentId, DiscId } from "../data/contract";
-import type { CameraTarget } from "./camera";
+import type { CameraTarget, Framing } from "./camera";
 import type { DiscBox } from "./scene";
 
 export type { CameraTarget, DiscBox };
@@ -22,6 +22,12 @@ export interface SpineViewerApi {
    * holds still there with no idle spin; a drag still turns it. The next flyTo without hold lets it spin again.
    */
   flyTo(target: CameraTarget, options?: { animate?: boolean; hold?: boolean }): Promise<void>;
+  /**
+   * W15-B, the one plan stage: puts the camera at this framing at once, each scroll frame. `hold` from 0 to 1 turns
+   * the model towards its side view and stops the idle spin; a drag still turns it, and 0 lets it spin again. Ends a
+   * flight in progress.
+   */
+  scrub(framing: Framing, hold: number): void;
   /** Lights these departments' discs; the rest keep 12 % (D28). null lights all nine. */
   setLit(lit: readonly DepartmentId[] | null): void;
   /** Called after every drawn frame with all nine discs' screen boxes. Returns an unsubscribe. */

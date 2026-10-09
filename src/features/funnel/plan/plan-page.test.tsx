@@ -86,6 +86,22 @@ describe("PlanPage (§6)", () => {
     ]);
   });
 
+  it("shows one spine for the whole plan: a single viewer, so a single WebGL context (W15-B)", () => {
+    const { container } = renderPage();
+    expect(container.querySelectorAll("[data-testid=spine-viewer]")).toHaveLength(1);
+    expect(container.querySelector("[data-testid=spine-stage] [data-testid=spine-viewer]")).not.toBeNull();
+  });
+
+  it("from 1024 px lays blocks 2 to 4 in a column on the right of the stage, the spine on the left (W15-B)", () => {
+    const { container } = renderPage();
+    const column = container.querySelector<HTMLElement>("[data-depth='0']")!.parentElement!;
+    expect([...column.querySelectorAll(":scope > section")].map((el) => (el as HTMLElement).dataset.depth)).toEqual([
+      "0", "1", "2", "3", "4", "5",
+    ]);
+    expect(column.className).toContain("lg:[&>section]:ml-auto");
+    expect(column.className).toContain("lg:pointer-events-none");
+  });
+
   it("starts at the top, with focus on the h1", () => {
     const { container } = renderPage();
     expect(window.scrollTo).toHaveBeenCalledWith(0, 0);

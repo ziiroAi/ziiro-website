@@ -39,14 +39,14 @@ export const STOP_ACROSS: Readonly<Record<MeshSize, number>> = { desktop: 0.5, p
 const mid = (a: Vec3, b: Vec3): Vec3 => scale(add(a, b), 0.5);
 
 /** tan of half the vertical angle the canvas shows, as applyCamera (look-three.ts) sets it up. */
-function shownTan(size: MeshSize, lensMm: number, view: { width: number; height: number }): number {
+export function shownTan(size: MeshSize, lensMm: number, view: { width: number; height: number }): number {
   if (size === "phone") return visibleTan(LOOK.camera.phone, lensMm);
   const tanLong = LOOK.camera.desktop.sensorMm / 2 / lensMm;
   return view.height >= view.width ? tanLong : (tanLong * view.height) / view.width;
 }
 
 /** The sideways lens shift that puts the frame's centre `fromLeft` of the way across the canvas (applyCamera's maths). */
-function shiftXFor(size: MeshSize, view: { width: number; height: number }, fromLeft: number): number {
+export function shiftXFor(size: MeshSize, view: { width: number; height: number }, fromLeft: number): number {
   if (size === "phone") {
     const { full, view: window } = LOOK.camera.phone;
     return (full[0] / 2 - fromLeft * window[2] - window[0]) / Math.max(full[0], full[1]);
@@ -56,7 +56,7 @@ function shiftXFor(size: MeshSize, view: { width: number; height: number }, from
 }
 
 /** The vertical lens shift that puts the frame's centre `fromTop` of the way down the canvas (applyCamera's maths). */
-function shiftYFor(size: MeshSize, view: { width: number; height: number }, fromTop: number): number {
+export function shiftYFor(size: MeshSize, view: { width: number; height: number }, fromTop: number): number {
   if (size === "phone") {
     const { full, view: window } = LOOK.camera.phone;
     return (window[1] + fromTop * window[3] - full[1] / 2) / Math.max(full[0], full[1]);

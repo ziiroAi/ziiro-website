@@ -4,9 +4,9 @@ import { answerAsAnanya, expectPlan, fillContact, sendContact } from "./support/
 import type { Locator, Page } from "@playwright/test";
 
 /**
- * (C) W14-F part 2: the plan's 3D tour (blocks 2 and 3) on Ananya's plan, against the production build with
+ * (C) W14-F part 2, W15-B: the plan's one 3D stage on Ananya's plan, against the production build with
  * /api/funnel/* mocked. Headless Chromium draws WebGL on SwiftShader. Built on the viewer's stable test ids
- * (spine-viewer, spine-canvas, spine-still) plus the tour's own (spine-tour, spine-tour-stage).
+ * (spine-viewer, spine-canvas, spine-still) plus the stage's (spine-stage, data-stop, data-stage-screen).
  * Reduced motion: flights cut, so the camera settles at once and the checks don't wait on a 900 ms flight.
  */
 const WEBGL = ["--enable-unsafe-swiftshader", "--use-angle=swiftshader"];
@@ -58,7 +58,7 @@ async function scrollToDepth(page: Page, depth: number) {
 
 async function liveStage(page: Page): Promise<Locator> {
   await scrollToDepth(page, 0);
-  const stage = page.getByTestId("spine-tour-stage");
+  const stage = page.getByTestId("spine-stage");
   await expect(stage.getByTestId("spine-viewer")).toHaveAttribute("data-spine", "live", { timeout: LIVE_TIMEOUT_MS });
   await expect(stage.getByTestId("spine-canvas")).toBeVisible();
   await expect(stage.getByTestId("spine-still")).toBeHidden();
@@ -66,18 +66,39 @@ async function liveStage(page: Page): Promise<Locator> {
   return stage;
 }
 
-test.describe("the plan's 3D tour", () => {
-  test("starts no second viewer until the tour reaches the screen", async ({ page }) => {
+/** The middle of the lit discs' buttons, as a share of the screen's width: where the spine stands across it. */
+async function spineAcross(page: Page, stage: Locator): Promise<number> {
+  const boxes = await stage.locator("button[data-disc]").evaluateAll((buttons) =>
+    buttons.map((b) => b.getBoundingClientRect()).filter((r) => r.width > 0).map((r) => r.left + r.width / 2));
+  const width = page.viewportSize()!.width;
+  return boxes.reduce((sum, x) => sum + x, 0) / boxes.length / width;
+}
+
+test.describe("the plan's one 3D stage (W15-B)", () => {
+  test("keeps one viewer and one canvas from the hero to the close", async ({ page }) => {
     await toPlan(page);
     await expect(page.getByTestId("spine-viewer")).toHaveCount(1);
-    await expect(page.getByTestId("spine-tour-stage").locator("picture img")).toHaveCount(1);
+    await liveStage(page);
+    for (const depth of [1, 2, 3, 4, 5]) {
+      await scrollToDepth(page, depth);
+      await expect(page.getByTestId("spine-viewer")).toHaveCount(1);
+      await expect(page.locator("canvas")).toHaveCount(1);
+    }
+  });
+
+  test("moves the spine from the right of the hero to the left as block 2 arrives, on desktop", async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop", "the phone's band keeps the spine in its middle");
+    await toPlan(page);
+    const stage = await liveStage(page);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect.poll(() => spineAcross(page, stage), { timeout: SETTLE_TIMEOUT_MS }).toBeGreaterThan(0.6);
     await scrollToDepth(page, 0);
-    await expect(page.getByTestId("spine-viewer")).toHaveCount(2);
+    await expect.poll(() => spineAcross(page, stage), { timeout: SETTLE_TIMEOUT_MS }).toBeLessThan(0.4);
   });
 
   test("keeps its stage stuck under the site's bar while the stops scroll by", async ({ page }) => {
     await toPlan(page);
-    const stage = await liveStage(page);
+    const stage = (await liveStage(page)).locator("[data-stage-screen]");
     const navHeight = await page.evaluate(() =>
       parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--nav-h")) || 84);
     await scrollToDepth(page, 1);

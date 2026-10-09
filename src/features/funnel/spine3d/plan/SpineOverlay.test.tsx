@@ -26,6 +26,7 @@ function fakeApi() {
   let pickListener: ((event: DiscPickEvent) => void) | null = null;
   const api: SpineViewerApi = {
     flyTo: vi.fn(() => Promise.resolve()),
+    scrub: vi.fn(),
     setLit: vi.fn(),
     onDiscBoxes: (l) => { boxListener = l; return () => { boxListener = null; }; },
     onDiscPick: (l) => { pickListener = l; return () => { pickListener = null; }; },

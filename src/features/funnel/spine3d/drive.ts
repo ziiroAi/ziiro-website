@@ -95,6 +95,10 @@ export function createDrive(
   let spin = spinAllowed();
   /** At a tour stop: the model holds its side view, with no idle spin, until a flight without hold (W14-X). */
   let holding = false;
+  /** W15-B, scrubbed by the scroll: how far the model is turned to its side view (0 to 1), and the turn that takes,
+   *  fixed when the hold began so a drag while held still turns it. */
+  let scrubHold = 0;
+  let holdTurn = 0;
   let focused = document.hasFocus();
   /** The previous animation frame while the loop runs, and the frame times until the GPU is judged. */
   let lastFrame = 0;
@@ -170,7 +174,7 @@ export function createDrive(
     const stepped = step(orbit, dt, { ...motion, spin: idle });
     orbit = stepped.orbit;
     const flying = advanceFlight(now);
-    handle.render({ yaw: orbit.yaw, pitch: orbit.pitch, framing });
+    handle.render({ yaw: orbit.yaw + holdTurn * scrubHold, pitch: orbit.pitch * (1 - scrubHold), framing });
     if (stepped.moving || flying || orbit.held) schedule();
     else {
       last = 0;
@@ -273,8 +277,24 @@ export function createDrive(
     get reducedMotion() {
       return !motion.spin;
     },
+    scrub: (next, hold) => {
+      flight?.resolve();
+      flight = null;
+      framing = next;
+      const weight = Math.min(1, Math.max(0, hold));
+      if (weight > 0 && scrubHold === 0) {
+        holdTurn = Math.round(orbit.yaw / TURN) * TURN - orbit.yaw;
+        orbit = { ...orbit, yawSpeed: 0, pitchSpeed: 0 };
+      }
+      if (weight === 0) holdTurn = 0;
+      scrubHold = weight;
+      holding = weight > 0;
+      schedule();
+    },
     flyTo: (target, options) => {
       flight?.resolve();
+      scrubHold = 0;
+      holdTurn = 0;
       const to = framingFor(target, size);
       holding = options?.hold === true;
       const turn = holding ? { fromYaw: orbit.yaw, fromPitch: orbit.pitch, toYaw: Math.round(orbit.yaw / TURN) * TURN } : null;
