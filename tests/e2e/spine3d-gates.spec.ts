@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import type { Browser, BrowserContextOptions, CDPSession, Page, Response } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { probeSeesHardware } from "./support/gpu";
+import { PROBE_WORKER, probeSeesHardware } from "./support/gpu";
 import { expectPlan, tapThrough } from "./support/questions";
 
 /**
@@ -99,8 +99,11 @@ const deviceOf = (projectName: string): Device => (projectName === "phone" ? "ph
 /** The bypass header on the Preview's own origin, then the stubs. The newest route wins, so the stubs go last. */
 async function wire(page: Page): Promise<void> {
   if (PREVIEW_URL && BYPASS) {
-    await page.route(`${new URL(PREVIEW_URL).origin}/**`, (route) =>
-      route.continue({ headers: { ...route.request().headers(), "x-vercel-protection-bypass": BYPASS } }));
+    await page.route(`${new URL(PREVIEW_URL).origin}/**`, (route) => {
+      const headers = { ...route.request().headers(), "x-vercel-protection-bypass": BYPASS };
+      // The probe worker's script passes on to probeSeesHardware's stub where (c) and (e) set one (W14-X).
+      return PROBE_WORKER.test(route.request().url()) ? route.fallback({ headers }) : route.continue({ headers });
+    });
   }
   await page.route("**/api/funnel/visit", (route) => route.fulfill(STUB_VISIT));
   await page.route("**/api/funnel/lead", (route) => route.fulfill(STUB_LEAD));
@@ -248,7 +251,13 @@ async function worstPlanTap(page: Page, threeD: boolean, label: string): Promise
 }
 
 test(`(b) a first tap while the 3D loads, worst of 5 at 4× CPU, on ${GPU} (§13.10)`, async ({ page, browser }, info) => {
-  test.setTimeout(INP_RUNS * 2 * 180_000);
+  test.setTimeout((INP_RUNS * 2 + 1) * 180_000);
+  // W14-X: the first page a fresh browser loads pays its cold start (HTTP and code caches, worker-1 swapped the order:
+  // whichever side ran first was 128 / 192 ms slower on run 1). One untimed visit, with no WebGL, warms it for both.
+  const warm = await saveDataPage(browser, info.project.use);
+  await wire(warm);
+  await toPlan(warm);
+  await warm.context().close();
   const on = await worstPlanTap(page, true, "3D on");
   if (GPU === "metal") {
     expect(on).toBeLessThanOrEqual(INP_LIMIT_MS);
@@ -350,8 +359,16 @@ test("(e) the lazy 3D chunk and the mesh, against the budgets", async ({ page },
   expect(chunks.length, "no lazy 3D chunk matched CHUNK_URL").toBeGreaterThan(0);
   expect(meshes.length, "no mesh matched MESH_URL").toBeGreaterThan(0);
 
+  // Each chunk once. S0 may have loaded it first, and then the plan's response comes from cache with no body, so the
+  // body is fetched again (with the bypass header on the Preview) where the response has none.
+  const chunkPaths = [...new Set(chunks.map((r) => r.url()))];
   let chunkGz = 0;
-  for (const r of chunks) chunkGz += gzipSync(await r.body(), { level: 9 }).length;
+  for (const url of chunkPaths) {
+    const seen = chunks.find((r) => r.url() === url)!;
+    const headers: Record<string, string> = BYPASS ? { "x-vercel-protection-bypass": BYPASS } : {};
+    const body = await seen.body().catch(async () => (await page.request.get(url, { headers })).body());
+    chunkGz += gzipSync(body, { level: 9 }).length;
+  }
   let meshBytes = 0;
   for (const r of meshes) {
     const sizes = await r.request().sizes();
@@ -359,7 +376,7 @@ test("(e) the lazy 3D chunk and the mesh, against the budgets", async ({ page },
   }
   const report = {
     device,
-    chunks: chunks.map((r) => new URL(r.url()).pathname),
+    chunks: chunkPaths.map((url) => new URL(url).pathname),
     chunkGzBytes: chunkGz,
     chunkGzLimit: CHUNK_GZ_LIMIT,
     meshes: meshes.map((r) => new URL(r.url()).pathname),

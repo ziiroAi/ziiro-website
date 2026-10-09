@@ -13,7 +13,7 @@ const UNMASKED_RENDERER = 0x9246;
 const HARDWARE_NAME = "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)";
 
 /** W14-X: the probe runs in its own worker (gl-probe.worker.ts), which init scripts never reach. */
-const PROBE_WORKER = /\/assets\/gl-probe\.worker-[\w-]+\.js(\?|$)/;
+export const PROBE_WORKER = /\/assets\/gl-probe\.worker-[\w-]+\.js(\?|$)/;
 
 /** Makes the probe worker answer as given: `false` for a hardware GPU, or for a browser whose worker has no WebGL. */
 export async function probeAnswers(page: Page, software: boolean): Promise<void> {
