@@ -3,10 +3,12 @@ import type { MeshSize } from "./rules";
 
 /** The full spine's crunched meshes: 1.5 MB or less on a phone, 3 MB or less on desktop. /spine is cached immutable
  *  for a year (vercel.json, tests/media/immutable.json), so a re-crunched mesh goes in a new folder. m3 is worker-3's
- *  mended m1 (W16-C: 31 holes closed, his bone blade cut) with the orange smears taken out of its base colour (W16-C2). */
+ *  mended m1 (W16-C: 31 holes closed, his bone blade cut) with the orange smears taken out of its base colour (W16-C2).
+ *  m4 is m3 with the close-up's machined black-titanium finish baked onto its own UVs (W17-M): metal 0.92, roughness
+ *  0.12, machining marks, scratches, speckle; look.ts body.maps makes the viewer read these maps. */
 export const MESH_URLS: Readonly<Record<MeshSize, string>> = {
-  phone: "/spine/3d/m3/spine-phone.glb",
-  desktop: "/spine/3d/m3/spine-desktop.glb",
+  phone: "/spine/3d/m4/spine-phone.glb",
+  desktop: "/spine/3d/m4/spine-desktop.glb",
 };
 
 /** W16-C: the owner's close-up model, web-ready (worker-3, ziiroai/feat/w16c-closeup eb7ea83). W16-C4: closeup2 is the

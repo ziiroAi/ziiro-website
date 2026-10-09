@@ -179,8 +179,10 @@ export function makeBackground(t: ThemeLook, aspect: number): { quad: THREE.Mesh
  *  column's ends it fades into the background pixel behind it, so the flat cuts never show. */
 export function makeBody(t: ThemeLook, source: THREE.MeshStandardMaterial | null, mask: THREE.Texture | null, fill: number, shared: Shared): THREE.MeshPhysicalMaterial {
   const b = t.body;
+  const maps = Boolean(b.maps && source?.map);   // W17-M: m4 carries its own machined colour, roughness and metalness
   const m = new THREE.MeshPhysicalMaterial({
-    color: col(b.colour), metalness: b.metalness, roughness: b.roughness,
+    color: maps ? (b.mapTint ? col(b.mapTint) : new THREE.Color(1, 1, 1)) : col(b.colour), metalness: maps ? 1 : b.metalness, roughness: maps ? 1 : b.roughness,
+    map: maps ? source!.map : null, roughnessMap: maps ? source!.roughnessMap : null, metalnessMap: maps ? source!.metalnessMap : null,
     clearcoat: b.clearcoat, clearcoatRoughness: b.clearcoatRoughness, envMapIntensity: b.envIntensity,
     normalMap: source?.normalMap ?? null, normalScale: new THREE.Vector2(b.normalScale, b.normalScale),
     emissive: col(t.maskFill.colour), emissiveMap: mask, // even 1 % orange on near-black metal reads as amber, so a quiet fill is fully off

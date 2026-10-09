@@ -4,7 +4,7 @@ import { CLOSEUP_MESH_URLS, MESH_URLS, PLAN_MESHES } from "./mesh-urls";
 
 describe("the plan's meshes (W16-A)", () => {
   it("draws the full spine from m3, the mended mesh without the orange smears (W16-I)", () => {
-    expect(MESH_URLS).toEqual({ phone: "/spine/3d/m3/spine-phone.glb", desktop: "/spine/3d/m3/spine-desktop.glb" });
+    expect(MESH_URLS).toEqual({ phone: "/spine/3d/m4/spine-phone.glb", desktop: "/spine/3d/m4/spine-desktop.glb" });
   });
 
   it("warms m3 first, then the close-up", () => {
