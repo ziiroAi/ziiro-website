@@ -8,6 +8,7 @@ import { baseFraming, framingFor } from "./camera";
 import type { StartOptions } from "./host";
 import { discLevels } from "./levels";
 import type { DiscBox } from "./scene";
+import { forgetSoftwareGl } from "./first-screen";
 import { CLOSEUP_MESH_URLS } from "./mesh-urls";
 import { forgetWarmMeshes, warmMesh } from "./mesh-warm";
 import { LOAD_TIMEOUT_MS, MESH_URLS, SpineViewer } from "./SpineViewer";
@@ -77,6 +78,7 @@ beforeEach(() => {
 afterEach(() => {
   screen?.unmount();
   screen = null;
+  forgetSoftwareGl();  // the page's one probe answer (W16-R L2) must not carry over to the next test's renderer
   vi.unstubAllGlobals();
   vi.clearAllMocks();
   delete document.documentElement.dataset.theme;

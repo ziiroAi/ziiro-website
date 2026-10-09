@@ -2,7 +2,7 @@
 // when it appears (worker-2's W15-R M6: a phone that tapped through S0 saw 1.84 s of still). Only where the plan's 3D
 // would run: a real GPU, WebGL2, no Save-Data and no slow connection. Network only; the build, the decode and the GPU
 // upload wait for the plan's own viewer (SpineViewer), which takes these bytes (mesh-warm.ts).
-import { isSoftwareGl } from "./first-screen";
+import { sharedSoftwareGl } from "./first-screen";
 import { PLAN_MESHES } from "./mesh-urls";
 import { warmMesh } from "./mesh-warm";
 import { hasWebGL2, meshFor, preflight, readConnection, type MeshSize, type Preflight } from "./rules";
@@ -54,7 +54,7 @@ function browserEnv(): WarmEnv {
     width: window.innerWidth,
     meshes: PLAN_MESHES,
     scripts: [SPINE_WORKER_SCRIPT],
-    probe: (signal) => isSoftwareGl(undefined, signal),
+    probe: (signal) => sharedSoftwareGl(signal),
   };
 }
 

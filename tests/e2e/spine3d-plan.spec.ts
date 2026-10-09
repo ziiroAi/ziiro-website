@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { probeSeesHardware } from "./support/gpu";
+import { PROBE_WORKER, probeSeesHardware } from "./support/gpu";
 import { answerAsAnanya, expectPlan, fillContact, sendContact } from "./support/questions";
 import type { Locator, Page } from "@playwright/test";
 
@@ -249,8 +249,51 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
         });
         expect(covered, "hero words or buttons over the panel").toEqual([]);
       });
+
+      test("shows the whole panel's frame above the legend, and scrolls its list inside it (W16-R M2)", async ({ page }, info) => {
+        test.skip(info.project.name !== "desktop", "a phone's panel opens under the band");
+        await toPlan(page);
+        const stage = await liveStage(page);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await expect.poll(() => stageCrossesWords(page), { timeout: SETTLE_TIMEOUT_MS }).toBeNull();
+        await expect.poll(() => spineAcross(page, stage), { timeout: SETTLE_TIMEOUT_MS }).toBeGreaterThan(0.6);
+        // Deals has three agents: its list is taller than the room the dock has.
+        await stage.locator('button[data-disc="G04"]').focus();
+        const panel = stage.locator('[role=dialog][data-disc="G04"]');
+        await expect(panel).toBeVisible();
+        const fit = await panel.evaluate((dialog) => {
+          const box = dialog.getBoundingClientRect();
+          let clippedBy = 0;
+          for (let el = dialog.parentElement; el; el = el.parentElement) {
+            if (getComputedStyle(el).overflowY === "visible") continue;
+            clippedBy = Math.max(clippedBy, box.bottom - el.getBoundingClientRect().bottom);
+          }
+          const legend = document.querySelector<HTMLElement>("[data-testid=spine-stage] [data-legend]")?.getBoundingClientRect();
+          return {
+            clippedBy: Math.round(clippedBy),
+            belowView: Math.round(box.bottom - innerHeight),
+            overLegend: legend && legend.left < box.right && box.left < legend.right ? Math.round(box.bottom - legend.top) : 0,
+            scrolls: dialog.scrollHeight > dialog.clientHeight + 1,
+          };
+        });
+        expect(fit.clippedBy, "px of the panel's frame cut off by a scrolling dock").toBeLessThanOrEqual(0);
+        expect(fit.belowView, "px of the panel below the window").toBeLessThanOrEqual(0);
+        expect(fit.overLegend, "px of the panel over the legend").toBeLessThanOrEqual(0);
+        expect(fit.scrolls, "the long list scrolls inside the panel").toBe(true);
+      });
     });
   }
+
+  test("asks the renderer probe once per visit: the questions' prefetch and the plan's viewer share it (W16-R L2)", async ({ page }) => {
+    const probes: string[] = [];
+    page.on("worker", (worker) => {
+      if (PROBE_WORKER.test(worker.url())) probes.push(worker.url());
+    });
+    await toPlan(page);
+    await liveStage(page);
+    await scrollToDepth(page, 2);
+    expect(probes, "gl-probe workers started").toHaveLength(1);
+  });
 
   test("keeps one viewer and one canvas from the hero to the close", async ({ page }) => {
     await toPlan(page);
