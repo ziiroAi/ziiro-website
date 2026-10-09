@@ -257,6 +257,35 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     frames.mockRestore();
   });
 
+  it("fades the hero's words out as the spine sets off left, and hides them once gone (W15-B3)", async () => {
+    mount();
+    const root = view!.container.firstElementChild as HTMLElement;
+    await scrollTo(0);
+    expect(root.style.getPropertyValue("--hero-words")).toBe("1");
+    expect(root.hasAttribute("data-hero-hidden")).toBe(false);
+    await scrollTo(arrival(0));
+    expect(root.style.getPropertyValue("--hero-words")).toBe("0");
+    expect(root.hasAttribute("data-hero-hidden")).toBe(true);
+    expect(root.className).toContain("group/stage");
+  });
+
+  it("keeps block 2's words hidden while the spine is still on their side, and shows them once it's left (W15-B3)", async () => {
+    mount();
+    const root = view!.container.firstElementChild as HTMLElement;
+    await scrollTo(0);
+    expect(root.style.getPropertyValue("--need-words")).toBe("0");
+    expect(root.hasAttribute("data-need-hidden")).toBe(true);
+    await scrollTo(arrival(0));
+    expect(root.style.getPropertyValue("--need-words")).toBe("1");
+    expect(root.hasAttribute("data-need-hidden")).toBe(false);
+  });
+
+  it("records the scroll position it last framed, so a test can wait for a slow GPU's frame to catch up (W15-B3)", async () => {
+    const { stage } = mount();
+    await scrollTo(arrival(0));
+    expect(stage.dataset.scrolled).toBe(String(Math.round(arrival(0))));
+  });
+
   it("tells the overlay where the spine stands, for the legend to follow it (W15-B2)", async () => {
     const { stage } = mount();
     const screen = stage.querySelector<HTMLElement>("[data-stage-screen]")!;

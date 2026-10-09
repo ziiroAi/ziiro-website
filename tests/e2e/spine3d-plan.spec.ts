@@ -93,7 +93,67 @@ async function overStageCovers(page: Page): Promise<string[]> {
   });
 }
 
+/**
+ * Whether the spine crosses the hero's words or stats while they show. The spine's left edge comes from where the stage
+ * stands it (--spine-across, written on the scroll frame), less its silhouette's reach left of that point (0.12 of the
+ * width, measured on the W15-B2 build: discs reach 0.05-0.08, the processes about 0.06 more). The disc boxes can't be
+ * used: they update only when SwiftShader draws, seconds behind the scroll. The words' extent is their text's own box.
+ */
+async function spineCrossesHeroWords(page: Page): Promise<string | null> {
+  return page.evaluate(() => {
+    const REACH = 0.12;
+    // The stage reads the scroll on its next frame, which SwiftShader can hold back for seconds: wait for it.
+    const stage = document.querySelector<HTMLElement>("[data-testid=spine-stage]");
+    if (stage?.dataset.scrolled !== String(Math.round(window.scrollY))) return "the stage hasn't framed this scroll yet";
+    const screen = document.querySelector<HTMLElement>("[data-stage-screen]");
+    const across = Number(screen?.style.getPropertyValue("--spine-across"));
+    if (!screen || !Number.isFinite(across) || across === 0) return "no --spine-across yet";
+    const width = screen.getBoundingClientRect().width;
+    const spineLeft = (across - REACH) * width;
+    const spineRight = (across + REACH) * width;
+    const hero = document.querySelector<HTMLElement>("#plan-hero-title")!.closest("section")!;
+    const stats = document.querySelector<HTMLElement>("[data-testid=spine-stage] ~ div")!;
+    const need = document.querySelector<HTMLElement>('[data-depth="0"]')!;
+    // The hero's words are left of the spine, block 2's right of it.
+    const parts: [HTMLElement, (box: DOMRect) => boolean][] = [
+      [hero, (box) => box.right >= spineLeft], [stats, (box) => box.right >= spineLeft], [need, (box) => box.left <= spineRight],
+    ];
+    const crossed = parts.flatMap(([part, meets]) => {
+      const style = getComputedStyle(part);
+      if (style.visibility === "hidden" || Number(style.opacity) <= 0.01) return [];
+      // Each text node's own line boxes: an element's box spans its whole column, not its words.
+      const walker = document.createTreeWalker(part, NodeFilter.SHOW_TEXT);
+      const hits: string[] = [];
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.textContent?.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const box of range.getClientRects()) {
+          const shows = box.width > 0 && box.bottom > 0 && box.top < window.innerHeight;
+          if (shows && meets(box)) hits.push(`"${node.textContent.trim().slice(0, 20)}" (${Math.round(box.left)}-${Math.round(box.right)})`);
+        }
+      }
+      return hits;
+    });
+    return crossed.length ? `the spine (${Math.round(spineLeft)}-${Math.round(spineRight)}) crosses ${crossed.join(", ")}` : null;
+  });
+}
+
 test.describe("the plan's one 3D stage (W15-B)", () => {
+  test("never sweeps the spine across the hero's words and stats or block 2's on its way left (W15-B3)", async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop", "on a phone the band sits between the hero's words and the text");
+    // The sweep only happens with motion: under reduced motion the stage cuts from the hero to block 2.
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await toPlan(page);
+    await liveStage(page);
+    const end = await page.locator('[data-depth="5"]').evaluate((el) =>
+      el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2);
+    for (let pct = 0; pct <= 20; pct += 2) {
+      await page.evaluate((y) => window.scrollTo(0, y), Math.round((end * pct) / 100));
+      await expect.poll(() => spineCrossesHeroWords(page), { timeout: SETTLE_TIMEOUT_MS, message: `at ${pct} % of the path` }).toBeNull();
+    }
+  });
+
   test("keeps the legend and the callouts off the text column and the close's call to action (W15-B2)", async ({ page }, info) => {
     test.skip(info.project.name !== "desktop", "on a phone the legend and callouts sit inside the band, above the text");
     await toPlan(page);

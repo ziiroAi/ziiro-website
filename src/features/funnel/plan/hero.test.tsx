@@ -46,6 +46,16 @@ describe("Hero (§6.2 block 1)", () => {
     expect(words.className).toContain("lg:pointer-events-auto");
   });
 
+  it("fades its words and stats with the stage's --hero-words, and hides them once gone, from 1024 px (W15-B3)", () => {
+    const { container } = renderHero();
+    const section = container.querySelector("section")!;
+    const stats = container.querySelector("ul")!.parentElement!;
+    for (const el of [section, stats]) {
+      expect(el.className).toContain("lg:opacity-[var(--hero-words,1)]");
+      expect(el.className).toContain("lg:group-data-[hero-hidden]/stage:invisible");
+    }
+  });
+
   it("shows the eyebrow, both title lines, and their words with the name", () => {
     const { container } = renderHero();
     expect(textOf(container.querySelector("h1"))).toBe(`${copy("hx.h1")} ${copy("hx.h2")}`);

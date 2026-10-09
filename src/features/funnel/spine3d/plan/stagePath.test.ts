@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { DiscId } from "../../data/contract";
 import { baseFraming, type Framing } from "../camera";
-import { ACROSS, aimFraming, stageAims, stageAnchors, stageAt, stageKeys, type StageAnchor } from "./stagePath";
+import { ACROSS, aimFraming, HERO_WORDS_GONE_AT, heroWordsOpacity, NEED_WORDS_FROM, NEED_WORDS_FULL_AT, needWordsOpacity, stageAims, stageAnchors, stageAt, stageKeys, type StageAnchor } from "./stagePath";
 import { DISCS as ALL_DISCS } from "../../data/contract";
 import { GAPS } from "../gaps";
 import { tourFraming } from "./tour";
@@ -179,5 +179,36 @@ describe("anchoring the keyframes to the page (W15-B)", () => {
   it("never runs backwards when a section is shorter than the travel or starts above the line", () => {
     const anchors = stageAnchors(keys, [{ top: 100, bottom: 200 }, ...spans.slice(1)], 400, 300);
     anchors.slice(1).forEach((a, i) => expect(a.at).toBeGreaterThanOrEqual(anchors[i].at));
+  });
+});
+
+describe("the hero's words make way for the spine (W15-B3)", () => {
+  // Manager's eye on the W15-B2 strip at 8-16 %: the hero stats (137 / 33 / 7) were still on screen while the spine
+  // swept left across them, and 33 vanished behind it. The spine must never cross text.
+  it("shows the hero's left column fully while the spine stands in the hero", () => {
+    expect(heroWordsOpacity(ACROSS.desktop.hero, "desktop")).toBe(1);
+  });
+
+  it("fades it out over the start of the travel, gone before the spine's left edge reaches the 55 % column", () => {
+    const mid = (ACROSS.desktop.hero + HERO_WORDS_GONE_AT) / 2;
+    expect(heroWordsOpacity(mid, "desktop")).toBeCloseTo(0.5, 5);
+    expect(heroWordsOpacity(HERO_WORDS_GONE_AT, "desktop")).toBe(0);
+    expect(heroWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(0);
+    // The spine is about a fifth of the stage wide: its left edge is still right of the column when the words are gone.
+    expect(HERO_WORDS_GONE_AT - 0.1).toBeGreaterThanOrEqual(0.5);
+  });
+
+  it("leaves the phone's words alone: the band sits between them and the spine never crosses them", () => {
+    expect(heroWordsOpacity(0.36, "phone")).toBe(1);
+    expect(needWordsOpacity(0.74, "phone")).toBe(1);
+  });
+
+  it("shows block 2's words only once the spine's right edge has cleared the right column", () => {
+    // The 46 % column's text starts at about 0.57 of the width; the spine reaches about 0.12 right of where it stands.
+    expect(needWordsOpacity(ACROSS.desktop.hero, "desktop")).toBe(0);
+    expect(needWordsOpacity(NEED_WORDS_FROM, "desktop")).toBe(0);
+    expect(needWordsOpacity(NEED_WORDS_FULL_AT, "desktop")).toBe(1);
+    expect(needWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(1);
+    expect(NEED_WORDS_FROM + 0.12).toBeLessThanOrEqual(0.57 + 1e-9);
   });
 });

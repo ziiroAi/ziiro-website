@@ -6,13 +6,16 @@ import { Swap } from "./Swap";
 
 const STATUSES: readonly JobStatus[] = ["runs_on_our_company_today", "we_build_it_for_you", "mapped"];
 const MICRO = "font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--funnel-muted)]";
+/** W15-B3: from 1024 px PlanStage shows these words (--need-words, 0 to 1) only once the spine has left their column,
+ *  and hides them before that, so the spine never crosses them. */
+const WAITS_FOR_SPINE = "lg:opacity-[var(--need-words,1)] lg:group-data-[need-hidden]/stage:invisible";
 
 export function NeedBlock({ view }: { view: PlanViewModel }): JSX.Element {
   return (
     <section
       data-depth={0}
       aria-labelledby="plan-need-title"
-      className="border-t border-[color:var(--funnel-line)] px-4 py-16 sm:px-6 lg:px-10 lg:py-24"
+      className={`border-t border-[color:var(--funnel-line)] px-4 py-16 sm:px-6 lg:px-10 lg:py-24 ${WAITS_FOR_SPINE}`}
     >
       <div className="grid gap-10">
         <div>

@@ -102,6 +102,13 @@ describe("PlanPage (§6)", () => {
     expect(column.className).toContain("lg:pointer-events-none");
   });
 
+  it("fades block 2's words with the stage's --need-words and hides them once gone, from 1024 px (W15-B3)", () => {
+    const { container } = renderPage();
+    const need = container.querySelector<HTMLElement>("[data-depth='0']")!;
+    expect(need.className).toContain("lg:opacity-[var(--need-words,1)]");
+    expect(need.className).toContain("lg:group-data-[need-hidden]/stage:invisible");
+  });
+
   it("starts at the top, with focus on the h1", () => {
     const { container } = renderPage();
     expect(window.scrollTo).toHaveBeenCalledWith(0, 0);

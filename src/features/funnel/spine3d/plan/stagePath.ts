@@ -149,6 +149,32 @@ export function stageKeys(
 
 const clamp01 = (t: number): number => Math.min(1, Math.max(0, t));
 
+/** W15-B3: the hero's left column (words and stats) is gone once the spine stands this far across on its way left. The
+ *  spine is about a fifth of the stage wide, so its left edge is still clear of the 55 % column then. */
+export const HERO_WORDS_GONE_AT = 0.62;
+
+/**
+ * How much of the hero's left column shows, 0 to 1, for where the spine stands: all of it in the hero, fading over the
+ * start of the travel left, so the spine never crosses its words or stats (the manager's eye, W15-B2 strip at 8-16 %).
+ * On a phone the band sits between the words and the text, so they always show.
+ */
+export function heroWordsOpacity(across: number, variant: Variant): number {
+  if (variant === "phone") return 1;
+  return clamp01((across - HERO_WORDS_GONE_AT) / (ACROSS.desktop.hero - HERO_WORDS_GONE_AT));
+}
+
+/** Block 2's words show from where the spine stands at NEED_WORDS_FROM (none) to NEED_WORDS_FULL_AT (all): its right
+ *  edge, about 0.12 right of that, is then clear of the 46 % column's text (from about 0.57 of the width). */
+export const NEED_WORDS_FROM = 0.45;
+export const NEED_WORDS_FULL_AT = 0.4;
+
+/** How much of block 2's words show, 0 to 1: they enter at the bottom right while the spine is still leaving the right,
+ *  so they wait for it to clear their column (W15-B3). Always on a phone. */
+export function needWordsOpacity(across: number, variant: Variant): number {
+  if (variant === "phone") return 1;
+  return clamp01((NEED_WORDS_FROM - across) / (NEED_WORDS_FROM - NEED_WORDS_FULL_AT));
+}
+
 /**
  * Where the stage is at a scroll position: on a keyframe at its anchor, blended between two on an eased curve, with
  * a pull-back between two stops. Under reduced motion it holds each keyframe until the next anchor and cuts.

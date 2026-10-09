@@ -23,6 +23,9 @@ const BUTTON = "inline-flex min-h-11 items-center justify-center gap-2 rounded-f
 /** From 1024 px the hero lies over the stage: it fills the screen under the bar and lets the pointer through to the
  *  spine, except on the words themselves. */
 const OVER_STAGE = "relative lg:z-10 lg:pointer-events-none";
+/** W15-B3: PlanStage fades the hero's words and stats out as the spine sets off left (--hero-words, 0 to 1) and hides
+ *  them once gone, so the spine never crosses them. */
+const MAKES_WAY = "lg:opacity-[var(--hero-words,1)] lg:group-data-[hero-hidden]/stage:invisible";
 
 export interface HeroProps {
   heroText: Lines;
@@ -42,7 +45,7 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress, st
     <>
       <section
         aria-labelledby="plan-hero-title"
-        className={`${OVER_STAGE} pb-10 lg:flex lg:min-h-[calc(100vh-var(--nav-h,84px))] lg:items-center lg:pb-0`}
+        className={`${OVER_STAGE} ${MAKES_WAY} pb-10 lg:flex lg:min-h-[calc(100vh-var(--nav-h,84px))] lg:items-center lg:pb-0`}
       >
         <div className="px-4 pt-24 sm:px-6 lg:pointer-events-auto lg:w-[55%] lg:px-10 lg:pt-0">
           <p className={MICRO}>{copy("hx.eyebrow")}</p>
@@ -81,7 +84,7 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress, st
         </div>
       </section>
       {stage}
-      <div className={OVER_STAGE}>
+      <div className={`${OVER_STAGE} ${MAKES_WAY}`}>
         <ul className="grid grid-cols-3 gap-4 px-4 pt-8 sm:px-6 lg:pointer-events-auto lg:w-[55%] lg:px-10">
           {STATS.map((s) => (
             <li key={s.number}>
