@@ -162,14 +162,13 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
       const slide = Number(((key.across - ACROSS[variant].hero) * 100).toFixed(2));
       if (stillRef.current) stillRef.current.style.transform = `translateX(${slide}%)`;
       screenRef.current?.style.setProperty("--spine-across", String(Number(key.across.toFixed(4))));
-      // W15-B3: the spine never crosses words. The hero's fade as it sets off left; block 2's wait for it to clear
-      // their column. Each is hidden once gone.
+      // W15-B3: the spine never crosses words. The hero's fade as it sets off left, and are hidden once gone (they hold
+      // buttons); block 2's wait for it to clear their column, by opacity only, so a screen reader still reaches them.
       const heroWords = Number(heroWordsOpacity(key.across, variant).toFixed(3));
       const needWords = Number(needWordsOpacity(key.across, variant).toFixed(3));
       root.style.setProperty("--hero-words", String(heroWords));
       root.style.setProperty("--need-words", String(needWords));
       root.toggleAttribute("data-hero-hidden", heroWords === 0);
-      root.toggleAttribute("data-need-hidden", needWords === 0);
       if (bandRef.current) bandRef.current.dataset.scrolled = String(Math.round(window.scrollY));
       setStop(key.stop);
       setSpineLeft(key.across < 0.5);

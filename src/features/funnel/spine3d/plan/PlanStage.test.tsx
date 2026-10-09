@@ -269,15 +269,13 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(root.className).toContain("group/stage");
   });
 
-  it("keeps block 2's words hidden while the spine is still on their side, and shows them once it's left (W15-B3)", async () => {
+  it("keeps block 2's words faded out while the spine is still on their side, and shows them once it's left (W15-B3)", async () => {
     mount();
     const root = view!.container.firstElementChild as HTMLElement;
     await scrollTo(0);
     expect(root.style.getPropertyValue("--need-words")).toBe("0");
-    expect(root.hasAttribute("data-need-hidden")).toBe(true);
     await scrollTo(arrival(0));
     expect(root.style.getPropertyValue("--need-words")).toBe("1");
-    expect(root.hasAttribute("data-need-hidden")).toBe(false);
   });
 
   it("records the scroll position it last framed, so a test can wait for a slow GPU's frame to catch up (W15-B3)", async () => {
