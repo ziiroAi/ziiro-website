@@ -10,7 +10,7 @@ import { discLevels } from "./levels";
 import type { DiscBox } from "./scene";
 import { forgetSoftwareGl } from "./first-screen";
 import { forgetWarmMeshes, warmMesh } from "./mesh-warm";
-import { LOAD_TIMEOUT_MS, MESH_URLS, SpineViewer } from "./SpineViewer";
+import { CROSSFADE_MS, LOAD_TIMEOUT_MS, MESH_URLS, RINGS_IN_MS, SpineViewer } from "./SpineViewer";
 
 let picked: DiscId | null = null;
 const handle = {
@@ -19,6 +19,7 @@ const handle = {
   resize: vi.fn(),
   setTheme: vi.fn(async (_theme: string) => undefined),
   setLevels: vi.fn(),
+  setGlow: vi.fn(),
   dispose: vi.fn(),
 };
 const startSpine = vi.fn((_canvas: HTMLCanvasElement, _options: StartOptions) => handle);
@@ -80,6 +81,7 @@ afterEach(() => {
   forgetSoftwareGl();  // the page's one probe answer (W16-R L2) must not carry over to the next test's renderer
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  vi.useRealTimers();
   delete document.documentElement.dataset.theme;
 });
 
@@ -140,11 +142,19 @@ describe("SpineViewer (W14-C)", () => {
     expect(still().className).not.toContain("invisible");
   });
 
-  it("swaps the still out only once the first frame is drawn, and hands over the API", async () => {
+  it("swaps the still out only once the first frame has faded in over it, and hands over the API (W18-C)", async () => {
     await mount();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     expect(api).toBeNull();
     ready();
     expect(viewer().dataset.spine).toBe("live");
+    expect(canvas()?.style.opacity).toBe("1");
+    expect(canvas()?.style.transition).toBe(`opacity ${CROSSFADE_MS}ms ease-in-out`);
+    // Never a hard cut: the still stays under the canvas for the whole crossfade, so the page never shows between them.
+    expect(still().className).not.toContain("invisible");
+    act(() => void vi.advanceTimersByTime(CROSSFADE_MS - 1));
+    expect(still().className).not.toContain("invisible");
+    act(() => void vi.advanceTimersByTime(1));
     expect(still().className).toContain("invisible");
     expect(canvas()?.getAttribute("role")).toBe("img");
     expect(canvas()?.getAttribute("aria-label")).toBe("The spine");
@@ -216,7 +226,10 @@ describe("SpineViewer (W14-C)", () => {
     let drawn: () => void = () => undefined;
     handle.setTheme.mockImplementationOnce(() => new Promise<undefined>((resolve) => (drawn = () => resolve(undefined))));
     await mount();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     ready();
+    act(() => void vi.advanceTimersByTime(CROSSFADE_MS));
+    vi.useRealTimers();
     await act(async () => {
       document.documentElement.dataset.theme = "dark";
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -225,9 +238,48 @@ describe("SpineViewer (W14-C)", () => {
     expect(viewer().dataset.spine).toBe("live");
     expect(still().className).not.toContain("invisible");
     expect(canvas()?.style.opacity).toBe("0");
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     await act(async () => drawn());
-    expect(still().className).toContain("invisible");
     expect(canvas()?.style.opacity).toBe("1");
+    // W18-C: the still (already in the new theme) goes only once the canvas has faded back in over it.
+    expect(still().className).not.toContain("invisible");
+    act(() => void vi.advanceTimersByTime(CROSSFADE_MS));
+    expect(still().className).toContain("invisible");
+  });
+
+  it("starts at r17's framing with the discs lit, without startFraming or ringsIn", async () => {
+    await mount();
+    expect(lastOptions().glow).toBe(1);
+    expect([baseFraming("phone"), baseFraming("desktop")]).toContainEqual(lastOptions().view.framing);
+  });
+
+  it("with ringsIn starts at startFraming with the discs unlit, and lights them only after the crossfade (W18-C)", async () => {
+    const start = framingFor({ kind: "disc", disc: "G04" }, "desktop");
+    await act(async () => {
+      screen = render(
+        <SpineViewer label="The spine" lit={["sales"]} startFraming={() => start} ringsIn onApi={(next) => (api = next)}>
+          <img alt="The spine" src="/still.webp" />
+        </SpineViewer>,
+      );
+    });
+    await act(async () => {
+      flush(2);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(lastOptions().view.framing).toEqual(start);
+    expect(lastOptions().glow).toBe(0);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    ready();
+    act(() => flush(3));
+    expect(handle.setGlow).not.toHaveBeenCalled();
+    // The idle sway, if any, starts from the still's framing: the first frames are drawn there.
+    expect(lastView().framing).toEqual(start);
+    act(() => void vi.advanceTimersByTime(CROSSFADE_MS));
+    act(() => flush(Math.ceil(RINGS_IN_MS / 16) + 2));
+    const glows = handle.setGlow.mock.calls.map(([g]) => g as number);
+    expect(glows.length).toBeGreaterThan(10);
+    expect(glows.every((g, i) => i === 0 || g >= glows[i - 1])).toBe(true);
+    expect(glows.at(-1)).toBe(1);
   });
 
   it("lets a vertical swipe scroll the page on a phone", async () => {

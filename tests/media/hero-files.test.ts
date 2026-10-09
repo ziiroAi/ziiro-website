@@ -36,3 +36,27 @@ describe.each(THEMES)("public/spine/r17/%s/hero (§6.6)", (theme) => {
     expect(buf.length).toBeLessThanOrEqual(LIMITS.phone[f]);
   });
 });
+
+/** W18-C: the plan's stills since r18, drawn by the live 3D at the frame it starts on, one per stage shape. r17 stays
+ *  above: its files are immutable and an old cached page may still ask for them. */
+const R18: Record<"hero" | "tablet" | "phone", Record<number, number>> = {
+  hero: { 1280: 725, 1920: 1088, 2880: 1632 },   // the 1440 x 816 stage
+  tablet: { 1024: 1076, 1536: 1614 },            // the 1290:1356 band from 600 px, desktop mesh
+  phone: { 585: 615 },                           // the phone band, at the 3D's own 1.5x
+};
+const r18Cases = Object.entries(R18).flatMap(([name, sizes]) =>
+  Object.keys(sizes).flatMap((w) => FORMATS.map((f) => [name as keyof typeof R18, Number(w), f] as const)));
+
+describe.each(THEMES)("public/spine/r18/%s/hero (W18-C)", (theme) => {
+  const dir = `public/spine/r18/${theme}/hero`;
+
+  it("holds exactly the twelve stills", () => {
+    expect(readdirSync(dir).filter((f) => !f.startsWith(".")).sort()).toEqual(r18Cases.map(([n, w, f]) => `${n}-${w}.${f}`).sort());
+  });
+
+  it.each(r18Cases)("%s-%i.%s has its stage's size, within the limit", (name, w, f) => {
+    const buf = readFileSync(`${dir}/${name}-${w}.${f}`);
+    expect(sizeOf[f](buf)).toEqual({ width: w, height: R18[name][w] });
+    expect(buf.length).toBeLessThanOrEqual(LIMITS[name === "phone" ? "phone" : "desktop"][f]);
+  });
+});

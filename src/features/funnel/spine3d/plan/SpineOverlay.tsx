@@ -12,6 +12,7 @@ import { createRef, useCallback, useEffect, useMemo, useRef, useState, type CSSP
 import { copy } from "../../data";
 import type { AgentId, DiscId } from "../../data/contract";
 import type { DiscBox, SpineViewerApi } from "../api";
+import { CROSSFADE_MS, RINGS_IN_MS } from "../SpineViewer";
 import { DiscPanel } from "./DiscPanel";
 import { departmentForDisc, discAria } from "./discCopy";
 import { layoutLabels, type PlacedLabel } from "./labels";
@@ -125,9 +126,18 @@ function Legend({ hint }: { hint: boolean }): JSX.Element {
 }
 
 /** W15-B4 L1: a phone's legend, in a row under the band (PlanStage), so it never covers the spine's lower vertebrae. */
+/** W18-C: what the live 3D brings (callouts, the legend) comes in with the discs' light, after the 3D has faded in over
+ *  the still, never at once. A ref callback, so it runs as the element mounts. */
+function fadeIn(el: HTMLElement | null): void {
+  if (el && typeof el.animate === "function") {
+    el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: RINGS_IN_MS, delay: CROSSFADE_MS, easing: "ease-in-out", fill: "backwards" });
+  }
+}
+
 export function LegendRow(): JSX.Element {
   return (
     <ul
+      ref={fadeIn}
       data-legend
       // W16-A, W17-S: PlanStage's --zoomed-out fades it at a zoomed department stop, where the whole spine isn't in view.
       style={{ opacity: "var(--zoomed-out, 1)" }}
@@ -205,7 +215,7 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
 
   if (!api) return null;
   return (
-    <div className="pointer-events-none absolute inset-0">
+    <div ref={fadeIn} className="pointer-events-none absolute inset-0">
       <Callouts labels={labels} callouts={callouts} />
       {BUTTON_DISCS.map((disc) => {
         const department = departmentForDisc(disc)!;

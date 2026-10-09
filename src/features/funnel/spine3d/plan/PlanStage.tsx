@@ -17,14 +17,15 @@ import { HeroPicture } from "../../plan/HeroPicture";
 import { useHtmlTheme } from "../../plan/useHtmlTheme";
 import type { SpineViewerApi } from "../api";
 import { meshFor, stillReasonOf, type FallbackReason } from "../rules";
-import { SpineViewer } from "../SpineViewer";
+import { FLIGHT_MS } from "../camera";
+import { CROSSFADE_MS, SpineViewer } from "../SpineViewer";
 import { LegendRow, SpineOverlay } from "./SpineOverlay";
 import {
   ACROSS, heroWordsOpacity, legendOpacity, needWordsOpacity, stageAnchors, stageAt, stageKeys, stageShown, wordsLeftOpacity,
-  type Span, type StageAnchor,
+  type Span, type StageAnchor, type StageKey,
 } from "./stagePath";
 import { DESKTOP_QUERY, type Variant } from "./targets";
-import { calloutsFor, LEGEND_STRIP_PX } from "./tour";
+import { calloutsFor, LEGEND_STRIP_PX, shiftXFor } from "./tour";
 
 /** The still fills the stage: under 1024 px a band in the phone lens window's shape (look.ts: 1290 × 1356), so the
  *  3D isn't stretched (W14-M); from 1024 px the screen under the bar. */
@@ -153,6 +154,36 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
     [discs, variant, width, height],
   );
   const onApi = useCallback((next: SpineViewerApi | null) => setApi(next), []);
+  // W18-C: the 3D starts at the hero's own framing, the one the still shows, so it never flies there after the swap.
+  // If the reader scrolled while it loaded, the still has slid with the stage (a translation): the 3D starts at the
+  // hero's framing moved the same way, by the lens shift (a translation too), and flies on once it has faded in.
+  const heroRef = useRef<{ key: StageKey; view: { width: number; height: number } } | null>(null);
+  heroRef.current = width > 0 && height > 0 && path[0] ? { key: path[0], view: { width, height } } : null;
+  const acrossRef = useRef<number | null>(null);
+  const startFraming = useCallback(() => {
+    const hero = heroRef.current;
+    if (!hero) return null;
+    const size = meshFor(window.innerWidth);
+    const across = acrossRef.current ?? hero.key.across;
+    const slid = shiftXFor(size, hero.view, across) - shiftXFor(size, hero.view, hero.key.across);
+    const { framing } = hero.key;
+    return { ...framing, shift: [framing.shift[0] + slid, framing.shift[1]] as const };
+  }, []);
+  // W18-C: the scroll moves the camera only once the 3D has faded in over the still, so the crossfade is between two
+  // pictures of the same pose, never a moving one over a still one.
+  const [cameraApi, setCameraApi] = useState<SpineViewerApi | null>(null);
+  useEffect(() => {
+    if (!api) {
+      setCameraApi(null);
+      return undefined;
+    }
+    if (CROSSFADE_MS <= 0) {
+      setCameraApi(api);
+      return undefined;
+    }
+    const timer = setTimeout(() => setCameraApi(api), CROSSFADE_MS);
+    return () => clearTimeout(timer);
+  }, [api]);
   // §9's plan_view: "motion" once the live spine runs, "still" with still_reason when it falls back.
   const onPhase = useCallback(
     (phase: "live" | "fallback", reason: FallbackReason | null) =>
@@ -173,6 +204,8 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
     let anchors: StageAnchor[] = [];
     /** The plan's end in page px, where the stage stops; unmeasured (no layout yet), it never ends. */
     let end = Number.POSITIVE_INFINITY;
+    /** The flight the stage starts when the 3D arrives: where to, and when it lands. */
+    let arrivalFlight: { to: string; until: number } | null = null;
     const measure = () => {
       const { line, travel, heroTravel } = readingSpace(variant, bandRef.current);
       anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel);
@@ -181,15 +214,23 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
     };
     const update = () => {
       frame = null;
-      const reduced = api?.reducedMotion ?? prefersReducedMotion();
+      const reduced = cameraApi?.reducedMotion ?? prefersReducedMotion();
       const key = stageAt(anchors, window.scrollY, reduced, path[0]);
-      api?.setPose({ turn: key.turn });
-      if (api && arrived.current !== api) {
-        arrived.current = api;
-        if (reduced) api.scrub(key.framing, key.hold);
-        else void api.flyTo({ kind: "framing", framing: key.framing }, { animate: true, hold: key.hold >= 1 });
+      acrossRef.current = key.across;
+      cameraApi?.setPose({ turn: key.turn });
+      if (cameraApi && arrived.current !== cameraApi) {
+        arrived.current = cameraApi;
+        if (reduced) cameraApi.scrub(key.framing, key.hold);
+        else {
+          void cameraApi.flyTo({ kind: "framing", framing: key.framing }, { animate: true, hold: key.hold >= 1 });
+          arrivalFlight = { to: JSON.stringify(key.framing), until: performance.now() + FLIGHT_MS };
+        }
+      } else if (arrivalFlight && performance.now() < arrivalFlight.until && JSON.stringify(key.framing) === arrivalFlight.to) {
+        // W18-C: a re-read with the stage where it was (the ResizeObserver's first call, a late layout) leaves the
+        // arrival flight alone; a scrub would end it and jump. A real scroll moves the key, and the scrub takes over.
       } else {
-        api?.scrub(key.framing, key.hold);
+        arrivalFlight = null;
+        cameraApi?.scrub(key.framing, key.hold);
       }
       const slide = Number(((key.across - ACROSS[variant].hero) * 100).toFixed(2));
       if (stillRef.current) stillRef.current.style.transform = `translateX(${slide}%)`;
@@ -235,7 +276,7 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
       resized?.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [api, path, variant]);
+  }, [cameraApi, path, variant]);
 
   const stage = (
     <div
@@ -250,7 +291,8 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
         className="relative overflow-hidden lg:sticky lg:top-[var(--nav-h,84px)] lg:h-[calc(100vh-var(--nav-h,84px))]"
       >
         <div data-soft-edges style={api ? SOFT_EDGES : undefined}>
-          <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={departments} onApi={onApi} onPhase={onPhase}>
+          <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={departments} onApi={onApi} onPhase={onPhase}
+            startFraming={startFraming} ringsIn>
             <div ref={stillRef} data-stage-still style={MOVING_STILL}>
               <HeroPicture className={STILL} />
             </div>

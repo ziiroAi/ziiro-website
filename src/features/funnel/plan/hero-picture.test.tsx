@@ -27,19 +27,24 @@ const sources = () =>
     srcset: s.getAttribute("srcset"),
   }));
 
-const phone = (ext: string) => `/spine/r17/light/hero/phone-828.${ext} 828w, /spine/r17/light/hero/phone-1170.${ext} 1170w`;
-const wide = (ext: string) =>
-  [1280, 1920, 2560].map((w) => `/spine/r17/light/hero/hero-${w}.${ext} ${w}w`).join(", ");
+const set = (name: string, widths: number[], ext: string) =>
+  widths.map((w) => `/spine/r18/light/hero/${name}-${w}.${ext} ${w}w`).join(", ");
+const phone = (ext: string) => set("phone", [585], ext);
+const tablet = (ext: string) => set("tablet", [1024, 1536], ext);
+const wide = (ext: string) => set("hero", [1280, 1920, 2880], ext);
 
 describe("HeroPicture (§6.6)", () => {
-  it("offers AVIF before WebP: the phone band under 600 px, the landscape still from 600 px", () => {
+  it("offers AVIF before WebP, one r18 still per stage shape: phone band, 600-1023 px band, landscape stage (W18-C)", () => {
     screen = render(<HeroPicture />);
-    const band = { media: "(max-width: 599px)", sizes: "100vw", width: "1170", height: "1230" };
-    const still = { media: "(min-width: 600px)", sizes: "100vw", width: "2560", height: "1440" };
+    const band = { media: "(max-width: 599px)", sizes: "100vw", width: "585", height: "615" };
+    const mid = { media: "(min-width: 600px) and (max-width: 1023px)", sizes: "100vw", width: "1536", height: "1614" };
+    const still = { media: "(min-width: 1024px)", sizes: "100vw", width: "2880", height: "1632" };
     expect(sources()).toEqual([
       { type: "image/avif", ...band, srcset: phone("avif") },
+      { type: "image/avif", ...mid, srcset: tablet("avif") },
       { type: "image/avif", ...still, srcset: wide("avif") },
       { type: "image/webp", ...band, srcset: phone("webp") },
+      { type: "image/webp", ...mid, srcset: tablet("webp") },
       { type: "image/webp", ...still, srcset: wide("webp") },
     ]);
   });
@@ -48,7 +53,7 @@ describe("HeroPicture (§6.6)", () => {
     screen = render(<HeroPicture />);
     const img = screen.container.querySelector("img");
     expect([img?.getAttribute("src"), img?.getAttribute("width"), img?.getAttribute("height"), img?.getAttribute("decoding"), img?.alt]).toEqual([
-      "/spine/r17/light/hero/hero-1920.webp", "2560", "1440", "async", copy("hx.alt.light"),
+      "/spine/r18/light/hero/hero-1920.webp", "2880", "1632", "async", copy("hx.alt.light"),
     ]);
     expect(img?.hasAttribute("fetchpriority")).toBe(false);
     expect(img?.hasAttribute("loading")).toBe(false);
@@ -60,7 +65,7 @@ describe("HeroPicture (§6.6)", () => {
       document.documentElement.dataset.theme = "dark";
     });
     expect(screen.container.querySelector("img")?.alt).toBe(copy("hx.alt.dark"));
-    expect(sources().every((s) => s.srcset?.includes("/spine/r17/dark/hero/"))).toBe(true);
+    expect(sources().every((s) => s.srcset?.includes("/spine/r18/dark/hero/"))).toBe(true);
   });
 
   it("can be mounted early, out of sight and out of the accessibility tree", () => {

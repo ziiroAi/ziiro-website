@@ -14,6 +14,8 @@ export interface SpineStart {
   size: MeshSize;
   meshUrl: string;
   levels: DiscLevels;
+  /** W18-C: the discs' light, 0 to 1 (scene.ts SceneOptions.glow); 1 when absent. */
+  glow?: number;
   view: View;
   /** W15-D2: S0 already has the mesh on its way; its bytes follow as a "mesh" message, so the worker doesn't fetch. */
   meshFromHost?: boolean;
@@ -26,6 +28,7 @@ export type ToWorker =
   | { type: "resize"; width: number; height: number; dpr: number }
   | { type: "theme"; theme: Theme }
   | { type: "levels"; levels: DiscLevels }
+  | { type: "glow"; glow: number }
   /** W15-D2: the bytes promised by meshFromHost, moved (not copied); null when S0's download failed. */
   | { type: "mesh"; buffer: ArrayBuffer | null }
   | { type: "dispose" };

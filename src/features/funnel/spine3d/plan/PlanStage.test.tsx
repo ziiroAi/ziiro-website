@@ -18,6 +18,9 @@ const viewer = vi.hoisted(() => ({
   closeup: undefined as boolean | undefined,
 }));
 vi.mock("../SpineViewer", () => ({
+  // No crossfade here: the camera follows the scroll as soon as the API arrives (the wait is SpineViewer's to test).
+  CROSSFADE_MS: 0,
+  RINGS_IN_MS: 0,
   SpineViewer: ({ children, onApi, onPhase, closeup }: {
     children: ReactNode;
     closeup?: boolean;
@@ -259,6 +262,22 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(api.flyTo.mock.calls[0][1]).toMatchObject({ animate: true });
     await scrollTo(arrival(0));
     expect(api.flyTo).toHaveBeenCalledTimes(1);
+    expect(api.scrub).toHaveBeenCalled();
+  });
+
+  it("lets a re-read with the stage where it was leave the arrival flight alone; a real scroll takes over (W18-C)", async () => {
+    vi.stubGlobal("matchMedia", (query: string) =>
+      ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
+    const api = fakeApi();
+    viewer.nextApi = api;
+    mount();
+    await scrollTo(0);
+    expect(api.flyTo).toHaveBeenCalledTimes(1);
+    // The ResizeObserver's first call (or a late layout) re-reads the same key: a scrub there would end the flight.
+    FakeResize.all.forEach((o) => o.resize(VIEW.width, VIEW.height));
+    await scrollTo(0);
+    expect(api.scrub).not.toHaveBeenCalled();
+    await scrollTo(arrival(0));
     expect(api.scrub).toHaveBeenCalled();
   });
 

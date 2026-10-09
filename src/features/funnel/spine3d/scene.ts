@@ -34,6 +34,9 @@ export interface SceneOptions {
   /** Absolute path of the crunched mesh. */
   meshUrl: string;
   levels: DiscLevels;
+  /** W18-C: how much of the discs' light shows, 0 to 1 (the bands, their spill and the mask fill); 1 when absent. The
+   *  plan starts at 0, the look of its still, and fades the light in after the handover. */
+  glow?: number;
   /** Aborted when the viewer leaves before the scene is built: the mesh download stops (W14-U L2). */
   signal?: AbortSignal;
   /** W15-D2: the mesh's bytes, fetched ahead by S0. Null or absent: the scene downloads meshUrl itself. */
@@ -66,6 +69,8 @@ export interface SpineScene {
   resize(width: number, height: number, dpr: number): void;
   setTheme(theme: Theme): void;
   setLevels(levels: DiscLevels): void;
+  /** W18-C: the discs' light, 0 to 1. Drawn on the next frame, so a caller fading it asks for frames itself. */
+  setGlow(glow: number): void;
   dispose(): void;
 }
 
@@ -83,6 +88,10 @@ const levelsOf = (levels: DiscLevels): number[] => DISCS.map((disc) => levels[di
 /** worker-3's mask fill: the GLB's one painted mask can't light discs apart, so it dims whenever any disc is quiet. */
 const fillOf = (levels: DiscLevels): number =>
   DISCS.every((disc) => levels[disc] >= LOOK.discLevels.lit) ? LOOK.discLevels.lit : LOOK.discLevels.quiet;
+/** The bands' levels with `share` of their light: a band's light goes as its level cubed (glow), so the levels take
+ *  the cube root, and the light, the spill included, scales by `share` exactly. */
+const dimmed = (levels: DiscLevels, share: number): number[] => levelsOf(levels).map((level) => level * Math.cbrt(share));
+const clampGlow = (glow: number | undefined): number => (glow === undefined || !Number.isFinite(glow) ? 1 : Math.min(Math.max(glow, 0), 1));
 
 /** In a worker there is no document, so GLTFLoader's TextureLoader (picked on Safari and old Firefox) can't make an
  *  <img>. This plugin swaps in ImageBitmapLoader, which works everywhere OffscreenCanvas does. */
@@ -231,6 +240,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
   const axis = vec(LOOK.model.axis).normalize();
   let theme = options.theme;
   let levels = options.levels;
+  let light = clampGlow(options.glow);
   let px = { width: options.width, height: options.height, ratio: Math.min(options.dpr, maxDprFor(size)) };
   let view: View | null = null;
   let composer: EffectComposer | null = null;
@@ -241,10 +251,11 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
     renderer.toneMappingExposure = t.exposure;
     const { quad, shared } = makeBackground(t, px.width / Math.max(px.height, 1));
     const rings = makeRings(t, GAPS, shared);
-    rings.setLevels(levelsOf(levels));
+    rings.setLevels(dimmed(levels, light));
     inner.add(rings.group);
     const bodies = loaded.parts.map(({ mesh, source }) => {
       const body = makeBody(t, source, source.emissiveMap ?? null, fillOf(levels), shared);
+      body.emissiveIntensity *= light;
       mesh.material = body;
       return body;
     });
@@ -271,6 +282,14 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
   };
 
   let dressing = dress();
+
+  const applyLight = () => {
+    dressing.rings.setLevels(dimmed(levels, light));
+    const intensity = LOOK.themes[theme].maskFill.intensity * glow(fillOf(levels)) * light;
+    dressing.bodies.forEach((body) => {
+      if (body.emissiveMap) body.emissiveIntensity = intensity;
+    });
+  };
 
   const rebuildComposer = () => {
     if (composer) disposeComposer(composer);
@@ -337,12 +356,12 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
     },
     setLevels: (next) => {
       levels = next;
-      dressing.rings.setLevels(levelsOf(levels));
-      const intensity = LOOK.themes[theme].maskFill.intensity * glow(fillOf(levels));
-      dressing.bodies.forEach((body) => {
-        if (body.emissiveMap) body.emissiveIntensity = intensity;
-      });
+      applyLight();
       redraw();
+    },
+    setGlow: (next) => {
+      light = clampGlow(next);
+      applyLight();
     },
     dispose: () => {
       undress(dressing);
