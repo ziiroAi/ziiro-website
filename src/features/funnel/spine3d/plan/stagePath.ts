@@ -17,9 +17,11 @@ import { END_MARGIN, shiftXFor, shiftYFor, shownTan } from "./tour";
 import { add, length, normalize, scale, sub, type Vec3 } from "./vec";
 
 /** Where the spine stands across the stage, from the left: right of the hero's words, left of block 2's, left or right
- *  of a department's text, left of the close's. A phone's band keeps it near its middle. */
+ *  of a department's text, left of the close's. A zoomed stop's disc stands a little in from either edge: its processes
+ *  reach about 0.24 of the width to its left, its body about 0.14 to its right (W17-S strips). A phone's band keeps it
+ *  near its middle. */
 export const ACROSS: Readonly<Record<Variant, { hero: number; need: number; left: number; right: number; close: number }>> = {
-  desktop: { hero: 0.74, need: 0.27, left: 0.27, right: 0.73, close: 0.27 },
+  desktop: { hero: 0.74, need: 0.27, left: 0.32, right: 0.78, close: 0.27 },
   phone: { hero: 0.5, need: 0.5, left: 0.4, right: 0.6, close: 0.5 },
 };
 /** Block 2's zoom on the hero (W15-B2): the owner reads a subtle change as none, so it shows the spine half as big
@@ -152,9 +154,10 @@ export function needWordsOpacity(across: number, variant: Variant): number {
 }
 
 /** Words in the left column show from where the model stands at WORDS_LEFT_FROM (none) to WORDS_LEFT_FULL_AT (all):
- *  the zoomed spine's left edge, about 0.1 left of that, is then clear of the 46 % column (W16-A, W17-S). */
-export const WORDS_LEFT_FROM = 0.62;
-export const WORDS_LEFT_FULL_AT = 0.68;
+ *  the zoomed spine's left edge (its processes), about 0.24 left of that, is then clear of the 46 % column (W16-A,
+ *  W17-S). */
+export const WORDS_LEFT_FROM = 0.7;
+export const WORDS_LEFT_FULL_AT = 0.76;
 
 /** How much of a left-column section's words show, 0 to 1: they wait for the spine to reach the right. Always on a
  *  phone. */

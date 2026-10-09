@@ -221,18 +221,18 @@ describe("the legend keeps off the words (W15-B4 M1, W17-S)", () => {
   it("shows on the hero and once the full spine stands left, and is gone while it travels", () => {
     expect(legendOpacity(ACROSS.desktop.hero, "desktop", 0)).toBe(1);
     [0.6, 0.5, NEED_WORDS_FROM, NEED_WORDS_FULL_AT].forEach((a) => expect(legendOpacity(a, "desktop", 0)).toBe(0));
-    expect(legendOpacity(ACROSS.desktop.left, "desktop", 0)).toBe(1);
+    expect(legendOpacity(ACROSS.desktop.close, "desktop", 0)).toBe(1);
   });
 
   it("is gone at a zoomed department stop: it names the whole spine's discs, and the spine may stand right", () => {
     expect(legendOpacity(ACROSS.desktop.left, "desktop", 1)).toBe(0);
     expect(legendOpacity(ACROSS.desktop.right, "desktop", 1)).toBe(0);
-    expect(legendOpacity(ACROSS.desktop.left, "desktop", 0.5)).toBeCloseTo(0.5, 5);
+    expect(legendOpacity(ACROSS.desktop.close, "desktop", 0.5)).toBeCloseTo(0.5, 5);
   });
 
   it("comes back only after block 2's words are fully in", () => {
     expect(LEGEND_BACK_FULL_AT).toBeLessThan(NEED_WORDS_FULL_AT);
-    expect(LEGEND_BACK_FULL_AT).toBeGreaterThan(ACROSS.desktop.left);
+    expect(LEGEND_BACK_FULL_AT).toBeGreaterThan(ACROSS.desktop.need);
   });
 
   it("always shows on a phone", () => {
@@ -279,11 +279,18 @@ describe("the words make way for the spine on either side (W15-B3, W16-A)", () =
   });
 
   it("has words fully gone before the zoomed spine's edge reaches their column (W16-R L1)", () => {
-    // The zoomed spine reaches about 0.12 of the stage's width either side of where it stands; the columns are 46 %.
-    const HALF = 0.12;
+    // The zoomed spine reaches about 0.24 of the stage's width left of where its disc stands (its processes) and 0.14
+    // right of it (the W17-S strips at 1440); the columns are 46 %.
+    const LEFT_REACH = 0.24;
+    const RIGHT_REACH = 0.14;
     const COLUMN = 0.46;
-    expect(wordsLeftOpacity(COLUMN + HALF, "desktop")).toBe(0);
-    expect(needWordsOpacity(1 - COLUMN - HALF, "desktop")).toBe(0);
+    expect(wordsLeftOpacity(COLUMN + LEFT_REACH, "desktop")).toBe(0);
+    expect(needWordsOpacity(1 - COLUMN - RIGHT_REACH, "desktop")).toBe(0);
+    // At their own stops the words are fully in and the spine's edge is clear of them.
+    expect(ACROSS.desktop.right - LEFT_REACH).toBeGreaterThan(COLUMN);
+    expect(ACROSS.desktop.left + RIGHT_REACH).toBeLessThan(1 - COLUMN);
+    // And the processes stay on screen at a left stop.
+    expect(ACROSS.desktop.left - LEFT_REACH).toBeGreaterThan(0.05);
     expect(wordsLeftOpacity(ACROSS.desktop.right, "desktop")).toBe(1);
     expect(needWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(1);
   });
