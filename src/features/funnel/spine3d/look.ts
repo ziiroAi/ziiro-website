@@ -203,13 +203,14 @@ export const LOOK = {
 
   /** W19: m5's 9 disc gaps, bottom to top, in its placed space (worker-3's w19 prep-m5.mjs: his painted glow's strongest
    *  texels, one window per disc, normals checked against the column; W19 r2: each normal along the column's local
-   *  tangent, the line through its neighbours' centres, so the rings sit level in their gaps, not as a helix). Disc k
-   *  is gap k. */
+   *  tangent, the line through its neighbours' centres, so the rings sit level in their gaps, not as a helix). W19-RING:
+   *  gaps 0, 2 and 3 re-centred inside their rims (worker-3's r2u fit; gap 2's groove 0.0606): measured on m5b, their
+   *  lit rings ran up to 12 % of their radius past the bone, and now every ring sits inside its rims. Disc k is gap k. */
   gaps: [
-    { centre: [0.03172, 0.05302, 0.1589], normal: [0.06883, 0.84105, -0.53656], radius: 0.06328, width: 0.022, grooveRadius: 0.04798 },
+    { centre: [0.03871, 0.04605, 0.14886], normal: [0.06883, 0.84105, -0.53656], radius: 0.06328, width: 0.022, grooveRadius: 0.04798 },
     { centre: [0.04012, 0.15566, 0.09342], normal: [-0.02679, 0.87412, -0.48496], radius: 0.07129, width: 0.022, grooveRadius: 0.05665 },
-    { centre: [0.02516, 0.26708, 0.04014], normal: [-0.10094, 0.91937, -0.38021], radius: 0.07704, width: 0.023, grooveRadius: 0.06342 },
-    { centre: [0.01252, 0.40704, -0.01054], normal: [-0.08464, 0.93689, -0.33922], radius: 0.0742, width: 0.023, grooveRadius: 0.06031 },
+    { centre: [0.04146, 0.26678, 0.03509], normal: [-0.10094, 0.91937, -0.38021], radius: 0.07361, width: 0.023, grooveRadius: 0.0606 },
+    { centre: [0.01522, 0.40206, -0.02498], normal: [-0.08464, 0.93689, -0.33922], radius: 0.0742, width: 0.023, grooveRadius: 0.06031 },
     { centre: [0.00181, 0.52554, -0.05344], normal: [-0.01635, 0.95849, -0.28466], radius: 0.07136, width: 0.022, grooveRadius: 0.05721 },
     { centre: [0.00858, 0.63806, -0.07915], normal: [0.07152, 0.98372, -0.16488], radius: 0.06794, width: 0.021, grooveRadius: 0.05505 },
     { centre: [0.01785, 0.74617, -0.09042], normal: [0.09583, 0.9904, -0.09959], radius: 0.06318, width: 0.02, grooveRadius: 0.05075 },
