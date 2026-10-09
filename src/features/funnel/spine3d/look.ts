@@ -87,6 +87,10 @@ export interface Gap {
   grooveRadius: number;
 }
 
+/** Each theme's exposure, shared with its page-matched background, which divides it out (W15-S). */
+const LIGHT_EXPOSURE = 1;
+const DARK_EXPOSURE = 0.95;  // W15-C3: dark mode comes from the materials and the world; exposure only trims the glare
+
 export const LOOK = {
   version: "w15c-1",
   source: "r17 (proto/look/A/r17-settings-{light,dark}.json, camera A/r13-cam-fit.json)",
@@ -127,7 +131,7 @@ export const LOOK = {
 
   themes: {
     light: {
-      background: { base: baseForPage(PAGE_RGB.light), vignette: 0, shaft: null, bokeh: null },
+      background: { base: baseForPage(PAGE_RGB.light, LIGHT_EXPOSURE), vignette: 0, shaft: null, bokeh: null },
       body: {
         colour: [0.06, 0.06, 0.062], metalness: 0.85, roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.4,
         normalScale: 0.6, envIntensity: 0.7,
@@ -151,13 +155,13 @@ export const LOOK = {
         edge: [1, 0.12, 0.004], mid: [1, 0.26, 0.015], core: [1, 0.42, 0.1], intensity: 4,
         spill: { colour: [1, 0.3, 0.03], intensity: 1.2, distanceK: 0.2 },
       },
-      toneMapping: "neutral", exposure: 1,
+      toneMapping: "neutral", exposure: LIGHT_EXPOSURE,
       // W15-A: 2, over the page-matched background (luminance 1.87), so the page itself never blooms; the rings sit far above
       bloom: { strength: 0.45, radius: 0.3, threshold: 2 },
     } as ThemeLook,
     dark: {
       background: {
-        base: baseForPage(PAGE_RGB.dark), vignette: 0,
+        base: baseForPage(PAGE_RGB.dark, DARK_EXPOSURE), vignette: 0,
         shaft: { from: [0.12, -0.05], to: [0.62, 0.62], width: 0.16, colour: [0.25, 0.32, 0.55], intensity: 0.12 },
         bokeh: { count: 22, seed: 7, size: [0.006, 0.022], colour: [0.45, 0.55, 0.9], intensity: 0.08 },
       },
@@ -185,7 +189,7 @@ export const LOOK = {
         edge: [0.15, 0.35, 1], mid: [0.4, 0.62, 1], core: [0.68, 0.8, 1], intensity: 5,      // still blue, softer
         spill: { colour: [0.5, 0.7, 1], intensity: 1, distanceK: 0.2 },
       },
-      toneMapping: "neutral", exposure: 0.95,
+      toneMapping: "neutral", exposure: DARK_EXPOSURE,
       bloom: { strength: 0.38, radius: 0.4, threshold: 6 },
     } as ThemeLook,
   },
