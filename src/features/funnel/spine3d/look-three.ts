@@ -112,16 +112,23 @@ const SCREEN_GLSL = "vec2 screenP(){ return vec2(gl_FragCoord.x / uRes.x, 1.0 - 
 /** The gaps' light leaking onto his metal: the spill (look.ts ring.spill) as emission on the body, falling off with the
  *  distance to each gap's rim in model space, so the 9 glow positions still read when the rings hide behind the processes
  *  at the side angles. Point lights did this badly: on this metal they only made specks. */
-const LEAK_GLSL = `uniform vec3 uLeakCol; uniform float uLeakRange; uniform float uGapLevel[${LOOK.gaps.length}];
-  float leakOne(vec3 m, vec3 c, vec3 n, float r, float level){
+/** W19-GHOST: the leak lights a face by how squarely it looks along the column, |normal . gap normal|, from nothing at
+ *  FROM to full at TO: the rims facing into a slit, never the outward faces of bone in front of the ring. */
+export const LEAK_FACING = { from: 0.55, to: 0.85 };
+export const LEAK_GLSL = `#define LEAK_FACING_FROM ${LEAK_FACING.from.toFixed(2)}
+#define LEAK_FACING_TO ${LEAK_FACING.to.toFixed(2)}
+uniform vec3 uLeakCol; uniform float uLeakRange; uniform float uGapLevel[${LOOK.gaps.length}];
+  float leakOne(vec3 m, vec3 nm, vec3 c, vec3 n, float r, float level){
     vec3 d = m - c; float ax = dot(d, n); float rad = length(d - n * ax);
     // a Gaussian band at the gap's level: lambda = r x range up and down the column, 2.5x that outwards, so it lands on
-    // the rims and the processes at that level while the bodies between gaps stay dark
+    // the rims at that level while the bodies between gaps stay dark
     vec2 q = vec2(ax, max(rad - r * 0.8, 0.0) / 2.5) / (r * uLeakRange);
-    return level * exp(-dot(q, q));
+    // W19-GHOST: only on faces that look into the slit (the rims, normal along the column). A lip or process standing
+    // in front of the ring faces outwards, and lit there the band drew the hidden ring's arc across the bone.
+    return level * exp(-dot(q, q)) * smoothstep(LEAK_FACING_FROM, LEAK_FACING_TO, abs(dot(nm, n)));
   }
-  vec3 leak(vec3 m){ float e = 0.0;
-${LOOK.gaps.map((g, k) => `    e += leakOne(m, vec3(${g.centre.join(", ")}), normalize(vec3(${g.normal.join(", ")})), ${g.radius}, uGapLevel[${k}]);`).join("\n")}
+  vec3 leak(vec3 m, vec3 nm){ float e = 0.0;
+${LOOK.gaps.map((g, k) => `    e += leakOne(m, nm, vec3(${g.centre.join(", ")}), normalize(vec3(${g.normal.join(", ")})), ${g.radius}, uGapLevel[${k}]);`).join("\n")}
     return uLeakCol * e; }`;
 
 
@@ -195,11 +202,11 @@ export function makeBody(t: ThemeLook, source: THREE.MeshStandardMaterial | null
     });
     sh.defines = { ...sh.defines, ...shared.defines };
     sh.vertexShader = sh.vertexShader
-      .replace("#include <common>", `#include <common>\n${FADE_GLSL}\nvarying float vS; varying vec3 vM;`)
-      .replace("#include <project_vertex>", "#include <project_vertex>\nvec3 fw = (modelMatrix * vec4(transformed, 1.0)).xyz; vS = axisCoord(fw); vM = (uToModel * vec4(fw, 1.0)).xyz;");
+      .replace("#include <common>", `#include <common>\n${FADE_GLSL}\nvarying float vS; varying vec3 vM; varying vec3 vNm;`)
+      .replace("#include <project_vertex>", "#include <project_vertex>\nvec3 fw = (modelMatrix * vec4(transformed, 1.0)).xyz; vS = axisCoord(fw); vM = (uToModel * vec4(fw, 1.0)).xyz;\nvNm = mat3(uToModel) * mat3(modelMatrix) * objectNormal;");
     sh.fragmentShader = sh.fragmentShader
-      .replace("#include <common>", `#include <common>\n${FADE_GLSL}\n${SCREEN_GLSL}\n${BG_GLSL}\n${LEAK_GLSL}\nvarying float vS; varying vec3 vM;`)
-      .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += leak(vM);")
+      .replace("#include <common>", `#include <common>\n${FADE_GLSL}\n${SCREEN_GLSL}\n${BG_GLSL}\n${LEAK_GLSL}\nvarying float vS; varying vec3 vM; varying vec3 vNm;`)
+      .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += leak(vM, normalize(vNm));")
       .replace("#include <opaque_fragment>", "#include <opaque_fragment>\ngl_FragColor.rgb = mix(bgColour(screenP()), gl_FragColor.rgb, endFade(vS));");
   };
   return m;
