@@ -71,3 +71,24 @@ describe("the funnel's colours (index §1.3, §11.4)", () => {
     ]);
   });
 });
+
+describe("S0's small print on a phone (W15-A, worker-2's W14-Y LOW)", () => {
+  const ms = (css: string, re: RegExp) => Number(css.match(re)?.[1] ?? NaN);
+  it("waits for S1's options to finish rising before it shows, so it never sits over one", () => {
+    const rise = flowCss.match(/\.f-intro-on \.f-s1 \{ animation: f-rise (\d+)ms[^}]*\+ (\d+)ms\)/);
+    expect(rise).not.toBeNull();
+    const riseEnd = Number(rise![1]) + Number(rise![2]);
+    const note = flowCss.match(/\.f-root:has\(\.f-intro-on\) \.f-note \{[^}]*\}/)?.[0] ?? "";
+    expect(note).toContain("both");
+    expect(ms(note, /\+ (\d+)ms\)/)).toBeGreaterThanOrEqual(riseEnd);
+  });
+});
+
+describe("S0's spine layer on desktop (W15-A, the owner's \"this line\")", () => {
+  it("has no CSS fade from 1200 px: the canvas's own edges are the page colour, and a fade drew them as bands", () => {
+    const wide = flowCss.slice(flowCss.indexOf("@media (min-width: 1200px)"));
+    const rule = wide.slice(0, wide.indexOf("\n}\n"));
+    expect(rule).toContain(".f-spine {");
+    expect(rule).not.toMatch(/mask-image:\s*linear-gradient/);
+  });
+});

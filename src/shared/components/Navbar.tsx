@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, 
 import { Link, useLocation } from "react-router-dom";
 import { calendlyUrl, copy, type FunnelStage } from "@/features/funnel/data/light";
 import { funnelSession } from "@/features/funnel/flow/session";
+import { ThemeToggle } from "@/features/funnel/flow/ThemeToggle";
 import { INTERIM_BOOKING_URL } from "@/features/pricing/entities/rates";
 import ZiiroMark from "@/shared/ui/ziiro-mark";
 import { CSS_EASE, DURATION, STAGGER, TRAVEL } from "@/shared/motion/tokens";
@@ -772,8 +773,12 @@ export default function Navbar() {
             inline styles, hence !important there), and the link turns into the
             outlined pill. The fade was reading as a washed-out grey button on a
             phone. The burger sits to its right on the same row. */}
-        {!logoOnly && (
         <div className="flex items-center gap-2.5">
+          {/* W15-A: the light/dark toggle, on `/` only, where the theme is the visitor's (D9). It stays while the
+              questions run, when the bar is otherwise just the logo. */}
+          {pathname === "/" && <ThemeToggle />}
+        {!logoOnly && (
+        <>
           <div
             className="site-nav-cta flex items-center"
             style={{
@@ -852,8 +857,9 @@ export default function Navbar() {
               />
             </span>
           </button>
-        </div>
+        </>
         )}
+        </div>
       </div>
     </nav>
   );

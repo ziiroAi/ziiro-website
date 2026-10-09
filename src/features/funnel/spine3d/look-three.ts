@@ -70,13 +70,17 @@ const BG_GLSL = `uniform vec3 bgBase, bgShaftCol, bgBokehCol; uniform float bgVi
     vec2 d = (screen - 0.5) * vec2(bgAspect, 1.0);
     vec3 c = bgBase * (1.0 - bgVignette * smoothstep(0.2, 1.1, length(d)));
     vec2 p = screen - bgOffset;
+    // W15-A: the shaft and the bokeh fade out before the canvas's own edges (screen, not the shifted p), so every edge
+    // is the page colour exactly and no page-side fade (or the canvas's edge) can show as a line.
+    vec2 e = smoothstep(vec2(0.0), vec2(BG_EDGE), screen) * smoothstep(vec2(0.0), vec2(BG_EDGE), 1.0 - screen); float edge = e.x * e.y;
+    vec3 glow = vec3(0.0);
     vec2 ab = bgShaftTo - bgShaftFrom; float k = clamp(dot(p - bgShaftFrom, ab) / dot(ab, ab), 0.0, 1.0);
     float off = length((p - (bgShaftFrom + ab * k)) * vec2(bgAspect, 1.0));
-    c += bgShaftCol * exp(-off * off / (bgShaftWidth * bgShaftWidth)) * (1.0 - k);
+    glow += bgShaftCol * exp(-off * off / (bgShaftWidth * bgShaftWidth)) * (1.0 - k);
     for (int i = 0; i < BG_BOKEH; i++) { if (i >= bgBokehCount) break;
       float r = length((p - bgBokeh[i].xy) * vec2(bgAspect, 1.0));
-      c += bgBokehCol * bgBokeh[i].w * (1.0 - smoothstep(bgBokeh[i].z * 0.8, bgBokeh[i].z, r)); }
-    return c;
+      glow += bgBokehCol * bgBokeh[i].w * (1.0 - smoothstep(bgBokeh[i].z * 0.8, bgBokeh[i].z, r)); }
+    return c + glow * edge;
   }`;
 
 /** What the body and rings share with the background and with each other: the background's uniforms, the end fade, and
@@ -150,7 +154,8 @@ export function makeBackground(t: ThemeLook, aspect: number): { quad: THREE.Mesh
     uToModel: { value: new THREE.Matrix4() }, uFade: { value: END_FADE }, uRes: { value: new THREE.Vector2(1, 1) },
     uGapLevel: { value: LOOK.gaps.map(() => 1) },             // glow(level) per gap, written by Rings.setLevels
   };
-  const defines = { BG_BOKEH: Math.max(count, 1) };
+  // BG_EDGE: how far in from each canvas edge (a share of its side) the shaft and the bokeh fade from nothing to full.
+  const defines = { BG_BOKEH: Math.max(count, 1), BG_EDGE: 0.22 };
   const mat = new THREE.ShaderMaterial({
     depthTest: false, depthWrite: false, defines, uniforms,
     vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 1.0, 1.0); }",
@@ -331,6 +336,23 @@ export function applyCamera(cam: THREE.PerspectiveCamera, lens: CameraLook, pose
 }
 
 /** Clamp HDR to a finite range and zero NaNs before bloom (gotcha 2: one bad pixel blooms into a black block). */
+/**
+ * W15-A: half a level of noise on the final sRGB colour, written into the output pass's own shader so it costs no extra
+ * full-screen pass. The dark background's shaft is a slow gradient only a few levels deep; written to an 8-bit canvas
+ * without this it comes out as visible steps. Interleaved gradient noise: grain, never a pattern.
+ */
+const DITHER_GLSL = `
+      gl_FragColor.rgb += (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) - 0.5) / 255.0; // w15Dither
+`;
+
+function withDither(pass: OutputPass): OutputPass {
+  const fs = pass.material.fragmentShader;
+  const end = fs.lastIndexOf("}");
+  pass.material.fragmentShader = fs.slice(0, end) + DITHER_GLSL + fs.slice(end);
+  pass.material.needsUpdate = true;
+  return pass;
+}
+
 const SANITISE = {
   uniforms: { tDiffuse: { value: null } },
   vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
@@ -372,7 +394,7 @@ export function makeComposer(
   const bloom = new UnrealBloomPass(new THREE.Vector2(width, height), t.bloom.strength, t.bloom.radius, t.bloom.threshold);
   composer.addPass(bloom);
   bloom.setSize(Math.round(width * bloomScale), Math.round(height * bloomScale));
-  composer.addPass(new OutputPass());
+  composer.addPass(withDither(new OutputPass()));
   return composer;
 }
 

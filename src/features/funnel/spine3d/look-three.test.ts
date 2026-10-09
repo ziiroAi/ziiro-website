@@ -1,5 +1,7 @@
 // (C) W14-K: the composer's GPU memory. Built against a stand-in renderer: three makes no GL calls until a frame.
 import * as THREE from "three";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { describe, expect, it, vi } from "vitest";
 import { LOOK } from "./look";
@@ -25,6 +27,16 @@ describe("makeComposer (W14-K)", () => {
   it("swaps its buffers an even number of times a frame, so every frame draws the scene into the multisampled one", () => {
     const swaps = build().passes.filter((pass) => pass.needsSwap).length;
     expect(swaps % 2).toBe(0);
+  });
+
+  it("dithers last, inside the output pass after the tone mapping and sRGB, with no extra pass (W15-A)", () => {
+    const passes = build().passes;
+    const output = passes.at(-1) as OutputPass;
+    expect(output).toBeInstanceOf(OutputPass);
+    const fs = output.material.fragmentShader;
+    expect(fs).toContain("w15Dither");
+    expect(fs.lastIndexOf("w15Dither")).toBeGreaterThan(fs.lastIndexOf("sRGBTransferOETF"));
+    expect(passes.filter((pass) => pass instanceof ShaderPass)).toHaveLength(1);   // SANITISE only
   });
 
   it("sizes the bloom from the canvas times bloomScale, not times the renderer's pixel ratio on top", () => {

@@ -52,7 +52,7 @@ const SURFACES = {
     "s8.l1", "s8.l1.chips", "s8.l2", "s8.l3", "s8.l3.one",
     "s9.err.sent", "s9.err.unsent", "g.reload",
   ]],
-  "copy/site.ts": ["SITE_COPY", ["nav.home.aria", "nav.mission", "nav.who", "nav.products", "nav.btn", "ph.nav.menu"]],
+  "copy/site.ts": ["SITE_COPY", ["nav.home.aria", "nav.mission", "nav.who", "nav.products", "nav.btn", "ph.nav.menu", "nav.theme.light", "nav.theme.dark"]],
   "copy/plan.ts": ["PLAN_COPY", [
     "hx.eyebrow", "hx.h1", "hx.h2", "hx.p", "hx.btn1", "hx.btn2",
     "hx.stat1.n", "hx.stat1.l", "hx.stat2.n", "hx.stat2.l", "hx.stat3.n", "hx.stat3.l",

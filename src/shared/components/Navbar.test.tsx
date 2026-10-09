@@ -4,6 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { copy, type FunnelStage } from "@/features/funnel/data/light";
+import { THEME_KEY, resetThemeChoice } from "@/features/funnel/flow/theme";
+import { stubLocalStorage } from "@/features/funnel/flow/test/memory-storage";
 import { INTERIM_BOOKING_URL } from "@/features/pricing/entities/rates";
 
 type Stage = FunnelStage;
@@ -70,7 +72,7 @@ describe("the header (§6.2 block 0)", () => {
     show("/");
     expect(links()).toHaveLength(1);
     expect(links()[0].getAttribute("aria-label")).toBe(copy("nav.home.aria"));
-    expect(host.querySelector("button")).toBeNull();
+    expect([...host.querySelectorAll("button")].map((el) => el.hasAttribute("data-theme-toggle"))).toEqual([true]);
   });
 
   it("brings the links and the pill once the plan is on screen, and hides them again on Back (§4.1)", () => {
@@ -125,6 +127,32 @@ describe("the header (§6.2 block 0)", () => {
     host.remove();
     show("/mission");
     expect(nav().dataset.backdrop).toBeUndefined();
+  });
+
+  it("has a light/dark toggle on / that switches the page live and remembers it (W15-A)", () => {
+    stubLocalStorage();
+    document.documentElement.setAttribute("data-funnel", "questions");
+    document.documentElement.setAttribute("data-theme", "dark");
+    show("/");
+    const toggle = () => host.querySelector<HTMLButtonElement>("button[data-theme-toggle]")!;
+    expect(toggle().getAttribute("aria-label")).toBe(copy("nav.theme.light"));
+    click(toggle());
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(window.localStorage.getItem(THEME_KEY)).toBe("light");
+    expect(toggle().getAttribute("aria-label")).toBe(copy("nav.theme.dark"));
+    click(toggle());
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    act(() => session.set("plan", ANANYA));
+    expect(host.querySelectorAll("button[data-theme-toggle]")).toHaveLength(1);
+    document.documentElement.removeAttribute("data-funnel");
+    document.documentElement.removeAttribute("data-theme");
+    vi.unstubAllGlobals();
+    resetThemeChoice();
+  });
+
+  it("has no toggle on the other pages, which stay dark (D9)", () => {
+    show("/mission");
+    expect(host.querySelector("button[data-theme-toggle]")).toBeNull();
   });
 
   it("keeps the site's colours on every other page", () => {

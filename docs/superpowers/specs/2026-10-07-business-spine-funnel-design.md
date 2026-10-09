@@ -58,7 +58,7 @@ Our recommendation stands for each of these.
 | # | Decision | Where |
 |---|---|---|
 | D8 | Everything happens at `/`, the plan included. There's no plan URL, so no plan turns up in search and nobody can open someone else's. A reload starts the questions again; the plan is in their inbox. "Welcome back" comes in phase 2. | §6.1 |
-| D9 | The page is dark when the visitor's device asks for dark. Otherwise it's dark from 17:00 to 04:59 by their own clock, the same edges as the evening greeting, and light the rest of the day. There's no theme switch in the first release. The questions and the plan follow this rule; the rest of the site stays dark until it's redesigned. | §4.1 |
+| D9 | (W15-A, the owner, 9 Oct) The page is light by day, 06:00 to 17:59 by the visitor's own clock, and dark at night, 18:00 to 05:59. The device's light or dark setting doesn't count. A small sun/moon toggle in the site header on `/` switches it, and the choice is kept per visitor (localStorage key `ziiro-theme`, read before first paint); a kept choice wins over the clock. The questions, the plan and the live 3D follow it at once. The rest of the site stays dark until it's redesigned, and shows no toggle. | §4.1 |
 | D10 | Outside India, the revenue question uses dollars: Under $250k · $250k–1M · $1–5M · $5–25M · $25M+. The lowest band makes the plan one size smaller and the top two make it one size bigger, the same as the rupee bands. A visitor counts as in India when their connection says so or, if that's unknown, when their clock is set to India time. | §4.3, §5.3 |
 | D11 | A small lead-gen plan (3 agents) spends all three on the problem itself, with no Back Office agent at that size. `agents-33.md` §3 left this to you. | §5.4 |
 | D12 | If someone names two problems, the plan covers the first. We save the second but don't show it, because the approved page has no place for it. | §5.2 |
@@ -123,7 +123,7 @@ Our recommendation stands for each of these.
 - **Progress.** Six segments, one per screen that asks something (S1, S2, S3 + S4, S5, S6, S7), with `g.progress` for screen readers. S1b shows no bar.
 - **Target:** the plan is on screen within 60 s of landing.
 - **Header:** the logo only, from S0 to S8 (D6, default, owner can veto). `g.about` sits under S1 as real page text. The site footer follows below the fold.
-- **Theme** (D9, default, owner can veto) and **greeting language** (§4.2) are set before the first paint, with no visible swap. Both use the same day-part edges by the visitor's clock. A greeting row with its own hours changes the greeting's words, never the theme.
+- **Theme** (D9) and **greeting language** (§4.2) are set before the first paint, with no visible swap. Both go by the visitor's clock: the theme turns light at 06:00 and dark at 18:00, unless the visitor has chosen one with the header toggle. A greeting row with its own hours changes the greeting's words, never the theme.
 - **Only the greeting is localised.** Every other line is in English (decision 9, rule 5).
 - **Nothing waits on the network between steps.** Each step is saved in the background (§9).
 - **Reduced motion:** no slides or fades; screens switch at once.
@@ -796,7 +796,7 @@ Target: WCAG 2.2 AA on `/`, the questions and the plan, and on the search pages,
 No tests exist in the repo today, and CI runs only CodeQL. The first release adds them (D25, default, owner can veto). The logic modules are written test-first.
 - **Unit tests (Vitest), at least 80 % line coverage on the funnel logic:**
   - The greeting picker: English and Hindi at every day-part edge; Hindi showing English until its `checked` flag is on; a language with no live row falling back to English. Each later row brings its own tests when it ships (right-to-left, its own hours).
-  - The theme rule: dark from 17:00 to 04:59 and light from 05:00 to 16:59 by the visitor's clock, with the edges at 04:59, 05:00, 16:59 and 17:00; a device set to dark wins.
+  - The theme rule: light from 06:00 to 17:59 and dark from 18:00 to 05:59 by the visitor's clock, with the edges at 05:59, 06:00, 17:59 and 18:00; a device set to dark doesn't count; a choice kept from the header toggle wins, and storage that throws falls back to the clock; the toggle switches the page and the 3D live and is kept for the next visit.
   - The tier rule: every team and revenue combination, in rupees and dollars.
   - The classifier: cleaning, a tapped chip deciding (chip A plus words that score high for B gives A), longest phrase first, the negation window and its clause breaks (D35), ties, the `unclassified` rule, and Ananya resolving to sales, B-convert.
   - The composition: the plan's agents, scroll order, every job count in the §5.4 table, lane replacement, and the lit discs of all 27 plans matching the 9 sets in §6.7.
@@ -851,7 +851,7 @@ From worker-4's `funnel/spec-arch.md`, with the manager's rulings and the review
 ```
 VISITOR ─▶ Vercel CDN: prerendered "/" (S0 + S1 in the HTML); every other page as today
   "/" inline head script (≤2 KB, runs before paint, does nothing on other paths):
-      OS asks for dark → dark, else 17:00–04:59 dark, 05:00–16:59 light · day-part · navigator.languages
+      kept choice (`ziiro-theme`) → that, else 06:00–17:59 light, 18:00–05:59 dark · day-part · navigator.languages
   funnel chunk:  S0–S8, tap cards, CSS transitions, keyword classifier on the device (decision 4)
   plan chunk:    the plan + its data (agents, jobs, copy lines, disc map), prefetched at S5
   spine files:   /spine/r17/{theme}/…, static, cached a year (§6.6): hero still at S5;
@@ -866,7 +866,7 @@ Calendly: "Book a call" → calendly.com/ziiro-work/30min?name=…&email=…
 - **Everything lives at `/`** (D8). S0 to S9 are client state on the homepage, with history entries as §4.1 sets out. In phase 1 a reload starts fresh, and the plan is in their inbox; phase 2 adds "Welcome back".
 - **S8 covers the write.** The S7 button sends `/lead`, and S8 plays its three lines, then holds the last one until the answer comes or 8 s pass (§4.3). The plan is computed on the device, so it never waits on the server for longer than that.
 - **The greeting is in their language at first paint.** An inline script placed right after the greeting element writes the visitor's line before the browser paints. Googlebot crawls with no language header, so it gets the English line. Every visitor and every bot receives the same HTML.
-- **Theme.** The questions and the plan read their own light and dark tokens from `data-theme`, set by the head script (D9). Browsers can't tell "light on purpose" from "no setting", so the clock decides for everyone whose device doesn't ask for dark. Every other page keeps `forcedTheme="dark"` for now.
+- **Theme.** The questions and the plan read their own light and dark tokens from `data-theme`, set by the head script (D9) and changed after that only by the header toggle (`flow/theme.ts`, `chooseTheme`). The clock decides for everyone who hasn't chosen. Every other page keeps `forcedTheme="dark"` for now. The live 3D paints its own background as the page colour exactly, worked back through its tone mapping (`spine3d/page-match.ts`), with no vignette, so its faded edges never show as a band or a box (W15-A).
 - **No new UI dependency.** One server dependency, `@neondatabase/serverless`, used only inside `api/`; it ships nothing to the browser.
 - **Data and copy go into the repo.** `.team/` is git-ignored. The builders copy `agents-33.json` (with `vertebra` renamed `number`), the bucket rules from `templates.md` §1–2, the disc map from §6.7 and the copy lines this spec places (§4.5, same IDs) into `src/features/funnel/data/`. The browser and `/api/funnel/lead` import the same module, so the email always says what the page says.
 

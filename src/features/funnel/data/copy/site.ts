@@ -6,4 +6,6 @@ export const SITE_COPY = {
   "nav.products": "Products",
   "nav.btn": "Book a call",
   "ph.nav.menu": "Menu",
+  "nav.theme.light": "Switch to light",
+  "nav.theme.dark": "Switch to dark",
 } as const;

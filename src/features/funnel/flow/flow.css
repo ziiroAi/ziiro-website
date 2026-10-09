@@ -93,6 +93,9 @@ html[data-funnel] .f-intro-on .f-intro {
 .f-intro-promise { max-width: 22rem; margin-top: 0.75rem; color: var(--funnel-muted); }
 html[data-funnel] .f-intro-on .f-head { animation: f-fade-up 350ms ease-out both; animation-delay: calc(var(--f-t, 0ms) + 1000ms); }
 html[data-funnel] .f-intro-on .f-s1 { animation: f-rise 450ms cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--f-t, 0ms) + 900ms); }
+/* W15-A: the small print sits at the foot of the screen while S1 rises through it, so on a phone it showed over the first
+   option for about a second (worker-2's W14-Y). It waits until the options have landed (900 + 450 ms). */
+html[data-funnel] .f-root:has(.f-intro-on) .f-note { animation: f-fade-up 300ms ease-out both; animation-delay: calc(var(--f-t, 0ms) + 1350ms); }
 
 /* W14-I: S0's live spine (LandingSpine), a fixed layer under S0's words and options. It never takes part in layout,
    so it never pushes the options down. isolate on S0 only: z-index -1 then sits under everything in .f-root yet over
@@ -126,9 +129,9 @@ html[data-funnel] .f-intro-on .f-s1 { animation: f-rise 450ms cubic-bezier(0.2, 
     top: var(--nav-h, 84px); right: auto; height: auto; width: var(--f-spine-w);
     left: calc(75vw + 10rem - 0.74 * var(--f-spine-w));
     pointer-events: auto;
-    /* the canvas paints r17's own background: fade its left and top edges into the page so no box edge shows */
-    mask-image: linear-gradient(to right, transparent, #000 45%), linear-gradient(to bottom, transparent, #000 10%);
-    mask-composite: intersect;
+    /* W15-A: no fade. The canvas paints the page colour exactly at its edges (spine3d/page-match.ts, the shader's edge
+       fade), and the old 45 % CSS fade drew the last few levels of difference as vertical bands. */
+    mask-image: none;
   }
   .f-spine[data-visible] { opacity: 1; }
 }
