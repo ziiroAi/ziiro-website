@@ -10,7 +10,7 @@ export interface CloseupLook {
   pivot: Vec3;
   /** Up its column. */
   axis: Vec3;
-  /** Its three disc gaps, bottom first (G0 is a thin sliver, mostly out of frame), for the glowing rings. */
+  /** Its three disc gaps, bottom first, for the glowing rings. */
   gaps: readonly Gap[];
 }
 
@@ -28,7 +28,8 @@ export const CLOSEUP: CloseupLook = {
   pivot: [-0.01063, 0.45389, 0.01375],
   axis: [-0.02204, 0.95675, -0.29008],
   gaps: [
-    { centre: [0.03889, 0.13584, 0.10384], normal: [-0.15412, 0.98539, -0.07252], radius: 0.07172, width: 0.0109, grooveRadius: 0.06535 },
+    // W16-C5: G0 moved 0.03 up its normal into the disc (it sat on the end plate) and widened like G1/G2 (worker-3).
+    { centre: [0.03427, 0.1654, 0.10166], normal: [-0.15412, 0.98539, -0.07252], radius: 0.07172, width: 0.045, grooveRadius: 0.06535 },
     { centre: [-0.00899, 0.34366, 0.0488], normal: [-0.08104, 0.9496, -0.30281], radius: 0.0708, width: 0.05124, grooveRadius: 0.06431 },
     { centre: [-0.00925, 0.56465, -0.0207], normal: [0.03703, 0.96036, -0.27629], radius: 0.07372, width: 0.05178, grooveRadius: 0.06029 },
   ],
