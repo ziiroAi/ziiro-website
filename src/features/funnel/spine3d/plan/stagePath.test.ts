@@ -9,7 +9,7 @@ import { turnedCentre } from "./facing";
 import {
   ACROSS, HERO_WORDS_GONE_AT, heroWordsOpacity, LEGEND_BACK_FULL_AT, legendOpacity, NEED_WORDS_FROM,
   NEED_WORDS_FULL_AT, needWordsOpacity, stageAnchors, stageAt, stageKeys, stageShown, STOP_VIEW_HEIGHT, stopSide,
-  WORDS_LEFT_FROM, WORDS_LEFT_FULL_AT, wordsLeftOpacity, type StageAnchor,
+  WORDS_LEFT_FROM, WORDS_LEFT_FULL_AT, wordsLeftOpacity, type StageAnchor, CUE_FADE_PX, scrollCueOpacity, TRAVEL,
 } from "./stagePath";
 
 const DESKTOP_VIEW = { width: 1440, height: 816 };
@@ -198,6 +198,54 @@ describe("anchoring the keyframes to the page (W15-B)", () => {
   it("never runs backwards when a section is shorter than the travel or starts above the line", () => {
     const anchors = stageAnchors(keys, [{ top: 100, bottom: 200 }, ...spans.slice(1)], 400, 300);
     anchors.slice(1).forEach((a, i) => expect(a.at).toBeGreaterThanOrEqual(anchors[i].at));
+  });
+});
+
+describe("a phone's travels read as moves too (W18-E, worker-2's review-w17 N2)", () => {
+  const keys = stageKeys(DISCS, "phone", "phone", PHONE_VIEW, 0);
+
+  it("gives every phone travel at least half a screen, like desktop's hero travel", () => {
+    expect(TRAVEL.phone.travel).toBeGreaterThanOrEqual(0.5);
+    expect(TRAVEL.phone.hero).toBeGreaterThanOrEqual(0.5);
+    expect(TRAVEL.phone.min).toBeGreaterThanOrEqual(0.5);
+    expect(TRAVEL.phone.heroRest).toBeGreaterThan(0);
+    expect(TRAVEL.desktop).toEqual({ travel: 0.75, hero: 0.5, min: 0, heroRest: 0 });
+  });
+
+  it("never squeezes a travel under the minimum: a short first section rests the hero briefly, then arrives a little late", () => {
+    // N2: block 2 reached the phone's line 400 px down and the hero travel was capped to 140 px of it.
+    const spans = [{ top: 900, bottom: 1500 }, ...DISCS.map((_, i) => ({ top: 1500 + 700 * i, bottom: 2200 + 700 * i })), { top: 4300, bottom: 5000 }];
+    const anchors = stageAnchors(keys, spans, 500, 422, 422, 422, 84);
+    const at = anchors.map((a) => a.at);
+    expect(at.slice(0, 3)).toEqual([0, 84, 506]); // block 2 arrives at 400 by the line, but its travel runs 422
+    for (let i = 1; i < at.length; i += 2) expect(at[i + 1] - at[i]).toBeGreaterThanOrEqual(422);
+    at.slice(1).forEach((a, i) => expect(a).toBeGreaterThanOrEqual(at[i]));
+  });
+
+  it("shows the hero at the top of the page under reduced motion: the cut into block 2 comes after the hero's rest", () => {
+    // A software renderer runs the stage as reduced motion; a travel starting at 0 cut the phone's hero away at once.
+    const spans = [{ top: 900, bottom: 1500 }, ...DISCS.map((_, i) => ({ top: 1500 + 700 * i, bottom: 2200 + 700 * i })), { top: 4300, bottom: 5000 }];
+    const anchors = stageAnchors(keys, spans, 500, 422, 422, 422, 84);
+    expect(stageAt(anchors, 0, true, keys[0])).toBe(keys[0]);
+    expect(stageAt(anchors, 60, true, keys[0])).toBe(keys[0]);
+    expect(stageAt(anchors, 100, true, keys[0])).toBe(keys[1]);
+  });
+
+  it("keeps the 80 % cap where a section is long enough, so the phone's stops still rest", () => {
+    const spans = [{ top: 1500, bottom: 2400 }, ...DISCS.map((_, i) => ({ top: 2400 + 900 * i, bottom: 3300 + 900 * i })), { top: 6000, bottom: 6700 }];
+    const anchors = stageAnchors(keys, spans, 500, 422, 422, 422);
+    expect(anchors.map((a) => a.at).slice(0, 5)).toEqual([0, 578, 1000, 1478, 1900]);
+  });
+});
+
+describe("the hero's scroll cue (W18-E, worker-2's review-w17 N1)", () => {
+  it("shows at the top of the page and is gone a short scroll down, before the first callout can reach it", () => {
+    expect(scrollCueOpacity(0)).toBe(1);
+    expect(scrollCueOpacity(CUE_FADE_PX / 2)).toBeCloseTo(0.5, 5);
+    expect(scrollCueOpacity(CUE_FADE_PX)).toBe(0);
+    expect(scrollCueOpacity(5000)).toBe(0);
+    // Clear at 72 px, over the callout by 144 on desktop (N1); the desktop hero sets off about 105 px down.
+    expect(CUE_FADE_PX).toBeLessThanOrEqual(72);
   });
 });
 

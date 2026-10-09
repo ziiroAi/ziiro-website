@@ -21,7 +21,8 @@ import { FLIGHT_MS } from "../camera";
 import { CROSSFADE_MS, SpineViewer } from "../SpineViewer";
 import { LegendRow, SpineOverlay } from "./SpineOverlay";
 import {
-  ACROSS, heroWordsOpacity, legendOpacity, needWordsOpacity, stageAnchors, stageAt, stageKeys, stageShown, wordsLeftOpacity,
+  ACROSS, heroWordsOpacity, legendOpacity, needWordsOpacity, scrollCueOpacity, stageAnchors, stageAt, stageKeys,
+  stageShown, TRAVEL, wordsLeftOpacity,
   type Span, type StageAnchor, type StageKey,
 } from "./stagePath";
 import { DESKTOP_QUERY, type Variant } from "./targets";
@@ -44,14 +45,6 @@ const MOVING_STILL: CSSProperties = { ...SOFT_EDGES, willChange: "transform" };
 const HIDDEN: CSSProperties = { visibility: "hidden" };
 /** On a phone the band covers the top of the screen, so a section is read this far into the space left below it. */
 const PHONE_LINE_SHARE = 1 / 3;
-/** How far the camera travels before the next keyframe, as a share of the screen's height: on desktop three quarters
- *  of it, so a zoom into a department reads as a move at normal scroll speed (W16-R: over 71 px the close-up dive
- *  passed in about 50 ms); on a phone, whose sections are shorter, 0.45 of it. stagePath caps it at 80 % of a section,
- *  so each one still rests while it's read. */
-const TRAVEL_SHARE: Readonly<Record<Variant, number>> = { desktop: 0.75, phone: 0.45 };
-/** The travel from the hero into block 2, which isn't a zoom into a department: half the reading space, as before, so
- *  the hero still rests at the top of the page (block 2 arrives about half a screen down). */
-const HERO_TRAVEL_SHARE = 0.5;
 /** Over this much zoom into a department the whole spine's overlay is hidden: its callouts and panels are laid out
  *  for the whole spine, and at a stop the spine may stand on the words' usual side. */
 const OVERLAY_GONE_AT = 0.01;
@@ -104,18 +97,29 @@ function useSize(ref: RefObject<HTMLElement>): { width: number; height: number }
   return size;
 }
 
+interface ReadingSpace {
+  line: number;
+  travel: number;
+  heroTravel: number;
+  minTravel: number;
+  heroRest: number;
+}
+
 /**
- * Where a section is read, in px from the top of the screen, and how far the camera travels before the next one.
- * Desktop: the screen's middle line. Phone: a third of the way down the space under the stuck band (W14-M2).
+ * Where a section is read, in px from the top of the screen, and how far the camera travels before the next one
+ * (stagePath's TRAVEL shares of the screen). Desktop: the screen's middle line. Phone: a third of the way down the
+ * space under the stuck band (W14-M2).
  */
-function readingSpace(variant: Variant, band: HTMLElement | null): { line: number; travel: number; heroTravel: number } {
+function readingSpace(variant: Variant, band: HTMLElement | null): ReadingSpace {
   const screen = window.innerHeight;
-  if (variant === "desktop" || !band) {
-    return { line: screen / 2, travel: screen * TRAVEL_SHARE.desktop, heroTravel: screen * HERO_TRAVEL_SHARE };
-  }
+  const shares = TRAVEL[variant === "desktop" || !band ? "desktop" : "phone"];
+  const travels = {
+    travel: screen * shares.travel, heroTravel: screen * shares.hero, minTravel: screen * shares.min, heroRest: screen * shares.heroRest,
+  };
+  if (variant === "desktop" || !band) return { line: screen / 2, ...travels };
   const stuck = (Number.parseFloat(getComputedStyle(band).top) || 0) + band.getBoundingClientRect().height;
   const below = Math.max(screen - stuck, 1);
-  return { line: stuck + below * PHONE_LINE_SHARE, travel: screen * TRAVEL_SHARE.phone, heroTravel: below * HERO_TRAVEL_SHARE };
+  return { line: stuck + below * PHONE_LINE_SHARE, ...travels };
 }
 
 /** The plan's sections in depth order, in page px. */
@@ -211,8 +215,8 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
     /** The flight the stage starts when the 3D arrives: where to, and when it lands. */
     let arrivalFlight: { to: string; until: number } | null = null;
     const measure = () => {
-      const { line, travel, heroTravel } = readingSpace(variant, bandRef.current);
-      anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel);
+      const { line, travel, heroTravel, minTravel, heroRest } = readingSpace(variant, bandRef.current);
+      anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel, minTravel, heroRest);
       const rect = root.getBoundingClientRect();
       end = rect.height > 0 ? rect.bottom + window.scrollY : Number.POSITIVE_INFINITY;
     };
@@ -255,6 +259,10 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
       root.toggleAttribute("data-words-right-off", wordsRight < 1);
       root.toggleAttribute("data-words-left-off", wordsLeft < 1);
       root.toggleAttribute("data-hero-hidden", heroWords === 0);
+      // W18-E N1: the scroll cue leaves on the first scroll, before the lowest callout, moving with the spine, meets it.
+      const cue = Number(scrollCueOpacity(window.scrollY).toFixed(3));
+      root.style.setProperty("--scroll-cue", String(cue));
+      root.toggleAttribute("data-cue-gone", cue === 0);
       // W16-A, W17-S: the phone's legend row names the whole spine's discs, so it leaves at a zoomed stop.
       bandRef.current?.style.setProperty("--zoomed-out", String(Number((1 - key.zoomed).toFixed(3))));
       if (bandRef.current) bandRef.current.dataset.scrolled = String(Math.round(window.scrollY));
