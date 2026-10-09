@@ -50,6 +50,11 @@ export interface ThemeLook {
     clearcoatRoughness: number;
     normalScale: number;   // his normal map (panel lines, cracks)
     envIntensity: number;
+    /** W17-M: take colour, roughness and metalness from the GLB's own maps (m4's machined black titanium); colour,
+     *  metalness and roughness above then only apply to a mesh without maps. */
+    maps?: boolean;
+    /** W17-M: multiplies the map's colour (maps only); dark pulls m4's warm graphite toward near-black graphite. */
+    mapTint?: Vec3;
   };
   /** His painted disc mask (the GLB's emissive texture) as a weak warm fill, scaled by the disc level. */
   maskFill: { colour: Vec3; intensity: number };
@@ -133,8 +138,8 @@ export const LOOK = {
     light: {
       background: { base: baseForPage(PAGE_RGB.light, LIGHT_EXPOSURE), vignette: 0, shaft: null, bokeh: null },
       body: {
-        colour: [0.06, 0.06, 0.062], metalness: 0.85, roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.4,
-        normalScale: 0.6, envIntensity: 0.7,
+        colour: [0.06, 0.06, 0.062], metalness: 0.85, roughness: 0.1, clearcoat: 0, clearcoatRoughness: 0.4,
+        normalScale: 1, envIntensity: 1.0, maps: true,   // W17-M: machined metal, no lacquer coat
       },
       maskFill: { colour: [1, 0.25, 0.02], intensity: 0 },  // W16-I: off, it spilled onto the bodies (W16-C2)
       env: {
@@ -143,6 +148,7 @@ export const LOOK = {
           { dir: [-0.6, 0.55, 0.6], size: [3, 1.2], colour: [1, 1, 1], intensity: 6 },
           { dir: [0.8, 0.2, 0.3], size: [0.8, 5], colour: [1, 1, 1], intensity: 4 },
           { dir: [0, 1, 0], size: [4, 4], colour: [1, 1, 1], intensity: 1.5 },
+          { dir: [0.25, -0.35, 0.9], size: [2.4, 0.7], colour: [0.5, 0.51, 0.53], intensity: 1.2 },  // W17-M: graphite lower front
         ],
         blur: 0.02,
       },
@@ -168,22 +174,23 @@ export const LOOK = {
       /** W15-C3 (owner: "faded and bad", "the light is so bright"): glossy bronze-black metal, like the light theme's
        *  body and the owner's close-up GLB, in place of the washed light silver. */
       body: {
-        colour: [0.13, 0.08, 0.05], metalness: 0.9, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.25,
-        normalScale: 0.7, envIntensity: 1.1,
+        colour: [0.13, 0.08, 0.05], metalness: 0.9, roughness: 0.14, clearcoat: 0, clearcoatRoughness: 0.25,
+        normalScale: 1, envIntensity: 1.4, maps: true, mapTint: [0.72, 0.75, 0.82],   // W17-M: machined metal, no lacquer coat
       },
       maskFill: { colour: [0.5, 0.65, 1], intensity: 0 },  // W16-I: off, as in light
       env: {
-        top: [0.35, 0.4, 0.52], horizon: [0.09, 0.105, 0.14], bottom: [0.01, 0.012, 0.018],
+        top: [0.42, 0.43, 0.46], horizon: [0.1, 0.102, 0.108], bottom: [0.01, 0.01, 0.011],   // W17-M: graphite neutral, a hair cool: not navy (r1), not brown (r2)
         panels: [
-          { dir: [-0.55, 0.6, 0.6], size: [3, 1.4], colour: [0.85, 0.9, 1], intensity: 2.2 },  // a narrow strip, not a wash
-          { dir: [0.85, 0.15, -0.4], size: [0.8, 5], colour: [0.75, 0.85, 1], intensity: 1.4 },
+          { dir: [-0.55, 0.6, 0.6], size: [3, 1.4], colour: [0.95, 0.96, 1], intensity: 2.2 },  // a narrow strip, not a wash
+          { dir: [0.85, 0.15, -0.4], size: [0.8, 5], colour: [0.9, 0.92, 0.96], intensity: 1.4 },
+          { dir: [0.3, 0.1, 0.95], size: [0.5, 3.5], colour: [0.8, 0.82, 0.86], intensity: 0.9 },  // W17-M: a silver-grey strip in front
         ],
         blur: 0.03,
       },
       lights: {
-        ambient: { colour: [0.6, 0.7, 1], intensity: 0.03 },
+        ambient: { colour: [0.9, 0.88, 0.85], intensity: 0.03 },
         key: { dir: [-0.6, 0.7, 0.5], colour: [0.92, 0.95, 1], intensity: 0.25 },
-        rim: { dir: [0.8, 0.2, -0.5], colour: [0.75, 0.85, 1], intensity: 0.45 },
+        rim: { dir: [0.8, 0.2, -0.5], colour: [0.95, 0.95, 0.95], intensity: 0.45 },
       },
       ring: {
         edge: [0, 0.3, 1], mid: [0.02, 0.48, 1], core: [0.35, 0.8, 1], intensity: 2.2,      // still blue, softer
