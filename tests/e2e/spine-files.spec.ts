@@ -11,7 +11,7 @@ import { probeSeesHardware, SWIFTSHADER } from "./support/gpu";
  * W15-M6: the plan's meshes (m1 and the W16-C close-up, PLAN_MESHES) are downloaded during the questions on a real
  * GPU, so the plan's 3D does not wait on them; they share the exemption, and its "after the first paint" rule.
  */
-const LIVE_MESH = /^\/spine\/3d\/(m2|closeup)\//;
+const LIVE_MESH = /^\/spine\/3d\/(m2|closeup2)\//;
 // WebGL on SwiftShader, as CI has it: S0's 3D then settles the way §6.6 says for a software renderer.
 test.use({ launchOptions: { args: SWIFTSHADER } });
 const S0_VIEWER = "[data-testid=landing-spine] [data-testid=spine-viewer]";
