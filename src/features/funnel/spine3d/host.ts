@@ -28,8 +28,6 @@ export interface SpineHandle {
 export interface StartOptions extends SpineStart {
   /** W15-D2: the mesh's bytes, already on their way (S0's prefetch). Null when that download failed. */
   meshBytes?: Promise<ArrayBuffer | null>;
-  /** W16-A with W15-M6: the close-up's bytes, warmed during the questions. Null when that download failed. */
-  closeupBytes?: Promise<ArrayBuffer | null>;
   /** The first frame is drawn. `gpu` is the renderer's name, so the viewer can pace its idle spin (W14-O). */
   onReady(boxes: DiscBox[], gpu: string): void;
   /** `frameMs`: the worker's own frame time, so the drive can judge a GPU it can't time from the main thread. */
@@ -37,7 +35,7 @@ export interface StartOptions extends SpineStart {
   onFail(reason: FallbackReason): void;
 }
 
-function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, meshBytes, closeupBytes, ...start }: StartOptions): SpineHandle {
+function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, meshBytes, ...start }: StartOptions): SpineHandle {
   const worker = new Worker(new URL("./spine.worker.ts", import.meta.url), { type: "module", name: "spine" });
   const send = (message: ToWorker, transfer: Transferable[] = []) => worker.postMessage(message, transfer);
   const picks = new Map<number, (disc: DiscId | null) => void>();
@@ -77,14 +75,11 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, meshByt
   worker.onerror = fail;
   worker.onmessageerror = fail;
   const offscreen = canvas.transferControlToOffscreen();
-  const handed = { ...(meshBytes && { meshFromHost: true }), ...(closeupBytes && { closeupFromHost: true }) };
+  const handed = meshBytes ? { meshFromHost: true } : {};
   send({ type: "init", canvas: offscreen, ...start, ...handed }, [offscreen]);
   // Moved, not copied: a mesh is megabytes. A worker already let go gets nothing.
   void meshBytes?.then((buffer) => {
     if (!disposed) send({ type: "mesh", buffer }, buffer ? [buffer] : []);
-  });
-  void closeupBytes?.then((buffer) => {
-    if (!disposed) send({ type: "closeup", buffer }, buffer ? [buffer] : []);
   });
   return {
     offThread: true,

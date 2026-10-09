@@ -104,8 +104,8 @@ export function createDrive(
    *  fixed when the hold began so a drag while held still turns it. */
   let scrubHold = 0;
   let holdTurn = 0;
-  /** W16-A: the plan stage's close-up weight and extra turn (setPose). */
-  let pose: StagePose = { closeup: 0, turn: 0 };
+  /** W16-A, W17-S: the plan stage's extra turn (setPose). */
+  let pose: StagePose = { turn: 0 };
   let focused = document.hasFocus();
   /** The previous animation frame while the loop runs, and the frame times until the GPU is judged. */
   let lastFrame = 0;
@@ -191,7 +191,6 @@ export function createDrive(
       yaw: orbit.yaw + holdTurn * scrubHold + pose.turn,
       pitch: orbit.pitch * (1 - scrubHold),
       framing,
-      closeup: pose.closeup,
     });
     if (stepped.moving || sweeping || flying || orbit.held) schedule();
     else {
@@ -310,7 +309,7 @@ export function createDrive(
       schedule();
     },
     setPose: (next) => {
-      pose = { closeup: Math.min(1, Math.max(0, next.closeup)), turn: next.turn };
+      pose = { turn: next.turn };
       schedule();
     },
     flyTo: (target, options) => {

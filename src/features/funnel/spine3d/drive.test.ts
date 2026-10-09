@@ -366,18 +366,16 @@ describe("scrubbed by the scroll (W15-B, the one plan stage)", () => {
     expect(yaws.at(-1)).not.toBe(yaws[0]);
   });
 
-  it("adds the stage's turn to the drawn yaw and sends its close-up weight with each frame (W16-A)", () => {
+  it("adds the stage's turn to the drawn yaw, and keeps it through a scrub (W16-A, W17-S)", () => {
     start({ spin: false });
     flush();
-    expect(handle.render.mock.calls.at(-1)![0].closeup ?? 0).toBe(0);
-    drive!.setPose({ closeup: 0.4, turn: 0.3 });
+    drive!.setPose({ turn: 0.3 });
     flush();
     expect(yaw()).toBeCloseTo(0.3, 9);
-    expect(handle.render.mock.calls.at(-1)![0].closeup).toBe(0.4);
     drive!.scrub(close, 1);
     flush();
     expect(yaw()).toBeCloseTo(0.3, 9);
-    expect(handle.render.mock.calls.at(-1)![0].closeup).toBe(0.4);
+    expect(Object.keys(handle.render.mock.calls.at(-1)![0])).not.toContain("closeup");
   });
 
   it("ends a flight in progress", async () => {

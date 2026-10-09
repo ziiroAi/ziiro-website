@@ -15,7 +15,6 @@ export interface DiscPickEvent {
 }
 
 export interface StagePose {
-  closeup: number;
   turn: number;
 }
 
@@ -34,8 +33,8 @@ export interface SpineViewerApi {
    */
   scrub(framing: Framing, hold: number): void;
   /**
-   * W16-A, the plan stage's dive: `closeup` from 0 (the full spine) to 1 (the owner's close-up) dissolves one into
-   * the other, and `turn` (radians) adds to the model's yaw. Kept until the next call; both start at 0.
+   * W16-A, W17-S: the plan stage's `turn` (radians), added to the model's yaw at a department stop. Kept until the
+   * next call; starts at 0.
    */
   setPose(pose: StagePose): void;
   /** Lights these departments' discs; the rest keep 12 % (D28). null lights all nine. */

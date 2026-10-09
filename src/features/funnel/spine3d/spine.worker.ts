@@ -42,8 +42,6 @@ let spine: SpineScene | null = null;
 let disposed = false;
 /** W15-D2: hands the scene the bytes the page moves over (a "mesh" message), or null so it fetches the mesh itself. */
 let meshArrived: ((buffer: ArrayBuffer | null) => void) | null = null;
-/** W16-A with W15-M6: the same for the close-up's bytes (a "closeup" message). */
-let closeupArrived: ((buffer: ArrayBuffer | null) => void) | null = null;
 /** Set while the scene is built, so dispose can stop the download and close once the half-built scene is let go. */
 let building: { abort: AbortController; done: Promise<void> } | null = null;
 /** W14-U M1: the latest view not yet drawn. Views that arrive faster than the GPU draws are dropped, not queued, so a
@@ -65,18 +63,11 @@ let latest: {
 async function init(message: Extract<ToWorker, { type: "init" }>, signal: AbortSignal): Promise<void> {
   try {
     if (!isOurMesh(message.meshUrl)) throw new Error("mesh-failed");
-    // W16-A: a close-up from anywhere else is dropped; the full spine stays.
-    const closeupUrl = message.closeupUrl && isOurMesh(message.closeupUrl) ? message.closeupUrl : undefined;
-    const closeupBytes = closeupUrl && message.closeupFromHost
-      ? new Promise<ArrayBuffer | null>((resolve) => (closeupArrived = resolve))
-      : undefined;
     const meshBytes = message.meshFromHost
       ? new Promise<ArrayBuffer | null>((resolve) => (meshArrived = resolve))
       : undefined;
     const built = await createSpineScene({
       ...message,
-      closeupUrl,
-      closeupBytes,
       meshBytes,
       width: clamp(message.width, 0, MAX_SIDE, 0),
       height: clamp(message.height, 0, MAX_SIDE, 0),
@@ -147,17 +138,11 @@ function handle(data: ToWorker): void {
       meshArrived?.(data.buffer);
       meshArrived = null;
       return;
-    case "closeup":
-      closeupArrived?.(data.buffer);
-      closeupArrived = null;
-      return;
     case "dispose":
       disposed = true;
       // A build still waiting for the page's bytes gets none, so it ends and the worker can close.
       meshArrived?.(null);
       meshArrived = null;
-      closeupArrived?.(null);
-      closeupArrived = null;
       spine?.dispose();
       spine = null;
       // A scene still being built holds a context already: stop its download and close once it has let go (W14-U L2).
