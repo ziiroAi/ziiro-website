@@ -75,7 +75,7 @@ export interface ThemeLook {
     spill: { colour: Vec3; intensity: number; distanceK: number };
   };
   toneMapping: "neutral" | "aces" | "agx";
-  exposure: number;        // 1 in both themes: dark mode comes from the materials and the world, never from exposure
+  exposure: number;        // light 1, dark 0.95 (W15-C3): dark mode comes from the materials and the world; exposure only trims the glare
   bloom: { strength: number; radius: number; threshold: number };
 }
 
@@ -88,7 +88,7 @@ export interface Gap {
 }
 
 export const LOOK = {
-  version: "w14b3-2",
+  version: "w15c-1",
   source: "r17 (proto/look/A/r17-settings-{light,dark}.json, camera A/r13-cam-fit.json)",
 
   /** D28: the plan's discs light fully; every other disc keeps 12 % of its glow (ring, spill and mask fill). */
@@ -161,30 +161,32 @@ export const LOOK = {
         shaft: { from: [0.12, -0.05], to: [0.62, 0.62], width: 0.16, colour: [0.25, 0.32, 0.55], intensity: 0.12 },
         bokeh: { count: 22, seed: 7, size: [0.006, 0.022], colour: [0.45, 0.55, 0.9], intensity: 0.08 },
       },
+      /** W15-C3 (owner: "faded and bad", "the light is so bright"): glossy bronze-black metal, like the light theme's
+       *  body and the owner's close-up GLB, in place of the washed light silver. */
       body: {
-        colour: [0.45, 0.47, 0.5], metalness: 1, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.06,
-        normalScale: 0.7, envIntensity: 1,
+        colour: [0.13, 0.08, 0.05], metalness: 0.9, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.25,
+        normalScale: 0.7, envIntensity: 1.1,
       },
       maskFill: { colour: [0.5, 0.65, 1], intensity: 0.8 },
       env: {
         top: [0.35, 0.4, 0.52], horizon: [0.09, 0.105, 0.14], bottom: [0.01, 0.012, 0.018],
         panels: [
-          { dir: [-0.55, 0.6, 0.6], size: [5, 4], colour: [0.85, 0.9, 1], intensity: 2.6 },
-          { dir: [0.85, 0.15, -0.4], size: [1.5, 5], colour: [0.75, 0.85, 1], intensity: 1.4 },
+          { dir: [-0.55, 0.6, 0.6], size: [3, 1.4], colour: [0.85, 0.9, 1], intensity: 2.2 },  // a narrow strip, not a wash
+          { dir: [0.85, 0.15, -0.4], size: [0.8, 5], colour: [0.75, 0.85, 1], intensity: 1.4 },
         ],
         blur: 0.03,
       },
       lights: {
-        ambient: { colour: [0.6, 0.7, 1], intensity: 0.04 },
-        key: { dir: [-0.6, 0.7, 0.5], colour: [0.92, 0.95, 1], intensity: 0.6 },
-        rim: { dir: [0.8, 0.2, -0.5], colour: [0.75, 0.85, 1], intensity: 0.8 },
+        ambient: { colour: [0.6, 0.7, 1], intensity: 0.03 },
+        key: { dir: [-0.6, 0.7, 0.5], colour: [0.92, 0.95, 1], intensity: 0.25 },
+        rim: { dir: [0.8, 0.2, -0.5], colour: [0.75, 0.85, 1], intensity: 0.45 },
       },
       ring: {
-        edge: [0.15, 0.35, 1], mid: [0.4, 0.62, 1], core: [0.68, 0.8, 1], intensity: 7,
-        spill: { colour: [0.5, 0.7, 1], intensity: 2.4, distanceK: 0.2 },
+        edge: [0.15, 0.35, 1], mid: [0.4, 0.62, 1], core: [0.68, 0.8, 1], intensity: 5,      // still blue, softer
+        spill: { colour: [0.5, 0.7, 1], intensity: 1, distanceK: 0.2 },
       },
-      toneMapping: "neutral", exposure: 1,
-      bloom: { strength: 0.45, radius: 0.4, threshold: 6 },
+      toneMapping: "neutral", exposure: 0.95,
+      bloom: { strength: 0.38, radius: 0.4, threshold: 6 },
     } as ThemeLook,
   },
 
