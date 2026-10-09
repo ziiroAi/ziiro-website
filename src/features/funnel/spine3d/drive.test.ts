@@ -112,7 +112,7 @@ describe("the loop after a pause (T1)", () => {
     flush(2);
     onScreen(true);
     flush(3);
-    expect(yaw()).toBeGreaterThan(before);
+    expect(yaw()).not.toBe(before); // W15-C4: the idle sweep moves on (it no longer only turns one way)
     expect(queue.size).toBe(1);
   });
 
@@ -124,7 +124,7 @@ describe("the loop after a pause (T1)", () => {
     flush(2);
     setHidden(false);
     flush(3);
-    expect(yaw()).toBeGreaterThan(before);
+    expect(yaw()).not.toBe(before);
   });
 
   it("still turns on a drag, draws on a wake and lands a flight after both", async () => {
@@ -159,7 +159,7 @@ describe("a tour stop holds the side view (W14-X)", () => {
   it("turns back to the side view over the flight, holds still there, and spins again after a flight without hold", async () => {
     start();
     flush(200);
-    expect(yaw()).toBeGreaterThan(0.3);
+    expect(Math.abs(yaw())).toBeGreaterThan(0.1); // W15-C4: the sweep has turned it off the side view (either way)
     const arrived = drive!.flyTo({ kind: "overview" }, { hold: true });
     flush(80);
     await arrived;
@@ -170,7 +170,7 @@ describe("a tour stop holds the side view (W14-X)", () => {
     expect(handle.render.mock.calls.length, "no idle spin at a stop").toBe(drawn);
     void drive!.flyTo({ kind: "overview" });
     flush(80);
-    expect(yaw()).toBeGreaterThan(0);
+    expect(yaw()).not.toBe(0);
   });
 
   it("turns the short way round, to the nearest whole turn", async () => {
@@ -296,7 +296,7 @@ describe("reduced motion turned on while it runs (T8)", () => {
     const still = yaw();
     drive!.setMotion({ spin: true, inertia: true });
     flush(3);
-    expect(yaw()).toBeGreaterThan(still);
+    expect(yaw()).not.toBe(still);
   });
 });
 
@@ -348,7 +348,7 @@ describe("scrubbed by the scroll (W15-B, the one plan stage)", () => {
     flush(3);
     const before = yaw();
     flush(30);
-    expect(yaw()).toBeGreaterThan(before);
+    expect(yaw()).not.toBe(before);
   });
 
   it("ends a flight in progress", async () => {
@@ -361,5 +361,64 @@ describe("scrubbed by the scroll (W15-B, the one plan stage)", () => {
     expect(landed).toBe(true);
     flush();
     expect(framingNow()).toEqual(close);
+  });
+});
+
+describe("the idle motion never shows the back (W15-C4)", () => {
+  const DEG = Math.PI / 180;
+  const wrapped = (y: number): number => ((((y / DEG + 180) % 360) + 360) % 360) - 180;
+  const drawn = (from = 0) => handle.render.mock.calls.slice(from).map((call) => call[0].yaw as number);
+  /** A drag of px pixels with no fling: 390 px turns it 180° (orbit.ts). */
+  function dragTo(px: number) {
+    drive!.setMotion({ spin: true, inertia: false });
+    pointer("pointerdown", 0);
+    pointer("pointermove", px);
+    pointer("pointerup", px);
+  }
+
+  it("never enters 45°-135° in 120 s of idle", () => {
+    start();
+    flush(7500); // 120 s at 16 ms
+    const yaws = drawn();
+    expect(yaws.filter((y) => wrapped(y) > 45 && wrapped(y) < 135)).toEqual([]);
+    expect(Math.min(...yaws.map(wrapped))).toBeLessThan(-140);
+    expect(Math.max(...yaws.map(wrapped))).toBeGreaterThan(25);
+  });
+
+  it("after a release at 90° eases back to +30° without crossing the back, then sweeps", () => {
+    start();
+    dragTo(195);
+    flush();
+    expect(wrapped(yaw())).toBeCloseTo(90, 0); // the first idle frame after the release has already moved it a hair
+    const from = handle.render.mock.calls.length;
+    flush(3750); // 60 s
+    const yaws = drawn(from);
+    expect(yaws.every((y) => wrapped(y) <= 90 + 1e-9)).toBe(true);
+    expect(yaws.some((y) => Math.abs(wrapped(y) - 30) < 0.1)).toBe(true);
+    expect(Math.min(...yaws.map(wrapped))).toBeLessThan(-140);
+  });
+
+  it("after a release at 120° turns on up through 180° into the window, never back through 90°", () => {
+    start();
+    dragTo(260);
+    flush();
+    expect(wrapped(yaw())).toBeCloseTo(120, 0);
+    const from = handle.render.mock.calls.length;
+    flush(3750);
+    expect(drawn(from).filter((y) => wrapped(y) > 45 && wrapped(y) < 90)).toEqual([]);
+  });
+
+  it("a drag still turns it anywhere, the back included", () => {
+    start({ spin: false });
+    pointer("pointerdown", 0);
+    pointer("pointermove", 195);
+    flush();
+    expect(wrapped(yaw())).toBeCloseTo(90, 6);
+  });
+
+  it("under reduced motion there is no idle yaw at all", () => {
+    start({ spin: false });
+    flush(600);
+    expect(drawn().every((y) => y === 0)).toBe(true);
   });
 });

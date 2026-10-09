@@ -239,7 +239,7 @@ describe("SpineViewer (W14-C)", () => {
     ready();
     flush(3);
     const spun = lastView().yaw;
-    expect(spun).toBeGreaterThan(0);
+    expect(spun).not.toBe(0); // W15-C4: the idle sweep starts down towards the front, not always up
     pointer("pointerdown", 100);
     pointer("pointermove", 160);
     flush();
