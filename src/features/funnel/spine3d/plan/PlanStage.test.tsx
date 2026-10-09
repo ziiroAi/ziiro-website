@@ -205,13 +205,36 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     viewer.nextApi = api;
     const { stage } = mount();
     await scrollTo(arrival(0));
-    expect(lastScrub(api)).toEqual([keys()[1].framing, 1]);
+    expect(lastScrub(api)).toEqual([keys()[1].framing, 0]); // block 2 still sways (W15-B2, W17-S)
     expect(stage.dataset.stop).toBe("overview");
     await scrollTo(arrival(1) + 10);
     expect(lastScrub(api)).toEqual([keys()[2].framing, 1]);
     expect(stage.dataset.stop).toBe("G04");
     await scrollTo(arrival(3) + 10);
     expect(stage.dataset.stop).toBe("G06");
+  });
+
+  it("spreads each zoom over most of a screen of scroll, so it reads as a move (W16-R's bar)", async () => {
+    const api = fakeApi();
+    viewer.nextApi = api;
+    mount();
+    await scrollTo(arrival(1) - window.innerHeight * 0.6); // into department 1's zoom
+    expect(lastScrub(api)![0]).not.toEqual(keys()[1].framing);
+  });
+
+  it("makes faded words let go of the pointer, so the discs answer under them, at the close too (W16-R M1)", async () => {
+    viewer.nextApi = fakeApi();
+    const { stage } = mount();
+    const root = stage.parentElement!.closest<HTMLElement>(".group\\/stage")!;
+    await scrollTo(arrival(1)); // department 1: spine left, words right
+    expect(root.hasAttribute("data-words-right-off")).toBe(false);
+    expect(root.hasAttribute("data-words-left-off")).toBe(true);
+    await scrollTo(arrival(2)); // department 2: spine right, words left
+    expect(root.hasAttribute("data-words-right-off")).toBe(true);
+    expect(root.hasAttribute("data-words-left-off")).toBe(false);
+    await scrollTo(arrival(STOPS.length + 1)); // the close: spine left, the left column's words gone
+    expect(root.hasAttribute("data-words-left-off")).toBe(true);
+    expect(root.hasAttribute("data-words-right-off")).toBe(false);
   });
 
   it("moves part way between two keyframes, never jumping straight to the next", async () => {
@@ -243,12 +266,13 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     const api = fakeApi(true);
     viewer.nextApi = api;
     mount();
-    // W15-B4 M3: the cut comes as the travel starts (half a screen before block 2 reaches the line), not at its end.
-    const travel = window.innerHeight * 0.5;
-    await scrollTo(arrival(0) - travel - 1);
-    expect(lastScrub(api)).toEqual([keys()[0].framing, 0]);
-    await scrollTo(arrival(0) - travel + 1);
-    expect(lastScrub(api)).toEqual([keys()[1].framing, 1]);
+    // W15-B4 M3: the cut comes as the travel starts (3/4 of a screen before department 1 reaches the line), not at
+    // its end.
+    const travel = window.innerHeight * 0.75;
+    await scrollTo(arrival(1) - travel - 1);
+    expect(lastScrub(api)).toEqual([keys()[1].framing, 0]);
+    await scrollTo(arrival(1) - travel + 1);
+    expect(lastScrub(api)).toEqual([keys()[2].framing, 1]);
   });
 
   it("reads only the scroll position per frame; the sections are measured again on a resize (W15-B4 L3)", async () => {
@@ -283,18 +307,18 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(legends[0].textContent).toContain(copy("sp.legend.today"));
   });
 
-  it("fades a phone's legend row out over the close-up, and back at the close (W16-A)", async () => {
+  it("fades a phone's legend row out at a zoomed department stop, and back at the close (W17-S)", async () => {
     vi.stubGlobal("matchMedia", (query: string) =>
       ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
     viewer.nextApi = fakeApi();
     const { stage } = mount();
     const row = () => stage.querySelector<HTMLElement>("[data-legend]")!;
     await scrollTo(0);
-    expect(stage.style.getPropertyValue("--closeup-out")).toBe("1");
-    expect(row().style.opacity).toBe("var(--closeup-out, 1)");
+    expect(stage.style.getPropertyValue("--zoomed-out")).toBe("1");
+    expect(row().style.opacity).toBe("var(--zoomed-out, 1)");
     await scrollTo(3000); // a department, whatever the phone's reading line
     expect(stage.dataset.stop).not.toBe("overview");
-    expect(stage.style.getPropertyValue("--closeup-out")).toBe("0");
+    expect(stage.style.getPropertyValue("--zoomed-out")).toBe("0");
   });
 
   it("masks the moving still itself, on its own layer, while the 3D isn't live, and the canvas once it is (W15-B4 M5 + L2)", async () => {
@@ -364,14 +388,14 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(root.style.getPropertyValue("--words-right")).toBe("1");
   });
 
-  it("shows each department's words on the side the close-up isn't on (W16-A)", async () => {
+  it("shows each department's words on the side the spine isn't on (W16-A, W17-S)", async () => {
     mount();
     const root = view!.container.firstElementChild as HTMLElement;
     const sides = () => [root.style.getPropertyValue("--words-left"), root.style.getPropertyValue("--words-right")];
     await scrollTo(arrival(1));
-    expect(sides()).toEqual(["0", "1"]); // department 1: close-up left, words right
+    expect(sides()).toEqual(["0", "1"]); // department 1: spine left, words right
     await scrollTo(arrival(2));
-    expect(sides()).toEqual(["1", "0"]); // department 2: close-up right, words left
+    expect(sides()).toEqual(["1", "0"]); // department 2: spine right, words left
     await scrollTo(arrival(3));
     expect(sides()).toEqual(["0", "1"]);
   });
@@ -393,43 +417,50 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(screen.style.getPropertyValue("--spine-across")).toBe(String(ACROSS.desktop.right));
   });
 
-  it("hides the legend while the spine travels and over the close-up, and shows it under the full spine (W15-B4 M1, W16-A)", async () => {
+  it("hides the legend while the spine travels and at a zoomed stop, and shows it under the whole spine (W15-B4 M1, W17-S)", async () => {
     const { stage } = mount();
     const screen = stage.querySelector<HTMLElement>("[data-stage-screen]")!;
     await scrollTo(0);
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
     await scrollTo(arrival(0) - window.innerHeight / 4); // halfway through the travel to block 2
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("0");
-    await scrollTo(arrival(0));
+    await scrollTo(arrival(0)); // block 2: the whole spine on the left, its legend back under it
+    expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
+    await scrollTo(arrival(1)); // a department: zoomed in on its disc
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("0");
     await scrollTo(arrival(STOPS.length + 1));
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
   });
 
-  it("asks the viewer for the owner's close-up (W16-A)", () => {
+  it("asks the viewer for no close-up: the big spine is the only model (W17-S)", () => {
     mount();
-    expect(viewer.closeup).toBe(true);
+    expect(viewer.closeup).toBeUndefined();
   });
 
-  it("dives into the close-up: each frame sends the keyframe's close-up weight and turn (W16-A)", async () => {
+  it("turns the spine a little at each department stop, by its side, and back to none at the close (W17-S)", async () => {
     const api = fakeApi();
     viewer.nextApi = api;
     mount();
     await scrollTo(0);
-    expect(api.setPose).toHaveBeenLastCalledWith({ closeup: 0, turn: 0 });
+    expect(api.setPose).toHaveBeenLastCalledWith({ turn: 0 });
     await scrollTo(arrival(0));
-    expect(api.setPose).toHaveBeenLastCalledWith({ closeup: 1, turn: keys()[1].turn });
+    expect(api.setPose).toHaveBeenLastCalledWith({ turn: 0 });
+    await scrollTo(arrival(1));
+    expect(api.setPose).toHaveBeenLastCalledWith({ turn: keys()[2].turn });
     await scrollTo(arrival(2));
-    expect(api.setPose).toHaveBeenLastCalledWith({ closeup: 1, turn: keys()[3].turn });
+    expect(api.setPose).toHaveBeenLastCalledWith({ turn: keys()[3].turn });
+    expect(keys()[3].turn).not.toBe(keys()[2].turn);
     await scrollTo(arrival(STOPS.length + 1));
-    expect(api.setPose).toHaveBeenLastCalledWith({ closeup: 0, turn: 0 });
+    expect(api.setPose).toHaveBeenLastCalledWith({ turn: 0 });
   });
 
-  it("hides the full spine's buttons, callouts and panels over the close-up (W16-A)", async () => {
+  it("hides the whole spine's buttons, callouts and panels at a zoomed department stop (W17-S)", async () => {
     viewer.nextApi = fakeApi();
     const { stage } = mount();
     const overlay = () => stage.querySelector<HTMLElement>("[data-overlay]")!;
     await scrollTo(0);
+    expect(overlay().style.visibility).toBe("");
+    await scrollTo(arrival(0));
     expect(overlay().style.visibility).toBe("");
     await scrollTo(arrival(1));
     expect(overlay().style.visibility).toBe("hidden");

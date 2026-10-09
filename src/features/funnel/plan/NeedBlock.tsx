@@ -9,7 +9,7 @@ const MICRO = "font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--f
 /** W15-B3: from 1024 px PlanStage shows these words (--words-right, 0 to 1) only once the spine has left their
  *  column, so the spine never crosses them. Opacity only: block 2 has no controls, and a screen reader must still
  *  reach it. */
-const WAITS_FOR_SPINE = "lg:opacity-[var(--words-right,1)]";
+const WAITS_FOR_SPINE = "lg:opacity-[var(--words-right,1)] lg:group-data-[words-right-off]/stage:pointer-events-none";
 
 export function NeedBlock({ view }: { view: PlanViewModel }): JSX.Element {
   return (

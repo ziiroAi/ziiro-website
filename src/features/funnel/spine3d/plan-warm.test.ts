@@ -1,7 +1,7 @@
 // (C) W15-M6: the plan's mesh downloads during the questions on a real GPU, so the plan's 3D does not wait on it.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetWarmMeshes, takeWarmMesh } from "./mesh-warm";
-import { CLOSEUP_MESH_URLS, MESH_URLS, PLAN_MESHES } from "./mesh-urls";
+import { MESH_URLS, PLAN_MESHES } from "./mesh-urls";
 import { SPINE_WORKER_SCRIPT, forgetWarmFiles, warmPlanMesh, type WarmEnv } from "./plan-warm";
 
 const bytes = new Uint8Array([4, 5, 6]).buffer;
@@ -93,30 +93,29 @@ describe("warming the plan's mesh during the questions (W15-M6)", () => {
     expect(probes).toBe(0);
   });
 
-  it("warms the plan's meshes from the constants: m1 first, then the owner's close-up (W16-C), one size class each", () => {
-    expect(PLAN_MESHES).toEqual([MESH_URLS, CLOSEUP_MESH_URLS]);
-    expect(CLOSEUP_MESH_URLS).toEqual({ phone: "/spine/3d/closeup2/phone.glb", desktop: "/spine/3d/closeup2/desktop.glb" });
+  it("warms only the big spine: the plan has no close-up any more (W17-S)", () => {
+    expect(PLAN_MESHES).toEqual([MESH_URLS]);
   });
 
-  it("asks for m1 and the close-up in the visitor's size class only, one request each", async () => {
+  it("asks for the big spine in the visitor's size class only, one request (W17-S)", async () => {
     await warmPlanMesh(new AbortController().signal, env({ meshes: PLAN_MESHES }));
     await warmPlanMesh(new AbortController().signal, env({ meshes: PLAN_MESHES }));
-    expect(meshFetch.mock.calls.map(([url]) => url)).toEqual([MESH_URLS.phone, CLOSEUP_MESH_URLS.phone]);
+    expect(meshFetch.mock.calls.map(([url]) => url)).toEqual([MESH_URLS.phone]);
   });
 
   it("warms every mesh the plan needs, one after another, the first in the list first, one request each", async () => {
     vi.useFakeTimers();
     try {
-      const closeUp = { phone: "/spine/3d/closeup2/phone.glb", desktop: "/spine/3d/closeup2/desktop.glb" };
+      const second = { phone: "/spine/3d/second/spine-phone.glb", desktop: "/spine/3d/second/spine-desktop.glb" };  // any mesh but MESH_URLS (m4 since W17-M)
       meshFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(new Response(bytes)), 100)));
-      const warming = warmPlanMesh(new AbortController().signal, env({ meshes: [MESH_URLS, closeUp] }));
+      const warming = warmPlanMesh(new AbortController().signal, env({ meshes: [MESH_URLS, second] }));
       await vi.advanceTimersByTimeAsync(50);
       expect(meshFetch.mock.calls.map(([url]) => url)).toEqual([MESH_URLS.phone]);
       await vi.advanceTimersByTimeAsync(100);
-      expect(meshFetch.mock.calls.map(([url]) => url)).toEqual([MESH_URLS.phone, closeUp.phone]);
+      expect(meshFetch.mock.calls.map(([url]) => url)).toEqual([MESH_URLS.phone, second.phone]);
       await vi.advanceTimersByTimeAsync(100);
       expect(await warming).toBe(true);
-      expect(takeWarmMesh(closeUp.phone)).toBeDefined();
+      expect(takeWarmMesh(second.phone)).toBeDefined();
       expect(meshFetch).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
@@ -126,10 +125,10 @@ describe("warming the plan's mesh during the questions (W15-M6)", () => {
   it("starts no further mesh once the visitor has left the funnel", async () => {
     vi.useFakeTimers();
     try {
-      const closeUp = { phone: "/spine/3d/closeup2/phone.glb", desktop: "/spine/3d/closeup2/desktop.glb" };
+      const second = { phone: "/spine/3d/second/spine-phone.glb", desktop: "/spine/3d/second/spine-desktop.glb" };  // any mesh but MESH_URLS (m4 since W17-M)
       meshFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(new Response(bytes)), 100)));
       const leaving = new AbortController();
-      const warming = warmPlanMesh(leaving.signal, env({ meshes: [MESH_URLS, closeUp] }));
+      const warming = warmPlanMesh(leaving.signal, env({ meshes: [MESH_URLS, second] }));
       await vi.advanceTimersByTimeAsync(50);
       leaving.abort();
       await vi.advanceTimersByTimeAsync(200);

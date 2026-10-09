@@ -12,7 +12,7 @@ import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
 import { sharedSoftwareGl } from "./first-screen";
 import { shouldRelease } from "./gpu";
-import { CLOSEUP_MESH_URLS, MESH_URLS } from "./mesh-urls";
+import { MESH_URLS } from "./mesh-urls";
 import { takeWarmMesh } from "./mesh-warm";
 import type { Motion } from "./orbit";
 import { isSoftwareRenderer } from "./pace";
@@ -60,8 +60,6 @@ export interface SpineViewerProps {
   onApi?(api: SpineViewerApi | null): void;
   /** Once live, and on a fallback with its reason: the plan_view record (§9). */
   onPhase?(phase: "live" | "fallback", reason: FallbackReason | null): void;
-  /** W16-A: also loads the owner's close-up (CLOSEUP_MESH_URLS) after the first frame, for the plan stage's dive. */
-  closeup?: boolean;
 }
 
 /** Runs after two frames (the first paint is on screen), then in idle time. Returns a cancel. */
@@ -109,7 +107,6 @@ interface Live {
 
 interface Inputs {
   label: string;
-  closeup?: boolean;
   theme: Theme;
   levels: DiscLevels;
   onApi?: (api: SpineViewerApi | null) => void;
@@ -178,15 +175,10 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         // W15-M6: a mesh this page already downloaded during the questions
         // goes to the first build only; its bytes move to that worker, so a later build fetches, from the HTTP cache.
         const meshBytes = takeWarmMesh(meshUrl);
-        // W16-A: the plan stage's close-up, the same way: warmed during the questions, moved to the worker.
-        const closeupUrl = latest.current.closeup ? CLOSEUP_MESH_URLS[size] : undefined;
-        const closeupBytes = closeupUrl ? takeWarmMesh(closeupUrl) : undefined;
         /** A late message from a handle this viewer has let go (asleep, then started again) is ignored (W14-V T2). */
         const mine = () => !cancelled && live.current?.handle === handle;
         const handle: SpineHandle = startSpine(canvas, {
           width, height, dpr: devicePixelRatio || 1, size, meshUrl, meshBytes,
-          closeupUrl,
-          closeupBytes,
           theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: baseFraming(size) },
           onReady: (boxes, gpu) => {
             if (!mine() || !live.current) return;
@@ -322,13 +314,13 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   return { ...state, restyling, spin };
 }
 
-export function SpineViewer({ label, lit, className = "", children, onApi, onPhase, closeup }: SpineViewerProps): JSX.Element {
+export function SpineViewer({ label, lit, className = "", children, onApi, onPhase }: SpineViewerProps): JSX.Element {
   const boxRef = useRef<HTMLDivElement>(null);
   const theme = useHtmlTheme();
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason, restyling, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, closeup });
+  const { phase, reason, restyling, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase });
   const live = phase === "live";
   return (
     <div

@@ -6,10 +6,10 @@ import { probeSeesHardware, SWIFTSHADER } from "./support/gpu";
 /**
  * §12 as amended in W14-R: no r17 still or any other /spine/ file before S5. The one exemption is the live mesh,
  * only after the first paint, never on Save-Data, a slow connection or a software renderer.
- * W15-M6: the plan's meshes (m1 and the W16-C close-up, PLAN_MESHES) are downloaded during the questions on a real
+ * W15-M6: the plan's mesh (the big spine, PLAN_MESHES; W17-S dropped the close-up) is downloaded during the questions on a real
  * GPU, so the plan's 3D does not wait on them. W16-B: S0 has no spine any more, so they are the exemption's only use.
  */
-const LIVE_MESH = /^\/spine\/3d\/(m4|closeup2)\//;
+const LIVE_MESH = /^\/spine\/3d\/m4\//;  // W17-M's m4; W17-S dropped the close-up
 // WebGL on SwiftShader, as CI has it: no 3D and no warm mesh on a software renderer (§6.6).
 test.use({ launchOptions: { args: SWIFTSHADER } });
 
@@ -84,6 +84,10 @@ test.describe("with the probe told the GPU is real (W14-W, W15-M6)", () => {
     await toTeamQuestion(page);
     await expect.poll(() => log.meshAt.length, { timeout: 30_000 }).toBeGreaterThan(0);
     expectNothingBeforeS5But(log);
+    // W17-S: the big spine is the plan's only model; a close-up would have followed it.
+    await page.waitForTimeout(2_000);
+    expect(log.paths.filter((path) => path.includes("/closeup")), "no close-up warmed (W17-S)").toEqual([]);
+    expect(log.meshAt).toHaveLength(1);
   });
 });
 

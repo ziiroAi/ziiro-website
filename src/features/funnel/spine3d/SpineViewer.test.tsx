@@ -9,7 +9,6 @@ import type { StartOptions } from "./host";
 import { discLevels } from "./levels";
 import type { DiscBox } from "./scene";
 import { forgetSoftwareGl } from "./first-screen";
-import { CLOSEUP_MESH_URLS } from "./mesh-urls";
 import { forgetWarmMeshes, warmMesh } from "./mesh-warm";
 import { LOAD_TIMEOUT_MS, MESH_URLS, SpineViewer } from "./SpineViewer";
 
@@ -625,29 +624,12 @@ describe("the plan's viewer and a mesh warmed during the questions (W15-M6)", ()
     expect(meshFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("W16-A: the plan stage's viewer also takes the close-up warmed during the questions, to move to its worker", async () => {
-    const closeupUrl = CLOSEUP_MESH_URLS.desktop;
+  it("W17-S: starts the big spine only, with no close-up to load", async () => {
     warmMesh(MESH_URLS.desktop);
-    warmMesh(closeupUrl);
-    await act(async () => {
-      screen = render(
-        <SpineViewer label="The spine" onApi={(next) => (api = next)} onPhase={onPhase} closeup>
-          <img alt="The spine" src="/still.webp" />
-        </SpineViewer>,
-      );
-    });
-    act(() => flush(2));
-    await wait(1);
-    await wait(1);
-    expect(startSpine).toHaveBeenCalledTimes(1);
-    expect(lastOptions().closeupUrl).toBe(closeupUrl);
-    expect(new Uint8Array((await lastOptions().closeupBytes)!)).toEqual(new Uint8Array(meshBytes));
-    expect(meshFetch).toHaveBeenCalledTimes(2); // each mesh once, during the questions
-  });
-
-  it("W16-A: other viewers load no close-up", async () => {
     await mountPlanViewer();
-    expect(lastOptions().closeupUrl).toBeUndefined();
+    expect(startSpine).toHaveBeenCalledTimes(1);
+    expect(Object.keys(lastOptions()).filter((k) => /closeup/i.test(k))).toEqual([]);
+    expect(meshFetch).toHaveBeenCalledTimes(1);
   });
 
   it("hands the warm bytes to one build only; a later build fetches (from the HTTP cache)", async () => {

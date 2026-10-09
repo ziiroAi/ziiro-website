@@ -11,15 +11,6 @@ export const MESH_URLS: Readonly<Record<MeshSize, string>> = {
   desktop: "/spine/3d/m4/spine-desktop.glb",
 };
 
-/** W16-C: the owner's close-up model, web-ready (worker-3, ziiroai/feat/w16c-closeup eb7ea83). W16-C4: closeup2 is the
- *  same model with his painted orange taken out of the base colour, so only the neon ring carries colour (the owner's
- *  "within a plain thin line"): phone 1.09 MB, desktop 1.85 MB. The plan dives from the full spine into it (W16-A).
- *  One copy of this constant: here. */
-export const CLOSEUP_MESH_URLS: Readonly<Record<MeshSize, string>> = {
-  phone: "/spine/3d/closeup2/phone.glb",
-  desktop: "/spine/3d/closeup2/desktop.glb",
-};
-
 /** W15-M6: every mesh the plan's 3D loads, in the order it needs them; the funnel downloads them during the
- *  questions (plan-warm.ts), one after another, so the hero's full spine arrives first. */
-export const PLAN_MESHES: readonly Readonly<Record<MeshSize, string>>[] = [MESH_URLS, CLOSEUP_MESH_URLS];
+ *  questions (plan-warm.ts). W17-S: the big spine only; the close-up's files stay in public/ (immutable cache), unused. */
+export const PLAN_MESHES: readonly Readonly<Record<MeshSize, string>>[] = [MESH_URLS];

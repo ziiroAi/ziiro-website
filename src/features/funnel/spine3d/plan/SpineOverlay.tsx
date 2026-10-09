@@ -129,8 +129,8 @@ export function LegendRow(): JSX.Element {
   return (
     <ul
       data-legend
-      // W16-A: PlanStage's --closeup-out fades it over the close-up, whose discs it doesn't name.
-      style={{ opacity: "var(--closeup-out, 1)" }}
+      // W16-A, W17-S: PlanStage's --zoomed-out fades it at a zoomed department stop, where the whole spine isn't in view.
+      style={{ opacity: "var(--zoomed-out, 1)" }}
       className="flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[color:var(--funnel-muted)]"
     >
       <li><span aria-hidden="true" className="text-[color:var(--funnel-accent)]">●</span> {copy("sp.legend.today")}</li>
