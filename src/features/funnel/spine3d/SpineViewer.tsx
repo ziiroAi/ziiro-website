@@ -10,10 +10,10 @@ import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
-import { afterLcpThenIdle, isSoftwareGl, onOptionPress, probesOffThread } from "./first-screen";
+import { isSoftwareGl } from "./first-screen";
 import { shouldRelease } from "./gpu";
 import { MESH_URLS } from "./mesh-urls";
-import { takeWarmMesh, warmMesh } from "./mesh-warm";
+import { takeWarmMesh } from "./mesh-warm";
 import type { Motion } from "./orbit";
 import { isSoftwareRenderer } from "./pace";
 import { hasWebGL2, meshFor, preflight, readConnection, type FallbackReason } from "./rules";
@@ -60,11 +60,6 @@ export interface SpineViewerProps {
   onApi?(api: SpineViewerApi | null): void;
   /** Once live, and on a fallback with its reason: the plan_view record (§9). */
   onPhase?(phase: "live" | "fallback", reason: FallbackReason | null): void;
-  /**
-   * S0 (W14-R): the first tap must never wait on the 3D. A start a second past the LCP in idle time, and none at all
-   * if the visitor presses one of S1's options before its first frame, even before this viewer mounts (W14-X).
-   */
-  firstScreen?: boolean;
 }
 
 /** Runs after two frames (the first paint is on screen), then in idle time. Returns a cancel. */
@@ -112,7 +107,6 @@ interface Live {
 
 interface Inputs {
   label: string;
-  firstScreen?: boolean;
   theme: Theme;
   levels: DiscLevels;
   onApi?: (api: SpineViewerApi | null) => void;
@@ -125,8 +119,6 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   const [restyling, setRestyling] = useState(false);
   /** False where the idle spin is off: reduced motion, a software renderer, or a GPU too slow for it (W14-O). */
   const [spin, setSpin] = useState(true);
-  /** S0: the visitor has left, so this viewer's 3D will never start (W14-X). */
-  const [left, setLeft] = useState(false);
   const latest = useRef(inputs);
   latest.current = inputs;
   const live = useRef<Live | null>(null);
@@ -142,8 +134,6 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     }
     let cancelled = false;
     let failed = false;
-    /** S0: the visitor pressed an S1 option before the first frame, so the 3D never comes (W14-R, W14-X). */
-    let interrupted = false;
     let asleep = false;
     let nearScreen = true;
     let reportedLive = false;
@@ -173,16 +163,16 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       latest.current.onPhase?.("fallback", reason);
     };
     const begin = async () => {
-      if (cancelled || interrupted) return;
+      if (cancelled) return;
       try {
         const { startSpine } = await import("./host");
-        if (cancelled || interrupted) return;
+        if (cancelled) return;
         const canvas = makeCanvas(latest.current.label);
         box.append(canvas);
         const { width, height } = box.getBoundingClientRect();
         const size = meshFor(window.innerWidth);
         const meshUrl = MESH_URLS[size];
-        // W15-D2 / W15-M6: a mesh this page already downloads (S0's at its LCP, or the plan's during the questions)
+        // W15-M6: a mesh this page already downloaded during the questions
         // goes to the first build only; its bytes move to that worker, so a later build fetches, from the HTTP cache.
         const meshBytes = takeWarmMesh(meshUrl);
         /** A late message from a handle this viewer has let go (asleep, then started again) is ignored (W14-V T2). */
@@ -193,7 +183,6 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
           onReady: (boxes, gpu) => {
             if (!mine() || !live.current) return;
             stopLoadTimer();
-            stopWatching();
             canvas.style.opacity = "1";
             canvas.removeAttribute("aria-hidden");
             const motion = readMotion();
@@ -230,7 +219,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     };
     /** W14-K: off screen while another viewer is live, give the context back; near the screen again, start over. */
     const settle = () => {
-      if (cancelled || failed || interrupted) return;
+      if (cancelled || failed) return;
       if (asleep) {
         if (!nearScreen) return;
         asleep = false;
@@ -256,41 +245,19 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
           );
     near?.observe(box);
     presenceListeners.add(settle);
-    const firstScreen = latest.current.firstScreen === true;
-    /** The probe's answer, asked once: at S0's LCP where it runs in a worker, else when the 3D starts. */
+    /** The probe's answer, asked once, when the 3D starts. */
     let probe: Promise<boolean> | null = null;
     const stopProbe = new AbortController();
     const askProbe = () => (probe ??= isSoftwareGl(undefined, stopProbe.signal));
-    /** W15-D2: at S0's LCP, where the probe runs off the main thread, ask it now; on a real GPU start the mesh
-     *  download at once. A software renderer gets no request at all. Nothing here parses, decodes or touches the GPU. */
-    const atLcp = () => {
-      if (cancelled || interrupted || failed || !probesOffThread()) return;
-      void askProbe().then((software) => {
-        if (cancelled || interrupted || failed || software) return;
-        warmMesh(MESH_URLS[meshFor(window.innerWidth)]);
-      });
-    };
     /** W14-X: no viewer runs its 3D on a software renderer; the still stays (worker-2's W14-S, SwiftShader phone tour
      *  taps of 3-10 s). The probe is a 1×1 context in a worker, read and given back before any 3D code loads. */
     const start = () =>
       void askProbe().then((software) => {
-        if (cancelled || interrupted || failed) return;
+        if (cancelled || failed) return;
         if (software) fail("software-gl");
         else void begin();
       });
-    const cancelStart = firstScreen ? afterLcpThenIdle(start, atLcp) : afterFirstPaint(start);
-    /** S0: an option pressed before the first frame means the visitor is leaving, so the 3D stops wherever it got to. */
-    const interrupt = () => {
-      if (cancelled || failed || live.current?.drive) return;
-      interrupted = true;
-      cancelStart();
-      stopProbe.abort();
-      // A download under way finishes (network only): S0 builds nothing from it, and the plan's 3D takes it (W15-M6).
-      teardown();
-      setLeft(true);
-      setState({ phase: "still", reason: null });
-    };
-    const stopWatching = firstScreen ? onOptionPress(interrupt) : () => undefined;
+    const cancelStart = afterFirstPaint(start);
     /** W14-V T8: Reduce Motion turned on or off while the 3D runs stops or starts the idle spin and the flights. */
     const motionQuery = typeof matchMedia === "function" ? matchMedia(REDUCED_MOTION) : null;
     const onMotionChange = () => {
@@ -305,7 +272,6 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       cancelled = true;
       cancelStart();
       stopProbe.abort();
-      stopWatching();
       motionQuery?.removeEventListener?.("change", onMotionChange);
       near?.disconnect();
       presenceListeners.delete(settle);
@@ -345,16 +311,16 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     live.current?.drive?.wake();
   }, [inputs.levels]);
 
-  return { ...state, restyling, spin, left };
+  return { ...state, restyling, spin };
 }
 
-export function SpineViewer({ label, lit, className = "", children, onApi, onPhase, firstScreen }: SpineViewerProps): JSX.Element {
+export function SpineViewer({ label, lit, className = "", children, onApi, onPhase }: SpineViewerProps): JSX.Element {
   const boxRef = useRef<HTMLDivElement>(null);
   const theme = useHtmlTheme();
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason, restyling, spin, left } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, firstScreen });
+  const { phase, reason, restyling, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase });
   const live = phase === "live";
   return (
     <div
@@ -362,7 +328,6 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
       data-testid="spine-viewer"
       data-spine={phase}
       data-spine-reason={reason ?? undefined}
-      data-spine-left={left ? "" : undefined}
       data-spine-spin={live ? (spin ? "on" : "off") : undefined}
       className={`relative ${live ? "cursor-grab select-none" : ""} ${className}`}
       style={live ? { touchAction: "pan-y" } : undefined}

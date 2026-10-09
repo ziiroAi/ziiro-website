@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { afterLcpThenIdle, isSoftwareGl, NO_LCP_MS, prefetchMesh, PROBE_TIMEOUT_MS, probeSoftwareGl, WAIT_AFTER_LCP_MS } from "./first-screen";
+import { isSoftwareGl, prefetchMesh, PROBE_TIMEOUT_MS, probeSoftwareGl } from "./first-screen";
 
 const UNMASKED_RENDERER = 0x9246;
 function canvasWith(gpu: string | null) {
@@ -14,33 +14,13 @@ function canvasWith(gpu: string | null) {
   return { canvas: { getContext: vi.fn(() => gl) } as unknown as HTMLCanvasElement, loseContext };
 }
 
-class FakeLcpObserver {
-  static supportedEntryTypes = ["largest-contentful-paint"];
-  static all: FakeLcpObserver[] = [];
-  constructor(private readonly callback: PerformanceObserverCallback) {
-    FakeLcpObserver.all.push(this);
-  }
-  observe = vi.fn();
-  disconnect = vi.fn();
-  emit() {
-    this.callback({ getEntries: () => [{}] } as unknown as PerformanceObserverEntryList, this as unknown as PerformanceObserver);
-  }
-}
-
-/** Idle time at once: fake timers delay a 0 ms timer set during a tick by 1 ms, which would blur the 1 s boundary. */
-const idleNow = (go: () => void) => {
-  go();
-  return 1;
-};
-
 afterEach(() => {
   vi.restoreAllMocks();
-  FakeLcpObserver.all = [];
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
-describe("the S0 renderer probe (W14-R)", () => {
+describe("the renderer probe (W14-R)", () => {
   it("calls a SwiftShader context software, and gives the context straight back", () => {
     const { canvas, loseContext } = canvasWith("ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)");
     expect(probeSoftwareGl(() => canvas)).toBe(true);
@@ -93,99 +73,6 @@ describe("asking off the main thread (W14-X)", () => {
     vi.stubGlobal("OffscreenCanvas", undefined);
     const { canvas } = canvasWith("llvmpipe (LLVM 15.0.7, 256 bits)");
     await expect(isSoftwareGl(() => canvas)).resolves.toBe(true);
-  });
-});
-
-describe("starting a second past the LCP, in idle time (W14-R)", () => {
-  it("runs 1 s after the LCP, in idle time, and not before", () => {
-    vi.useFakeTimers();
-    vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
-    vi.stubGlobal("requestIdleCallback", idleNow);
-    const run = vi.fn();
-    afterLcpThenIdle(run);
-    vi.advanceTimersByTime(NO_LCP_MS - 1);
-    expect(run).not.toHaveBeenCalled();
-    FakeLcpObserver.all[0].emit();
-    vi.advanceTimersByTime(WAIT_AFTER_LCP_MS - 1);
-    expect(run).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
-    expect(run).toHaveBeenCalledTimes(1);
-  });
-
-  it("never runs once cancelled", () => {
-    vi.useFakeTimers();
-    vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
-    vi.stubGlobal("requestIdleCallback", idleNow);
-    const run = vi.fn();
-    const cancel = afterLcpThenIdle(run);
-    FakeLcpObserver.all[0].emit();
-    cancel();
-    vi.advanceTimersByTime(5_000);
-    expect(run).not.toHaveBeenCalled();
-    expect(FakeLcpObserver.all[0].disconnect).toHaveBeenCalled();
-  });
-
-  it("counts from the first paint when no LCP comes, as in a tab opened in the background (W14-U L5)", () => {
-    vi.useFakeTimers();
-    vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
-    vi.stubGlobal("requestAnimationFrame", (go: FrameRequestCallback) => setTimeout(() => go(0), 16));
-    vi.stubGlobal("requestIdleCallback", idleNow);
-    const run = vi.fn();
-    afterLcpThenIdle(run);
-    vi.advanceTimersByTime(NO_LCP_MS + 32 + WAIT_AFTER_LCP_MS - 1);
-    expect(run).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(FakeLcpObserver.all[0].disconnect).toHaveBeenCalled();
-    FakeLcpObserver.all[0].emit();
-    vi.advanceTimersByTime(5_000);
-    expect(run).toHaveBeenCalledTimes(1);
-  });
-
-  it("counts from the first paint where the browser reports no LCP", () => {
-    vi.useFakeTimers();
-    vi.stubGlobal("PerformanceObserver", undefined);
-    vi.stubGlobal("requestAnimationFrame", (go: FrameRequestCallback) => setTimeout(() => go(0), 16));
-    vi.stubGlobal("requestIdleCallback", idleNow);
-    const run = vi.fn();
-    afterLcpThenIdle(run);
-    vi.advanceTimersByTime(32 + WAIT_AFTER_LCP_MS - 1);
-    expect(run).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
-    expect(run).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("starting sooner, with the mesh on its way at the LCP (W15-D2)", () => {
-  it("waits 300 ms past the LCP, not a second: the 3D draws in a worker, so its own main-thread work is small", () => {
-    expect(WAIT_AFTER_LCP_MS).toBe(300);
-  });
-
-  it("calls atLcp as soon as the LCP is in, before the wait and the idle time", () => {
-    vi.useFakeTimers();
-    vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
-    vi.stubGlobal("requestIdleCallback", idleNow);
-    const run = vi.fn();
-    const atLcp = vi.fn();
-    afterLcpThenIdle(run, atLcp);
-    vi.advanceTimersByTime(NO_LCP_MS - 1);
-    expect(atLcp).not.toHaveBeenCalled();
-    FakeLcpObserver.all[0].emit();
-    expect(atLcp).toHaveBeenCalledTimes(1);
-    expect(run).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(WAIT_AFTER_LCP_MS);
-    expect(run).toHaveBeenCalledTimes(1);
-    expect(atLcp).toHaveBeenCalledTimes(1);
-  });
-
-  it("never calls atLcp once cancelled", () => {
-    vi.useFakeTimers();
-    vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
-    const atLcp = vi.fn();
-    const cancel = afterLcpThenIdle(vi.fn(), atLcp);
-    cancel();
-    FakeLcpObserver.all[0].emit();
-    expect(atLcp).not.toHaveBeenCalled();
   });
 });
 

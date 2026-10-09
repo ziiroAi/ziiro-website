@@ -4,17 +4,14 @@ import { answerTeam, at, toTeamQuestion } from "./helpers/flow";
 import { probeSeesHardware, SWIFTSHADER } from "./support/gpu";
 
 /**
- * §12 as amended in W14-R: no r17 still or any other /spine/ file before S5. The one exemption is the live mesh
- * (/spine/3d/m1/*) on S0, and only when it is asked for after the first paint, never on Save-Data, a slow connection
- * or a software renderer. CI draws on SwiftShader, where S0 has no 3D, so the exemption's own check runs with S0's
- * probe told the GPU is real (W14-W).
+ * §12 as amended in W14-R: no r17 still or any other /spine/ file before S5. The one exemption is the live mesh,
+ * only after the first paint, never on Save-Data, a slow connection or a software renderer.
  * W15-M6: the plan's meshes (m1 and the W16-C close-up, PLAN_MESHES) are downloaded during the questions on a real
- * GPU, so the plan's 3D does not wait on them; they share the exemption, and its "after the first paint" rule.
+ * GPU, so the plan's 3D does not wait on them. W16-B: S0 has no spine any more, so they are the exemption's only use.
  */
 const LIVE_MESH = /^\/spine\/3d\/(m1|closeup)\//;
-// WebGL on SwiftShader, as CI has it: S0's 3D then settles the way §6.6 says for a software renderer.
+// WebGL on SwiftShader, as CI has it: no 3D and no warm mesh on a software renderer (§6.6).
 test.use({ launchOptions: { args: SWIFTSHADER } });
-const S0_VIEWER = "[data-testid=landing-spine] [data-testid=spine-viewer]";
 
 interface SpineLog {
   /** Every /spine/ path asked for, in order. */
@@ -43,7 +40,7 @@ async function spineRequests(page: Page): Promise<SpineLog> {
 const held = (paths: readonly string[]) => paths.filter((p) => !LIVE_MESH.test(p));
 
 function expectNothingBeforeS5But(log: SpineLog) {
-  expect(held(log.paths), "nothing under /spine/ before S5 but S0's live mesh (§12)").toEqual([]);
+  expect(held(log.paths), "nothing under /spine/ before S5 but the plan's warm mesh (§12)").toEqual([]);
   const paint = log.paintAt();
   for (const at of log.meshAt) {
     expect(paint, "the live mesh only after the first paint (§12)").not.toBeNull();
@@ -72,37 +69,35 @@ async function connection(page: Page, value: { saveData: boolean; effectiveType:
   }, value);
 }
 
-test("a visitor who stays on S0 gets the live mesh only after the first paint, and nothing else before S5 (§12)", async ({ page }) => {
+test("a visitor on the questions gets nothing under /spine/ before S5 on a software renderer (§12, W16-B)", async ({ page }) => {
   const log = await spineRequests(page);
   await page.goto("/");
-  // S0's 3D settles one way or the other: live on a real GPU, nothing on a software renderer (W14-R).
-  await expect(page.locator(S0_VIEWER)).toHaveAttribute("data-spine", /live|fallback/, { timeout: 30_000 });
   await toTeamQuestion(page);
-  expectNothingBeforeS5But(log);
+  expect(log.paths, "nothing under /spine/ before S5 (§12)").toEqual([]);
 });
 
-test.describe("with S0's probe told the GPU is real (W14-W)", () => {
-  test("S0 asks for its live mesh only after the first paint, and nothing else under /spine/ before S5 (§12)", async ({ page }) => {
+test.describe("with the probe told the GPU is real (W14-W, W15-M6)", () => {
+  test("the plan's mesh warms during the questions, only after the first paint, and nothing else under /spine/ before S5 (§12)", async ({ page }) => {
     await probeSeesHardware(page);
     const log = await spineRequests(page);
     await page.goto("/");
-    await expect(page.locator(S0_VIEWER)).toHaveAttribute("data-spine", "live", { timeout: 60_000 });
-    expect(log.meshAt.length, "S0 went live without asking for its mesh").toBeGreaterThan(0);
     await toTeamQuestion(page);
+    await expect.poll(() => log.meshAt.length, { timeout: 30_000 }).toBeGreaterThan(0);
     expectNothingBeforeS5But(log);
   });
 });
 
-for (const [name, value, reason] of [
-  ["on Save-Data", { saveData: true, effectiveType: "4g" }, "save-data"],
-  ["on a slow connection", { saveData: false, effectiveType: "3g" }, "slow-connection"],
+for (const [name, value] of [
+  ["on Save-Data", { saveData: true, effectiveType: "4g" }],
+  ["on a slow connection", { saveData: false, effectiveType: "3g" }],
 ] as const) {
-  test(`${name}, nothing under /spine/ before S5, not even the live mesh (§12)`, async ({ page }) => {
+  test(`${name}, nothing under /spine/ before S5, not even the warm mesh (§12)`, async ({ page }) => {
+    await probeSeesHardware(page);
     await connection(page, value);
     const log = await spineRequests(page);
     await page.goto("/");
-    await expect(page.locator(S0_VIEWER)).toHaveAttribute("data-spine-reason", reason);
     await toTeamQuestion(page);
+    await page.waitForTimeout(1_000);  // the warm, were it allowed, would be under way by now
     expect(log.paths, "nothing under /spine/ before S5 (§12)").toEqual([]);
   });
 }

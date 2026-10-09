@@ -11,7 +11,7 @@ export function Revenue({ state, act, env }: ScreenProps) {
       <TopRow screen="s5" />
       <Question>{copy("s5.q")}</Question>
       <p className="f-hint">{copy("s5.why")}</p>
-      <div className="f-options">
+      <div className="f-options f-short">
         {revenueOptions(currency).map((option) => (
           <OptionButton
             key={option.id}

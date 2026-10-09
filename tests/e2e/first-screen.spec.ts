@@ -12,20 +12,13 @@ test("the first screen holds the greeting, S1 and g.about, with only the logo ab
   await expect(page.locator("#site-menu")).toHaveCount(0);
 });
 
-for (const size of [{ width: 1440, height: 900 }, { width: 1920, height: 1080 }]) {
-  test(`keeps the footer below the fold at ${size.width} × ${size.height} (D6)`, async ({ page, isMobile }) => {
-    test.skip(isMobile, "desktop sizes");
-    await page.setViewportSize(size);
-    await page.goto("/");
-    await expect(page.getByRole("heading", { level: 2, name: copy("s1.q") })).toBeVisible();
-    // Let useFooterShown run first: it sets data-shown="" once it has measured the page.
-    await page.waitForLoadState("networkidle");
-    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    const footer = page.locator("footer.site-footer");
-    await expect(footer).toHaveCount(1);
-    await expect(footer).not.toHaveAttribute("data-shown");
-  });
-}
+test("has no orange footer under the questions (W16-B)", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 2, name: copy("s1.q") })).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("footer.site-footer")).toHaveCount(0);
+  await expect(page.locator(".site-sheet")).toHaveAttribute("data-flat", "");
+});
 
 // Chromium under Playwright's javaScriptEnabled: false still parses <noscript> as raw text, so nothing in it
 // renders. The served HTML is what a browser without JavaScript gets, so the check reads that instead.
