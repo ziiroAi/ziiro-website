@@ -24,6 +24,8 @@ export interface SpineHandle {
    *  W18-B: with `fade`, the old look fades out over the new on the page's clock instead (scene.ts setTheme). */
   setTheme(theme: Theme, fade?: ThemeFade | null): Promise<void>;
   setLevels(levels: DiscLevels): void;
+  /** W18-C: the discs' light, 0 to 1, shown on the next frame drawn (render). */
+  setGlow(glow: number): void;
   dispose(): void;
 }
 
@@ -99,6 +101,7 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, meshByt
         send(fade ? { type: "theme", theme, fade } : { type: "theme", theme });
       }),
     setLevels: (levels) => send({ type: "levels", levels }),
+    setGlow: (glow) => send({ type: "glow", glow }),
     dispose: () => {
       disposed = true;
       // A ready or fail already on its way must reach no one: the viewer may be on a new handle by then (W14-V T2).
@@ -124,7 +127,7 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
   let spine: SpineScene | null = null;
   let latest = start.view;
   /** Asked for while the scene is built, applied before its first frame (W14-J F1). */
-  let pending: { theme?: Theme; levels?: DiscLevels; size?: [number, number, number] } = {};
+  let pending: { theme?: Theme; levels?: DiscLevels; glow?: number; size?: [number, number, number] } = {};
   let themed: (() => void)[] = [];
   const settleThemes = () => {
     themed.forEach((settle) => settle());
@@ -138,6 +141,7 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
       if (pending.size) spine.resize(...pending.size);
       if (pending.theme) spine.setTheme(pending.theme);
       if (pending.levels) spine.setLevels(pending.levels);
+      if (pending.glow !== undefined) spine.setGlow(pending.glow);
       onReady(spine.render(latest), spine.gpu);
       settleThemes();
     })
@@ -173,6 +177,10 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
     setLevels: (levels) => {
       if (spine) spine.setLevels(levels);
       else pending = { ...pending, levels };
+    },
+    setGlow: (glow) => {
+      if (spine) spine.setGlow(glow);
+      else pending = { ...pending, glow };
     },
     dispose: () => {
       disposed = true;

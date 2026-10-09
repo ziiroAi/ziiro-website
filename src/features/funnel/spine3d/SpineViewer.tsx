@@ -10,7 +10,7 @@ import type { SpineViewerApi } from "./api";
 import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
-import { baseFraming } from "./camera";
+import { baseFraming, easeInOut, type Framing } from "./camera";
 import { sharedSoftwareGl } from "./first-screen";
 import { shouldRelease } from "./gpu";
 import { MESH_URLS } from "./mesh-urls";
@@ -30,7 +30,12 @@ const FRAME_FALLBACK_MS = 16;
  *  still gets its plan_view record. */
 export const LOAD_TIMEOUT_MS = 20_000;
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
-const CANVAS_CLASS = "absolute inset-0 h-full w-full transition-opacity duration-300";
+const CANVAS_CLASS = "absolute inset-0 h-full w-full";
+/** W18-C: the 3D's first frame fades in over the still this long; the still stays under it till the fade ends, so the
+ *  page never shows between them. */
+export const CROSSFADE_MS = 500;
+/** W18-C: after the crossfade, a viewer with ringsIn fades its discs' light in from none (its still's look) this long. */
+export const RINGS_IN_MS = 700;
 
 /** "asleep": off screen while another viewer is live, so its 3D was given back and its still shows (W14-K). */
 export type SpinePhase = "still" | "loading" | "live" | "asleep" | "fallback";
@@ -61,6 +66,10 @@ export interface SpineViewerProps {
   onApi?(api: SpineViewerApi | null): void;
   /** Once live, and on a fallback with its reason: the plan_view record (§9). */
   onPhase?(phase: "live" | "fallback", reason: FallbackReason | null): void;
+  /** W18-C: the framing the 3D starts at, asked when it starts: the one its still shows. r17's when absent or null. */
+  startFraming?(): Framing | null;
+  /** W18-C: the still shows the discs unlit, so the 3D starts unlit too and fades their light in after the handover. */
+  ringsIn?: boolean;
 }
 
 /** Runs after two frames (the first paint is on screen), then in idle time. Returns a cancel. */
@@ -94,6 +103,7 @@ function makeCanvas(label: string): HTMLCanvasElement {
   canvas.dataset.testid = "spine-canvas";
   canvas.className = CANVAS_CLASS;
   canvas.style.opacity = "0";
+  canvas.style.transition = `opacity ${CROSSFADE_MS}ms ease-in-out`;
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", label);
   canvas.setAttribute("aria-hidden", "true");
@@ -112,12 +122,34 @@ interface Inputs {
   levels: DiscLevels;
   onApi?: (api: SpineViewerApi | null) => void;
   onPhase?: (phase: "live" | "fallback", reason: FallbackReason | null) => void;
+  startFraming?: () => Framing | null;
+  ringsIn?: boolean;
+}
+
+/** Calls step(t) once a frame with t from 0 to 1 over ms, ending on 1. Returns a cancel. */
+function rampOver(ms: number, step: (t: number) => void): () => void {
+  if (typeof requestAnimationFrame !== "function") {
+    step(1);
+    return () => undefined;
+  }
+  let frame = 0;
+  let from: number | null = null;
+  const tick = (now: number) => {
+    from ??= now;
+    const t = Math.min((now - from) / ms, 1);
+    step(t);
+    frame = t < 1 ? requestAnimationFrame(tick) : 0;
+  };
+  frame = requestAnimationFrame(tick);
+  return () => cancelAnimationFrame(frame);
 }
 
 function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   const [state, setState] = useState<{ phase: SpinePhase; reason: FallbackReason | null }>({ phase: "still", reason: null });
   /** True while a theme change draws: the still (already in the new theme) covers for the canvas (W14-J F1). */
   const [restyling, setRestyling] = useState(false);
+  /** W18-C: the canvas has faded all the way in over the still, so the still can go. */
+  const [covered, setCovered] = useState(false);
   /** False where the idle spin is off: reduced motion, a software renderer, or a GPU too slow for it (W14-O). */
   const [spin, setSpin] = useState(true);
   const latest = useRef(inputs);
@@ -141,6 +173,9 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     /** W14-O: the idle spin is off on this GPU (software, or too slow), whatever the visitor's motion setting. */
     let paceSpin = true;
     let loadTimer: ReturnType<typeof setTimeout> | null = null;
+    /** W18-C: the crossfade's end, then the discs' light coming in. */
+    let handover: ReturnType<typeof setTimeout> | null = null;
+    let stopRamp: (() => void) | null = null;
     const me = {};
     const stopLoadTimer = () => {
       if (loadTimer !== null) clearTimeout(loadTimer);
@@ -148,6 +183,11 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     };
     const teardown = () => {
       stopLoadTimer();
+      if (handover !== null) clearTimeout(handover);
+      handover = null;
+      stopRamp?.();
+      stopRamp = null;
+      if (!cancelled) setCovered(false);
       const current = live.current;
       live.current = null;
       markLive(me, false);
@@ -176,11 +216,13 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         // W15-M6: a mesh this page already downloaded during the questions
         // goes to the first build only; its bytes move to that worker, so a later build fetches, from the HTTP cache.
         const meshBytes = takeWarmMesh(meshUrl);
+        const framing = latest.current.startFraming?.() ?? baseFraming(size);
+        const ringsIn = latest.current.ringsIn === true;
         /** A late message from a handle this viewer has let go (asleep, then started again) is ignored (W14-V T2). */
         const mine = () => !cancelled && live.current?.handle === handle;
         const handle: SpineHandle = startSpine(canvas, {
           width, height, dpr: devicePixelRatio || 1, size, meshUrl, meshBytes,
-          theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: baseFraming(size) },
+          theme: latest.current.theme, levels: latest.current.levels, glow: ringsIn ? 0 : 1, view: { yaw: 0, pitch: 0, framing },
           onReady: (boxes, gpu) => {
             if (!mine() || !live.current) return;
             stopLoadTimer();
@@ -194,12 +236,23 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
               paceSpin = false;
               if (!cancelled) setSpin(false);
             };
-            const drive = createDrive(box, handle, size, motion, { idleSpin, onSpinOff });
+            const drive = createDrive(box, handle, size, motion, { idleSpin, onSpinOff, framing });
             live.current = { ...live.current, drive };
             drive.takeBoxes(boxes);
             setState({ phase: "live", reason: null });
             markLive(me, true);
             latest.current.onApi?.(drive);
+            handover = setTimeout(() => {
+              handover = null;
+              if (!mine()) return;
+              setCovered(true);
+              if (!ringsIn) return;
+              stopRamp = rampOver(RINGS_IN_MS, (t) => {
+                if (!mine()) return;
+                handle.setGlow(easeInOut(t));
+                drive.wake();
+              });
+            }, CROSSFADE_MS);
             // Once per plan: waking from asleep is not a new plan_view.
             if (!reportedLive) latest.current.onPhase?.("live", null);
             reportedLive = true;
@@ -300,16 +353,20 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       return () => cancelAnimationFrame(frame);
     }
     let stale = false;
+    let faded: ReturnType<typeof setTimeout> | null = null;
     current.canvas.style.opacity = "0";
     setRestyling(true);
     void current.handle.setTheme(inputs.theme).then(() => {
       if (stale || live.current !== current) return;
       current.canvas.style.opacity = "1";
-      setRestyling(false);
+      // W18-C: the still (already in the new theme) stays under the canvas till it has faded all the way in.
+      faded = setTimeout(() => setRestyling(false), CROSSFADE_MS);
     });
     current.drive.wake();
     return () => {
       stale = true;
+      if (faded !== null) clearTimeout(faded);
+      setRestyling(false);
     };
   }, [inputs.theme]);
 
@@ -323,16 +380,16 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     live.current?.drive?.wake();
   }, [inputs.levels]);
 
-  return { ...state, restyling, spin };
+  return { ...state, restyling, covered, spin };
 }
 
-export function SpineViewer({ label, lit, className = "", children, onApi, onPhase }: SpineViewerProps): JSX.Element {
+export function SpineViewer({ label, lit, className = "", children, onApi, onPhase, startFraming, ringsIn }: SpineViewerProps): JSX.Element {
   const boxRef = useRef<HTMLDivElement>(null);
   const theme = useHtmlTheme();
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason, restyling, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase });
+  const { phase, reason, restyling, covered, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, startFraming, ringsIn });
   const live = phase === "live";
   return (
     <div
@@ -344,7 +401,7 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
       className={`relative ${live ? "cursor-grab select-none" : ""} ${className}`}
       style={live ? { touchAction: "pan-y" } : undefined}
     >
-      <div data-testid="spine-still" className={live && !restyling ? "invisible" : undefined}>
+      <div data-testid="spine-still" className={live && covered && !restyling ? "invisible" : undefined}>
         {children}
       </div>
     </div>

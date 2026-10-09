@@ -58,7 +58,8 @@ let latest: {
   size: [number, number, number] | null;
   theme: Theme | null;
   levels: DiscLevels | null;
-} = { view: null, size: null, theme: null, levels: null };
+  glow: number | null;
+} = { view: null, size: null, theme: null, levels: null, glow: null };
 
 async function init(message: Extract<ToWorker, { type: "init" }>, signal: AbortSignal): Promise<void> {
   try {
@@ -80,6 +81,7 @@ async function init(message: Extract<ToWorker, { type: "init" }>, signal: AbortS
     if (latest.size) spine.resize(...latest.size);
     if (latest.theme) spine.setTheme(latest.theme);
     if (latest.levels) spine.setLevels(latest.levels);
+    if (latest.glow !== null) spine.setGlow(latest.glow);
     scope.postMessage({ type: "ready", boxes: spine.render(latest.view ?? message.view), gpu: spine.gpu });
   } catch (error) {
     if (!disposed) scope.postMessage({ type: "fail", reason: error instanceof Error ? error.message : "error" });
@@ -140,6 +142,10 @@ function handle(data: ToWorker): void {
     case "levels":
       if (!spine) latest = { ...latest, levels: data.levels };
       spine?.setLevels(data.levels);
+      return;
+    case "glow":
+      if (!spine) latest = { ...latest, glow: data.glow };
+      spine?.setGlow(data.glow);
       return;
     case "mesh":
       meshArrived?.(data.buffer);

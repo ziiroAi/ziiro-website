@@ -4,7 +4,7 @@ import { answerTeam, at, toTeamQuestion } from "./helpers/flow";
 import { probeSeesHardware, SWIFTSHADER } from "./support/gpu";
 
 /**
- * §12 as amended in W14-R: no r17 still or any other /spine/ file before S5. The one exemption is the live mesh,
+ * §12 as amended in W14-R: no hero still or any other /spine/ file before S5. The one exemption is the live mesh,
  * only after the first paint, never on Save-Data, a slow connection or a software renderer.
  * W15-M6: the plan's mesh (the big spine, PLAN_MESHES; W17-S dropped the close-up) is downloaded during the questions on a real
  * GPU, so the plan's 3D does not wait on them. W16-B: S0 has no spine any more, so they are the exemption's only use.
@@ -36,7 +36,7 @@ async function spineRequests(page: Page): Promise<SpineLog> {
   return { paths: log.paths, meshAt: log.meshAt, paintAt: () => log.paint };
 }
 
-/** The r17 stills and every other /spine/ file: what §12 still holds back until S5. */
+/** The hero stills and every other /spine/ file: what §12 still holds back until S5. */
 const held = (paths: readonly string[]) => paths.filter((p) => !LIVE_MESH.test(p));
 
 function expectNothingBeforeS5But(log: SpineLog) {
@@ -109,32 +109,32 @@ for (const [name, value] of [
 test("a light visit (10:00) fetches only light files, from S5 on (§6.6, §12)", async ({ page }) => {
   const paths = await reachS5(page, "10:00");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  expect(paths.every((p) => p.startsWith("/spine/r17/light/hero/"))).toBe(true);
+  expect(paths.every((p) => p.startsWith("/spine/r18/light/hero/"))).toBe(true);
 });
 
 test("a dark visit (22:00) fetches only dark files", async ({ page }) => {
   const paths = await reachS5(page, "22:00");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  expect(paths.every((p) => p.startsWith("/spine/r17/dark/hero/"))).toBe(true);
+  expect(paths.every((p) => p.startsWith("/spine/r18/dark/hero/"))).toBe(true);
 });
 
 test.describe("a visitor who chose dark with the header toggle", () => {
   test("is dark at 10:00 and fetches only dark files (D9, W15-A)", async ({ page }) => {
     await page.addInitScript(() => window.localStorage.setItem("ziiro-theme", "dark"));
     const paths = await reachS5(page, "10:00");
-    expect(paths.every((p) => p.startsWith("/spine/r17/dark/hero/"))).toBe(true);
+    expect(paths.every((p) => p.startsWith("/spine/r18/dark/hero/"))).toBe(true);
   });
 });
 
-test("a 390 × 844 phone at 3× picks phone-1170.avif (§12)", async ({ page, isMobile }) => {
+test("a 390 × 844 phone at 3× picks phone-585.avif, the 3D's own 1.5× (§12, W18-C)", async ({ page, isMobile }) => {
   test.skip(!isMobile, "phone");
-  expect(await reachS5(page, "10:00")).toContain("/spine/r17/light/hero/phone-1170.avif");
+  expect(await reachS5(page, "10:00")).toContain("/spine/r18/light/hero/phone-585.avif");
 });
 
 test.describe("a 1200-wide window at 2×", () => {
   test.use({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 2 });
-  test("picks hero-2560.avif (§12)", async ({ page, isMobile }) => {
+  test("picks hero-2880.avif (§12, W18-C)", async ({ page, isMobile }) => {
     test.skip(isMobile, "desktop");
-    expect(await reachS5(page, "10:00")).toContain("/spine/r17/light/hero/hero-2560.avif");
+    expect(await reachS5(page, "10:00")).toContain("/spine/r18/light/hero/hero-2880.avif");
   });
 });

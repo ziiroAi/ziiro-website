@@ -32,6 +32,8 @@ export interface DrivePace {
   idleSpin: boolean;
   /** The idle spin has stopped for good: its first frames came too slowly. */
   onSpinOff?(): void;
+  /** W18-C: the framing the first frame was drawn at (the plan's hero, which its still shows); r17's when absent. */
+  framing?: Framing;
 }
 
 export interface Drive extends SpineViewerApi {
@@ -84,7 +86,7 @@ export function createDrive(
 ): Drive {
   let motion = initialMotion;
   let orbit = REST;
-  let framing: Framing = baseFraming(size);
+  let framing: Framing = pace.framing ?? baseFraming(size);
   let flight: Flight | null = null;
   let press: Press | null = null;
   let hovered: DiscId | null = null;
