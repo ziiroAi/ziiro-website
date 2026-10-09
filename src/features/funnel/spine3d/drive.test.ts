@@ -351,6 +351,21 @@ describe("scrubbed by the scroll (W15-B, the one plan stage)", () => {
     expect(yaw()).not.toBe(before);
   });
 
+  it("hands back to the idle sweep without a jump when hold scrubs down to 0 (W15-B3 with W15-C4)", () => {
+    start();
+    flush(100);
+    for (const hold of [0.25, 0.5, 1, 0.5, 0.25, 0.1, 0.05, 0]) {
+      drive!.scrub(close, hold);
+      flush();
+    }
+    const from = handle.render.mock.calls.length - 1;
+    flush(60);
+    const yaws = handle.render.mock.calls.slice(from).map((call) => call[0].yaw as number);
+    const steps = yaws.slice(1).map((y, i) => Math.abs(y - yaws[i]));
+    expect(Math.max(...steps), "the sweep eases on from the drawn yaw").toBeLessThan(0.02);
+    expect(yaws.at(-1)).not.toBe(yaws[0]);
+  });
+
   it("ends a flight in progress", async () => {
     start({ spin: false });
     let landed = false;
