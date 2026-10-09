@@ -284,7 +284,9 @@ describe("the words make way for the spine on either side (W15-B3, W16-A)", () =
     const LEFT_REACH = 0.24;
     const RIGHT_REACH = 0.14;
     const COLUMN = 0.46;
-    expect(wordsLeftOpacity(COLUMN + LEFT_REACH, "desktop")).toBe(0);
+    // Where the left column's text ends: x 615 of 1440 (its padding takes the rest of the 46 %).
+    const LEFT_TEXT_ENDS = 0.43;
+    expect(wordsLeftOpacity(LEFT_TEXT_ENDS + LEFT_REACH, "desktop")).toBe(0);
     expect(needWordsOpacity(1 - COLUMN - RIGHT_REACH, "desktop")).toBe(0);
     // At their own stops the words are fully in and the spine's edge is clear of them.
     expect(ACROSS.desktop.right - LEFT_REACH).toBeGreaterThan(COLUMN);
@@ -293,6 +295,10 @@ describe("the words make way for the spine on either side (W15-B3, W16-A)", () =
     expect(ACROSS.desktop.left - LEFT_REACH).toBeGreaterThan(0.05);
     expect(wordsLeftOpacity(ACROSS.desktop.right, "desktop")).toBe(1);
     expect(needWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(1);
+  });
+
+  it("shows every section's words fully while the spine stands in the hero, so none sit faded in the page (axe, S9)", () => {
+    expect(wordsLeftOpacity(ACROSS.desktop.hero, "desktop")).toBe(1);
   });
 
   it("leaves the phone's words alone: the band sits between them", () => {

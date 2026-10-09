@@ -154,10 +154,10 @@ export function needWordsOpacity(across: number, variant: Variant): number {
 }
 
 /** Words in the left column show from where the model stands at WORDS_LEFT_FROM (none) to WORDS_LEFT_FULL_AT (all):
- *  the zoomed spine's left edge (its processes), about 0.24 left of that, is then clear of the 46 % column (W16-A,
- *  W17-S). */
-export const WORDS_LEFT_FROM = 0.7;
-export const WORDS_LEFT_FULL_AT = 0.76;
+ *  the zoomed spine's left edge (its processes), about 0.24 left of that, is then clear of the column's text, which
+ *  ends at 43 % (W16-A, W17-S). Full by the hero's 0.74, so no section's words sit half faded in the page (axe, S9). */
+export const WORDS_LEFT_FROM = 0.67;
+export const WORDS_LEFT_FULL_AT = 0.73;
 
 /** How much of a left-column section's words show, 0 to 1: they wait for the spine to reach the right. Always on a
  *  phone. */
