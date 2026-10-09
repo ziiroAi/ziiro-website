@@ -194,18 +194,27 @@ function disposeTree(root: Object3D): void {
   });
 }
 
-/** A ring set's glow, 0 to 1, by its intensity uniforms (the caps' and the bands' own); hidden at 0. Each uniform's
- *  full value is read the first time. */
-const fullIntensity = new WeakMap<object, number>();
-function fadeRings(rings: Rings, level: number): void {
-  rings.group.visible = level > 0;
+/** Each ring set's share of pixels kept, 0 to 1 (W16-A): its bands are opaque, so dimming them drew black slabs once
+ *  the body round them had dissolved; instead they dissolve too, a per-pixel hash like the body's alphaHash. */
+const ringsKept = new WeakMap<Rings, { value: number }>();
+function dissolvable(rings: Rings): Rings {
+  const kept = { value: 1 };
+  ringsKept.set(rings, kept);
   rings.group.traverse((node) => {
     const material = (node as Mesh).material as ShaderMaterial | undefined;
-    const uniform = material?.uniforms?.intensity;
-    if (!uniform) return;
-    if (!fullIntensity.has(uniform)) fullIntensity.set(uniform, uniform.value as number);
-    uniform.value = fullIntensity.get(uniform)! * level;
+    if (!material?.isShaderMaterial) return;
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.uKept = kept;
+      shader.fragmentShader = `uniform float uKept;\n${shader.fragmentShader.replace("void main(){",
+        "void main(){ if (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) >= uKept) discard;")}`;
+    };
   });
+  return rings;
+}
+function dissolveRings(rings: Rings, kept: number): void {
+  rings.group.visible = kept > 0;
+  const uniform = ringsKept.get(rings);
+  if (uniform) uniform.value = kept;
 }
 
 /** The close-up in LOOK space: worker-3's matrix on a parent of the GLB's scene (W16-C), with his own materials. */
@@ -273,7 +282,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
     renderer.toneMapping = TONE[t.toneMapping];
     renderer.toneMappingExposure = t.exposure;
     const { quad, shared } = makeBackground(t, px.width / Math.max(px.height, 1));
-    const rings = makeRings(t, GAPS, shared);
+    const rings = options.closeupUrl ? dissolvable(makeRings(t, GAPS, shared)) : makeRings(t, GAPS, shared);
     rings.setLevels(levelsOf(levels));
     inner.add(rings.group);
     const bodies = loaded.parts.map(({ mesh, source }) => {
@@ -283,7 +292,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
       mesh.material = body;
       return body;
     });
-    const closeRings = options.closeupUrl && CLOSEUP_RINGS ? makeRings(t, CLOSEUP.gaps, shared) : null;
+    const closeRings = options.closeupUrl && CLOSEUP_RINGS ? dissolvable(makeRings(t, CLOSEUP.gaps, shared)) : null;
     if (closeRings) {
       closeRings.group.visible = false;
       inner.add(closeRings.group);
@@ -348,11 +357,11 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
     const w = closeup ? Math.min(1, Math.max(0, next.closeup ?? 0)) : 0;
     loaded.root.visible = w < 1;
     dressing.bodies.forEach((body) => (body.opacity = 1 - w));
-    fadeRings(dressing.rings, 1 - w);
+    dissolveRings(dressing.rings, 1 - w);
     if (!closeup) return;
     closeup.holder.visible = w > 0;
     closeup.materials.forEach((m) => (m.opacity = w));
-    if (dressing.closeRings) fadeRings(dressing.closeRings, w);
+    if (dressing.closeRings) dissolveRings(dressing.closeRings, w);
   };
 
   const render = (next: View): DiscBox[] => {

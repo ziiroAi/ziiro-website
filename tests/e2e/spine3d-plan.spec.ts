@@ -56,6 +56,13 @@ async function scrollToDepth(page: Page, depth: number) {
   });
 }
 
+/** Back at the hero, where the full spine and its overlay show (W16-A: from block 2 on, the close-up hides them). */
+async function toHero(page: Page) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect.poll(() => page.evaluate(() =>
+    document.querySelector<HTMLElement>("[data-testid=spine-stage]")!.dataset.scrolled === "0"), { timeout: SETTLE_TIMEOUT_MS }).toBe(true);
+}
+
 async function liveStage(page: Page): Promise<Locator> {
   await scrollToDepth(page, 0);
   const stage = page.getByTestId("spine-stage");
@@ -86,7 +93,10 @@ async function overStageCovers(page: Page): Promise<string[]> {
       .map((el) => ({ name: `depth ${el.dataset.depth}`, box: el.getBoundingClientRect() }));
     const cta = document.querySelector('[data-depth="5"] a');
     if (cta) words.push({ name: "the CTA", box: cta.getBoundingClientRect() });
+    // W16-A: over the close-up the overlay is hidden (visibility) and the legend faded out: those cover nothing.
+    const shown = (el: HTMLElement) => getComputedStyle(el).visibility !== "hidden" && Number(getComputedStyle(el).opacity) > 0.01;
     const marks = [...document.querySelectorAll<HTMLElement>("[data-testid=spine-stage] [data-legend], [data-testid=spine-stage] [data-callout]")]
+      .filter(shown)
       .map((el) => ({ name: el.dataset.callout ? `callout ${el.dataset.callout}` : "legend", box: el.getBoundingClientRect() }))
       .filter((m) => onScreen(m.box));
     return marks.flatMap((m) => words.filter((w) => onScreen(w.box) && meet(m.box, w.box)).map((w) => `${m.name} over ${w.name}`));
@@ -277,20 +287,44 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
     await expect(stage).toHaveAttribute("data-stop", "overview", { timeout: SETTLE_TIMEOUT_MS });
   });
 
-  test("pins the in-focus disc's callout with its names (§6.7)", async ({ page }) => {
+  test("pins the lit discs' callouts with their names on the full spine, and hides them over the close-up (§6.7, W16-A)", async ({ page }) => {
     await toPlan(page);
     const stage = await liveStage(page);
-    await scrollToDepth(page, 1);
-    await expect(stage).toHaveAttribute("data-stop", "G04", { timeout: SETTLE_TIMEOUT_MS });
+    await toHero(page);
     const deals = stage.locator('[data-callout="G04"]');
     await expect(deals).toBeVisible({ timeout: SETTLE_TIMEOUT_MS });
     await expect(deals).toContainText("Deals · 3 of 5", { timeout: SETTLE_TIMEOUT_MS });
     await expect(deals).toContainText("Enquiry responder", { timeout: SETTLE_TIMEOUT_MS });
+    await scrollToDepth(page, 1);
+    await expect(stage).toHaveAttribute("data-stop", "G04", { timeout: SETTLE_TIMEOUT_MS });
+    await expect(deals).toBeHidden({ timeout: SETTLE_TIMEOUT_MS });
+  });
+
+  test("puts each department's words on the side the close-up isn't on: right, left, right... (W16-A)", async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop", "on a phone the text sits below the band");
+    await toPlan(page);
+    await liveStage(page);
+    const width = await page.evaluate(() => window.innerWidth);
+    for (const [i, side] of (["right", "left", "right", "left"] as const).entries()) {
+      await scrollToDepth(page, i + 1);
+      const section = page.locator(`[data-depth="${i + 1}"]`);
+      await expect(section).toHaveAttribute("data-side", side);
+      const box = (await section.boundingBox())!;
+      if (side === "right") expect(box.x).toBeGreaterThanOrEqual(width / 2);
+      else expect(box.x + box.width).toBeLessThanOrEqual(width / 2);
+      // The close-up stands on the other half, and the words show once it is there.
+      await expect.poll(() => page.evaluate((wordsRight) => {
+        const across = Number(document.querySelector<HTMLElement>("[data-stage-screen]")!.style.getPropertyValue("--spine-across"));
+        return wordsRight ? across < 0.4 : across > 0.6;
+      }, side === "right"), { timeout: SETTLE_TIMEOUT_MS }).toBe(true);
+      await expect.poll(() => section.evaluate((el) => Number(getComputedStyle(el).opacity)), { timeout: SETTLE_TIMEOUT_MS }).toBeGreaterThanOrEqual(0.99);
+    }
   });
 
   test("opens a disc's panel from the keyboard and gives focus back on Escape (§6.2)", async ({ page }) => {
     await toPlan(page);
     const stage = await liveStage(page);
+    await toHero(page);
     const buttons = stage.locator("button[data-disc]");
     await expect(buttons).toHaveCount(7);
     const deals = stage.locator('button[data-disc="G04"]');
