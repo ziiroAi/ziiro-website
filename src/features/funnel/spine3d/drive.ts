@@ -32,8 +32,9 @@ export interface DrivePace {
 }
 
 export interface Drive extends SpineViewerApi {
-  /** Feeds the boxes the renderer returned for the frame it drew. */
-  takeBoxes(boxes: readonly DiscBox[]): void;
+  /** Feeds the boxes the renderer returned for the frame it drew, with the worker's own frame time off the main
+   *  thread (W14-U M1). */
+  takeBoxes(boxes: readonly DiscBox[], frameMs?: number): void;
   /** Draws a frame if nothing else will, after a resize or a theme change. */
   wake(): void;
   /** Reduced motion turned on or off while it runs (W14-V T8). */
@@ -83,8 +84,6 @@ export function createDrive(
   let focused = document.hasFocus();
   /** The previous animation frame while the loop runs, and the frame times until the GPU is judged. */
   let lastFrame = 0;
-  /** Off the main thread: when the oldest frame not yet drawn was sent (W14-U M1). */
-  let sentAt = 0;
   let frameMs: number[] = [];
   /** Judged only where the spin can ever run; a reader may turn reduced motion off later (T8). */
   let judged = !pace.idleSpin;
@@ -122,7 +121,7 @@ export function createDrive(
 
   /**
    * On the main thread a frame's time is the gap between animation frames. Off it (the worker), those gaps stay near
-   * 16 ms however slow the GPU is, so a frame's time is how long it takes to come back drawn (takeBoxes).
+   * 16 ms however slow the GPU is, so the worker reports its own frame time with its boxes (takeBoxes).
    */
   function timeFrame(now: number): void {
     if (!handle.offThread && lastFrame) judge(now - lastFrame);
@@ -135,7 +134,6 @@ export function createDrive(
     raf = 0;
     last = 0;
     lastFrame = 0;
-    sentAt = 0;
   }
 
   /** Only the idle spin is moving it: nobody holds it, it isn't flung and no flight runs. */
@@ -154,7 +152,6 @@ export function createDrive(
     const stepped = step(orbit, dt, { ...motion, spin: idle });
     orbit = stepped.orbit;
     const flying = advanceFlight(now);
-    if (handle.offThread && !sentAt) sentAt = performance.now();
     handle.render({ yaw: orbit.yaw, pitch: orbit.pitch, framing });
     if (stepped.moving || flying || orbit.held) schedule();
     else {
@@ -283,12 +280,9 @@ export function createDrive(
     },
     pick: (x, y) => handle.pick(x, y),
     boxes: () => boxes,
-    takeBoxes: (next) => {
+    takeBoxes: (next, frameMs) => {
       boxes = next;
-      if (handle.offThread && sentAt) {
-        judge(performance.now() - sentAt);
-        sentAt = 0;
-      }
+      if (handle.offThread && frameMs !== undefined) judge(frameMs);
       boxListeners.forEach((listener) => listener(next));
     },
     wake: schedule,

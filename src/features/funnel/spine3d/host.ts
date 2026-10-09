@@ -28,7 +28,8 @@ export interface SpineHandle {
 export interface StartOptions extends SpineStart {
   /** The first frame is drawn. `gpu` is the renderer's name, so the viewer can pace its idle spin (W14-O). */
   onReady(boxes: DiscBox[], gpu: string): void;
-  onBoxes(boxes: DiscBox[]): void;
+  /** `frameMs`: the worker's own frame time, so the drive can judge a GPU it can't time from the main thread. */
+  onBoxes(boxes: DiscBox[], frameMs?: number): void;
   onFail(reason: FallbackReason): void;
 }
 
@@ -59,7 +60,7 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
     if (data.type === "themed") settleThemes(themed.findIndex(({ theme }) => theme === data.theme) + 1);
     if (data.type === "ready") onReady(data.boxes, data.gpu);
     else if (data.type === "themed") return;
-    else if (data.type === "boxes") onBoxes(data.boxes);
+    else if (data.type === "boxes") onBoxes(data.boxes, data.frameMs);
     else if (data.type === "picked") {
       picks.get(data.id)?.(data.disc);
       picks.delete(data.id);

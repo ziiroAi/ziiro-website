@@ -45,6 +45,11 @@ let building: { abort: AbortController; done: Promise<void> } | null = null;
 /** W14-U M1: the latest view not yet drawn. Views that arrive faster than the GPU draws are dropped, not queued, so a
  *  slow GPU answers late and the drive's frame judge sees it. */
 let unseen: View | null = null;
+/** For the frame time it reports (W14-U M1): when it last drew, when the oldest undrawn view came, and whether newer
+ *  views replaced it before the frame came (the GPU is behind the spin). */
+let drawnAt = 0;
+let unseenSince = 0;
+let piledUp = false;
 /** What arrived while the scene was still being built, applied before its first frame (W14-J F1). */
 let latest: {
   view: View | null;
@@ -77,8 +82,13 @@ async function init(message: Extract<ToWorker, { type: "init" }>, signal: AbortS
 
 function draw(): void {
   const view = unseen;
+  const now = performance.now();
+  const frameMs = piledUp && drawnAt ? now - drawnAt : now - unseenSince;
   unseen = null;
-  if (spine && view) scope.postMessage({ type: "boxes", boxes: spine.render(view) });
+  piledUp = false;
+  if (!spine || !view) return;
+  drawnAt = now;
+  scope.postMessage({ type: "boxes", boxes: spine.render(view), frameMs });
 }
 
 function handle(data: ToWorker): void {
@@ -92,7 +102,11 @@ function handle(data: ToWorker): void {
     case "view":
       latest = { ...latest, view: data.view };
       if (!spine) return;
-      if (!unseen) nextFrame(draw);
+      if (unseen) piledUp = true;
+      else {
+        unseenSince = performance.now();
+        nextFrame(draw);
+      }
       unseen = data.view;
       return;
     case "pick":

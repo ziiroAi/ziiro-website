@@ -120,6 +120,48 @@ describe("drawing at the GPU's own pace (W14-U M1)", () => {
   });
 });
 
+describe("its own frame interval (W14-U M1, worker-2's recheck)", () => {
+  it("sends how long it has been since its last frame with each frame's boxes, so the viewer judges the GPU itself", async () => {
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    send(init);
+    build();
+    await vi.waitFor(() => expect(posted.some((m) => m.type === "ready")).toBe(true));
+    posted.length = 0;
+    const view = (yaw: number) => ({ type: "view" as const, view: { yaw, pitch: 0, framing: baseFraming("phone") } });
+    send(view(0.1));
+    now = 1016;
+    drawFrame();
+    send(view(0.2));
+    now = 1056;
+    drawFrame();
+    const boxes = posted.filter((m) => m.type === "boxes");
+    expect(boxes).toHaveLength(2);
+    // It kept up: each view was drawn at the worker's next frame, so the frame is the wait for it.
+    expect(boxes.map((m) => (m as { frameMs?: number }).frameMs)).toEqual([16, 40]);
+  });
+
+  it("sends the time since its last frame when views piled up meanwhile: the GPU is behind the spin", async () => {
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    send(init);
+    build();
+    await vi.waitFor(() => expect(posted.some((m) => m.type === "ready")).toBe(true));
+    const view = (yaw: number) => ({ type: "view" as const, view: { yaw, pitch: 0, framing: baseFraming("phone") } });
+    send(view(0.1));
+    now = 1016;
+    drawFrame();
+    posted.length = 0;
+    now = 1020;
+    send(view(0.2));
+    now = 1036;
+    send(view(0.3));
+    now = 1076;
+    drawFrame();
+    expect(posted).toEqual([expect.objectContaining({ type: "boxes", frameMs: 60 })]);
+  });
+});
+
 describe("what init may ask for (W14-V T6)", () => {
   it.each([
     ["another origin", "https://example.com/spine/3d/m1/spine-phone.glb"],

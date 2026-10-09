@@ -151,24 +151,25 @@ describe("the loop after a pause (T1)", () => {
   });
 });
 
-describe("judging a GPU behind a worker (W14-U M1)", () => {
-  it("turns the spin off when the worker acks its frames 64 ms apart, though the page runs at 60 fps", () => {
+describe("judging a GPU behind a worker (W14-U M1, worker-2's recheck)", () => {
+  /** The page runs at 60 fps; the worker draws once per GPU frame and reports that frame's interval with its boxes. */
+  function spinWithWorkerFrames(frameMs: number) {
     const onSpinOff = start({ offThread: true });
-    for (let frame = 0; frame < 160; frame++) {
+    const every = Math.max(1, Math.round(frameMs / 16));
+    for (let frame = 0; frame < 240; frame++) {
       flush(1, 16);
-      // The worker draws only every fourth view it is sent: one ack per 64 ms.
-      if (frame % 4 === 3) drive!.takeBoxes([]);
+      // The ack comes at the worker's next frame, often right after the send: its wait says nothing of the frame.
+      if (frame % every === every - 1) drive!.takeBoxes([], frameMs);
     }
-    expect(onSpinOff).toHaveBeenCalled();
+    return onSpinOff;
+  }
+
+  it.each([40, 60])("turns the spin off when the worker draws a frame every %i ms, though the page runs at 60 fps", (ms) => {
+    expect(spinWithWorkerFrames(ms)).toHaveBeenCalled();
   });
 
-  it("keeps the spin when the worker keeps up", () => {
-    const onSpinOff = start({ offThread: true });
-    for (let frame = 0; frame < 160; frame++) {
-      flush(1, 16);
-      drive!.takeBoxes([]);
-    }
-    expect(onSpinOff).not.toHaveBeenCalled();
+  it.each([16, 20, 30])("keeps the spin when the worker draws a frame every %i ms", (ms) => {
+    expect(spinWithWorkerFrames(ms)).not.toHaveBeenCalled();
   });
 });
 

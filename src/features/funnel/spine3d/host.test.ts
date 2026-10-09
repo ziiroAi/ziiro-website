@@ -174,6 +174,15 @@ describe("leaving before the first frame (W14-X)", () => {
   });
 });
 
+describe("the worker's frame interval (W14-U M1)", () => {
+  it("hands the worker's own frame interval on with the boxes", () => {
+    const start = options();
+    startSpine(offscreenCanvas(), start);
+    FakeWorker.last!.reply({ type: "boxes", boxes: [], frameMs: 42 });
+    expect(start.onBoxes).toHaveBeenCalledWith([], 42);
+  });
+});
+
 describe("after dispose (W14-V T2)", () => {
   it("a ready or fail the worker sent before dispose reaches no one", () => {
     const start = options();
