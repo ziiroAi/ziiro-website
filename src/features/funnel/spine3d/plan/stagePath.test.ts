@@ -208,17 +208,27 @@ describe("a phone's travels read as moves too (W18-E, worker-2's review-w17 N2)"
     expect(TRAVEL.phone.travel).toBeGreaterThanOrEqual(0.5);
     expect(TRAVEL.phone.hero).toBeGreaterThanOrEqual(0.5);
     expect(TRAVEL.phone.min).toBeGreaterThanOrEqual(0.5);
-    expect(TRAVEL.desktop).toEqual({ travel: 0.75, hero: 0.5, min: 0 });
+    expect(TRAVEL.phone.heroRest).toBeGreaterThan(0);
+    expect(TRAVEL.desktop).toEqual({ travel: 0.75, hero: 0.5, min: 0, heroRest: 0 });
   });
 
-  it("never squeezes a travel under the minimum: a short first section lets the hero set off at once and arrive a little late", () => {
+  it("never squeezes a travel under the minimum: a short first section rests the hero briefly, then arrives a little late", () => {
     // N2: block 2 reached the phone's line 400 px down and the hero travel was capped to 140 px of it.
     const spans = [{ top: 900, bottom: 1500 }, ...DISCS.map((_, i) => ({ top: 1500 + 700 * i, bottom: 2200 + 700 * i })), { top: 4300, bottom: 5000 }];
-    const anchors = stageAnchors(keys, spans, 500, 422, 422, 422);
+    const anchors = stageAnchors(keys, spans, 500, 422, 422, 422, 84);
     const at = anchors.map((a) => a.at);
-    expect(at.slice(0, 3)).toEqual([0, 0, 422]); // block 2 arrives at 400 by the line, but its travel runs 422
+    expect(at.slice(0, 3)).toEqual([0, 84, 506]); // block 2 arrives at 400 by the line, but its travel runs 422
     for (let i = 1; i < at.length; i += 2) expect(at[i + 1] - at[i]).toBeGreaterThanOrEqual(422);
     at.slice(1).forEach((a, i) => expect(a).toBeGreaterThanOrEqual(at[i]));
+  });
+
+  it("shows the hero at the top of the page under reduced motion: the cut into block 2 comes after the hero's rest", () => {
+    // A software renderer runs the stage as reduced motion; a travel starting at 0 cut the phone's hero away at once.
+    const spans = [{ top: 900, bottom: 1500 }, ...DISCS.map((_, i) => ({ top: 1500 + 700 * i, bottom: 2200 + 700 * i })), { top: 4300, bottom: 5000 }];
+    const anchors = stageAnchors(keys, spans, 500, 422, 422, 422, 84);
+    expect(stageAt(anchors, 0, true, keys[0])).toBe(keys[0]);
+    expect(stageAt(anchors, 60, true, keys[0])).toBe(keys[0]);
+    expect(stageAt(anchors, 100, true, keys[0])).toBe(keys[1]);
   });
 
   it("keeps the 80 % cap where a section is long enough, so the phone's stops still rest", () => {

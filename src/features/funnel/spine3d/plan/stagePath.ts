@@ -226,12 +226,13 @@ export function stageAt(anchors: readonly StageAnchor[], scrollY: number, reduce
 }
 
 /** How far each travel runs, as shares of the screen's height: `travel` into each department and out to the close,
- *  `hero` from the hero into block 2, and `min`, the least any travel may run. desktop: W17-S's one-screen-scale zoom
- *  with the hero's own half screen. phone: half a screen each, never less (W18-E, review-w17 N2), so the zooms read as
- *  moves rather than snaps. */
-export const TRAVEL: Readonly<Record<Variant, { travel: number; hero: number; min: number }>> = {
-  desktop: { travel: 0.75, hero: 0.5, min: 0 },
-  phone: { travel: 0.5, hero: 0.5, min: 0.5 },
+ *  `hero` from the hero into block 2, `min`, the least any travel may run, and `heroRest`, the least scroll the hero
+ *  holds before it sets off. desktop: W17-S's one-screen-scale zoom with the hero's own half screen. phone: half a
+ *  screen each, never less (W18-E, review-w17 N2), so the zooms read as moves rather than snaps; and a tenth of a
+ *  screen's rest, since reduced motion cuts at a travel's start and a start at 0 cut the hero away at once. */
+export const TRAVEL: Readonly<Record<Variant, { travel: number; hero: number; min: number; heroRest: number }>> = {
+  desktop: { travel: 0.75, hero: 0.5, min: 0, heroRest: 0 },
+  phone: { travel: 0.5, hero: 0.5, min: 0.5, heroRest: 0.1 },
 };
 
 /** The hero's scroll cue fades over the first CUE_FADE_PX of scroll: it has done its job once the visitor scrolls, and
@@ -259,7 +260,7 @@ export const MAX_TRAVEL_OF_GAP = 0.8;
  * block 2 arrives about half a screen down, so a screen's travel would leave the hero no rest). No travel is shorter
  * than `minTravel` px: where the 80 % cap would squeeze one under it, the travel starts as early as it can and arrives
  * a little after its section meets the line (W18-E: a phone's block 2 arrives 400 px down, and its 1.5x zoom ran in
- * 140 px). Anchors never run backwards.
+ * 140 px). The hero holds for at least `heroRest` px first. Anchors never run backwards.
  */
 export function stageAnchors(
   keys: readonly StageKey[],
@@ -268,6 +269,7 @@ export function stageAnchors(
   travel: number,
   heroTravel = travel,
   minTravel = 0,
+  heroRest = 0,
 ): StageAnchor[] {
   const count = Math.min(spans.length, keys.length - 1);
   const arrivals = spans.slice(0, count).map((span) => span.top - line);
@@ -278,7 +280,7 @@ export function stageAnchors(
   arrivals.forEach((arrival, i) => {
     const gap = arrival - (i === 0 ? 0 : arrivals[i - 1]);
     const span = Math.max(Math.min(i === 0 ? heroTravel : travel, gap * MAX_TRAVEL_OF_GAP), minTravel);
-    push(arrival - span, keys[i]);
+    push(Math.max(arrival - span, i === 0 ? heroRest : 0), keys[i]);
     push(Math.max(arrival, last() + span), keys[i + 1]);
   });
   return anchors;

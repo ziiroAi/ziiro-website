@@ -99,6 +99,7 @@ interface ReadingSpace {
   travel: number;
   heroTravel: number;
   minTravel: number;
+  heroRest: number;
 }
 
 /**
@@ -109,7 +110,9 @@ interface ReadingSpace {
 function readingSpace(variant: Variant, band: HTMLElement | null): ReadingSpace {
   const screen = window.innerHeight;
   const shares = TRAVEL[variant === "desktop" || !band ? "desktop" : "phone"];
-  const travels = { travel: screen * shares.travel, heroTravel: screen * shares.hero, minTravel: screen * shares.min };
+  const travels = {
+    travel: screen * shares.travel, heroTravel: screen * shares.hero, minTravel: screen * shares.min, heroRest: screen * shares.heroRest,
+  };
   if (variant === "desktop" || !band) return { line: screen / 2, ...travels };
   const stuck = (Number.parseFloat(getComputedStyle(band).top) || 0) + band.getBoundingClientRect().height;
   const below = Math.max(screen - stuck, 1);
@@ -175,8 +178,8 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
     /** The plan's end in page px, where the stage stops; unmeasured (no layout yet), it never ends. */
     let end = Number.POSITIVE_INFINITY;
     const measure = () => {
-      const { line, travel, heroTravel, minTravel } = readingSpace(variant, bandRef.current);
-      anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel, minTravel);
+      const { line, travel, heroTravel, minTravel, heroRest } = readingSpace(variant, bandRef.current);
+      anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel, minTravel, heroRest);
       const rect = root.getBoundingClientRect();
       end = rect.height > 0 ? rect.bottom + window.scrollY : Number.POSITIVE_INFINITY;
     };
