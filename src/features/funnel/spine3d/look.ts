@@ -136,7 +136,7 @@ export const LOOK = {
         colour: [0.06, 0.06, 0.062], metalness: 0.85, roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.4,
         normalScale: 0.6, envIntensity: 0.7,
       },
-      maskFill: { colour: [1, 0.25, 0.02], intensity: 0.15 },
+      maskFill: { colour: [1, 0.25, 0.02], intensity: 0 },  // W16-I: off, it spilled onto the bodies (W16-C2)
       env: {
         top: [0.9, 0.9, 0.9], horizon: [0.45, 0.45, 0.45], bottom: [0.08, 0.08, 0.08],
         panels: [
@@ -171,7 +171,7 @@ export const LOOK = {
         colour: [0.13, 0.08, 0.05], metalness: 0.9, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.25,
         normalScale: 0.7, envIntensity: 1.1,
       },
-      maskFill: { colour: [0.5, 0.65, 1], intensity: 0.15 },
+      maskFill: { colour: [0.5, 0.65, 1], intensity: 0 },  // W16-I: off, as in light
       env: {
         top: [0.35, 0.4, 0.52], horizon: [0.09, 0.105, 0.14], bottom: [0.01, 0.012, 0.018],
         panels: [
