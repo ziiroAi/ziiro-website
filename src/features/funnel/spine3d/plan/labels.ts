@@ -8,7 +8,8 @@
 //   or is hidden (review L3, N1; phones keep callouts, owner's scope answer). The one-side fallback keeps to this too
 //   (N2). A label that would still collide with a higher-priority one, or have a leader run through it, is hidden.
 // - A side leader meets its label level with the anchor where it can (W14-M), so stacked leaders stay apart.
-// - Given the spine's column (avoid), no label ever sits over it: one that would is hidden (W14-X). The right edge
+// - Given the spine's column (avoid), no label ever sits over it: a column label first slides outward clear of the
+//   bands beside the height it was stacked at (W19-RING), and one still over it is hidden (W14-X). The right edge
 //   can keep a wider margin than the others (marginRight: desktop keeps 24 px).
 // - A disc off the canvas or behind the camera gets no label: it comes back hidden.
 // - A column taller than the canvas goes compact (heading only), then drops its lowest-priority labels (the end of
@@ -123,6 +124,26 @@ function xFor(label: LabelInput, side: ColumnSide, view: Viewport): number {
   return clamp(wanted, LABEL_MARGIN_PX, rightLimit(view) - label.width);
 }
 
+/** At most this many slides past the spine's bands: each one clears one more band, and a column has a handful. */
+const MAX_SLIDES = 8;
+
+/**
+ * A column label slid outward, away from the spine, until it clears every band beside the height it was finally
+ * stacked at (W19-RING): pushed down its column, a label can land beside lower vertebrae that reach further out than
+ * its own disc, where the spine curves, and onSpine would hide it. Clamped to the canvas, so a label no slide can
+ * clear still sits over the spine and is hidden as before.
+ */
+function slideClear(x: number, y: number, width: number, height: number, side: ColumnSide, view: Viewport): number {
+  const beside = (view.avoid ?? []).filter((b) => y < b.y1 && y + height > b.y0);
+  let at = x;
+  for (let i = 0; i < MAX_SLIDES; i += 1) {
+    const hit = beside.find((b) => at < b.x1 && at + width > b.x0);
+    if (!hit) break;
+    at = side === "right" ? hit.x1 + LABEL_GAP_PX : hit.x0 - LABEL_GAP_PX - width;
+  }
+  return clamp(at, LABEL_MARGIN_PX, rightLimit(view) - width);
+}
+
 const stackHeight = (heights: readonly number[]): number =>
   heights.reduce((sum, h) => sum + h, 0) + LABEL_SPACING_PX * Math.max(0, heights.length - 1);
 
@@ -166,7 +187,7 @@ function stackColumn(labels: readonly LabelInput[], side: ColumnSide, priority: 
   const heights = ordered.map(heightOf);
   const tops = stackTops(ordered.map((l) => l.anchor.y), heights, view);
   const placed = ordered.map((label, i): PlacedLabel => {
-    const x = xFor(label, side, view);
+    const x = slideClear(xFor(label, side, view), tops[i], label.width, heights[i], side, view);
     return {
       disc: label.disc, x, y: tops[i], width: label.width, height: heights[i], side, compact, hidden: false,
       leader: {
