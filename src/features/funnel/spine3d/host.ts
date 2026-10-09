@@ -26,6 +26,8 @@ export interface SpineHandle {
 }
 
 export interface StartOptions extends SpineStart {
+  /** W15-D2: the mesh's bytes, already on their way (S0's prefetch). Null when that download failed. */
+  meshBytes?: Promise<ArrayBuffer | null>;
   /** The first frame is drawn. `gpu` is the renderer's name, so the viewer can pace its idle spin (W14-O). */
   onReady(boxes: DiscBox[], gpu: string): void;
   /** `frameMs`: the worker's own frame time, so the drive can judge a GPU it can't time from the main thread. */
@@ -33,12 +35,13 @@ export interface StartOptions extends SpineStart {
   onFail(reason: FallbackReason): void;
 }
 
-function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start }: StartOptions): SpineHandle {
+function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, meshBytes, ...start }: StartOptions): SpineHandle {
   const worker = new Worker(new URL("./spine.worker.ts", import.meta.url), { type: "module", name: "spine" });
   const send = (message: ToWorker, transfer: Transferable[] = []) => worker.postMessage(message, transfer);
   const picks = new Map<number, (disc: DiscId | null) => void>();
   /** Until the first frame, dispose ends the worker at once (W14-X). */
   let drawn = false;
+  let disposed = false;
   let nextPick = 0;
   /** Theme changes in the order they were sent, each settled once the worker has drawn it. */
   let themed: { theme: Theme; settle: () => void }[] = [];
@@ -72,7 +75,14 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
   worker.onerror = fail;
   worker.onmessageerror = fail;
   const offscreen = canvas.transferControlToOffscreen();
-  send({ type: "init", canvas: offscreen, ...start }, [offscreen]);
+  if (!meshBytes) send({ type: "init", canvas: offscreen, ...start }, [offscreen]);
+  else {
+    send({ type: "init", canvas: offscreen, ...start, meshFromHost: true }, [offscreen]);
+    // Moved, not copied: a mesh is megabytes. A worker already let go gets nothing.
+    void meshBytes.then((buffer) => {
+      if (!disposed) send({ type: "mesh", buffer }, buffer ? [buffer] : []);
+    });
+  }
   return {
     offThread: true,
     render: (view) => send({ type: "view", view }),
@@ -90,6 +100,7 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...star
       }),
     setLevels: (levels) => send({ type: "levels", levels }),
     dispose: () => {
+      disposed = true;
       // A ready or fail already on its way must reach no one: the viewer may be on a new handle by then (W14-V T2).
       worker.onmessage = null;
       worker.onerror = null;

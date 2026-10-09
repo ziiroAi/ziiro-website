@@ -26,6 +26,7 @@ vi.mock("./host", () => ({ startSpine: (canvas: HTMLCanvasElement, options: Star
 
 let screen: Rendered | null = null;
 let saveData = false;
+let effectiveType: string | undefined;
 let frames: FrameRequestCallback[] = [];
 /** Each queued frame's id, beside it in `frames`: cancelAnimationFrame really cancels (W14-V T9). */
 let frameIds: number[] = [];
@@ -45,6 +46,7 @@ function flush(n = 1, stepMs = 16) {
 
 beforeEach(() => {
   saveData = false;
+  effectiveType = undefined;
   picked = null;
   frames = [];
   frameIds = [];
@@ -68,7 +70,7 @@ beforeEach(() => {
     run();
     return 1;
   });
-  Object.defineProperty(navigator, "connection", { configurable: true, get: () => ({ saveData }) });
+  Object.defineProperty(navigator, "connection", { configurable: true, get: () => ({ saveData, effectiveType }) });
 });
 
 afterEach(() => {
@@ -561,6 +563,17 @@ describe("the idle spin on a weak GPU (W14-O)", () => {
   });
 });
 
+describe("the plan's viewer and the mesh (W15-D2)", () => {
+  it("fetches nothing ahead: only S0 hands its mesh over", async () => {
+    const meshFetch = vi.fn(async () => new Response(new ArrayBuffer(1)));
+    vi.stubGlobal("fetch", meshFetch);
+    await mount();
+    expect(startSpine).toHaveBeenCalledTimes(1);
+    expect(lastOptions().meshBytes).toBeUndefined();
+    expect(meshFetch).not.toHaveBeenCalled();
+  });
+});
+
 describe("on the first screen, S0 (W14-R)", () => {
   const SWIFTSHADER = "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)";
   let lcp: (() => void)[] = [];
@@ -711,6 +724,140 @@ describe("on the first screen, S0 (W14-R)", () => {
     });
     expect(started().dispose).toHaveBeenCalled();
     expect(viewer().dataset.spine).toBe("still");
+  });
+
+  describe("the mesh on its way at the LCP (W15-D2)", () => {
+    const meshBytes = new Uint8Array([7, 7, 7]).buffer;
+    let meshFetch: ReturnType<typeof vi.fn>;
+    let probes = 0;
+    /** What the probe worker answers. */
+    let software = false;
+    /** How long the probe worker takes to answer: 0 answers at once. */
+    let probeMs = 0;
+    beforeEach(() => {
+      probeMs = 0;
+      meshFetch = vi.fn(async (_url: string) => new Response(meshBytes));
+      vi.stubGlobal("fetch", meshFetch);
+      probes = 0;
+      software = false;
+      // The probe runs in a worker, as in Chrome, Firefox and Safari 17.
+      vi.stubGlobal("OffscreenCanvas", class {});
+      vi.stubGlobal(
+        "Worker",
+        class {
+          onmessage: ((event: { data: unknown }) => void) | null = null;
+          onerror = null;
+          terminate = () => undefined;
+          constructor() {
+            probes++;
+            const answer = () => this.onmessage?.({ data: { software } });
+            if (probeMs) setTimeout(answer, probeMs);
+            else queueMicrotask(answer);
+          }
+        },
+      );
+    });
+
+    it("asks the probe at the LCP and, on a real GPU, the viewer's own mesh, before the wait", async () => {
+      await mountFirstScreen();
+      await wait(1_000);
+      expect(probes).toBe(0);
+      expect(meshFetch).not.toHaveBeenCalled();
+      await lcpPainted();
+      await wait(0);
+      expect(probes).toBe(1);
+      expect(meshFetch).toHaveBeenCalledTimes(1);
+      expect(meshFetch.mock.calls[0][0]).toBe(MESH_URLS.desktop);
+      expect(startSpine).not.toHaveBeenCalled();
+    });
+
+    it("hands the bytes to the 3D, so the mesh comes from one request, and asks the probe once", async () => {
+      await mountFirstScreen();
+      await lcpPainted();
+      await wait(WAIT_AFTER_LCP_MS + 1);
+      await wait(1);
+      expect(startSpine).toHaveBeenCalledTimes(1);
+      expect(lastOptions().meshUrl).toBe(MESH_URLS.desktop);
+      expect(new Uint8Array((await lastOptions().meshBytes)!)).toEqual(new Uint8Array(meshBytes));
+      expect(meshFetch).toHaveBeenCalledTimes(1);
+      expect(probes).toBe(1);
+    });
+
+    it("asks for no mesh at all on a software renderer, and the still stays", async () => {
+      software = true;
+      await mountFirstScreen();
+      await lcpPainted();
+      await wait(WAIT_AFTER_LCP_MS + 1);
+      await wait(1);
+      expect(meshFetch).not.toHaveBeenCalled();
+      expect(startSpine).not.toHaveBeenCalled();
+      expect(viewer().dataset.spineReason).toBe("software-gl");
+    });
+
+    it("asks for nothing on Save-Data", async () => {
+      saveData = true;
+      await mountFirstScreen();
+      await lcpPainted();
+      await wait(WAIT_AFTER_LCP_MS + 1);
+      expect(probes).toBe(0);
+      expect(meshFetch).not.toHaveBeenCalled();
+      expect(startSpine).not.toHaveBeenCalled();
+    });
+
+    it("asks for nothing on a slow connection", async () => {
+      effectiveType = "3g";
+      await mountFirstScreen();
+      await lcpPainted();
+      await wait(WAIT_AFTER_LCP_MS + 1);
+      expect(probes).toBe(0);
+      expect(meshFetch).not.toHaveBeenCalled();
+      expect(startSpine).not.toHaveBeenCalled();
+    });
+
+    it("asks for nothing once an option was pressed before the LCP", async () => {
+      await mountFirstScreen();
+      await tap();
+      await lcpPainted();
+      await wait(WAIT_AFTER_LCP_MS + 1);
+      expect(probes).toBe(0);
+      expect(meshFetch).not.toHaveBeenCalled();
+    });
+
+    it("asks for no mesh when the press lands while the probe is out", async () => {
+      probeMs = 100;
+      await mountFirstScreen();
+      await lcpPainted();
+      await tap();
+      await wait(WAIT_AFTER_LCP_MS + 1);
+      await wait(1);
+      expect(meshFetch).not.toHaveBeenCalled();
+      expect(startSpine).not.toHaveBeenCalled();
+    });
+
+    it("lets a download already under way finish after a press, but builds nothing from it", async () => {
+      await mountFirstScreen();
+      await lcpPainted();
+      await wait(0);
+      expect(meshFetch).toHaveBeenCalledTimes(1);
+      await tap();
+      await wait(WAIT_AFTER_LCP_MS + 1);
+      await wait(1);
+      // Network only: the plan page shows the same mesh next, from the HTTP cache.
+      expect(meshFetch).toHaveBeenCalledTimes(1);
+      expect(startSpine).not.toHaveBeenCalled();
+      expect(viewer().dataset.spine).toBe("still");
+    });
+
+    it("fetches nothing ahead where the probe runs on the main thread: it answers only in idle time", async () => {
+      vi.stubGlobal("OffscreenCanvas", undefined);
+      await mountFirstScreen();
+      await lcpPainted();
+      await wait(WAIT_AFTER_LCP_MS + 1);
+      await wait(1);
+      expect(meshFetch).not.toHaveBeenCalled();
+      expect(startSpine).toHaveBeenCalledTimes(1);
+      expect(lastOptions().meshBytes).toBeUndefined();
+    });
   });
 
   it("keeps its 3D for a tap after its first frame", async () => {

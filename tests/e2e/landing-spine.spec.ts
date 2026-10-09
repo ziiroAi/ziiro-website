@@ -121,7 +121,16 @@ test.describe("the live spine on S0", () => {
     await page.keyboard.press("Shift");
     await expect(page.locator(SEL.viewer)).toHaveAttribute("data-spine", "loading");
     // A press on an S1 option is. The button is held, not released, so the page stays on S1 for the checks below.
-    const option = await page.getByRole("button", { name: FIRST_OPTION }).boundingBox();
+    // W15-D2: the 3D now starts 300 ms past the LCP, before the options have risen into place on a phone, so the press
+    // waits until the option is where it will stay and is what a press there lands on.
+    const button = page.getByRole("button", { name: FIRST_OPTION });
+    await button.evaluate((el) => Promise.all(el.closest(".f-s1")?.getAnimations({ subtree: true }).map((a) => a.finished) ?? []));
+    await expect.poll(() => button.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return hit !== null && el.contains(hit);
+    }), { timeout: LIVE_TIMEOUT_MS }).toBe(true);
+    const option = await button.boundingBox();
     if (!option) throw new Error("the first S1 option has no box");
     await page.mouse.move(option.x + option.width / 2, option.y + option.height / 2);
     await page.mouse.down();

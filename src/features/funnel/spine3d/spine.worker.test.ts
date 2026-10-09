@@ -196,3 +196,27 @@ describe("disposing while the scene builds (W14-U L2)", () => {
     expect(posted.some((m) => m.type === "fail")).toBe(false);
   });
 });
+
+describe("the mesh S0 already fetched (W15-D2)", () => {
+  const given = () => createSpineScene.mock.calls[0][0]!.meshBytes as Promise<ArrayBuffer | null> | undefined;
+
+  it("builds from the bytes the page moves over, without a second download", async () => {
+    const buffer = new ArrayBuffer(4);
+    send({ ...init, meshFromHost: true });
+    expect(createSpineScene).toHaveBeenCalledTimes(1);
+    send({ type: "mesh", buffer });
+    await expect(given()).resolves.toBe(buffer);
+  });
+
+  it("fetches by URL when the page has nothing to hand over", () => {
+    send(init);
+    expect(given()).toBeUndefined();
+  });
+
+  it("lets a build waiting for the bytes end when disposed, so it can close", async () => {
+    vi.spyOn(self, "close").mockImplementation(() => undefined);
+    send({ ...init, meshFromHost: true });
+    send({ type: "dispose" });
+    await expect(given()).resolves.toBeNull();
+  });
+});

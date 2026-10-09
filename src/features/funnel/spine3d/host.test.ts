@@ -98,11 +98,13 @@ class FakeWorker {
   onerror: (() => void) | null = null;
   onmessageerror: (() => void) | null = null;
   sent: ToWorker[] = [];
+  transfers: Transferable[][] = [];
   constructor() {
     FakeWorker.last = this;
   }
-  postMessage(message: ToWorker) {
+  postMessage(message: ToWorker, transfer: Transferable[] = []) {
     this.sent.push(message);
+    this.transfers.push(transfer);
   }
   terminate() {}
   reply(data: FromWorker) {
@@ -231,5 +233,52 @@ describe("leaving while it builds, on the main thread (W14-U L2)", () => {
     failBuild(new Error("aborted"));
     await Promise.resolve();
     expect(start.onFail).not.toHaveBeenCalled();
+  });
+});
+
+describe("handing the worker the mesh S0 already fetched (W15-D2)", () => {
+  const meshIn = (worker: FakeWorker) => worker.sent.findIndex((message) => message.type === "mesh");
+
+  it("tells the worker the bytes are coming, then moves them over, so the mesh is downloaded once", async () => {
+    const buffer = new ArrayBuffer(8);
+    startSpine(offscreenCanvas(), { ...options(), meshBytes: Promise.resolve(buffer) });
+    const worker = FakeWorker.last!;
+    expect(worker.sent[0]).toMatchObject({ type: "init", meshFromHost: true });
+    // A promise can't cross to a worker: the init carries only plain data.
+    expect(worker.sent[0]).not.toHaveProperty("meshBytes");
+    await vi.waitFor(() => expect(meshIn(worker)).toBeGreaterThan(0));
+    expect(worker.sent[meshIn(worker)]).toEqual({ type: "mesh", buffer });
+    expect(worker.transfers[meshIn(worker)]).toEqual([buffer]);
+  });
+
+  it("says when the bytes didn't come, so the worker fetches the mesh itself", async () => {
+    startSpine(offscreenCanvas(), { ...options(), meshBytes: Promise.resolve(null) });
+    const worker = FakeWorker.last!;
+    await vi.waitFor(() => expect(meshIn(worker)).toBeGreaterThan(0));
+    expect(worker.sent[meshIn(worker)]).toEqual({ type: "mesh", buffer: null });
+  });
+
+  it("sends nothing to a worker it has already let go", async () => {
+    let arrive: (buffer: ArrayBuffer) => void = () => undefined;
+    const handle = startSpine(offscreenCanvas(), { ...options(), meshBytes: new Promise((resolve) => (arrive = resolve)) });
+    const worker = FakeWorker.last!;
+    handle.dispose();
+    arrive(new ArrayBuffer(8));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(meshIn(worker)).toBe(-1);
+  });
+
+  it("fetches as before without handed bytes: the plan's viewers", () => {
+    startSpine(offscreenCanvas(), options());
+    expect(FakeWorker.last!.sent[0]).not.toHaveProperty("meshFromHost");
+  });
+
+  it("builds from the bytes on the main thread too", async () => {
+    const buffer = new ArrayBuffer(8);
+    startSpine(document.createElement("canvas"), { ...options(), meshBytes: Promise.resolve(buffer) });
+    await vi.waitFor(() => expect(createSpineScene).toHaveBeenCalled());
+    const given = (createSpineScene.mock.calls[0][0] as { meshBytes?: Promise<ArrayBuffer | null> }).meshBytes;
+    await expect(given).resolves.toBe(buffer);
   });
 });
