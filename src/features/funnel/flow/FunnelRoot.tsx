@@ -18,6 +18,7 @@ import { setCtaReporter, setStage } from "./session";
 import { PROGRESS, PROGRESS_TOTAL, createTapGate, funnelStageOf, initialFlow, reduce, type FlowAction, type Screen } from "./state";
 import { FlowNote } from "./ui";
 import { useLeadSend } from "./useLeadSend";
+import { usePlanWarm } from "./usePlanWarm";
 import { useVisitSaves } from "./useVisitSaves";
 import { rotateVisit, startVisit } from "./visit-id";
 
@@ -56,6 +57,7 @@ export function FunnelRoot(): JSX.Element {
   const onPop = useCallback((screen: Screen) => dispatch({ type: "popTo", screen }), []);
   useFlowHistory(state.nav, state.screen, onPop);
   const send = useLeadSend(state, dispatch, starter);
+  usePlanWarm(state.screen);  // the plan's mesh downloads during the questions (W15-M6)
   const [warm, setWarm] = useState(false);
   useEffect(() => {
     if (!resumed) startVisit();  // a reload after a send starts a new visit (§4.1)

@@ -9,6 +9,7 @@ import type { StartOptions } from "./host";
 import { discLevels } from "./levels";
 import type { DiscBox } from "./scene";
 import { WAIT_AFTER_LCP_MS } from "./first-screen";
+import { forgetWarmMeshes, warmMesh } from "./mesh-warm";
 import { markS0Entry } from "./option-press";
 import { LOAD_TIMEOUT_MS, MESH_URLS, SpineViewer } from "./SpineViewer";
 
@@ -45,6 +46,7 @@ function flush(n = 1, stepMs = 16) {
 }
 
 beforeEach(() => {
+  forgetWarmMeshes();
   saveData = false;
   effectiveType = undefined;
   picked = null;
@@ -735,6 +737,7 @@ describe("on the first screen, S0 (W14-R)", () => {
     /** How long the probe worker takes to answer: 0 answers at once. */
     let probeMs = 0;
     beforeEach(() => {
+      forgetWarmMeshes();
       probeMs = 0;
       meshFetch = vi.fn(async (_url: string) => new Response(meshBytes));
       vi.stubGlobal("fetch", meshFetch);
@@ -846,6 +849,48 @@ describe("on the first screen, S0 (W14-R)", () => {
       expect(meshFetch).toHaveBeenCalledTimes(1);
       expect(startSpine).not.toHaveBeenCalled();
       expect(viewer().dataset.spine).toBe("still");
+    });
+
+    /** The plan's viewer (no firstScreen): it starts after the first paint, in idle time. */
+    async function mountPlanViewer() {
+      await act(async () => {
+        screen = render(ui());
+      });
+      act(() => flush(2));
+      await wait(1);
+      await wait(1);
+    }
+
+    it("W15-M6: hands a mesh warmed during the questions to the plan's 3D, with no second request", async () => {
+      warmMesh(MESH_URLS.desktop);
+      await mountPlanViewer();
+      expect(startSpine).toHaveBeenCalledTimes(1);
+      expect(lastOptions().meshUrl).toBe(MESH_URLS.desktop);
+      expect(new Uint8Array((await lastOptions().meshBytes)!)).toEqual(new Uint8Array(meshBytes));
+      expect(meshFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("W15-M6: gives the mesh S0 downloaded but never built from to the plan's 3D", async () => {
+      await mountFirstScreen();
+      await lcpPainted();
+      await wait(0);
+      expect(meshFetch).toHaveBeenCalledTimes(1);
+      await tap();
+      screen!.unmount();
+      await mountPlanViewer();
+      expect(startSpine).toHaveBeenCalledTimes(1);
+      expect(new Uint8Array((await lastOptions().meshBytes)!)).toEqual(new Uint8Array(meshBytes));
+      expect(meshFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("W15-M6: hands the warm bytes to one build only; a later build fetches (from the HTTP cache)", async () => {
+      warmMesh(MESH_URLS.desktop);
+      await mountPlanViewer();
+      const first = lastOptions().meshBytes;
+      screen!.unmount();
+      await mountPlanViewer();
+      expect(first).toBeDefined();
+      expect(lastOptions().meshBytes).toBeUndefined();
     });
 
     it("fetches nothing ahead where the probe runs on the main thread: it answers only in idle time", async () => {
