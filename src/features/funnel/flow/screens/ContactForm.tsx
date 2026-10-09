@@ -8,7 +8,7 @@ import { LIMITS, TURNSTILE_ACTION, copy } from "@/features/funnel/data/light";
 import { useTurnstile } from "@/shared/hooks/useTurnstile";
 import { TURNSTILE_SITE_KEY } from "@/shared/lib/turnstile";
 import { checkContact } from "../contact";
-import { dialCodeFor } from "../region";
+import { dialCodeFor, localTimeZone } from "../region";
 import type { ContactField } from "../state";
 import { PrivacyLink, Question, TopRow } from "../ui";
 import type { ScreenProps } from "./types";
@@ -20,7 +20,7 @@ export function ContactForm({ state, edit, env }: ScreenProps) {
   const widget = useTurnstile({
     siteKey: TURNSTILE_SITE_KEY, action: TURNSTILE_ACTION, appearance: "interaction-only", theme: env.boot.theme,
   });
-  const dialCode = dialCodeFor(env.country, env.timeZone);
+  const dialCode = dialCodeFor(env.country, localTimeZone());
   const { contact, fieldErrors } = state;
   const firstError = ORDER.find((field) => fieldErrors.includes(field));
   const errorFor = (field: ContactField) => (fieldErrors.includes(field) ? copy(`s7.err.${field}`) : "");

@@ -8,7 +8,6 @@ import { introOffsetMs, introStartMs } from "./boot";
 import { useBoot, useEarlyTap, useFocusOnStep, useFunnelAttributes, useIsoLayoutEffect } from "./hooks";
 import { useFlowHistory } from "./history";
 import { prefetchPlan } from "./plan-chunk";
-import { localTimeZone } from "./region";
 import { SCREEN_UI } from "./screens";
 import { useChosenTheme } from "./theme";
 import { LandingSpineSlot } from "./LandingSpineSlot";
@@ -37,7 +36,6 @@ export function FunnelRoot(): JSX.Element {
     typeof window === "undefined" ? 0 : introOffsetMs(introStartMs(window, boot.t0), performance.now()),
   );
   const rootRef = useRef<HTMLDivElement>(null);
-  const [timeZone] = useState(() => (typeof window === "undefined" ? null : localTimeZone()));
 
   const act = useCallback(
     (action: FlowAction) => {
@@ -81,13 +79,12 @@ export function FunnelRoot(): JSX.Element {
     prefetchPlan();  // the plan's code loads during S5 to S8 (§13.1)
     setWarm(true);   // and the hero still S9 shows (§6.6)
   }, [state.screen]);
-  const { country } = useVisitSaves(state, { boot, starter, timeZone, introOffsetMs: introOffset });
+  const { country } = useVisitSaves(state, { boot, starter, introOffsetMs: introOffset });
 
   const env: FlowEnv = {
     boot,
     introOffsetMs: state.nav.seq === 0 && state.screen === "s1" ? introOffset : null,
     country,
-    timeZone,
     starter,
     send,
   };

@@ -1,5 +1,8 @@
 // @vitest-environment jsdom
+import { act } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mountRoot } from "@/app/mount";
 import type { Boot } from "./boot";
 import { FunnelRoot } from "./FunnelRoot";
 import { button, click, mount, stubBrowser, type Mounted } from "./test/dom";
@@ -84,5 +87,28 @@ describe("FunnelRoot on landing (S0 + S1)", () => {
     view = mount(<FunnelRoot />);
     expect(screenOf()).toBe("s2");
     expect(boot).toMatchObject({ ready: true, early: null });
+  });
+
+  it("answers an early S1 tap when the first mount is a transition (W15-E)", async () => {
+    const boot = { ...HEAD_BOOT, early: "agency" };
+    (window as BootWindow).__funnelBoot = boot;
+    const container = document.body.appendChild(document.createElement("div"));
+    const root = await act(async () => mountRoot(container, <FunnelRoot />));
+    expect(container.querySelector(".f-root")?.getAttribute("data-screen")).toBe("s2");
+    expect(boot).toMatchObject({ ready: true, early: null });
+    act(() => root.unmount());
+    container.remove();
+  });
+});
+
+describe("FunnelRoot's first render (W15-E)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("looks up no time zone: ICU's zone data costs ~30 ms of the first task", async () => {
+    vi.resetModules();
+    const { FunnelRoot: Fresh } = await import("./FunnelRoot");
+    const spy = vi.spyOn(Intl, "DateTimeFormat");
+    renderToString(<Fresh />);
+    expect(spy).not.toHaveBeenCalled();
   });
 });

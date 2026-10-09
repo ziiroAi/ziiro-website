@@ -20,6 +20,11 @@ vi.mock("@/shared/lib/contact-checks", () => ({
   },
 }));
 
+vi.mock("../region", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../region")>()),
+  localTimeZone: () => "Asia/Kolkata",
+}));
+
 const STARTER = "Honestly, I'm struggling with ___ because ___.";
 const TO_S7: FlowAction[] = [
   { type: "segment", value: "business" }, { type: "business", value: "interior" }, { type: "years", value: "5_10" },
@@ -30,7 +35,7 @@ const AT_S7 = TO_S7.reduce(reduce, initialFlow(STARTER));
 const send = vi.fn();
 function Harness() {
   const [state, dispatch] = useReducer(reduce, AT_S7);
-  const env: FlowEnv = { boot: PRERENDER_BOOT, introOffsetMs: null, country: null, timeZone: "Asia/Kolkata", starter: STARTER, send };
+  const env: FlowEnv = { boot: PRERENDER_BOOT, introOffsetMs: null, country: null, starter: STARTER, send };
   return <ContactForm state={state} act={dispatch} edit={dispatch} env={env} />;
 }
 
