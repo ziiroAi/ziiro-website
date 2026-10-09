@@ -3,6 +3,8 @@
 // the viewer is on screen in a visible tab (render on demand). It also implements the viewer API (api.ts).
 // W14-O: the idle spin runs only in a focused page, at 30 fps at most on a phone, and stops for good on a GPU whose
 // first frames come too slowly (pace.ts); a drag, a fling or a flight still draws.
+// W15-C4: the idle motion is a sweep across the side and front (sweep.ts), never a full turn: from behind the model
+// reads as lumps. A drag still turns it freely all the way round.
 import type { DiscId } from "../data/contract";
 import type { DiscPickEvent, SpineViewerApi } from "./api";
 import { baseFraming, blendFraming, easeInOut, FLIGHT_MS, framingFor, type Framing } from "./camera";
@@ -14,6 +16,7 @@ import { pickDisc, screenDisc } from "./plan/tap";
 import { variantNow } from "./plan/targets";
 import type { MeshSize } from "./rules";
 import type { DiscBox } from "./scene";
+import { enterSweep, stepSweep, type Sweep } from "./sweep";
 
 /** A press that moved less than this and lasted less than TAP_MS is a tap, not a drag. */
 const TAP_SLOP_PX = 8;
@@ -95,6 +98,8 @@ export function createDrive(
   let spin = spinAllowed();
   /** At a tour stop: the model holds its side view, with no idle spin, until a flight without hold (W14-X). */
   let holding = false;
+  /** The idle sweep under way; null while anything else moves it, so it starts again from where that left it. */
+  let sweep: Sweep | null = null;
   /** W15-B, scrubbed by the scroll: how far the model is turned to its side view (0 to 1), and the turn that takes,
    *  fixed when the hold began so a drag while held still turns it. */
   let scrubHold = 0;
@@ -171,11 +176,17 @@ export function createDrive(
     }
     const dt = last ? Math.min(now - last, MAX_FRAME_MS) : FRAME_MS;
     last = now;
-    const stepped = step(orbit, dt, { ...motion, spin: idle });
+    const stepped = step(orbit, dt, { ...motion, spin: false });
     orbit = stepped.orbit;
     const flying = advanceFlight(now);
+    const sweeping = idle && spinOnly();
+    if (sweeping) {
+      const next = stepSweep(sweep ?? enterSweep(orbit.yaw), dt);
+      sweep = next.sweep;
+      orbit = { ...orbit, yaw: next.yaw };
+    } else sweep = null;
     handle.render({ yaw: orbit.yaw + holdTurn * scrubHold, pitch: orbit.pitch * (1 - scrubHold), framing });
-    if (stepped.moving || flying || orbit.held) schedule();
+    if (stepped.moving || sweeping || flying || orbit.held) schedule();
     else {
       last = 0;
       lastFrame = 0;
