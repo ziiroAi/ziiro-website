@@ -22,6 +22,12 @@ export const MESH_URLS: Readonly<Record<MeshSize, string>> = {
   phone: "/spine/3d/m1/spine-phone.glb",
   desktop: "/spine/3d/m1/spine-desktop.glb",
 };
+/** W16-A: the owner's close-up for the plan stage's dive, crunched by worker-3 like m1 (W16-C): 1.2 MB or less on a
+ *  phone, 2.5 MB or less on desktop. Its placement on the full spine is closeup.ts. */
+export const CLOSEUP_URLS: Readonly<Record<MeshSize, string>> = {
+  phone: "/spine/3d/closeup/phone.glb",
+  desktop: "/spine/3d/closeup/desktop.glb",
+};
 
 /** requestIdleCallback's deadline, so the 3D still starts on a page that is never idle. */
 const IDLE_TIMEOUT_MS = 2000;
@@ -68,6 +74,8 @@ export interface SpineViewerProps {
    * if the visitor presses one of S1's options before its first frame, even before this viewer mounts (W14-X).
    */
   firstScreen?: boolean;
+  /** W16-A: also loads the owner's close-up (CLOSEUP_URLS) after the first frame, for the plan stage's dive. */
+  closeup?: boolean;
 }
 
 /** Runs after two frames (the first paint is on screen), then in idle time. Returns a cancel. */
@@ -116,6 +124,7 @@ interface Live {
 interface Inputs {
   label: string;
   firstScreen?: boolean;
+  closeup?: boolean;
   theme: Theme;
   levels: DiscLevels;
   onApi?: (api: SpineViewerApi | null) => void;
@@ -192,6 +201,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         const mine = () => !cancelled && live.current?.handle === handle;
         const handle: SpineHandle = startSpine(canvas, {
           width, height, dpr: devicePixelRatio || 1, size, meshUrl, meshBytes,
+          closeupUrl: latest.current.closeup ? CLOSEUP_URLS[size] : undefined,
           theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: baseFraming(size) },
           onReady: (boxes, gpu) => {
             if (!mine() || !live.current) return;
@@ -355,13 +365,13 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   return { ...state, restyling, spin, left };
 }
 
-export function SpineViewer({ label, lit, className = "", children, onApi, onPhase, firstScreen }: SpineViewerProps): JSX.Element {
+export function SpineViewer({ label, lit, className = "", children, onApi, onPhase, firstScreen, closeup }: SpineViewerProps): JSX.Element {
   const boxRef = useRef<HTMLDivElement>(null);
   const theme = useHtmlTheme();
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason, restyling, spin, left } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, firstScreen });
+  const { phase, reason, restyling, spin, left } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, firstScreen, closeup });
   const live = phase === "live";
   return (
     <div

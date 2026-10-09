@@ -14,6 +14,11 @@ export interface DiscPickEvent {
   box: DiscBox | null;
 }
 
+export interface StagePose {
+  closeup: number;
+  turn: number;
+}
+
 export interface SpineViewerApi {
   /**
    * Moves the camera to a target. With animate (the default) it flies for FLIGHT_MS; without it, or under
@@ -28,6 +33,11 @@ export interface SpineViewerApi {
    * flight in progress.
    */
   scrub(framing: Framing, hold: number): void;
+  /**
+   * W16-A, the plan stage's dive: `closeup` from 0 (the full spine) to 1 (the owner's close-up) dissolves one into
+   * the other, and `turn` (radians) adds to the model's yaw. Kept until the next call; both start at 0.
+   */
+  setPose(pose: StagePose): void;
   /** Lights these departments' discs; the rest keep 12 % (D28). null lights all nine. */
   setLit(lit: readonly DepartmentId[] | null): void;
   /** Called after every drawn frame with all nine discs' screen boxes. Returns an unsubscribe. */

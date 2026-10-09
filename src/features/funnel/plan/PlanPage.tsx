@@ -1,7 +1,7 @@
 // S9 (§6): the plan, drawn on the device from the descriptor lane A passes in (00-index §1.3). It renders §6.2's
 // blocks 1 to 4. Blocks 0 and 5 are the site's own Navbar and footer (lane D). Blocks 1 to 4 share one 3D stage
-// (W15-B, PlanStage): the spine starts on the right of the hero and, as the plan scrolls, moves left and into each
-// stop's disc, with blocks 2 to 4 in a column on the right from 1024 px.
+// (W15-B, PlanStage): the spine starts on the right of the hero and, as the plan scrolls, dives into the owner's
+// close-up, which alternates sides per department (W16-A); from 1024 px the words take the other side.
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Helmet } from "react-helmet-async";
 import { copy } from "../data";
@@ -11,13 +11,16 @@ import { Hero } from "./Hero";
 import { NeedBlock } from "./NeedBlock";
 import { PartStop } from "./PartStop";
 import { PlanStage } from "../spine3d/plan/PlanStage";
+import { closeupSide } from "../spine3d/plan/stagePath";
 import { buildPlanView } from "./planView";
 import { SaveBanner } from "./SaveBanner";
 import { usePlanDepth } from "./usePlanDepth";
 
 /** From 1024 px blocks 2 to 4 lie over the stage in a column on its right, which alone takes the pointer, so a drag
- *  or a tap beside it reaches the spine (W15-B). */
-const OVER_STAGE = "relative lg:z-10 lg:pointer-events-none lg:[&>section]:pointer-events-auto lg:[&>section]:ml-auto lg:[&>section]:w-[46%]";
+ *  or a tap beside it reaches the spine (W15-B). A department whose close-up stands right has its column on the
+ *  left (W16-A). */
+const OVER_STAGE = "relative lg:z-10 lg:pointer-events-none lg:[&>section]:pointer-events-auto lg:[&>section]:ml-auto " +
+  "lg:[&>section]:w-[46%] lg:[&>section[data-side=left]]:ml-0 lg:[&>section[data-side=left]]:mr-auto";
 
 /** The site's title suffix, as SEO.tsx writes it. */
 const TITLE_SUFFIX = " | Ziiro AI";
@@ -63,8 +66,8 @@ export function PlanPage({ plan, visitor, words, saveNotice, onProgress }: PlanP
             />
             <div className={OVER_STAGE}>
               <NeedBlock view={view} />
-              {view.stops.map((stop) => (
-                <PartStop key={stop.department} stop={stop} />
+              {view.stops.map((stop, i) => (
+                <PartStop key={stop.department} stop={stop} side={closeupSide(i) === "left" ? "right" : "left"} />
               ))}
               <Close view={view} name={visitor.name} email={visitor.email} onBook={onBook} />
             </div>

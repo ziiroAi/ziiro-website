@@ -63,11 +63,14 @@ let latest: {
 async function init(message: Extract<ToWorker, { type: "init" }>, signal: AbortSignal): Promise<void> {
   try {
     if (!isOurMesh(message.meshUrl)) throw new Error("mesh-failed");
+    // W16-A: a close-up from anywhere else is dropped; the full spine stays.
+    const closeupUrl = message.closeupUrl && isOurMesh(message.closeupUrl) ? message.closeupUrl : undefined;
     const meshBytes = message.meshFromHost
       ? new Promise<ArrayBuffer | null>((resolve) => (meshArrived = resolve))
       : undefined;
     const built = await createSpineScene({
       ...message,
+      closeupUrl,
       meshBytes,
       width: clamp(message.width, 0, MAX_SIDE, 0),
       height: clamp(message.height, 0, MAX_SIDE, 0),

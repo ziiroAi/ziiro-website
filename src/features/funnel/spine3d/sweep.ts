@@ -1,17 +1,17 @@
-// (C) W15-C4: the idle motion. The owner's model reads clean from its side and front (yaw -150° to +30°) and as lumps
-// from behind (45°-135°: the processes face the camera and hide the discs; see the W15-C3 yaw map). So when idle it
-// sweeps that window and back, eased to a stop at both ends, at the old spin's rate on average, and never turns its
-// back. A drag can leave it anywhere; from there it eases into the window by the way that keeps off the back's
-// middle (90°), then sweeps. Plain numbers, a new value every step, as orbit.ts.
+// (C) W15-C4, narrowed by W16-A: the idle motion. The owner wants the hero's spine held near r17's three-quarter view
+// (wave16.md W16-A), so when idle it sways ±25° about it and back, eased to a stop at both ends, at the old spin's
+// rate on average. A drag can leave it anywhere; from there it eases into the window the short way round, then
+// sways. Plain numbers, a new value every step, as orbit.ts.
 import { SPIN_RATE } from "./orbit";
 
 const DEG = Math.PI / 180;
 const TURN = 2 * Math.PI;
-/** The window's edges: +30° past the side view, and -150° round the front. */
-export const SWEEP_HI = 30 * DEG;
-export const SWEEP_LO = -150 * DEG;
-/** The middle of the back: a yaw outside the window leaves by the edge on its own side of this. */
-const BACK_MIDDLE = 90 * DEG;
+/** The window's edges, either side of r17's view (yaw 0). */
+export const SWEEP_HI = 25 * DEG;
+export const SWEEP_LO = -25 * DEG;
+const WIDTH = SWEEP_HI - SWEEP_LO;
+/** Opposite the window's middle: a yaw outside the window leaves by the edge on its own side of this. */
+const BACK_MIDDLE = (SWEEP_HI + SWEEP_LO) / 2 + Math.PI;
 
 export interface Sweep {
   readonly from: number;
@@ -35,13 +35,13 @@ export function enterSweep(yaw: number): Sweep {
   const angle = wrap(yaw);
   const base = yaw - angle;
   const leg = (lo: number, to: number): Sweep =>
-    ({ from: yaw, to, lo, hi: lo + Math.PI, elapsedMs: 0, durationMs: legMs(yaw, to) });
+    ({ from: yaw, to, lo, hi: lo + WIDTH, elapsedMs: 0, durationMs: legMs(yaw, to) });
   if (angle >= SWEEP_LO && angle <= SWEEP_HI) {
     const lo = base + SWEEP_LO;
     return leg(lo, angle - SWEEP_LO > SWEEP_HI - angle ? lo : base + SWEEP_HI);
   }
-  if (angle > SWEEP_HI && angle <= BACK_MIDDLE) return leg(base + SWEEP_HI - Math.PI, base + SWEEP_HI);
-  const lo = base + SWEEP_LO + (angle > 0 ? TURN : 0); // past the back's middle: on round to -150°
+  if (angle > SWEEP_HI && angle <= BACK_MIDDLE) return leg(base + SWEEP_LO, base + SWEEP_HI);
+  const lo = base + SWEEP_LO + (angle > BACK_MIDDLE ? TURN : 0); // past the back's middle: on round to the low edge
   return leg(lo, lo);
 }
 

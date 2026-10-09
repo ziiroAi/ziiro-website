@@ -1,4 +1,6 @@
 // Block 3 (§6.2): one stop per department in the plan, in scroll order (§5.5). Stop i is plan_depth i.
+// W16-A: from 1024 px its words sit on `side`, opposite the stage's close-up, and wait (by opacity) for the close-up
+// to clear that column: PlanStage's --words-left or --words-right.
 import { copy } from "../data";
 import type { Job } from "../data/contract";
 import { markOf, type StopView } from "./planView";
@@ -22,13 +24,17 @@ function JobList({ jobs }: { jobs: readonly Job[] }): JSX.Element {
   );
 }
 
-export function PartStop({ stop }: { stop: StopView }): JSX.Element {
+/** The opacity class for words on each side: literal, so Tailwind finds both. */
+const WAITS_FOR_CLOSEUP = { left: "lg:opacity-[var(--words-left,1)]", right: "lg:opacity-[var(--words-right,1)]" } as const;
+
+export function PartStop({ stop, side = "right" }: { stop: StopView; side?: "left" | "right" }): JSX.Element {
   const titleId = `plan-stop-${stop.depth}`;
   return (
     <section
       data-depth={stop.depth}
+      data-side={side}
       aria-labelledby={titleId}
-      className="border-t border-[color:var(--funnel-line)] px-4 py-16 sm:px-6 lg:px-10 lg:py-20"
+      className={`border-t border-[color:var(--funnel-line)] px-4 py-16 sm:px-6 lg:px-10 lg:py-20 ${WAITS_FOR_CLOSEUP[side]}`}
     >
       <Swap as="p" lines={stop.count} className={MICRO} />
       <h2 id={titleId} className="mt-3 text-3xl font-medium lg:text-4xl">{stop.heading}</h2>

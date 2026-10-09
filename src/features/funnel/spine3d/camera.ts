@@ -20,6 +20,8 @@ export interface View {
   yaw: number;
   pitch: number;
   framing: Framing;
+  /** W16-A: 0 shows the full spine, 1 the owner's close-up, between them a dissolve. Absent is 0. */
+  closeup?: number;
 }
 
 export type CameraTarget =

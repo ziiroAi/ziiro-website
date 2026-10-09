@@ -27,6 +27,7 @@ function fakeApi() {
   const api: SpineViewerApi = {
     flyTo: vi.fn(() => Promise.resolve()),
     scrub: vi.fn(),
+    setPose: vi.fn(),
     setLit: vi.fn(),
     onDiscBoxes: (l) => { boxListener = l; return () => { boxListener = null; }; },
     onDiscPick: (l) => { pickListener = l; return () => { pickListener = null; }; },
@@ -56,8 +57,8 @@ afterEach(() => {
   view = null;
 });
 
-function mount(api: SpineViewerApi | null, variant: "desktop" | "phone" = "desktop", clearRight?: number) {
-  view = render(<SpineOverlay api={api} callouts={callouts} planAgentIds={ANANYA.agentIds} variant={variant} view={VIEW} clearRight={clearRight} />);
+function mount(api: SpineViewerApi | null, variant: "desktop" | "phone" = "desktop", clearRight?: number, spineSide?: "left" | "right") {
+  view = render(<SpineOverlay api={api} callouts={callouts} planAgentIds={ANANYA.agentIds} variant={variant} view={VIEW} clearRight={clearRight} spineSide={spineSide} />);
   return view.container;
 }
 
@@ -123,6 +124,26 @@ describe("SpineOverlay: keyboard buttons over the discs (§6.2 'Opening a disc')
     const container = mount(null);
     expect(container.querySelector("button")).toBeNull();
     expect(container.querySelector("[role=dialog]")).toBeNull();
+  });
+});
+
+describe("SpineOverlay: the disc panel docks on the spine's side (W15-B4 H1)", () => {
+  // worker-2: at the hero the panel opened bottom-left, under the hero's words; its buttons and stats printed over it.
+  const panelBox = (container: HTMLElement) => container.querySelector<HTMLElement>("[role=dialog]")!.parentElement!.className;
+
+  it("opens on the right while the spine stands right (the hero), clear of the words on the left", () => {
+    const fake = fakeApi();
+    const container = mount(fake.api, "desktop", 0, "right");
+    fake.pick({ disc: "G04", via: "tap", box: BOXES[3] });
+    expect(panelBox(container)).toMatch(/(^| )right-4( |$)/);
+    expect(panelBox(container)).not.toMatch(/(^| )left-4( |$)/);
+  });
+
+  it("opens on the left while the spine stands left (the stops), clear of the text column", () => {
+    const fake = fakeApi();
+    const container = mount(fake.api, "desktop", 0, "left");
+    fake.pick({ disc: "G04", via: "tap", box: BOXES[3] });
+    expect(panelBox(container)).toMatch(/(^| )left-4( |$)/);
   });
 });
 
@@ -248,6 +269,8 @@ describe("SpineOverlay: the lit and quiet legend", () => {
     const legend = mount(fakeApi().api).querySelector<HTMLElement>("[data-legend]")!;
     expect(legend.style.left).toContain("var(--spine-across, 1)");
     expect(legend.style.transform).toContain("var(--spine-across, 1)");
+    // W15-B4 M1: PlanStage hides it while the spine travels past block 2's rising words.
+    expect(legend.style.opacity).toBe("var(--legend-shown, 1)");
     expect(legend.className).not.toContain("right-3");
   });
 
@@ -261,6 +284,11 @@ describe("SpineOverlay: the lit and quiet legend", () => {
     const legend = container.querySelector("[data-legend]")!;
     expect(textOf(legend)).toContain(copy("sp.legend.today"));
     expect(textOf(legend)).toContain(copy("sp.legend.later"));
+  });
+
+  it("lays no legend over a phone's spine: PlanStage puts it under the band (W15-B4 L1)", () => {
+    // worker-2: on a 390 px phone the legend wrapped to four lines over the lower vertebrae.
+    expect(mount(fakeApi().api, "phone").querySelector("[data-legend]")).toBeNull();
   });
 
   it("shows the hover hint on desktop until the first panel opens, and never on a phone", () => {

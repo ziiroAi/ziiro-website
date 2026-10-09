@@ -1,13 +1,15 @@
-// (C) W15-B: the plan's one 3D stage (wave15.md item 5). The owner: "when i scroll down, the big spine is not
-// transitioning". It replaces the hero's viewer and the W14 tour's second one: one SpineViewer, one WebGL context.
+// (C) W15-B, re-choreographed by W16-A: the plan's one 3D stage. One SpineViewer, one WebGL context, holding both the
+// full spine and the owner's close-up (wave16.md W16-A).
 // - Desktop: a full screen under the site's bar, sticky behind the whole plan. The words sit over it: the hero's on
-//   the left with the spine on the right, then blocks 2 and 3 and the close on the right with the spine on the left.
+//   the left with the full spine on the right; block 2 on the right with the close-up on the left; then each
+//   department on the side the close-up isn't on (it alternates, left first); the close on the right.
 // - Phone: a sticky band in the phone lens window's shape, placed after the hero's words (D34), with the text below.
-// - The scroll scrubs the camera through stagePath's keyframes: the hero, block 2 (left and zooming in), each stop's
-//   disc, the close (pulled back). It holds each keyframe while its section is read and moves over the last half
-//   screen before the next; under reduced motion it cuts. While the still shows, the still slides with the spine.
+// - The scroll scrubs the camera through stagePath's keyframes: the hero, the dive into the close-up at block 2, each
+//   department, the pull back out at the close. It holds each keyframe while its section is read and moves over the
+//   last half screen before the next; under reduced motion it cuts. While the still shows, it slides with the model.
 //   When the 3D arrives it eases once from its first frame (r17's) to where the scroll has the stage, then scrubs.
-// - The plan's discs are lit (setLit, D28); SpineOverlay adds the buttons, panels, callouts and legend.
+// - The plan's discs are lit (setLit, D28); SpineOverlay adds the full spine's buttons, panels, callouts and legend,
+//   hidden over the close-up.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { copy, departments as allDepartments } from "../../data";
 import type { AgentId, DepartmentId, DiscId, PlanProgress } from "../../data/contract";
@@ -16,8 +18,11 @@ import { useHtmlTheme } from "../../plan/useHtmlTheme";
 import type { SpineViewerApi } from "../api";
 import { meshFor, stillReasonOf, type FallbackReason } from "../rules";
 import { SpineViewer } from "../SpineViewer";
-import { SpineOverlay } from "./SpineOverlay";
-import { ACROSS, heroWordsOpacity, needWordsOpacity, stageAnchors, stageAt, stageKeys, type Span } from "./stagePath";
+import { LegendRow, SpineOverlay } from "./SpineOverlay";
+import {
+  ACROSS, heroWordsOpacity, legendOpacity, needWordsOpacity, stageAnchors, stageAt, stageKeys, stageShown, wordsLeftOpacity,
+  type Span, type StageAnchor,
+} from "./stagePath";
 import { DESKTOP_QUERY, type Variant } from "./targets";
 import { calloutsFor, LEGEND_STRIP_PX } from "./tour";
 
@@ -30,10 +35,18 @@ const FADE = "linear-gradient(to right, transparent, #000 10%, #000 92%, transpa
 const SOFT_EDGES: CSSProperties = {
   maskImage: FADE, WebkitMaskImage: FADE, maskComposite: "intersect", WebkitMaskComposite: "source-in",
 };
+/** W15-B4 M5 + L2: while the still shows it slides with the spine, so it carries its own soft edges on its own layer.
+ *  Inside a masked box, each frame of the slide repainted the box on a software renderer, and the still's edge showed
+ *  as a hard seam. */
+const MOVING_STILL: CSSProperties = { ...SOFT_EDGES, willChange: "transform" };
+/** Hidden, buttons included (no focus, no pointer), while the close-up shows. */
+const HIDDEN: CSSProperties = { visibility: "hidden" };
 /** On a phone the band covers the top of the screen, so a section is read this far into the space left below it. */
 const PHONE_LINE_SHARE = 1 / 3;
-/** The camera moves over this share of the reading space's height before the next keyframe. */
+/** The share of the reading space the camera travels over before the next keyframe. */
 const TRAVEL_SHARE = 0.5;
+/** Over this much close-up the full spine's overlay is hidden: its buttons and callouts point at the full spine. */
+const OVERLAY_GONE_AT = 0.01;
 /** From 1024 px, the share of the width PlanPage gives blocks 2 to 4 on the right (its lg:[&>section]:w-[46%]), plus
  *  a gap: the callouts keep out of it while the spine is on the left (W15-B2). */
 const TEXT_COLUMN_SHARE = 0.46;
@@ -113,6 +126,7 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
   const [api, setApi] = useState<SpineViewerApi | null>(null);
   const [stop, setStop] = useState<DiscId | null>(null);
   const [spineLeft, setSpineLeft] = useState(false);
+  const [inCloseup, setInCloseup] = useState(false);
   /** The viewer whose first move has been made: an eased flight from its first frame (r17's), then scrubs (W15-B2). */
   const arrived = useRef<SpineViewerApi | null>(null);
   const variant = useVariant();
@@ -141,17 +155,26 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
     api?.setLit(departments);
   }, [api, departments]);
 
-  // The scroll, read at most once a frame: the sections are measured each time, so late layout never strands a key.
+  // The scroll, read at most once a frame. Only scrollY is read then: the sections are measured on a resize of the
+  // window or of the plan (late layout, fonts), so a frame forces no style recalc (W15-B4 L3).
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return undefined;
     let frame: number | null = null;
+    let anchors: StageAnchor[] = [];
+    /** The plan's end in page px, where the stage stops; unmeasured (no layout yet), it never ends. */
+    let end = Number.POSITIVE_INFINITY;
+    const measure = () => {
+      const { line, travel } = readingSpace(variant, bandRef.current);
+      anchors = stageAnchors(path, spansOf(root), line, travel);
+      const rect = root.getBoundingClientRect();
+      end = rect.height > 0 ? rect.bottom + window.scrollY : Number.POSITIVE_INFINITY;
+    };
     const update = () => {
       frame = null;
-      const { line, travel } = readingSpace(variant, bandRef.current);
-      const anchors = stageAnchors(path.keys, spansOf(root), line, travel);
       const reduced = api?.reducedMotion ?? prefersReducedMotion();
-      const key = stageAt(anchors, window.scrollY, reduced, path.pulled);
+      const key = stageAt(anchors, window.scrollY, reduced, path[0]);
+      api?.setPose({ closeup: key.closeup, turn: key.turn });
       if (api && arrived.current !== api) {
         arrived.current = api;
         if (reduced) api.scrub(key.framing, key.hold);
@@ -162,26 +185,39 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
       const slide = Number(((key.across - ACROSS[variant].hero) * 100).toFixed(2));
       if (stillRef.current) stillRef.current.style.transform = `translateX(${slide}%)`;
       screenRef.current?.style.setProperty("--spine-across", String(Number(key.across.toFixed(4))));
-      // W15-B3: the spine never crosses words. The hero's fade as it sets off left, and are hidden once gone (they hold
-      // buttons); block 2's wait for it to clear their column, by opacity only, so a screen reader still reaches them.
+      const legend = legendOpacity(key.across, variant, key.closeup) * stageShown(end - window.scrollY, window.innerHeight);
+      screenRef.current?.style.setProperty("--legend-shown", String(Number(legend.toFixed(3))));
+      // W15-B3, W16-A: the model never crosses words. The hero's fade as it sets off left, and are hidden once gone
+      // (they hold buttons); the sections' words wait for it to clear their column, the right one or the left one, by
+      // opacity only, so a screen reader still reaches them.
       const heroWords = Number(heroWordsOpacity(key.across, variant).toFixed(3));
-      const needWords = Number(needWordsOpacity(key.across, variant).toFixed(3));
       root.style.setProperty("--hero-words", String(heroWords));
-      root.style.setProperty("--need-words", String(needWords));
+      root.style.setProperty("--words-right", String(Number(needWordsOpacity(key.across, variant).toFixed(3))));
+      root.style.setProperty("--words-left", String(Number(wordsLeftOpacity(key.across, variant).toFixed(3))));
       root.toggleAttribute("data-hero-hidden", heroWords === 0);
+      // W16-A: the phone's legend row names the full spine's discs, so it leaves over the close-up.
+      bandRef.current?.style.setProperty("--closeup-out", String(Number((1 - key.closeup).toFixed(3))));
       if (bandRef.current) bandRef.current.dataset.scrolled = String(Math.round(window.scrollY));
       setStop(key.stop);
       setSpineLeft(key.across < 0.5);
+      setInCloseup(key.closeup > OVERLAY_GONE_AT);
     };
     const schedule = () => {
       frame ??= requestAnimationFrame(update);
     };
-    schedule();
+    const remeasure = () => {
+      measure();
+      schedule();
+    };
+    remeasure();
     window.addEventListener("scroll", schedule, { passive: true });
-    window.addEventListener("resize", schedule);
+    window.addEventListener("resize", remeasure);
+    const resized = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(remeasure);
+    resized?.observe(root);
     return () => {
       window.removeEventListener("scroll", schedule);
-      window.removeEventListener("resize", schedule);
+      window.removeEventListener("resize", remeasure);
+      resized?.disconnect();
       if (frame !== null) cancelAnimationFrame(frame);
     };
   }, [api, path, variant]);
@@ -198,27 +234,32 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
         data-stage-screen
         className="relative overflow-hidden lg:sticky lg:top-[var(--nav-h,84px)] lg:h-[calc(100vh-var(--nav-h,84px))]"
       >
-        <div data-soft-edges style={SOFT_EDGES}>
-          <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={departments} onApi={onApi} onPhase={onPhase}>
-            <div ref={stillRef} data-stage-still>
+        <div data-soft-edges style={api ? SOFT_EDGES : undefined}>
+          <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={departments} onApi={onApi} onPhase={onPhase} closeup>
+            <div ref={stillRef} data-stage-still style={MOVING_STILL}>
               <HeroPicture className={STILL} />
             </div>
           </SpineViewer>
         </div>
-        <SpineOverlay
-          api={api}
-          callouts={callouts}
-          planAgentIds={planAgentIds}
-          variant={variant}
-          view={view}
-          focus={stop}
-          clearRight={variant === "desktop" && spineLeft ? view.width * TEXT_COLUMN_SHARE + TEXT_COLUMN_GAP_PX : 0}
-        />
+        <div data-overlay className="contents" style={inCloseup ? HIDDEN : undefined}>
+          <SpineOverlay
+            api={api}
+            callouts={callouts}
+            planAgentIds={planAgentIds}
+            variant={variant}
+            view={view}
+            focus={stop}
+            clearRight={variant === "desktop" && spineLeft ? view.width * TEXT_COLUMN_SHARE + TEXT_COLUMN_GAP_PX : 0}
+            spineSide={spineLeft ? "left" : "right"}
+          />
+        </div>
       </div>
+      {variant === "phone" && api && <LegendRow />}
     </div>
   );
   return (
-    <div ref={rootRef} className="group/stage relative">
+    // Under 1024 px the padding ends the sticky band before the plan's end, so it never rides over the footer's top.
+    <div ref={rootRef} className="group/stage relative max-lg:pb-24">
       {children(stage)}
     </div>
   );

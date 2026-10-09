@@ -6,7 +6,7 @@
 //   disc's button (returnFocusTo).
 // - Pinned callouts (§6.7): one per lit disc, re-laid from onDiscBoxes at most once per animation frame.
 // - The lit and quiet legend (sp.legend.*), headed by the hover hint once on desktop (sp.hint.hover), in a strip at
-//   the bottom that the callouts keep out of.
+//   the bottom that the callouts keep out of. On a phone it is LegendRow, under the band (W15-B4 L1).
 // Before the 3D is live (the still, or a fallback) it renders nothing: the still has no panels.
 import { createRef, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FocusEvent, type RefObject } from "react";
 import { copy } from "../../data";
@@ -43,6 +43,9 @@ export interface SpineOverlayProps {
   focus?: DiscId | null;
   /** Px at the stage's right that callouts keep clear of: the plan's text column once the spine is left (W15-B2). */
   clearRight?: number;
+  /** Which side of the stage the spine stands on. The desktop disc panel docks on that side, so it never opens under
+   *  the words beside the spine: the hero's on the left, the text column on the right (W15-B4 H1). */
+  spineSide?: "left" | "right";
 }
 
 /** The latest disc boxes, at most one update per animation frame. */
@@ -102,10 +105,12 @@ function Callouts({ labels, callouts }: { labels: readonly PlacedLabel[]; callou
 
 /** W15-B2: the legend stands under the spine and follows it across the stage (its container sets --spine-across, 0
  *  to 1): at the right edge when the spine is there, at the left when it is left, so it never sits on the plan's text
- *  column or its call to action. Without the variable it sits at the bottom right, as before. */
+ *  column or its call to action. Without the variable it sits at the bottom right, as before. W15-B4 M1: it shows as
+ *  much as --legend-shown says, which PlanStage drops to 0 while the spine travels past block 2's rising words. */
 const FOLLOW_SPINE: CSSProperties = {
   left: "calc(12px + var(--spine-across, 1) * (100% - 24px))",
   transform: "translateX(calc(var(--spine-across, 1) * -100%))",
+  opacity: "var(--legend-shown, 1)",
 };
 
 /** The legend, with the hover hint on top of it until the first panel opens. Callouts keep out of its strip. */
@@ -119,7 +124,22 @@ function Legend({ hint }: { hint: boolean }): JSX.Element {
   );
 }
 
-export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus = null, clearRight = 0 }: SpineOverlayProps): JSX.Element | null {
+/** W15-B4 L1: a phone's legend, in a row under the band (PlanStage), so it never covers the spine's lower vertebrae. */
+export function LegendRow(): JSX.Element {
+  return (
+    <ul
+      data-legend
+      // W16-A: PlanStage's --closeup-out fades it over the close-up, whose discs it doesn't name.
+      style={{ opacity: "var(--closeup-out, 1)" }}
+      className="flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[color:var(--funnel-muted)]"
+    >
+      <li><span aria-hidden="true" className="text-[color:var(--funnel-accent)]">●</span> {copy("sp.legend.today")}</li>
+      <li><span aria-hidden="true">○</span> {copy("sp.legend.later")}</li>
+    </ul>
+  );
+}
+
+export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus = null, clearRight = 0, spineSide = "left" }: SpineOverlayProps): JSX.Element | null {
   const boxes = useDiscBoxes(api);
   const [opened, setOpened] = useState<Opened | null>(null);
   const [hintSeen, setHintSeen] = useState(false);
@@ -211,7 +231,7 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
           ref={panelRef}
           className={
             variant === "desktop"
-              ? "pointer-events-auto absolute bottom-16 left-4 max-h-[70%] w-80 overflow-auto"
+              ? `pointer-events-auto absolute bottom-16 ${spineSide === "right" ? "right-4" : "left-4"} max-h-[70%] w-80 overflow-auto`
               : "pointer-events-auto absolute inset-x-2 top-full mt-2 max-h-[50vh] overflow-auto"
           }
         >
@@ -224,7 +244,7 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
           />
         </div>
       )}
-      <Legend hint={variant === "desktop" && !hintSeen} />
+      {variant === "desktop" && <Legend hint={!hintSeen} />}
     </div>
   );
 }

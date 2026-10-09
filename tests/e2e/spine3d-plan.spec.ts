@@ -94,12 +94,13 @@ async function overStageCovers(page: Page): Promise<string[]> {
 }
 
 /**
- * Whether the spine crosses the hero's words or stats while they show. The spine's left edge comes from where the stage
- * stands it (--spine-across, written on the scroll frame), less its silhouette's reach left of that point (0.12 of the
- * width, measured on the W15-B2 build: discs reach 0.05-0.08, the processes about 0.06 more). The disc boxes can't be
- * used: they update only when SwiftShader draws, seconds behind the scroll. The words' extent is their text's own box.
+ * Whether the spine, or the legend under it, crosses the hero's words or stats or block 2's while they show. The
+ * spine's left edge comes from where the stage stands it (--spine-across, written on the scroll frame), less its
+ * silhouette's reach left of that point (0.12 of the width, measured on the W15-B2 build: discs reach 0.05-0.08, the
+ * processes about 0.06 more). The disc boxes can't be used: they update only when SwiftShader draws, seconds behind the
+ * scroll. The words' extent is their text's own box. The legend counts while it shows at all (W15-B4 M1).
  */
-async function spineCrossesHeroWords(page: Page): Promise<string | null> {
+async function stageCrossesWords(page: Page): Promise<string | null> {
   return page.evaluate(() => {
     const REACH = 0.12;
     // The stage reads the scroll on its next frame, which SwiftShader can hold back for seconds: wait for it.
@@ -118,6 +119,10 @@ async function spineCrossesHeroWords(page: Page): Promise<string | null> {
     const parts: [HTMLElement, (box: DOMRect) => boolean][] = [
       [hero, (box) => box.right >= spineLeft], [stats, (box) => box.right >= spineLeft], [need, (box) => box.left <= spineRight],
     ];
+    const legend = screen.querySelector<HTMLElement>("[data-legend]");
+    const legendBox = legend && Number(getComputedStyle(legend).opacity) > 0.01 ? legend.getBoundingClientRect() : null;
+    const underLegend = (box: DOMRect) =>
+      !!legendBox && legendBox.left < box.right && box.left < legendBox.right && legendBox.top < box.bottom && box.top < legendBox.bottom;
     const crossed = parts.flatMap(([part, meets]) => {
       const style = getComputedStyle(part);
       if (style.visibility === "hidden" || Number(style.opacity) <= 0.01) return [];
@@ -130,7 +135,9 @@ async function spineCrossesHeroWords(page: Page): Promise<string | null> {
         range.selectNodeContents(node);
         for (const box of range.getClientRects()) {
           const shows = box.width > 0 && box.bottom > 0 && box.top < window.innerHeight;
-          if (shows && meets(box)) hits.push(`"${node.textContent.trim().slice(0, 20)}" (${Math.round(box.left)}-${Math.round(box.right)})`);
+          const words = `"${node.textContent.trim().slice(0, 20)}" (${Math.round(box.left)}-${Math.round(box.right)})`;
+          if (shows && meets(box)) hits.push(words);
+          if (shows && underLegend(box)) hits.push(`under the legend: ${words}`);
         }
       }
       return hits;
@@ -140,19 +147,24 @@ async function spineCrossesHeroWords(page: Page): Promise<string | null> {
 }
 
 test.describe("the plan's one 3D stage (W15-B)", () => {
-  test("never sweeps the spine across the hero's words and stats or block 2's on its way left (W15-B3)", async ({ page }, info) => {
-    test.skip(info.project.name !== "desktop", "on a phone the band sits between the hero's words and the text");
-    // The sweep only happens with motion: under reduced motion the stage cuts from the hero to block 2.
-    await page.emulateMedia({ reducedMotion: "no-preference" });
-    await toPlan(page);
-    await liveStage(page);
-    const end = await page.locator('[data-depth="5"]').evaluate((el) =>
-      el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2);
-    for (let pct = 0; pct <= 20; pct += 2) {
-      await page.evaluate((y) => window.scrollTo(0, y), Math.round((end * pct) / 100));
-      await expect.poll(() => spineCrossesHeroWords(page), { timeout: SETTLE_TIMEOUT_MS, message: `at ${pct} % of the path` }).toBeNull();
-    }
-  });
+  for (const motion of ["no-preference", "reduce"] as const) {
+    test(`never sweeps the spine or its legend across the hero's words and stats or block 2's on its way left, motion ${motion} (W15-B3, W15-B4 M1/M3)`, async ({ page }, info) => {
+      test.skip(info.project.name !== "desktop", "on a phone the band sits between the hero's words and the text");
+      // With motion the spine sweeps left; under reduced motion it cuts, now at the start of the travel (M3).
+      await page.emulateMedia({ reducedMotion: motion });
+      await toPlan(page);
+      await liveStage(page);
+      const end = await page.locator('[data-depth="5"]').evaluate((el) =>
+        el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2);
+      // Every 2 % of the path to 20 %, and worker-2's legend probe at y 275-290 (M1).
+      const at = [...Array.from({ length: 11 }, (_, i) => ({ y: Math.round((end * i * 2) / 100), name: `${i * 2} %` })),
+        ...[275, 282, 290].map((y) => ({ y, name: `y ${y}` }))];
+      for (const { y, name } of at) {
+        await page.evaluate((top) => window.scrollTo(0, top), y);
+        await expect.poll(() => stageCrossesWords(page), { timeout: SETTLE_TIMEOUT_MS, message: `at ${name}` }).toBeNull();
+      }
+    });
+  }
 
   test("keeps the legend and the callouts off the text column and the close's call to action (W15-B2)", async ({ page }, info) => {
     test.skip(info.project.name !== "desktop", "on a phone the legend and callouts sit inside the band, above the text");
@@ -165,6 +177,59 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
       await expect.poll(() => overStageCovers(page), { timeout: SETTLE_TIMEOUT_MS, message: `at ${pct} % of the path` }).toEqual([]);
     }
   });
+
+  test("under reduced motion, cuts as block 2's travel starts, so its words show as they rise (W15-B4 M3)", async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop", "the phone's band keeps the spine in its middle");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await toPlan(page);
+    await liveStage(page);
+    // Block 2's top at 60 % of the screen: inside its travel (from the screen's bottom to its middle line).
+    await page.locator('[data-depth="0"]').evaluate((el) =>
+      window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - window.innerHeight * 0.6));
+    await expect.poll(() => page.evaluate(() =>
+      document.querySelector<HTMLElement>("[data-testid=spine-stage]")!.dataset.scrolled === String(Math.round(window.scrollY))),
+    { timeout: SETTLE_TIMEOUT_MS }).toBe(true);
+    await expect.poll(() => page.locator('[data-depth="0"]').evaluate((el) => Number(getComputedStyle(el).opacity)),
+      { timeout: SETTLE_TIMEOUT_MS }).toBeGreaterThanOrEqual(0.99);
+    await expect.poll(() => stageCrossesWords(page), { timeout: SETTLE_TIMEOUT_MS }).toBeNull();
+  });
+
+  // worker-2's H1 shapes: the review's 1440 x 900 and the owner's 1686 x 948 at 2x.
+  for (const shape of [{ name: "1440", use: {} }, { name: "1686 @2", use: { viewport: { width: 1686, height: 948 }, deviceScaleFactor: 2 } }]) {
+    test.describe(`at ${shape.name}`, () => {
+      test.use(shape.use);
+      test("opens the hero's disc panel on the spine's side, clear of the hero's words and buttons (W15-B4 H1)", async ({ page }, info) => {
+        test.skip(info.project.name !== "desktop", "a phone's panel opens under the band");
+        await toPlan(page);
+        const stage = await liveStage(page);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await expect.poll(() => stageCrossesWords(page), { timeout: SETTLE_TIMEOUT_MS }).toBeNull();
+        await expect.poll(() => spineAcross(page, stage), { timeout: SETTLE_TIMEOUT_MS }).toBeGreaterThan(0.6);
+        await stage.locator('button[data-disc="G04"]').focus();
+        const panel = stage.locator('[role=dialog][data-disc="G04"]');
+        await expect(panel).toBeVisible();
+        const covered = await panel.evaluate((dialog) => {
+          const p = dialog.getBoundingClientRect();
+          const hero = document.querySelector<HTMLElement>("#plan-hero-title")!.closest("section")!;
+          const stats = document.querySelector<HTMLElement>("[data-testid=spine-stage] ~ div")!;
+          const hits: string[] = [];
+          for (const part of [hero, stats]) {
+            const walker = document.createTreeWalker(part, NodeFilter.SHOW_TEXT);
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+              if (!node.textContent?.trim()) continue;
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              for (const b of range.getClientRects()) {
+                if (b.width > 0 && b.left < p.right && p.left < b.right && b.top < p.bottom && p.top < b.bottom) hits.push(node.textContent.trim().slice(0, 24));
+              }
+            }
+          }
+          return hits;
+        });
+        expect(covered, "hero words or buttons over the panel").toEqual([]);
+      });
+    });
+  }
 
   test("keeps one viewer and one canvas from the hero to the close", async ({ page }) => {
     await toPlan(page);
@@ -246,5 +311,35 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
     const stage = await liveStage(page);
     await expect(stage.locator("[data-legend]")).toContainText("Lit");
     await expect(stage.locator("[data-legend]")).toContainText("Quiet");
+  });
+
+  test("ends the stage and its legend before the footer at the end of the plan (W15-B4, worker-4's W15-S LOW 3)", async ({ page }, info) => {
+    await toPlan(page);
+    const stage = await liveStage(page);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect.poll(() => page.evaluate(() =>
+      document.querySelector<HTMLElement>("[data-testid=spine-stage]")!.dataset.scrolled === String(Math.round(window.scrollY))),
+    { timeout: SETTLE_TIMEOUT_MS }).toBe(true);
+    if (info.project.name === "desktop") {
+      // No legend left at the bottom of the plan with no spine above it.
+      await expect.poll(() => stage.locator("[data-legend]").evaluate((el) => Number(getComputedStyle(el).opacity)),
+        { timeout: SETTLE_TIMEOUT_MS }).toBeLessThanOrEqual(0.01);
+      return;
+    }
+    const band = (await stage.boundingBox())!;
+    const footer = (await page.locator("footer.site-footer").boundingBox())!;
+    expect(band.y + band.height, "the band's bottom against the footer's top").toBeLessThan(footer.y - 1);
+  });
+
+  test("keeps a phone's legend under the band, off the spine's lower vertebrae (W15-B4 L1)", async ({ page }, info) => {
+    test.skip(info.project.name !== "phone", "desktop keeps its legend under the spine, on the stage");
+    await toPlan(page);
+    const stage = await liveStage(page);
+    const legend = (await stage.locator("[data-legend]").boundingBox())!;
+    const screen = (await stage.locator("[data-stage-screen]").boundingBox())!;
+    expect(legend.y).toBeGreaterThanOrEqual(screen.y + screen.height - 1);
+    // Each item on one line: worker-2 saw the two wrap into four lines over the spine.
+    const lines = await stage.locator("[data-legend] li").evaluateAll((items) => items.map((li) => li.getBoundingClientRect().height));
+    lines.forEach((height) => expect(height).toBeLessThan(24));
   });
 });

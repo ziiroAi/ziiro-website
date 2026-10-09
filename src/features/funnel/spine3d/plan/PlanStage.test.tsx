@@ -3,7 +3,7 @@
 // transitioning". One spine starts at the hero on the right and, scrolled into block 2, travels left as it zooms in.
 import { act, useEffect, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { composePlan } from "../../data";
+import { composePlan, copy } from "../../data";
 import { render, type Rendered } from "../../plan/test-utils";
 import type { SpineViewerApi } from "../api";
 import type { FallbackReason } from "../rules";
@@ -15,13 +15,16 @@ const viewer = vi.hoisted(() => ({
   nextApi: null as SpineViewerApi | null,
   nextPhase: null as null | ["live" | "fallback", FallbackReason | null],
   mounts: 0,
+  closeup: undefined as boolean | undefined,
 }));
 vi.mock("../SpineViewer", () => ({
-  SpineViewer: ({ children, onApi, onPhase }: {
+  SpineViewer: ({ children, onApi, onPhase, closeup }: {
     children: ReactNode;
+    closeup?: boolean;
     onApi?: (api: SpineViewerApi | null) => void;
     onPhase?: (phase: "live" | "fallback", reason: FallbackReason | null) => void;
   }) => {
+    viewer.closeup = closeup;
     useEffect(() => {
       viewer.mounts += 1;
       onApi?.(viewer.nextApi);
@@ -74,6 +77,7 @@ const arrival = (depth: number) => 1000 + 1000 * depth - window.innerHeight / 2;
 function fakeApi(reducedMotion = false) {
   return {
     scrub: vi.fn(),
+    setPose: vi.fn(),
     flyTo: vi.fn(() => Promise.resolve()),
     setLit: vi.fn(),
     onDiscBoxes: () => () => undefined,
@@ -81,7 +85,7 @@ function fakeApi(reducedMotion = false) {
     pick: () => Promise.resolve(null),
     boxes: () => [],
     reducedMotion,
-  } as unknown as SpineViewerApi & { scrub: ReturnType<typeof vi.fn>; setLit: ReturnType<typeof vi.fn>; flyTo: ReturnType<typeof vi.fn> };
+  } as unknown as SpineViewerApi & { scrub: ReturnType<typeof vi.fn>; setPose: ReturnType<typeof vi.fn>; setLit: ReturnType<typeof vi.fn>; flyTo: ReturnType<typeof vi.fn> };
 }
 
 let view: Rendered | null = null;
@@ -119,12 +123,12 @@ function mount(onProgress = vi.fn()) {
   FakeResize.all.forEach((o) => o.resize(VIEW.width, VIEW.height));
   return { stage: q("[data-testid=spine-stage]"), still: q("[data-stage-still]") };
 }
-const keys = () => stageKeys(DISCS, "desktop", "desktop", VIEW, LEGEND_STRIP_PX.desktop).keys;
+const keys = () => stageKeys(DISCS, "desktop", "desktop", VIEW, LEGEND_STRIP_PX.desktop);
 /** The stage's latest camera move, as [framing, hold]: a scrub, or the eased flight it makes when the 3D arrives. */
 function lastScrub(api: ReturnType<typeof fakeApi>): unknown[] | undefined {
   const scrubbed = api.scrub.mock.invocationCallOrder.at(-1) ?? -1;
   const flown = api.flyTo.mock.invocationCallOrder.at(-1) ?? -1;
-  if (scrubbed > flown) return api.scrub.mock.calls.at(-1);
+  if (scrubbed > flown) return api.scrub.mock.calls.at(-1)?.slice(0, 2);
   const flight = api.flyTo.mock.calls.at(-1) as [{ framing: unknown }, { hold?: boolean }] | undefined;
   return flight && [flight[0].framing, flight[1].hold ? 1 : 0];
 }
@@ -148,8 +152,10 @@ describe("PlanStage: one spine for the whole plan (W15-B)", () => {
     expect(view!.container.querySelector("img")?.className).toContain("max-lg:aspect-[1290/1356]");
   });
 
-  it("fades the canvas into the page at its edges, with the overlay outside the fade (W14-M)", () => {
+  it("fades the canvas into the page at its edges, with the overlay outside the fade (W14-M)", async () => {
+    viewer.nextApi = fakeApi();
     const { stage } = mount();
+    await scrollTo(0);
     const soft = stage.querySelector<HTMLElement>("[data-soft-edges]")!;
     expect(soft.querySelector("[data-testid=spine-viewer]")).not.toBeNull();
     expect(soft.style.maskImage || soft.style.getPropertyValue("-webkit-mask-image")).toContain("linear-gradient");
@@ -199,7 +205,7 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     viewer.nextApi = api;
     const { stage } = mount();
     await scrollTo(arrival(0));
-    expect(lastScrub(api)).toEqual([keys()[1].framing, 0]);
+    expect(lastScrub(api)).toEqual([keys()[1].framing, 1]);
     expect(stage.dataset.stop).toBe("overview");
     await scrollTo(arrival(1) + 10);
     expect(lastScrub(api)).toEqual([keys()[2].framing, 1]);
@@ -237,10 +243,90 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     const api = fakeApi(true);
     viewer.nextApi = api;
     mount();
-    await scrollTo(arrival(0) - 100);
+    // W15-B4 M3: the cut comes as the travel starts (half a screen before block 2 reaches the line), not at its end.
+    const travel = window.innerHeight * 0.5;
+    await scrollTo(arrival(0) - travel - 1);
     expect(lastScrub(api)).toEqual([keys()[0].framing, 0]);
-    await scrollTo(arrival(1) - 1);
-    expect(lastScrub(api)).toEqual([keys()[1].framing, 0]);
+    await scrollTo(arrival(0) - travel + 1);
+    expect(lastScrub(api)).toEqual([keys()[1].framing, 1]);
+  });
+
+  it("reads only the scroll position per frame; the sections are measured again on a resize (W15-B4 L3)", async () => {
+    // worker-2's trace: a getComputedStyle and every section's rect each frame, 600 forced style recalcs in 10 s.
+    mount();
+    await scrollTo(0);
+    let reads = 0;
+    view!.container.querySelectorAll<HTMLElement>("[data-depth]").forEach((el) => {
+      const rect = el.getBoundingClientRect.bind(el);
+      el.getBoundingClientRect = () => { reads += 1; return rect(); };
+    });
+    const styles = vi.spyOn(window, "getComputedStyle");
+    await scrollTo(500);
+    await scrollTo(1500);
+    expect(reads).toBe(0);
+    expect(styles).not.toHaveBeenCalled();
+    act(() => { window.dispatchEvent(new Event("resize")); });
+    await scrollTo(1600);
+    expect(reads).toBeGreaterThan(0);
+    styles.mockRestore();
+  });
+
+  it("puts a phone's legend in a row under the band, not over the spine, once the 3D is live (W15-B4 L1)", async () => {
+    vi.stubGlobal("matchMedia", (query: string) =>
+      ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
+    viewer.nextApi = fakeApi();
+    const { stage } = mount();
+    await scrollTo(0);
+    const legends = stage.querySelectorAll("[data-legend]");
+    expect(legends).toHaveLength(1);
+    expect(stage.querySelector("[data-stage-screen]")!.contains(legends[0])).toBe(false);
+    expect(legends[0].textContent).toContain(copy("sp.legend.today"));
+  });
+
+  it("fades a phone's legend row out over the close-up, and back at the close (W16-A)", async () => {
+    vi.stubGlobal("matchMedia", (query: string) =>
+      ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
+    viewer.nextApi = fakeApi();
+    const { stage } = mount();
+    const row = () => stage.querySelector<HTMLElement>("[data-legend]")!;
+    await scrollTo(0);
+    expect(stage.style.getPropertyValue("--closeup-out")).toBe("1");
+    expect(row().style.opacity).toBe("var(--closeup-out, 1)");
+    await scrollTo(3000); // a department, whatever the phone's reading line
+    expect(stage.dataset.stop).not.toBe("overview");
+    expect(stage.style.getPropertyValue("--closeup-out")).toBe("0");
+  });
+
+  it("masks the moving still itself, on its own layer, while the 3D isn't live, and the canvas once it is (W15-B4 M5 + L2)", async () => {
+    // worker-2 on SwiftShader: the still moved inside a masked box, so every frame of the travel repainted the masked
+    // layer (frame gaps over 50 ms against 9be55e5), and its own edge showed as a hard seam.
+    const { stage, still } = mount();
+    const edges = stage.querySelector<HTMLElement>("[data-soft-edges]")!;
+    await scrollTo(0);
+    expect(edges.style.maskImage).toBe("");
+    expect(still.style.maskImage).toContain("linear-gradient");
+    expect(still.style.willChange).toBe("transform");
+    view!.unmount();
+    viewer.nextApi = fakeApi();
+    const live = mount();
+    await scrollTo(0);
+    expect(live.stage.querySelector<HTMLElement>("[data-soft-edges]")!.style.maskImage).toContain("linear-gradient");
+  });
+
+  it("ends before the footer: a phone's band stops short of the plan's end, and the legend leaves with the stage (W15-B4)", async () => {
+    // worker-4's W15-S LOW 3: at 100 % the legend sat over the footer's top with no spine on screen (desktop), and
+    // the phone band rode over the footer's top edge.
+    const { stage } = mount();
+    const root = view!.container.firstElementChild as HTMLElement;
+    expect(root.className).toContain("max-lg:pb-24");
+    const end = 1000 + 1000 * (STOPS.length + 2); // the close's bottom, the plan's end
+    root.getBoundingClientRect = () => ({ top: -pageY, bottom: end - pageY, height: end }) as DOMRect;
+    act(() => { window.dispatchEvent(new Event("resize")); });
+    const screen = stage.querySelector<HTMLElement>("[data-stage-screen]")!;
+    await scrollTo(end - window.innerHeight);
+    expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
+    await scrollTo(end - window.innerHeight * 0.6);
+    expect(screen.style.getPropertyValue("--legend-shown")).toBe("0");
   });
 
   it("reads the scroll at most once a frame", async () => {
@@ -273,9 +359,21 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     mount();
     const root = view!.container.firstElementChild as HTMLElement;
     await scrollTo(0);
-    expect(root.style.getPropertyValue("--need-words")).toBe("0");
+    expect(root.style.getPropertyValue("--words-right")).toBe("0");
     await scrollTo(arrival(0));
-    expect(root.style.getPropertyValue("--need-words")).toBe("1");
+    expect(root.style.getPropertyValue("--words-right")).toBe("1");
+  });
+
+  it("shows each department's words on the side the close-up isn't on (W16-A)", async () => {
+    mount();
+    const root = view!.container.firstElementChild as HTMLElement;
+    const sides = () => [root.style.getPropertyValue("--words-left"), root.style.getPropertyValue("--words-right")];
+    await scrollTo(arrival(1));
+    expect(sides()).toEqual(["0", "1"]); // department 1: close-up left, words right
+    await scrollTo(arrival(2));
+    expect(sides()).toEqual(["1", "0"]); // department 2: close-up right, words left
+    await scrollTo(arrival(3));
+    expect(sides()).toEqual(["0", "1"]);
   });
 
   it("records the scroll position it last framed, so a test can wait for a slow GPU's frame to catch up (W15-B3)", async () => {
@@ -291,6 +389,52 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(screen.style.getPropertyValue("--spine-across")).toBe(String(ACROSS.desktop.hero));
     await scrollTo(arrival(1));
     expect(screen.style.getPropertyValue("--spine-across")).toBe(String(ACROSS.desktop.left));
+    await scrollTo(arrival(2));
+    expect(screen.style.getPropertyValue("--spine-across")).toBe(String(ACROSS.desktop.right));
+  });
+
+  it("hides the legend while the spine travels and over the close-up, and shows it under the full spine (W15-B4 M1, W16-A)", async () => {
+    const { stage } = mount();
+    const screen = stage.querySelector<HTMLElement>("[data-stage-screen]")!;
+    await scrollTo(0);
+    expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
+    await scrollTo(arrival(0) - window.innerHeight / 4); // halfway through the travel to block 2
+    expect(screen.style.getPropertyValue("--legend-shown")).toBe("0");
+    await scrollTo(arrival(0));
+    expect(screen.style.getPropertyValue("--legend-shown")).toBe("0");
+    await scrollTo(arrival(STOPS.length + 1));
+    expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
+  });
+
+  it("asks the viewer for the owner's close-up (W16-A)", () => {
+    mount();
+    expect(viewer.closeup).toBe(true);
+  });
+
+  it("dives into the close-up: each frame sends the keyframe's close-up weight and turn (W16-A)", async () => {
+    const api = fakeApi();
+    viewer.nextApi = api;
+    mount();
+    await scrollTo(0);
+    expect(api.setPose).toHaveBeenLastCalledWith({ closeup: 0, turn: 0 });
+    await scrollTo(arrival(0));
+    expect(api.setPose).toHaveBeenLastCalledWith({ closeup: 1, turn: keys()[1].turn });
+    await scrollTo(arrival(2));
+    expect(api.setPose).toHaveBeenLastCalledWith({ closeup: 1, turn: keys()[3].turn });
+    await scrollTo(arrival(STOPS.length + 1));
+    expect(api.setPose).toHaveBeenLastCalledWith({ closeup: 0, turn: 0 });
+  });
+
+  it("hides the full spine's buttons, callouts and panels over the close-up (W16-A)", async () => {
+    viewer.nextApi = fakeApi();
+    const { stage } = mount();
+    const overlay = () => stage.querySelector<HTMLElement>("[data-overlay]")!;
+    await scrollTo(0);
+    expect(overlay().style.visibility).toBe("");
+    await scrollTo(arrival(1));
+    expect(overlay().style.visibility).toBe("hidden");
+    await scrollTo(arrival(STOPS.length + 1));
+    expect(overlay().style.visibility).toBe("");
   });
 
   it("slides the still left with the spine while the 3D isn't live, so the words on the right stay clear", async () => {

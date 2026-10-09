@@ -129,8 +129,9 @@ export function byFocus(callouts: readonly Callout[], focus: DiscId | null): Cal
   return [...first, ...callouts.filter((c) => c.disc !== focus)];
 }
 
-/** The strip at the bottom of the stage that the legend (and the hover hint) keeps; callouts stay above it. */
-export const LEGEND_STRIP_PX: Readonly<Record<Variant, number>> = { desktop: 84, phone: 56 };
+/** The strip at the bottom of the stage that the legend (and the hover hint) keeps; callouts stay above it. A phone has
+ *  none: its legend sits in a row under the band (W15-B4 L1). */
+export const LEGEND_STRIP_PX: Readonly<Record<Variant, number>> = { desktop: 84, phone: 0 };
 
 /** A callout's rendered size: fixed width, padding plus one line per row of text. */
 export const CALLOUT_SIZE: Readonly<Record<Variant, { width: number; pad: number; line: number }>> = {

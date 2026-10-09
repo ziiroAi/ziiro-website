@@ -6,9 +6,10 @@ import { Swap } from "./Swap";
 
 const STATUSES: readonly JobStatus[] = ["runs_on_our_company_today", "we_build_it_for_you", "mapped"];
 const MICRO = "font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--funnel-muted)]";
-/** W15-B3: from 1024 px PlanStage shows these words (--need-words, 0 to 1) only once the spine has left their column,
- *  so the spine never crosses them. Opacity only: block 2 has no controls, and a screen reader must still reach it. */
-const WAITS_FOR_SPINE = "lg:opacity-[var(--need-words,1)]";
+/** W15-B3: from 1024 px PlanStage shows these words (--words-right, 0 to 1) only once the spine has left their
+ *  column, so the spine never crosses them. Opacity only: block 2 has no controls, and a screen reader must still
+ *  reach it. */
+const WAITS_FOR_SPINE = "lg:opacity-[var(--words-right,1)]";
 
 export function NeedBlock({ view }: { view: PlanViewModel }): JSX.Element {
   return (

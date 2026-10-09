@@ -366,6 +366,20 @@ describe("scrubbed by the scroll (W15-B, the one plan stage)", () => {
     expect(yaws.at(-1)).not.toBe(yaws[0]);
   });
 
+  it("adds the stage's turn to the drawn yaw and sends its close-up weight with each frame (W16-A)", () => {
+    start({ spin: false });
+    flush();
+    expect(handle.render.mock.calls.at(-1)![0].closeup ?? 0).toBe(0);
+    drive!.setPose({ closeup: 0.4, turn: 0.3 });
+    flush();
+    expect(yaw()).toBeCloseTo(0.3, 9);
+    expect(handle.render.mock.calls.at(-1)![0].closeup).toBe(0.4);
+    drive!.scrub(close, 1);
+    flush();
+    expect(yaw()).toBeCloseTo(0.3, 9);
+    expect(handle.render.mock.calls.at(-1)![0].closeup).toBe(0.4);
+  });
+
   it("ends a flight in progress", async () => {
     start({ spin: false });
     let landed = false;
@@ -379,7 +393,7 @@ describe("scrubbed by the scroll (W15-B, the one plan stage)", () => {
   });
 });
 
-describe("the idle motion never shows the back (W15-C4)", () => {
+describe("the idle sway stays about r17's view, ±25° (W16-A)", () => {
   const DEG = Math.PI / 180;
   const wrapped = (y: number): number => ((((y / DEG + 180) % 360) + 360) % 360) - 180;
   const drawn = (from = 0) => handle.render.mock.calls.slice(from).map((call) => call[0].yaw as number);
@@ -391,36 +405,26 @@ describe("the idle motion never shows the back (W15-C4)", () => {
     pointer("pointerup", px);
   }
 
-  it("never enters 45°-135° in 120 s of idle", () => {
+  it("sways within ±25° for 120 s of idle, and reaches both edges", () => {
     start();
     flush(7500); // 120 s at 16 ms
-    const yaws = drawn();
-    expect(yaws.filter((y) => wrapped(y) > 45 && wrapped(y) < 135)).toEqual([]);
-    expect(Math.min(...yaws.map(wrapped))).toBeLessThan(-140);
-    expect(Math.max(...yaws.map(wrapped))).toBeGreaterThan(25);
+    const yaws = drawn().map(wrapped);
+    expect(yaws.filter((y) => Math.abs(y) > 25 + 1e-6)).toEqual([]);
+    expect(Math.min(...yaws)).toBeLessThan(-24);
+    expect(Math.max(...yaws)).toBeGreaterThan(24);
   });
 
-  it("after a release at 90° eases back to +30° without crossing the back, then sweeps", () => {
+  it("after a release at 90° eases back down to +25° the short way, then sways", () => {
     start();
     dragTo(195);
     flush();
-    expect(wrapped(yaw())).toBeCloseTo(90, 0); // the first idle frame after the release has already moved it a hair
+    expect(wrapped(drawn().at(-1)!)).toBeCloseTo(90, 0); // the first idle frame after the release has already moved it a hair
     const from = handle.render.mock.calls.length;
     flush(3750); // 60 s
-    const yaws = drawn(from);
-    expect(yaws.every((y) => wrapped(y) <= 90 + 1e-9)).toBe(true);
-    expect(yaws.some((y) => Math.abs(wrapped(y) - 30) < 0.1)).toBe(true);
-    expect(Math.min(...yaws.map(wrapped))).toBeLessThan(-140);
-  });
-
-  it("after a release at 120° turns on up through 180° into the window, never back through 90°", () => {
-    start();
-    dragTo(260);
-    flush();
-    expect(wrapped(yaw())).toBeCloseTo(120, 0);
-    const from = handle.render.mock.calls.length;
-    flush(3750);
-    expect(drawn(from).filter((y) => wrapped(y) > 45 && wrapped(y) < 90)).toEqual([]);
+    const yaws = drawn(from).map(wrapped);
+    expect(yaws.every((y) => y <= 90 + 1e-9 && y > -90)).toBe(true);
+    expect(yaws.some((y) => Math.abs(y - 25) < 0.1)).toBe(true);
+    expect(Math.min(...yaws)).toBeLessThan(-24);
   });
 
   it("a drag still turns it anywhere, the back included", () => {
@@ -428,7 +432,7 @@ describe("the idle motion never shows the back (W15-C4)", () => {
     pointer("pointerdown", 0);
     pointer("pointermove", 195);
     flush();
-    expect(wrapped(yaw())).toBeCloseTo(90, 6);
+    expect(wrapped(drawn().at(-1)!)).toBeCloseTo(90, 6);
   });
 
   it("under reduced motion there is no idle yaw at all", () => {

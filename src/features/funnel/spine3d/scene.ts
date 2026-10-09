@@ -3,14 +3,15 @@
 // both. The mesh is the owner's Tripo spine crunched by W14-A; the look is worker-3's (look.ts, look-three.ts): r17's
 // camera, metal, world, one glowing band and cap per disc gap, and bloom.
 import {
-  CylinderGeometry, Group, ImageBitmapLoader, Mesh, PerspectiveCamera, Quaternion, Raycaster, Scene, Vector2, Vector3,
-  WebGLRenderer, LoaderUtils, type Material, type MeshStandardMaterial, type Object3D, type WebGLRenderTarget,
+  CylinderGeometry, Group, ImageBitmapLoader, Matrix4, Mesh, PerspectiveCamera, Quaternion, Raycaster, Scene, Vector2, Vector3,
+  WebGLRenderer, LoaderUtils, type Material, type MeshStandardMaterial, type Object3D, type ShaderMaterial, type WebGLRenderTarget,
 } from "three";
 import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { DISCS, type DiscId, type Theme } from "../data/contract";
 import type { View } from "./camera";
+import { CLOSEUP } from "./closeup";
 import { GAPS, type Gap } from "./gaps";
 import type { DiscLevels } from "./levels";
 import { LOOK, type Vec3 } from "./look";
@@ -38,6 +39,9 @@ export interface SceneOptions {
   signal?: AbortSignal;
   /** W15-D2: the mesh's bytes, fetched ahead by S0. Null or absent: the scene downloads meshUrl itself. */
   meshBytes?: Promise<ArrayBuffer | null>;
+  /** W16-A: the owner's close-up, loaded after the first frame for the plan stage's dive. Absent: none. If it fails
+   *  to load, the full spine stays. */
+  closeupUrl?: string;
   /** Called once if the GPU drops the context. The viewer then gives the still back. */
   onContextLost(): void;
 }
@@ -74,6 +78,9 @@ export const NO_WEBGL2 = "no-webgl2";
 export const MESH_FAILED = "mesh-failed";
 
 const UP = new Vector3(0, 1, 0);
+/** W16-A: the close-up's own glowing bands. Off: his textures already paint glowing discs, and the full spine's bands
+ *  drew solid cans in his open gaps. worker-3's neon rings (W16-C step 3) turn them on. */
+const CLOSEUP_RINGS = false;
 const RIM_POINTS = 16;
 /** The pick stand-ins: wider and taller than the band, so a finger finds a disc in close-up. Layer 1 never renders. */
 const PICK = { layer: 1, radiusScale: 1.12, heightScale: 3, minHeight: 0.024 } as const;
@@ -185,6 +192,26 @@ function disposeTree(root: Object3D): void {
   });
 }
 
+/** A ring set's glow, 0 to 1, by its intensity uniforms (the caps' and the bands' own); hidden at 0. Each uniform's
+ *  full value is read the first time. */
+const fullIntensity = new WeakMap<object, number>();
+function fadeRings(rings: Rings, level: number): void {
+  rings.group.visible = level > 0;
+  rings.group.traverse((node) => {
+    const material = (node as Mesh).material as ShaderMaterial | undefined;
+    const uniform = material?.uniforms?.intensity;
+    if (!uniform) return;
+    if (!fullIntensity.has(uniform)) fullIntensity.set(uniform, uniform.value as number);
+    uniform.value = fullIntensity.get(uniform)! * level;
+  });
+}
+
+/** The close-up in LOOK space: worker-3's matrix on a parent of the GLB's scene (W16-C), with his own materials. */
+interface Closeup {
+  holder: Group;
+  materials: MeshStandardMaterial[];
+}
+
 /** Everything a theme sets: the world, the page behind, the lights, the bands and the metal. */
 interface Dressing {
   environment: WebGLRenderTarget;
@@ -193,6 +220,8 @@ interface Dressing {
   shared: Shared;
   lights: Object3D[];
   rings: Rings;
+  /** The close-up's own bands, at its three gaps (W16-A); null without a close-up. */
+  closeRings: Rings | null;
   bodies: MeshStandardMaterial[];
 }
 
@@ -234,6 +263,8 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
   let px = { width: options.width, height: options.height, ratio: Math.min(options.dpr, maxDprFor(size)) };
   let view: View | null = null;
   let composer: EffectComposer | null = null;
+  let closeup: Closeup | null = null;
+  const closeupAbort = new AbortController();
 
   const dress = (): Dressing => {
     const t = LOOK.themes[theme];
@@ -245,15 +276,23 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
     inner.add(rings.group);
     const bodies = loaded.parts.map(({ mesh, source }) => {
       const body = makeBody(t, source, source.emissiveMap ?? null, fillOf(levels), shared);
+      // W16-A: dissolves (a per-pixel hash, so no sorting) into the close-up and back.
+      body.alphaHash = Boolean(options.closeupUrl);
       mesh.material = body;
       return body;
     });
+    const closeRings = options.closeupUrl && CLOSEUP_RINGS ? makeRings(t, CLOSEUP.gaps, shared) : null;
+    if (closeRings) {
+      closeRings.group.visible = false;
+      inner.add(closeRings.group);
+    }
     const dressing: Dressing = {
       environment: makeEnvironment(renderer, t),
       background: quad,
       shared,
       lights: makeLights(t),
       rings,
+      closeRings,
       bodies,
     };
     scene.environment = dressing.environment.texture;
@@ -264,6 +303,10 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
   const undress = (d: Dressing) => {
     inner.remove(d.rings.group);
     disposeTree(d.rings.group);
+    if (d.closeRings) {
+      inner.remove(d.closeRings.group);
+      disposeTree(d.closeRings.group);
+    }
     scene.remove(d.background, ...d.lights);
     disposeTree(d.background);
     d.bodies.forEach((m) => m.dispose());
@@ -297,9 +340,23 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
     dressing.shared.update(inner, px.width * px.ratio, px.height * px.ratio);
   };
 
+  /** The dissolve between the full spine and the close-up: w 0 is the full spine alone. Until the close-up is in, the
+   *  full spine stays whatever the view asks. */
+  const blend = (next: View) => {
+    const w = closeup ? Math.min(1, Math.max(0, next.closeup ?? 0)) : 0;
+    loaded.root.visible = w < 1;
+    dressing.bodies.forEach((body) => (body.opacity = 1 - w));
+    fadeRings(dressing.rings, 1 - w);
+    if (!closeup) return;
+    closeup.holder.visible = w > 0;
+    closeup.materials.forEach((m) => (m.opacity = w));
+    if (dressing.closeRings) fadeRings(dressing.closeRings, w);
+  };
+
   const render = (next: View): DiscBox[] => {
     view = next;
     pose(next);
+    blend(next);
     if (px.width <= 0 || px.height <= 0 || !composer) return [];
     composer.render();
     return GAPS.map((_, k) => discBox(k, inner, camera, px.width, px.height));
@@ -309,10 +366,34 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
     if (view) render(view);
   };
 
+  /** W16-A: the close-up, after the first frame so it never delays it. Its shaders compile before it joins the scene. */
+  const loadCloseup = async (url: string) => {
+    try {
+      const mesh = await loadMesh(url, undefined, closeupAbort.signal);
+      const holder = new Group();
+      holder.matrixAutoUpdate = false;
+      holder.matrix.copy(new Matrix4().fromArray([...CLOSEUP.matrix]));
+      holder.add(mesh.root);
+      const materials = mesh.parts.map(({ source }) => {
+        source.alphaHash = true;
+        return source;
+      });
+      await renderer.compileAsync(holder, camera, scene);
+      if (closeupAbort.signal.aborted) return disposeTree(holder);
+      holder.visible = false;
+      inner.add(holder);
+      closeup = { holder, materials };
+      redraw();
+    } catch {
+      // No close-up (a 404, an abort, a bad file): the full spine stays for the whole plan.
+    }
+  };
+
   resize(options.width, options.height, options.dpr);
   // Shaders compile in parallel where the GPU allows (KHR_parallel_shader_compile), before the first frame.
   await renderer.compileAsync(scene, camera);
   options.signal?.throwIfAborted();
+  if (options.closeupUrl) void loadCloseup(options.closeupUrl);
 
   return {
     gpu,
@@ -345,6 +426,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
       redraw();
     },
     dispose: () => {
+      closeupAbort.abort();
       undress(dressing);
       if (composer) disposeComposer(composer);
       disposeTree(scene);

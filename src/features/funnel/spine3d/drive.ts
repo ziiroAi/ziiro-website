@@ -6,7 +6,7 @@
 // W15-C4: the idle motion is a sweep across the side and front (sweep.ts), never a full turn: from behind the model
 // reads as lumps. A drag still turns it freely all the way round.
 import type { DiscId } from "../data/contract";
-import type { DiscPickEvent, SpineViewerApi } from "./api";
+import type { DiscPickEvent, SpineViewerApi, StagePose } from "./api";
 import { baseFraming, blendFraming, easeInOut, FLIGHT_MS, framingFor, type Framing } from "./camera";
 import type { SpineHandle } from "./host";
 import { discLevels } from "./levels";
@@ -104,6 +104,8 @@ export function createDrive(
    *  fixed when the hold began so a drag while held still turns it. */
   let scrubHold = 0;
   let holdTurn = 0;
+  /** W16-A: the plan stage's close-up weight and extra turn (setPose). */
+  let pose: StagePose = { closeup: 0, turn: 0 };
   let focused = document.hasFocus();
   /** The previous animation frame while the loop runs, and the frame times until the GPU is judged. */
   let lastFrame = 0;
@@ -185,7 +187,12 @@ export function createDrive(
       sweep = next.sweep;
       orbit = { ...orbit, yaw: next.yaw };
     } else sweep = null;
-    handle.render({ yaw: orbit.yaw + holdTurn * scrubHold, pitch: orbit.pitch * (1 - scrubHold), framing });
+    handle.render({
+      yaw: orbit.yaw + holdTurn * scrubHold + pose.turn,
+      pitch: orbit.pitch * (1 - scrubHold),
+      framing,
+      closeup: pose.closeup,
+    });
     if (stepped.moving || sweeping || flying || orbit.held) schedule();
     else {
       last = 0;
@@ -300,6 +307,10 @@ export function createDrive(
       if (weight === 0) holdTurn = 0;
       scrubHold = weight;
       holding = weight > 0;
+      schedule();
+    },
+    setPose: (next) => {
+      pose = { closeup: Math.min(1, Math.max(0, next.closeup)), turn: next.turn };
       schedule();
     },
     flyTo: (target, options) => {

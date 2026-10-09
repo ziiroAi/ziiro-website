@@ -102,12 +102,25 @@ describe("PlanPage (§6)", () => {
     expect(column.className).toContain("lg:pointer-events-none");
   });
 
-  it("fades block 2's words with the stage's --need-words from 1024 px, and never takes them out of the page (W15-B3)", () => {
+  it("fades block 2's words with the stage's --words-right from 1024 px, and never takes them out of the page (W15-B3)", () => {
     const { container } = renderPage();
     const need = container.querySelector<HTMLElement>("[data-depth='0']")!;
-    expect(need.className).toContain("lg:opacity-[var(--need-words,1)]");
+    expect(need.className).toContain("lg:opacity-[var(--words-right,1)]");
     // At the top of the plan block 2 waits for the spine, but a screen reader must still reach it: opacity only.
     expect(need.className).not.toContain("invisible");
+  });
+
+  it("mirrors each department to the side the close-up isn't on: words right, left, right... (W16-A)", () => {
+    const { container } = renderPage();
+    const column = container.querySelector<HTMLElement>("[data-depth='0']")!.parentElement!;
+    expect(column.className).toContain("lg:[&>section[data-side=left]]:ml-0");
+    expect(column.className).toContain("lg:[&>section[data-side=left]]:mr-auto");
+    const stops = [...column.querySelectorAll<HTMLElement>(":scope > section")].slice(1, -1);
+    expect(stops.map((el) => el.dataset.side)).toEqual(["right", "left", "right", "left"]);
+    const waits = { left: "lg:opacity-[var(--words-left,1)]", right: "lg:opacity-[var(--words-right,1)]" };
+    stops.forEach((el) => expect(el.className).toContain(waits[el.dataset.side as "left" | "right"]));
+    const close = [...column.querySelectorAll<HTMLElement>(":scope > section")].at(-1)!;
+    expect(close.className).toContain("lg:opacity-[var(--words-right,1)]");
   });
 
   it("starts at the top, with focus on the h1", () => {

@@ -17,6 +17,8 @@ export interface SpineStart {
   view: View;
   /** W15-D2: S0 already has the mesh on its way; its bytes follow as a "mesh" message, so the worker doesn't fetch. */
   meshFromHost?: boolean;
+  /** W16-A: the close-up the scene loads after its first frame, for the plan stage's dive. */
+  closeupUrl?: string;
 }
 
 export type ToWorker =
