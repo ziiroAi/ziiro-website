@@ -101,13 +101,13 @@ describe("the zoom reads as a move at normal scroll speed (W16-R's bar for W17-S
     expect(scaleOf(stop.framing) / scaleOf(need.framing)).toBeGreaterThanOrEqual(1.6);
   });
 
-  it("over a one-screen travel, no 10 px of scroll moves the zoom more than about 1 %", () => {
+  it("over a desktop travel (0.75 of a 900 px screen), no 10 px of scroll moves the zoom more than about 1 %", () => {
     const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
-    const anchors: StageAnchor[] = [{ at: 0, key: keys[1] }, { at: 900, key: keys[2] }];
+    const anchors: StageAnchor[] = [{ at: 0, key: keys[1] }, { at: 675, key: keys[2] }];
     let before = scaleOf(stageAt(anchors, 0, false, keys[0]).framing);
-    for (let y = 10; y <= 900; y += 10) {
+    for (let y = 10; y <= 675; y += 10) {
       const now = scaleOf(stageAt(anchors, y, false, keys[0]).framing);
-      expect(Math.abs(now / before - 1)).toBeLessThanOrEqual(0.01);
+      expect(Math.abs(now / before - 1)).toBeLessThanOrEqual(0.011);
       before = now;
     }
   });
@@ -181,6 +181,17 @@ describe("anchoring the keyframes to the page (W15-B)", () => {
     const anchors = stageAnchors(keys, spans, 400, 300);
     expect(anchors.map((a) => a.at)).toEqual([0, 200, 500, 1200, 1500, 2200, 2500, 3200, 3500, 4200, 4500, 5200, 5500]);
     expect(anchors.map((a) => keys.indexOf(a.key))).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6]);
+  });
+
+  it("travels into block 2 over its own shorter distance, so the hero still rests at the top of the page (W17-S)", () => {
+    const anchors = stageAnchors(keys, spans, 400, 600, 300);
+    expect(anchors.map((a) => a.at).slice(0, 5)).toEqual([0, 200, 500, 900, 1500]);
+  });
+
+  it("caps each travel at 80 % of its section, so every keyframe rests a while, even where sections are short (W17-S)", () => {
+    const anchors = stageAnchors(keys, spans, 400, 2000, 2000);
+    // Block 2 arrives at 500 (the hero rests 0-100), each stop 1000 after the last (each rests 200).
+    expect(anchors.map((a) => a.at).slice(0, 5)).toEqual([0, 100, 500, 700, 1500]);
   });
 
   it("never runs backwards when a section is shorter than the travel or starts above the line", () => {

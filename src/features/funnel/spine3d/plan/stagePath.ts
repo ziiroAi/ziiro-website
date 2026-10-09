@@ -27,8 +27,9 @@ export const ACROSS: Readonly<Record<Variant, { hero: number; need: number; left
 export const NEED_ZOOM = 1.5;
 /** How much of the spine (LOOK units) a department stop shows top to bottom: about three and a third vertebrae (each
  *  about 0.12), so the stop's disc sits in the middle with 2-3 vertebrae round it, the size the owner liked on the
- *  close-up; on desktop that is 1.6x closer than block 2, so the zoom reads as a move (W16-R's bar). */
-export const STOP_VIEW_HEIGHT: Readonly<Record<MeshSize, number>> = { desktop: 0.4, phone: 0.5 };
+ *  close-up; that is about 1.6x closer than block 2, so the zoom reads as a move (W16-R's bar). A phone's band is
+ *  shorter, so it shows a little more. */
+export const STOP_VIEW_HEIGHT: Readonly<Record<MeshSize, number>> = { desktop: 0.4, phone: 0.6 };
 const DEG = Math.PI / 180;
 /** The little turn of the model (added to its yaw) at a department stop, by the side it stands on. */
 export const TURN = { left: -10 * DEG, right: 14 * DEG } as const;
@@ -223,20 +224,33 @@ export interface Span {
   bottom: number;
 }
 
+/** A travel takes at most this share of the scroll between two arrivals, so every keyframe rests while its section is
+ *  read even where the sections are shorter than the travel (W17-S: the plan's run about 800-940 px on desktop). */
+export const MAX_TRAVEL_OF_GAP = 0.8;
+
 /**
  * The scroll anchors for the keyframes: the hero's from the top of the page, then one per section after it (block 2,
  * each stop, the close). A keyframe is reached as its section's top meets the reading line (`line` px from the top of
  * the screen) and held until `travel` px of scroll before the next one's, so the camera rests while a section is read
- * and moves over the last `travel` px. Anchors never run backwards.
+ * and moves over the last `travel` px. The travel from the hero into block 2 takes `heroTravel` px instead (W17-S:
+ * block 2 arrives about half a screen down, so a screen's travel would leave the hero no rest). Anchors never run
+ * backwards.
  */
-export function stageAnchors(keys: readonly StageKey[], spans: readonly Span[], line: number, travel: number): StageAnchor[] {
+export function stageAnchors(
+  keys: readonly StageKey[],
+  spans: readonly Span[],
+  line: number,
+  travel: number,
+  heroTravel = travel,
+): StageAnchor[] {
   const count = Math.min(spans.length, keys.length - 1);
   const arrivals = spans.slice(0, count).map((span) => span.top - line);
   const anchors: StageAnchor[] = [];
   const push = (at: number, key: StageKey) => anchors.push({ at: Math.max(at, anchors.at(-1)?.at ?? 0), key });
   push(0, keys[0]);
   arrivals.forEach((arrival, i) => {
-    push(arrival - travel, keys[i]);
+    const gap = arrival - (i === 0 ? 0 : arrivals[i - 1]);
+    push(arrival - Math.min(i === 0 ? heroTravel : travel, gap * MAX_TRAVEL_OF_GAP), keys[i]);
     push(arrival, keys[i + 1]);
   });
   return anchors;

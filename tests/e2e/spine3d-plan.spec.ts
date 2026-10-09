@@ -48,15 +48,19 @@ async function framesFlowing(page: Page) {
   })), { timeout: SETTLE_TIMEOUT_MS }).toBeGreaterThanOrEqual(FLOWING_FPS);
 }
 
-/** Puts a block's top at the middle line of the screen, where the tour reads the stop in view. */
+/** Puts a block's top just past the stage's reading line, where it reads the stop in view: the middle of the screen
+ *  on desktop; on a phone a third of the way down the space under the stuck band (PlanStage's readingSpace). */
 async function scrollToDepth(page: Page, depth: number) {
   await page.locator(`[data-depth="${depth}"]`).evaluate((el) => {
     const top = el.getBoundingClientRect().top + window.scrollY;
-    window.scrollTo(0, top - window.innerHeight / 2 + 40);
+    const band = document.querySelector<HTMLElement>("[data-testid=spine-stage]");
+    const stuck = band && window.innerWidth < 1024 ? Number.parseFloat(getComputedStyle(band).top) + band.offsetHeight : 0;
+    const line = stuck ? stuck + (window.innerHeight - stuck) / 3 : window.innerHeight / 2;
+    window.scrollTo(0, top - line + 40);
   });
 }
 
-/** Back at the hero, where the full spine and its overlay show (W16-A: from block 2 on, the close-up hides them). */
+/** Back at the hero, where the full spine and its overlay show (W17-S: a zoomed department stop hides them). */
 async function toHero(page: Page) {
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect.poll(() => page.evaluate(() =>
@@ -93,7 +97,7 @@ async function overStageCovers(page: Page): Promise<string[]> {
       .map((el) => ({ name: `depth ${el.dataset.depth}`, box: el.getBoundingClientRect() }));
     const cta = document.querySelector('[data-depth="5"] a');
     if (cta) words.push({ name: "the CTA", box: cta.getBoundingClientRect() });
-    // W16-A: over the close-up the overlay is hidden (visibility) and the legend faded out: those cover nothing.
+    // W16-A, W17-S: at a zoomed stop the overlay is hidden (visibility) and the legend faded out: those cover nothing.
     const shown = (el: HTMLElement) => getComputedStyle(el).visibility !== "hidden" && Number(getComputedStyle(el).opacity) > 0.01;
     const marks = [...document.querySelectorAll<HTMLElement>("[data-testid=spine-stage] [data-legend], [data-testid=spine-stage] [data-callout]")]
       .filter(shown)
@@ -287,7 +291,7 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
     await expect(stage).toHaveAttribute("data-stop", "overview", { timeout: SETTLE_TIMEOUT_MS });
   });
 
-  test("pins the lit discs' callouts with their names on the full spine, and hides them over the close-up (§6.7, W16-A)", async ({ page }) => {
+  test("pins the lit discs' callouts with their names on the full spine, and hides them at a zoomed stop (§6.7, W17-S)", async ({ page }) => {
     await toPlan(page);
     const stage = await liveStage(page);
     await toHero(page);
@@ -300,7 +304,7 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
     await expect(deals).toBeHidden({ timeout: SETTLE_TIMEOUT_MS });
   });
 
-  test("puts each department's words on the side the close-up isn't on: right, left, right... (W16-A)", async ({ page }, info) => {
+  test("puts each department's words on the side the zoomed spine isn't on: right, left, right... (W16-A, W17-S)", async ({ page }, info) => {
     test.skip(info.project.name !== "desktop", "on a phone the text sits below the band");
     await toPlan(page);
     await liveStage(page);
@@ -312,13 +316,40 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
       const box = (await section.boundingBox())!;
       if (side === "right") expect(box.x).toBeGreaterThanOrEqual(width / 2);
       else expect(box.x + box.width).toBeLessThanOrEqual(width / 2);
-      // The close-up stands on the other half, and the words show once it is there.
+      // The zoomed spine stands on the other half, and the words show once it is there.
       await expect.poll(() => page.evaluate((wordsRight) => {
         const across = Number(document.querySelector<HTMLElement>("[data-stage-screen]")!.style.getPropertyValue("--spine-across"));
         return wordsRight ? across < 0.4 : across > 0.6;
       }, side === "right"), { timeout: SETTLE_TIMEOUT_MS }).toBe(true);
       await expect.poll(() => section.evaluate((el) => Number(getComputedStyle(el).opacity)), { timeout: SETTLE_TIMEOUT_MS }).toBeGreaterThanOrEqual(0.99);
     }
+  });
+
+  test("lets every disc answer the pointer at the close: no faded words sit over the stage (W16-R M1)", async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop", "from 1024 px the words lie over the stage");
+    await toPlan(page);
+    const stage = await liveStage(page);
+    await scrollToDepth(page, 5);
+    await expect(stage).toHaveAttribute("data-stop", "overview", { timeout: SETTLE_TIMEOUT_MS });
+    await expect.poll(() => page.evaluate(() =>
+      Number(document.querySelector<HTMLElement>("[data-stage-screen]")!.style.getPropertyValue("--spine-across"))),
+    { timeout: SETTLE_TIMEOUT_MS }).toBeLessThan(0.3);
+    await framesFlowing(page);
+    const buttons = stage.locator("button[data-disc]");
+    await expect(buttons).toHaveCount(7);
+    // At each disc's middle the pointer reaches the stage (its canvas picks the disc, or the disc's own button), never
+    // a faded section or one of its cards (W16-R found the last department's words there).
+    const blocked = await buttons.evaluateAll((list) => list.flatMap((button) => {
+      const r = button.getBoundingClientRect();
+      if (r.width === 0 || r.bottom < 0 || r.top > window.innerHeight) return [];
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      const onStage = hit?.closest("[data-testid=spine-stage]");
+      return onStage ? [] : [`${(button as HTMLElement).dataset.disc} under ${hit?.tagName} ${hit?.closest("[data-depth]") ? "(a section)" : ""}`];
+    }));
+    expect(blocked).toEqual([]);
+    const deals = (await stage.locator('button[data-disc="G04"]').boundingBox())!;
+    await page.mouse.move(deals.x + deals.width / 2, deals.y + deals.height / 2);
+    await expect(stage.getByRole("dialog")).toBeVisible({ timeout: SETTLE_TIMEOUT_MS });
   });
 
   test("opens a disc's panel from the keyboard and gives focus back on Escape (§6.2)", async ({ page }) => {

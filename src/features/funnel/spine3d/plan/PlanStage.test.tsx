@@ -214,12 +214,12 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(stage.dataset.stop).toBe("G06");
   });
 
-  it("spreads each travel over a full screen of scroll, so the zoom reads as a move (W16-R's bar)", async () => {
+  it("spreads each zoom over most of a screen of scroll, so it reads as a move (W16-R's bar)", async () => {
     const api = fakeApi();
     viewer.nextApi = api;
     mount();
-    await scrollTo(arrival(0) - window.innerHeight * 0.75);
-    expect(lastScrub(api)![0]).not.toEqual(keys()[0].framing);
+    await scrollTo(arrival(1) - window.innerHeight * 0.6); // into department 1's zoom
+    expect(lastScrub(api)![0]).not.toEqual(keys()[1].framing);
   });
 
   it("makes faded words let go of the pointer, so the discs answer under them, at the close too (W16-R M1)", async () => {
@@ -266,8 +266,9 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     const api = fakeApi(true);
     viewer.nextApi = api;
     mount();
-    // W15-B4 M3: the cut comes as the travel starts (a screen before department 1 reaches the line), not at its end.
-    const travel = window.innerHeight;
+    // W15-B4 M3: the cut comes as the travel starts (3/4 of a screen before department 1 reaches the line), not at
+    // its end.
+    const travel = window.innerHeight * 0.75;
     await scrollTo(arrival(1) - travel - 1);
     expect(lastScrub(api)).toEqual([keys()[1].framing, 0]);
     await scrollTo(arrival(1) - travel + 1);
