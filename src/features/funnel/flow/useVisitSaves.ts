@@ -33,11 +33,17 @@ export function useVisitSaves(state: FlowState, env: SaveEnv): { country: string
   const key = JSON.stringify([state.round, step, fields]);
 
   useEffect(() => {
-    landing.current ??= landingFields(window, env.boot, localTimeZone());
     const visit = markStep(step);
-    void postVisit({ id: visit.id, step, fields: { ...landing.current, ...fields } }).then((answer) => {
-      if (answer?.success && answer.country) setCountry(answer.country);
-    });
+    const save = () => {
+      landing.current ??= landingFields(window, env.boot, localTimeZone());
+      void postVisit({ id: visit.id, step, fields: { ...landing.current, ...fields } }).then((answer) => {
+        if (answer?.success && answer.country) setCountry(answer.country);
+      });
+    };
+    // The first save runs among the first commit's effects. Its time-zone lookup loads ICU's zone data (~30 ms on a
+    // phone profile), so it gets a task of its own (W15-E). Saves queued behind it keep their order: timers are FIFO.
+    if (landing.current) save();
+    else setTimeout(save, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the key holds the round, the step and the fields
   }, [key]);
 

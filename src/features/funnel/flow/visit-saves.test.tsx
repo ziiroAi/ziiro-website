@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VisitRequest } from "@/features/funnel/data/light";
 import { FunnelRoot } from "./FunnelRoot";
+import { localTimeZone } from "./region";
 import { funnelSession } from "./session";
 import { button, click, mount, stubBrowser, stubClock, tap, tapThrough, typeInto, type Mounted } from "./test/dom";
 
@@ -31,7 +32,7 @@ vi.mock("./plan-chunk", async (importOriginal) => ({
 }));
 vi.mock("./region", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./region")>()),
-  localTimeZone: () => "Asia/Kolkata",
+  localTimeZone: vi.fn(() => "Asia/Kolkata"),
 }));
 
 let country: string | null = "IN";
@@ -85,6 +86,16 @@ describe("the background saves (§9, §10)", () => {
     await run(1_400);
     expect(steps()).toEqual(["S0", "S1"]);
     expect(new Set(saves.map((save) => save.id)).size).toBe(1);
+  });
+
+  it("looks the time zone up in a task of its own, after the first commit's effects (W15-E)", async () => {
+    vi.mocked(localTimeZone).mockClear();
+    start();
+    expect(localTimeZone).not.toHaveBeenCalled();
+    expect(saves).toEqual([]);
+    await run(0);
+    expect(localTimeZone).toHaveBeenCalled();
+    expect(saves[0]).toMatchObject({ step: "S0", fields: { timezone: "Asia/Kolkata" } });
   });
 
   it("saves each tap with every answer so far", async () => {
