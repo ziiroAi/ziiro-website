@@ -30,6 +30,12 @@ const FADE = "linear-gradient(to right, transparent, #000 10%, #000 92%, transpa
 const SOFT_EDGES: CSSProperties = {
   maskImage: FADE, WebkitMaskImage: FADE, maskComposite: "intersect", WebkitMaskComposite: "source-in",
 };
+/**
+ * W14-X: in light, r17's background renders (235, 234, 232) against the page's (250, 250, 248), so the stage showed
+ * as a grey card. This lift puts it on the page colour; the dark background already matches its page.
+ */
+const LIGHT_LIFT = 250 / 235;
+const LIFTED: CSSProperties = { ...SOFT_EDGES, filter: `brightness(${LIGHT_LIFT.toFixed(3)})` };
 
 export interface SpineTourProps {
   /** The plan's departments in stop order (§5.5). */
@@ -156,7 +162,7 @@ function useFlights(api: SpineViewerApi | null, stop: Stop, aim: (stop: Stop) =>
       : flightTargets(from, stop, api.reducedMotion).map((t) => (t.kind === "disc" ? t.disc : null));
     if (stops.length === 0) return;
     const mine = ++sequence.current;
-    void runFlights(api, stops.map(aim), () => sequence.current === mine, moving);
+    void runFlights(api, stops, aim, () => sequence.current === mine, moving);
   }, [api, stop, aim]);
 }
 
@@ -202,7 +208,7 @@ export function SpineTour({ departments, planAgentIds, children }: SpineTourProp
         className="sticky top-[var(--nav-h,84px)] z-20 bg-[color:var(--funnel-bg)] lg:order-2 lg:self-start"
       >
         <div ref={stageRef} className="relative">
-          <div data-soft-edges style={SOFT_EDGES}>
+          <div data-soft-edges style={theme === "light" ? LIFTED : SOFT_EDGES}>
             {reached ? (
               <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={departments} onApi={onApi}>
                 {still}

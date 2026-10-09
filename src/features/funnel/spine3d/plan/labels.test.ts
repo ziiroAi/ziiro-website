@@ -377,3 +377,45 @@ describe("W14-M: a full-height column that tangles its leaders goes compact", ()
     expect(labels.every((p) => !p.compact && !p.hidden)).toBe(true);
   });
 });
+
+describe("W14-X: callouts never sit over the spine, and keep their right margin", () => {
+  const VIEW = { width: 648, height: 816 };
+  const label = (disc: DiscId, x: number, y: number, keepOut: LabelInput["keepOut"]): LabelInput =>
+    ({ disc, anchor: { x, y }, width: 210, height: 80, compactHeight: 30, keepOut });
+  const overlaps = (p: PlacedLabel, b: { x0: number; y0: number; x1: number; y1: number }) =>
+    p.x < b.x1 && p.x + p.width > b.x0 && p.y < b.y1 && p.y + p.height > b.y0;
+
+  it("hides a callout whose only room is above or below its disc, on the column, rather than cover the spine", () => {
+    // Stop 3's Deals box: no room either side, so the fallback centred it above its disc, on the vertebrae.
+    const column = { x0: 150, y0: 100, x1: 420, y1: 700 };
+    const deals = label("G04", 420, 400, { x0: 150, y0: 380, x1: 420, y1: 420 });
+    const before = layoutLabels([deals], VIEW).labels[0];
+    expect(before.hidden).toBe(false);
+    expect(overlaps(before, column)).toBe(true);
+    const after = layoutLabels([deals], { ...VIEW, avoid: [column] }).labels[0];
+    expect(after.hidden).toBe(true);
+  });
+
+  it("drops a stacked callout that the column would run under, keeping the higher-priority one", () => {
+    // The column bends right below the first disc: the second label, pushed down the stack, would land on it.
+    const upper = { x0: 300, y0: 100, x1: 410, y1: 340 };
+    const bend = { x0: 300, y0: 360, x1: 640, y1: 500 };
+    const out = layoutLabels(
+      [label("G05", 410, 300, { x0: 300, y0: 290, x1: 410, y1: 310 }), label("G04", 410, 330, { x0: 300, y0: 320, x1: 410, y1: 340 })],
+      { ...VIEW, avoid: [upper, bend] },
+    ).labels;
+    expect(out[0].hidden).toBe(false);
+    expect(out[1].hidden).toBe(true);
+    shown(out).forEach((p) => [upper, bend].forEach((b) => expect(overlaps(p, b)).toBe(false)));
+  });
+
+  it("keeps a desktop callout 24 px from the right edge when asked", () => {
+    const tight = label("G06", 404, 300, { x0: 300, y0: 290, x1: 404, y1: 310 });
+    const loose = layoutLabels([tight], VIEW).labels[0];
+    expect(loose.side).toBe("right");
+    expect(loose.x + loose.width).toBeGreaterThan(VIEW.width - 24);
+    const kept = layoutLabels([tight], { ...VIEW, marginRight: 24 }).labels[0];
+    if (!kept.hidden) expect(kept.x + kept.width).toBeLessThanOrEqual(VIEW.width - 24);
+    expect(kept.side).not.toBe("right");
+  });
+});

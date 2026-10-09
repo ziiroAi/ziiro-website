@@ -77,9 +77,12 @@ const settle = () => act(async () => { for (let i = 0; i < 5; i += 1) await Prom
 
 function fakeApi(reducedMotion = false) {
   const flights: unknown[] = [];
+  /** Whether each flight asked the model to hold its side view (W14-X). */
+  const holds: boolean[] = [];
   const api = {
-    flyTo: vi.fn((target: unknown, options?: { animate?: boolean }) => {
+    flyTo: vi.fn((target: unknown, options?: { animate?: boolean; hold?: boolean }) => {
       flights.push(options?.animate === false ? { cut: target } : target);
+      holds.push(options?.hold === true);
       return Promise.resolve();
     }),
     setLit: vi.fn(),
@@ -89,7 +92,7 @@ function fakeApi(reducedMotion = false) {
     boxes: () => [],
     reducedMotion,
   } as unknown as SpineViewerApi;
-  return { api, flights };
+  return { api, flights, holds };
 }
 
 const ANANYA = composePlan({
@@ -159,6 +162,20 @@ describe("SpineTour: the sticky stage beside the words (blocks 2 and 3)", () => 
     expect(stage.querySelector("[data-soft-edges] [data-legend], [data-soft-edges] [data-callout]")).toBeNull();
   });
 
+  it("lifts the light stage so its background meets the page colour, and leaves dark alone (W14-X)", async () => {
+    document.documentElement.dataset.theme = "light";
+    const { stage } = mount();
+    const soft = () => stage.querySelector<HTMLElement>("[data-soft-edges]")!;
+    // The stage's light background renders (235, 234, 232) against the page's (250, 250, 248).
+    expect(soft().style.filter).toMatch(/^brightness\(1\.06\d*\)$/);
+    await act(async () => {
+      document.documentElement.dataset.theme = "dark";
+      await Promise.resolve();
+    });
+    expect(soft().style.filter).toBe("");
+    delete document.documentElement.dataset.theme;
+  });
+
   it("starts at once where IntersectionObserver is missing", () => {
     vi.stubGlobal("IntersectionObserver", undefined);
     mount();
@@ -193,6 +210,20 @@ describe("SpineTour: scroll flights (§6.2 block 3, D30)", () => {
     await scrollToDepth(0);
     await settle();
     expect(flights.at(-1)).toEqual(framed(null));
+  });
+
+  it("holds the side view at each stop, and lets the overview spin (W14-X)", async () => {
+    const { api, holds } = fakeApi();
+    viewer.nextApi = api;
+    const { tour } = mount();
+    intersect(tour);
+    await settle();
+    await scrollToDepth(1);
+    await settle();
+    await scrollToDepth(3);
+    await settle();
+    // the first cut to the overview, G04, then G04 → overview → G06
+    expect(holds).toEqual([false, true, false, true]);
   });
 
   it("re-frames the stop with a cut when the stage changes size", async () => {

@@ -8,6 +8,8 @@
 //   or is hidden (review L3, N1; phones keep callouts, owner's scope answer). The one-side fallback keeps to this too
 //   (N2). A label that would still collide with a higher-priority one, or have a leader run through it, is hidden.
 // - A side leader meets its label level with the anchor where it can (W14-M), so stacked leaders stay apart.
+// - Given the spine's column (avoid), no label ever sits over it: one that would is hidden (W14-X). The right edge
+//   can keep a wider margin than the others (marginRight: desktop keeps 24 px).
 // - A disc off the canvas or behind the camera gets no label: it comes back hidden.
 // - A column taller than the canvas goes compact (heading only), then drops its lowest-priority labels (the end of
 //   the input), and the layout says it overflowed.
@@ -56,6 +58,10 @@ export interface LabelLayout {
 interface Viewport {
   width: number;
   height: number;
+  /** From the right edge, where it differs from LABEL_MARGIN_PX (W14-X). */
+  marginRight?: number;
+  /** The spine's column on screen: no label may cover any of these boxes (W14-X). */
+  avoid?: readonly ScreenBox[];
 }
 
 interface Column {
@@ -65,7 +71,9 @@ interface Column {
 }
 
 const clamp = (v: number, lo: number, hi: number): number => Math.min(Math.max(v, lo), Math.max(lo, hi));
-const rightRoom = (l: LabelInput, view: Viewport): number => view.width - LABEL_MARGIN_PX - (l.anchor.x + LABEL_GAP_PX);
+/** The furthest right a label may reach. */
+const rightLimit = (view: Viewport): number => view.width - (view.marginRight ?? LABEL_MARGIN_PX);
+const rightRoom = (l: LabelInput, view: Viewport): number => rightLimit(view) - (l.anchor.x + LABEL_GAP_PX);
 /** Where a left-side label is measured from: the disc's left edge when its box is known, else the anchor. */
 const leftEdge = (l: LabelInput): number => l.keepOut?.x0 ?? l.anchor.x;
 const leftRoom = (l: LabelInput): number => leftEdge(l) - LABEL_GAP_PX - LABEL_MARGIN_PX;
@@ -112,7 +120,7 @@ function forcedSide(label: LabelInput, one: ColumnSide, view: Viewport): Choice 
 
 function xFor(label: LabelInput, side: ColumnSide, view: Viewport): number {
   const wanted = side === "right" ? label.anchor.x + LABEL_GAP_PX : leftEdge(label) - LABEL_GAP_PX - label.width;
-  return clamp(wanted, LABEL_MARGIN_PX, view.width - LABEL_MARGIN_PX - label.width);
+  return clamp(wanted, LABEL_MARGIN_PX, rightLimit(view) - label.width);
 }
 
 const stackHeight = (heights: readonly number[]): number =>
@@ -199,7 +207,7 @@ const collide = (a: PlacedLabel, b: PlacedLabel): boolean =>
 /** A label above or below its disc's box (sideFor has checked it fits), centred on the box across. */
 function placeVertical(label: LabelInput, { side, compact }: VerticalFit, box: ScreenBox, view: Viewport): PlacedLabel {
   const height = compact ? Math.min(label.height, label.compactHeight ?? label.height) : label.height;
-  const x = clamp((box.x0 + box.x1) / 2 - label.width / 2, LABEL_MARGIN_PX, view.width - LABEL_MARGIN_PX - label.width);
+  const x = clamp((box.x0 + box.x1) / 2 - label.width / 2, LABEL_MARGIN_PX, rightLimit(view) - label.width);
   const y = side === "above" ? box.y0 - LABEL_GAP_PX - height : box.y1 + LABEL_GAP_PX;
   return {
     disc: label.disc, x, y, width: label.width, height, side, compact, hidden: false,
@@ -245,6 +253,10 @@ function dropCollisions(placed: readonly PlacedLabel[], priority: (disc: DiscId)
   return kept;
 }
 
+/** Does the label cover any part of the spine's column (W14-X)? */
+const onSpine = (p: PlacedLabel, view: Viewport): boolean =>
+  (view.avoid ?? []).some((b) => p.x < b.x1 && p.x + p.width > b.x0 && p.y < b.y1 && p.y + p.height > b.y0);
+
 const sidesCollide = (placed: readonly PlacedLabel[]): boolean =>
   placed.some((a) => a.side === "left" && placed.some((b) => b.side === "right" && collide(a, b)));
 
@@ -284,7 +296,7 @@ export function layoutLabels(labels: readonly LabelInput[], view: Viewport): Lab
     result = placeChoices(shown, choices, priority, view);
   }
   const discPriority = (disc: DiscId): number => labels.findIndex((l) => l.disc === disc);
-  const kept = dropCollisions(result.placed, discPriority);
+  const kept = dropCollisions(result.placed.filter((p) => !onSpine(p, view)), discPriority);
   const byDisc = new Map(kept.map((p) => [p.disc, p]));
   const out = labels.map((label) => {
     if (!onScreen(label, view)) return hiddenLabel(label, "offscreen");

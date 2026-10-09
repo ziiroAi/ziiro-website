@@ -28,7 +28,13 @@ export const END_MARGIN = 0.12;
  * window, so the vertebrae filled the stage as blobs and the lit disc's glow sat at its edge. Each is now twice that:
  * the lit disc with a vertebra or two either side.
  */
-export const STOP_HEIGHT: Readonly<Record<MeshSize, number>> = { desktop: 0.72, phone: 0.4 };
+export const STOP_HEIGHT: Readonly<Record<MeshSize, number>> = { desktop: 0.72, phone: 0.5 };
+/**
+ * Where a stop's disc sits across the canvas, from the left (W14-X). On a phone the column would fill the band and
+ * leave no room for a callout that doesn't cover it, so it sits left of centre (pulled back to 0.5 units above) and
+ * the right keeps a strip for the focus callout. The desktop column has room beside a centred spine.
+ */
+export const STOP_ACROSS: Readonly<Record<MeshSize, number>> = { desktop: 0.5, phone: 0.36 };
 
 const mid = (a: Vec3, b: Vec3): Vec3 => scale(add(a, b), 0.5);
 
@@ -37,6 +43,16 @@ function shownTan(size: MeshSize, lensMm: number, view: { width: number; height:
   if (size === "phone") return visibleTan(LOOK.camera.phone, lensMm);
   const tanLong = LOOK.camera.desktop.sensorMm / 2 / lensMm;
   return view.height >= view.width ? tanLong : (tanLong * view.height) / view.width;
+}
+
+/** The sideways lens shift that puts the frame's centre `fromLeft` of the way across the canvas (applyCamera's maths). */
+function shiftXFor(size: MeshSize, view: { width: number; height: number }, fromLeft: number): number {
+  if (size === "phone") {
+    const { full, view: window } = LOOK.camera.phone;
+    return (full[0] / 2 - fromLeft * window[2] - window[0]) / Math.max(full[0], full[1]);
+  }
+  const long = Math.max(view.width, view.height);
+  return long > 0 ? ((0.5 - fromLeft) * view.width) / long : 0;
 }
 
 /** The vertical lens shift that puts the frame's centre `fromTop` of the way down the canvas (applyCamera's maths). */
@@ -64,7 +80,8 @@ export function tourFraming(stop: Stop, size: MeshSize, view: { width: number; h
   const height = stop ? STOP_HEIGHT[size] : (length(sub(last, first)) + 2 * END_MARGIN) / (1 - share);
   const distance = height / (2 * shownTan(size, base.lensMm, view));
   const back = normalize(sub(base.position, base.target));
-  return { ...base, target, position: add(target, scale(back, distance)), shift: [0, shiftYFor(size, view, (1 - share) / 2)] };
+  const across = stop ? shiftXFor(size, view, STOP_ACROSS[size]) : 0;
+  return { ...base, target, position: add(target, scale(back, distance)), shift: [across, shiftYFor(size, view, (1 - share) / 2)] };
 }
 
 /** The targets to fly, in order, from one stop to the next. `from` is undefined before the first flight. */
@@ -79,18 +96,20 @@ export const stopForDepth = (depth: number, discs: readonly DiscId[]): Stop =>
   depth >= 1 && depth <= discs.length ? discs[depth - 1] : null;
 
 /**
- * Flies the targets one after another. `current` turns false once a newer sequence has started; a new flyTo also
- * resolves the one in flight, so the old sequence stops at its next step.
+ * Flies to each stop in turn, aimed by `aim`. `current` turns false once a newer sequence has started; a new flyTo
+ * also resolves the one in flight, so the old sequence stops at its next step.
  */
 export async function runFlights(
   api: SpineViewerApi,
-  targets: readonly CameraTarget[],
+  stops: readonly Stop[],
+  aim: (stop: Stop) => CameraTarget,
   current: () => boolean,
   animate = true,
 ): Promise<void> {
-  for (const target of targets) {
+  for (const stop of stops) {
     if (!current()) return;
-    await api.flyTo(target, { animate });
+    // W14-X: at a stop the model turns back to its side view and holds still, so the column reads as vertebrae.
+    await api.flyTo(aim(stop), { animate, hold: stop !== null });
   }
 }
 
@@ -115,11 +134,37 @@ export const LEGEND_STRIP_PX: Readonly<Record<Variant, number>> = { desktop: 84,
 
 /** A callout's rendered size: fixed width, padding plus one line per row of text. */
 export const CALLOUT_SIZE: Readonly<Record<Variant, { width: number; pad: number; line: number }>> = {
-  desktop: { width: 210, pad: 16, line: 20 },
+  desktop: { width: 196, pad: 16, line: 20 },
   phone: { width: 150, pad: 12, line: 18 },
 };
 /** The keep-out area reaches this far past the disc's box, so a callout clears the glow round the disc too. */
 export const KEEP_OUT_PAD_PX = 10;
+/**
+ * How far left of a vertebral body its processes reach, as a share of the body's width: in the side view a stop holds,
+ * they point left, so a callout left of its disc would sit on them (W14-X shots, stop 1).
+ */
+export const PROCESS_REACH = 1.4;
+/** How far a callout keeps from the stage's right edge: desktop leaves the column's edge clear (W14-X). */
+export const CALLOUT_RIGHT_MARGIN_PX: Readonly<Record<Variant, number>> = { desktop: 24, phone: 8 };
+
+/**
+ * The spine's column on screen, which no callout may cover (W14-X): a box from each disc on screen down to the next,
+ * so the vertebra between them is inside it, as wide as the two discs overlap across (a vertebral body is about as
+ * wide as the narrower disc; the full span would swallow the callouts beside a curve), and on to the left over its
+ * processes. A lone disc covers itself.
+ * Each disc keeps its own padded keepOut besides.
+ */
+export function spineBands(boxes: readonly DiscBox[]): ScreenBox[] {
+  const shown = boxes.filter((b) => b.onScreen).map(boxOf).sort((a, b) => a.y0 - b.y0);
+  const withProcesses = (b: ScreenBox): ScreenBox => ({ ...b, x0: b.x0 - PROCESS_REACH * (b.x1 - b.x0) });
+  if (shown.length === 1) return [withProcesses(shown[0])];
+  return shown.slice(1).map((lower, i) => {
+    const upper = shown[i];
+    const x0 = Math.max(upper.x0, lower.x0);
+    const x1 = Math.min(upper.x1, lower.x1);
+    return withProcesses({ x0: Math.min(x0, x1), y0: upper.y0, x1: Math.max(x0, x1), y1: Math.max(upper.y1, lower.y1) });
+  });
+}
 
 /** The label inputs for the lit discs' callouts, in plan order (the first keeps its label longest). */
 export function calloutInputs(boxes: readonly DiscBox[], callouts: readonly Callout[], variant: Variant): LabelInput[] {

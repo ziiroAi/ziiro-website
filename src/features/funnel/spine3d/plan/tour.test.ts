@@ -3,7 +3,7 @@ import type { DiscBox, SpineViewerApi } from "../api";
 import { framingFor, visibleTan } from "../camera";
 import { GAPS } from "../gaps";
 import { LOOK } from "../look";
-import { byFocus, calloutInputs, END_MARGIN, flightTargets, KEEP_OUT_PAD_PX, runFlights, screenDisc, stopForDepth, targetFor, tourFraming, CALLOUT_SIZE } from "./tour";
+import { byFocus, calloutInputs, CALLOUT_RIGHT_MARGIN_PX, END_MARGIN, flightTargets, KEEP_OUT_PAD_PX, PROCESS_REACH, runFlights, screenDisc, spineBands, STOP_ACROSS, STOP_HEIGHT, stopForDepth, targetFor, tourFraming, CALLOUT_SIZE } from "./tour";
 import { length, normalize, sub, type Vec3 } from "./vec";
 
 const box = (over: Partial<DiscBox> = {}): DiscBox => ({
@@ -58,22 +58,25 @@ describe("runFlights: one flight sequence at a time", () => {
     return { api: { flyTo } as unknown as SpineViewerApi, calls };
   };
 
-  it("flies each target in order", async () => {
-    const { api, calls } = fakeApi();
-    await runFlights(api, flightTargets("G04", "G05", false), () => true);
-    expect(calls).toEqual([{ kind: "overview" }, { kind: "disc", disc: "G05" }]);
+  it("flies each stop in order, holding the side view at a stop and not in the overview (W14-X)", async () => {
+    const { api } = fakeApi();
+    await runFlights(api, [null, "G05"], targetFor, () => true);
+    expect(vi.mocked(api.flyTo).mock.calls).toEqual([
+      [{ kind: "overview" }, { animate: true, hold: false }],
+      [{ kind: "disc", disc: "G05" }, { animate: true, hold: true }],
+    ]);
   });
 
   it("stops when a newer sequence has replaced it", async () => {
     const { api, calls } = fakeApi();
-    await runFlights(api, flightTargets("G04", "G05", false), () => calls.length < 1);
+    await runFlights(api, [null, "G05"], targetFor, () => calls.length < 1);
     expect(calls).toEqual([{ kind: "overview" }]);
   });
 
   it("cuts instead of flying when asked", async () => {
     const { api } = fakeApi();
-    await runFlights(api, [targetFor("G01")], () => true, false);
-    expect(api.flyTo).toHaveBeenCalledWith({ kind: "disc", disc: "G01" }, { animate: false });
+    await runFlights(api, ["G01"], targetFor, () => true, false);
+    expect(api.flyTo).toHaveBeenCalledWith({ kind: "disc", disc: "G01" }, { animate: false, hold: true });
   });
 });
 
@@ -135,7 +138,20 @@ describe("tourFraming: the tour's own camera, measured on its real canvas (W14-M
     const phone = shown(tourFraming("G04", "phone", BAND, 56), "phone") / before("phone");
     expect(desktop).toBeGreaterThan(1.9);
     expect(desktop).toBeLessThan(2.1);
-    expect(phone).toBeCloseTo(2, 5);
+    // W14-X: a phone stop pulls back a little further, so the column leaves a strip for the focus callout.
+    expect(phone).toBeCloseTo(STOP_HEIGHT.phone / 0.2, 5);
+    expect(phone).toBeGreaterThan(2);
+  });
+
+  it("puts a phone stop's column left of centre, leaving the right for its callout; desktop stays centred (W14-X)", () => {
+    // applyCamera: the window's left column is view[0] + shift[0] * long; the frame's centre is where the target lands.
+    const { full, view: win } = LOOK.camera.phone;
+    const phone = tourFraming("G05", "phone", BAND, 56);
+    const left = win[0] + phone.shift[0] * Math.max(...full);
+    expect((full[0] / 2 - left) / win[2]).toBeCloseTo(STOP_ACROSS.phone, 9);
+    expect(STOP_ACROSS.phone).toBeLessThan(0.5);
+    expect(tourFraming(null, "phone", BAND, 56).shift[0]).toBe(0);
+    expect(tourFraming("G05", "desktop", COLUMN, 84).shift[0]).toBe(0);
   });
 
   it("aims each stop at its own gap, with r17's view direction, roll and lens", () => {
@@ -182,5 +198,25 @@ describe("byFocus: the stop in view keeps its callout first (W14-M)", () => {
     const all = [c("G04"), c("G05")];
     expect(byFocus(all, null)).toEqual(all);
     expect(byFocus(all, "G07")).toEqual(all);
+  });
+});
+
+describe("spineBands: the column the callouts keep off (W14-X)", () => {
+  it("runs from each disc on screen to the next, as wide as the two overlap, and on over the processes to the left", () => {
+    const bands = spineBands([
+      box({ disc: "G05", left: 300, top: 100, width: 80, height: 20 }),
+      box({ disc: "G04", left: 320, top: 200, width: 90, height: 20 }),
+      box({ disc: "G03", left: 0, top: 0, onScreen: false }),
+    ]);
+    expect(bands).toEqual([{ x0: 320 - PROCESS_REACH * 60, y0: 100, x1: 380, y1: 220 }]);
+  });
+  it("covers a lone disc by itself, and nothing when no disc is on screen", () => {
+    expect(spineBands([box({ left: 100, top: 20, width: 30, height: 5 })])).toEqual([{ x0: 100 - PROCESS_REACH * 30, y0: 20, x1: 130, y1: 25 }]);
+    expect(spineBands([box({ onScreen: false })])).toEqual([]);
+  });
+  it("keeps 24 px from the right edge on desktop, with a callout narrow enough to fit right of a stop's disc", () => {
+    expect(CALLOUT_RIGHT_MARGIN_PX.desktop).toBe(24);
+    // Stop 1 on the 648 px column: the Marketing disc's anchor sat at x 403, leaving 209 px (W14-X shots).
+    expect(CALLOUT_SIZE.desktop.width).toBeLessThanOrEqual(648 - 24 - 12 - 403);
   });
 });

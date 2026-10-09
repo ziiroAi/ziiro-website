@@ -151,6 +151,66 @@ describe("the loop after a pause (T1)", () => {
   });
 });
 
+describe("a tour stop holds the side view (W14-X)", () => {
+  const pitch = () => handle.render.mock.calls.at(-1)![0].pitch as number;
+  const TURN = 2 * Math.PI;
+
+  it("turns back to the side view over the flight, holds still there, and spins again after a flight without hold", async () => {
+    start();
+    flush(200);
+    expect(yaw()).toBeGreaterThan(0.3);
+    const arrived = drive!.flyTo({ kind: "overview" }, { hold: true });
+    flush(80);
+    await arrived;
+    expect(yaw()).toBeCloseTo(0, 9);
+    expect(pitch()).toBeCloseTo(0, 9);
+    const drawn = handle.render.mock.calls.length;
+    flush(60);
+    expect(handle.render.mock.calls.length, "no idle spin at a stop").toBe(drawn);
+    void drive!.flyTo({ kind: "overview" });
+    flush(80);
+    expect(yaw()).toBeGreaterThan(0);
+  });
+
+  it("turns the short way round, to the nearest whole turn", async () => {
+    start({ spin: false });
+    pointer("pointerdown", 0);
+    pointer("pointermove", 420, 190);
+    pointer("pointerup", 420, 190);
+    flush(400); // the fling settles
+    const before = yaw();
+    expect(Math.abs(before % TURN)).toBeGreaterThan(0.1);
+    const arrived = drive!.flyTo({ kind: "overview" }, { hold: true });
+    flush(80);
+    await arrived;
+    expect(yaw()).toBeCloseTo(Math.round(before / TURN) * TURN, 9);
+    expect(Math.abs(yaw() - before)).toBeLessThanOrEqual(Math.PI);
+    expect(pitch()).toBeCloseTo(0, 9);
+  });
+
+  it("cuts straight to the side view without animate", async () => {
+    start();
+    flush(200);
+    await drive!.flyTo({ kind: "overview" }, { animate: false, hold: true });
+    flush();
+    expect(yaw()).toBeCloseTo(0, 9);
+  });
+
+  it("still turns under a drag at a stop, and stays where it is let go", async () => {
+    start();
+    await drive!.flyTo({ kind: "overview" }, { animate: false, hold: true });
+    flush();
+    pointer("pointerdown", 100);
+    pointer("pointermove", 200);
+    pointer("pointerup", 200);
+    flush(400); // the fling settles
+    const turned = yaw();
+    expect(turned).toBeGreaterThan(0.5);
+    flush(60);
+    expect(yaw()).toBe(turned);
+  });
+});
+
 describe("judging a GPU behind a worker (W14-U M1, worker-2's recheck)", () => {
   /** The page runs at 60 fps; the worker draws once per GPU frame and reports that frame's interval with its boxes. */
   function spinWithWorkerFrames(frameMs: number) {

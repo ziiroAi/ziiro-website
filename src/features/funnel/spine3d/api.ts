@@ -18,8 +18,10 @@ export interface SpineViewerApi {
   /**
    * Moves the camera to a target. With animate (the default) it flies for FLIGHT_MS; without it, or under
    * prefers-reduced-motion, it cuts. Resolves on arrival. A new flyTo replaces one in flight, which then resolves.
+   * With hold (a tour stop, W14-X) the model also turns back to its side view on the way, the short way round, and
+   * holds still there with no idle spin; a drag still turns it. The next flyTo without hold lets it spin again.
    */
-  flyTo(target: CameraTarget, options?: { animate?: boolean }): Promise<void>;
+  flyTo(target: CameraTarget, options?: { animate?: boolean; hold?: boolean }): Promise<void>;
   /** Lights these departments' discs; the rest keep 12 % (D28). null lights all nine. */
   setLit(lit: readonly DepartmentId[] | null): void;
   /** Called after every drawn frame with all nine discs' screen boxes. Returns an unsubscribe. */

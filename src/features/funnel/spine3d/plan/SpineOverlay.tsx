@@ -17,7 +17,7 @@ import { departmentForDisc, discAria } from "./discCopy";
 import { layoutLabels, type PlacedLabel } from "./labels";
 import { clipBox, hitArea, type ScreenBox } from "./tap";
 import type { Variant } from "./targets";
-import { byFocus, calloutInputs, LEGEND_STRIP_PX, screenDisc, type Callout } from "./tour";
+import { byFocus, calloutInputs, CALLOUT_RIGHT_MARGIN_PX, LEGEND_STRIP_PX, screenDisc, spineBands, type Callout } from "./tour";
 
 /** The department discs from the top of the spine down: the keyboard's order. */
 const BUTTON_DISCS: readonly DiscId[] = ["G07", "G06", "G05", "G04", "G03", "G02", "G01"];
@@ -160,7 +160,10 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
   }, [api]);
 
   const labels = useMemo(() => {
-    const above = { width: view.width, height: Math.max(0, view.height - LEGEND_STRIP_PX[variant]) };
+    const above = {
+      width: view.width, height: Math.max(0, view.height - LEGEND_STRIP_PX[variant]),
+      marginRight: CALLOUT_RIGHT_MARGIN_PX[variant], avoid: spineBands(boxes),
+    };
     return layoutLabels(calloutInputs(boxes, byFocus(callouts, focus), variant), above).labels;
   }, [boxes, callouts, variant, view, focus]);
 

@@ -53,12 +53,24 @@ interface Press {
   startT: number;
 }
 
+const TURN = 2 * Math.PI;
+
+/** A held flight's turn back to the side view: from where the spin left it to the nearest whole turn (W14-X). */
+interface Turn {
+  fromYaw: number;
+  fromPitch: number;
+  toYaw: number;
+}
+
 interface Flight {
   from: Framing;
   to: Framing;
   start: number | null;
+  turn: Turn | null;
   resolve(): void;
 }
+
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
 export function createDrive(
   el: HTMLElement,
@@ -81,6 +93,8 @@ export function createDrive(
   let tooSlow = false;
   const spinAllowed = () => motion.spin && pace.idleSpin && !tooSlow;
   let spin = spinAllowed();
+  /** At a tour stop: the model holds its side view, with no idle spin, until a flight without hold (W14-X). */
+  let holding = false;
   let focused = document.hasFocus();
   /** The previous animation frame while the loop runs, and the frame times until the GPU is judged. */
   let lastFrame = 0;
@@ -101,6 +115,10 @@ export function createDrive(
     flight.start ??= now;
     const t = Math.min((now - flight.start) / FLIGHT_MS, 1);
     framing = blendFraming(flight.from, flight.to, easeInOut(t));
+    const { turn } = flight;
+    if (turn && !orbit.held) {
+      orbit = { ...orbit, yaw: lerp(turn.fromYaw, turn.toYaw, easeInOut(t)), pitch: lerp(turn.fromPitch, 0, easeInOut(t)) };
+    }
     if (t < 1) return true;
     flight.resolve();
     flight = null;
@@ -142,7 +160,7 @@ export function createDrive(
   function tick(now: number): void {
     raf = 0;
     timeFrame(now);
-    const idle = spin && focused;
+    const idle = spin && focused && !holding;
     if (idle && spinOnly() && last && now - last < spinFrameMs - CAP_SLACK_MS) {
       schedule();
       return;
@@ -258,14 +276,18 @@ export function createDrive(
     flyTo: (target, options) => {
       flight?.resolve();
       const to = framingFor(target, size);
+      holding = options?.hold === true;
+      const turn = holding ? { fromYaw: orbit.yaw, fromPitch: orbit.pitch, toYaw: Math.round(orbit.yaw / TURN) * TURN } : null;
+      if (turn) orbit = { ...orbit, yawSpeed: 0, pitchSpeed: 0 };
       if (options?.animate === false || !motion.spin) {
         flight = null;
         framing = to;
+        if (turn) orbit = { ...orbit, yaw: turn.toYaw, pitch: 0 };
         schedule();
         return Promise.resolve();
       }
       return new Promise<void>((resolve) => {
-        flight = { from: framing, to, start: null, resolve };
+        flight = { from: framing, to, start: null, turn, resolve };
         schedule();
       });
     },
