@@ -1,6 +1,7 @@
 /**
  * (C) W15-A: the canvas paints its own background (look-three.ts makeBackground) so bloom and the column's end fade
- * blend with it. That value goes through three's Neutral tone mapping (exposure 1) and sRGB before it reaches the
+ * blend with it. That value is scaled by the theme's exposure, then goes through three's Neutral tone mapping and sRGB
+ * (OutputPass) before it reaches the
  * screen, so a base that "looks like" the page comes out a few levels off it, and the CSS fade at the canvas edges
  * then draws that difference as a slow ramp: in 8 bits a ramp of 6 levels over 1,100 px is a row of vertical bands
  * (the owner's "this line", 9 Oct). This works the base out backwards from the page colour, so it comes out exact.
@@ -35,8 +36,16 @@ export const srgbByteToLinear = (byte: number): number => {
 export const linearToSrgbByte = (v: number): number =>
   255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
 
-/** The linear background value that tone maps to the given sRGB page colour (a near-grey, as both pages are). */
-export function baseForPage(page: readonly number[]): Rgb {
+/**
+ * The linear background value that comes out as the given sRGB page colour (a near-grey, as both pages are). three
+ * multiplies by toneMappingExposure before tone mapping, so the base is divided by the theme's exposure (W15-S: dark's
+ * 0.95 since W15-C3 put the background ~0.7 of a level under the page, and the canvas edge showed again).
+ */
+export function baseForPage(page: readonly number[], exposure = 1): Rgb {
+  return baseAtExposureOne(page).map((v) => v / exposure) as Rgb;
+}
+
+function baseAtExposureOne(page: readonly number[]): Rgb {
   const out = page.map(srgbByteToLinear) as Rgb;
   const lo = Math.min(...out);
   const hi = Math.max(...out);

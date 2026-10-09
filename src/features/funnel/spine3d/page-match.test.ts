@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 import { LOOK } from "./look";
 import { PAGE_RGB, baseForPage, linearToSrgbByte, neutralToneMap } from "./page-match";
 
-/** What the renderer writes for a background value: three's Neutral tone mapping, exposure 1, then sRGB. */
-const rendered = (base: readonly number[]) => neutralToneMap(base as [number, number, number]).map(linearToSrgbByte);
+/** What the renderer writes for a background value: times the theme's exposure, three's Neutral tone mapping, then sRGB. */
+const rendered = (base: readonly number[], exposure: number) =>
+  neutralToneMap(base.map((v) => v * exposure) as [number, number, number]).map(linearToSrgbByte);
+const THEMES = Object.keys(LOOK.themes) as (keyof typeof LOOK.themes)[];
 
 // vitest stubs CSS imports, ?raw included, so the tokens are read from disk.
 const tokens = readFileSync(new URL("../tokens.css", import.meta.url), "utf8");
@@ -14,22 +16,26 @@ const tokenHex = (theme: string) => tokens.match(new RegExp(`\\[data-theme="${th
 const bytesOf = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 
 describe("the canvas background is the page colour (W15-A)", () => {
-  it.each(["light", "dark"] as const)("%s: PAGE_RGB is tokens.css's --funnel-bg", (theme) => {
+  it.each(THEMES)("%s: PAGE_RGB is tokens.css's --funnel-bg", (theme) => {
     expect(PAGE_RGB[theme]).toEqual(bytesOf(tokenHex(theme)!));
   });
 
-  it.each(["light", "dark"] as const)("%s: the base comes out as the page colour, within half a level", (theme) => {
-    const out = rendered(baseForPage(PAGE_RGB[theme]));
-    out.forEach((v, i) => expect(Math.abs(v - PAGE_RGB[theme][i])).toBeLessThanOrEqual(0.5));
+  it.each([0.8, 0.95, 1, 1.2])("the base comes out as the page colour at exposure %s, within half a level", (exposure) => {
+    for (const page of Object.values(PAGE_RGB)) {
+      const out = rendered(baseForPage(page, exposure), exposure);
+      out.forEach((v, i) => expect(Math.abs(v - page[i])).toBeLessThanOrEqual(0.5));
+    }
   });
 
-  it.each(["light", "dark"] as const)("%s: the look uses that base, with no vignette to darken the edges", (theme) => {
-    const bg = LOOK.themes[theme].background;
-    expect(bg.base).toEqual(baseForPage(PAGE_RGB[theme]));
-    expect(bg.vignette).toBe(0);
+  // W15-S: W15-C3 set dark's exposure to 0.95 and the base, worked out for 1, came out ~0.7 of a level dark: an edge again.
+  it.each(THEMES)("%s: the look's own base, at the look's own exposure, renders as the page colour within 0.1 of a level", (theme) => {
+    const t = LOOK.themes[theme];
+    const out = rendered(t.background.base, t.exposure);
+    out.forEach((v, i) => expect(Math.abs(v - PAGE_RGB[theme][i])).toBeLessThanOrEqual(0.1));
+    expect(t.background.vignette).toBe(0);
   });
 
-  it.each(["light", "dark"] as const)("%s: the background never blooms (its luminance is under the threshold)", (theme) => {
+  it.each(THEMES)("%s: the background never blooms (its luminance is under the threshold)", (theme) => {
     const t = LOOK.themes[theme];
     const [r, g, b] = t.background.base;
     expect(0.2126 * r + 0.7152 * g + 0.0722 * b).toBeLessThan(t.bloom.threshold - 0.05);
