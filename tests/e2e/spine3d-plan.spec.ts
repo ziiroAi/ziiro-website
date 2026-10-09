@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { probeSeesHardware } from "./support/gpu";
+import { PROBE_WORKER, probeSeesHardware } from "./support/gpu";
 import { answerAsAnanya, expectPlan, fillContact, sendContact } from "./support/questions";
 import type { Locator, Page } from "@playwright/test";
 
@@ -283,6 +283,17 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
       });
     });
   }
+
+  test("asks the renderer probe once per visit: the questions' prefetch and the plan's viewer share it (W16-R L2)", async ({ page }) => {
+    const probes: string[] = [];
+    page.on("worker", (worker) => {
+      if (PROBE_WORKER.test(worker.url())) probes.push(worker.url());
+    });
+    await toPlan(page);
+    await liveStage(page);
+    await scrollToDepth(page, 2);
+    expect(probes, "gl-probe workers started").toHaveLength(1);
+  });
 
   test("keeps one viewer and one canvas from the hero to the close", async ({ page }) => {
     await toPlan(page);

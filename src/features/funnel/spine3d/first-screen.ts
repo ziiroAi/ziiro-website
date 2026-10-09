@@ -55,6 +55,49 @@ export function isSoftwareGl(makeCanvas?: () => HTMLCanvasElement, signal?: Abor
   });
 }
 
+/** The page's one probe, while anyone still wants its answer or once it has one (W16-R L2). */
+let shared: { answer: Promise<boolean>; settled: boolean; waiting: number; stop: AbortController } | null = null;
+
+/**
+ * W16-R L2: isSoftwareGl asked once per page. The questions' prefetch and the plan's viewer share one probe worker
+ * and its answer. A part that leaves (`signal`) before the answer is told "hardware" so nothing waits on it; the probe
+ * ends only when every part waiting on it has left, and the next ask then probes afresh.
+ */
+export function sharedSoftwareGl(signal?: AbortSignal): Promise<boolean> {
+  if (signal?.aborted) return Promise.resolve(false);
+  if (!shared) {
+    const stop = new AbortController();
+    const fresh = { answer: isSoftwareGl(undefined, stop.signal), settled: false, waiting: 0, stop };
+    void fresh.answer.then(() => {
+      fresh.settled = true;
+    });
+    shared = fresh;
+  }
+  const probe = shared;
+  if (probe.settled) return probe.answer;
+  probe.waiting += 1;
+  return new Promise((resolve) => {
+    const leave = () => {
+      probe.waiting -= 1;
+      if (probe.waiting === 0 && !probe.settled) {
+        probe.stop.abort();
+        if (shared === probe) shared = null;
+      }
+      resolve(false);
+    };
+    signal?.addEventListener("abort", leave, { once: true });
+    void probe.answer.then((software) => {
+      signal?.removeEventListener("abort", leave);
+      resolve(software);
+    });
+  });
+}
+
+/** Forgets the page's probe answer (tests). */
+export function forgetSoftwareGl(): void {
+  shared = null;
+}
+
 /** W15-D2: a mesh asked for on the main thread ahead of the 3D, so it downloads while the worker's script runs instead
  *  of after it. Its bytes go to the worker (host.ts) in one transfer. */
 export interface MeshPrefetch {

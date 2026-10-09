@@ -10,7 +10,7 @@ import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
-import { isSoftwareGl } from "./first-screen";
+import { sharedSoftwareGl } from "./first-screen";
 import { shouldRelease } from "./gpu";
 import { CLOSEUP_MESH_URLS, MESH_URLS } from "./mesh-urls";
 import { takeWarmMesh } from "./mesh-warm";
@@ -256,7 +256,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     /** The probe's answer, asked once, when the 3D starts. */
     let probe: Promise<boolean> | null = null;
     const stopProbe = new AbortController();
-    const askProbe = () => (probe ??= isSoftwareGl(undefined, stopProbe.signal));
+    const askProbe = () => (probe ??= sharedSoftwareGl(stopProbe.signal));
     /** W14-X: no viewer runs its 3D on a software renderer; the still stays (worker-2's W14-S, SwiftShader phone tour
      *  taps of 3-10 s). The probe is a 1×1 context in a worker, read and given back before any 3D code loads. */
     const start = () =>
