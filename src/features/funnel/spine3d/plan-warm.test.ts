@@ -95,7 +95,7 @@ describe("warming the plan's mesh during the questions (W15-M6)", () => {
 
   it("warms the plan's meshes from the constants: m1 first, then the owner's close-up (W16-C), one size class each", () => {
     expect(PLAN_MESHES).toEqual([MESH_URLS, CLOSEUP_MESH_URLS]);
-    expect(CLOSEUP_MESH_URLS).toEqual({ phone: "/spine/3d/closeup/phone.glb", desktop: "/spine/3d/closeup/desktop.glb" });
+    expect(CLOSEUP_MESH_URLS).toEqual({ phone: "/spine/3d/closeup2/phone.glb", desktop: "/spine/3d/closeup2/desktop.glb" });
   });
 
   it("asks for m1 and the close-up in the visitor's size class only, one request each", async () => {
@@ -107,7 +107,7 @@ describe("warming the plan's mesh during the questions (W15-M6)", () => {
   it("warms every mesh the plan needs, one after another, the first in the list first, one request each", async () => {
     vi.useFakeTimers();
     try {
-      const closeUp = { phone: "/spine/3d/closeup/phone.glb", desktop: "/spine/3d/closeup/desktop.glb" };
+      const closeUp = { phone: "/spine/3d/closeup2/phone.glb", desktop: "/spine/3d/closeup2/desktop.glb" };
       meshFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(new Response(bytes)), 100)));
       const warming = warmPlanMesh(new AbortController().signal, env({ meshes: [MESH_URLS, closeUp] }));
       await vi.advanceTimersByTimeAsync(50);
@@ -126,7 +126,7 @@ describe("warming the plan's mesh during the questions (W15-M6)", () => {
   it("starts no further mesh once the visitor has left the funnel", async () => {
     vi.useFakeTimers();
     try {
-      const closeUp = { phone: "/spine/3d/closeup/phone.glb", desktop: "/spine/3d/closeup/desktop.glb" };
+      const closeUp = { phone: "/spine/3d/closeup2/phone.glb", desktop: "/spine/3d/closeup2/desktop.glb" };
       meshFetch.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(new Response(bytes)), 100)));
       const leaving = new AbortController();
       const warming = warmPlanMesh(leaving.signal, env({ meshes: [MESH_URLS, closeUp] }));

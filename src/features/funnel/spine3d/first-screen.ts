@@ -1,20 +1,7 @@
-// (C) W14-R: S0's live spine never competes with the first tap, the site's most important interaction. It gets no 3D
-// on a software renderer (a low-end phone with weak or no GL), starts a second past its LCP and then only in idle
-// time, and gives up if the visitor presses one of S1's options before its first frame: they are leaving S0.
+// (C) W14-R: no 3D on a software renderer (a low-end phone with weak or no GL), asked before any 3D code loads. W16-B: S0
+// has no spine any more; the probe and the mesh prefetch stay, for the plan's 3D (worker-2's W15-M6 warms it during
+// the questions).
 import { gpuNameOf, isSoftwareRenderer, type NamedGl } from "./pace";
-
-/** W14-X: the press is recorded from the entry bundle on (option-press.ts). */
-export { onOptionPress, S1_OPTION } from "./option-press";
-
-/** How long after its LCP S0's 3D waits before it asks for idle time. A timer, not a measure of quiet. W15-D2: 300 ms,
- *  down from a second; the 3D builds and draws in a worker, so what it costs the main thread is small. */
-export const WAIT_AFTER_LCP_MS = 300;
-/** W14-U L5: a page loaded in a background tab reports no LCP, so after this long the first paint stands in for it. */
-export const NO_LCP_MS = 3000;
-/** requestIdleCallback's deadline, so the 3D still starts on a page that is never idle. */
-const IDLE_TIMEOUT_MS = 2000;
-const FRAME_FALLBACK_MS = 16;
-const LCP = "largest-contentful-paint";
 
 /**
  * True when the browser's WebGL runs on a software renderer. A 1×1 context on the main thread, read and given back at
@@ -54,7 +41,7 @@ export function isSoftwareGl(makeCanvas?: () => HTMLCanvasElement, signal?: Abor
       worker?.terminate();
       resolve(software);
     };
-    /** W15-D2: the visitor left S0 before it answered, so the probe worker ends now. Nothing waits on the answer. */
+    /** W15-D2: the viewer closed before it answered, so the probe worker ends now. Nothing waits on the answer. */
     const stop = () => answer(false);
     signal?.addEventListener("abort", stop, { once: true });
     const timer = setTimeout(() => answer(false), PROBE_TIMEOUT_MS);
@@ -68,66 +55,8 @@ export function isSoftwareGl(makeCanvas?: () => HTMLCanvasElement, signal?: Abor
   });
 }
 
-/** Calls `go` after the first paint (two frames; none come while the tab is hidden). Returns a cancel. */
-function afterFirstPaint(go: () => void): () => void {
-  let cancelled = false;
-  const nextFrame = (run: () => void) =>
-    typeof requestAnimationFrame === "function" ? requestAnimationFrame(run) : setTimeout(run, FRAME_FALLBACK_MS);
-  nextFrame(() => nextFrame(() => !cancelled && go()));
-  return () => {
-    cancelled = true;
-  };
-}
-
-/** Calls `go` once the LCP is reported, or after the first paint where the browser reports none (or none within
- *  NO_LCP_MS). Returns a cancel. */
-function whenLcp(go: () => void): () => void {
-  const types = typeof PerformanceObserver === "undefined" ? [] : PerformanceObserver.supportedEntryTypes ?? [];
-  if (!types.includes(LCP)) return afterFirstPaint(go);
-  let fired = false;
-  let stopPaint: () => void = () => undefined;
-  const once = () => {
-    if (fired) return;
-    fired = true;
-    observer.disconnect();
-    clearTimeout(noLcp);
-    go();
-  };
-  const observer = new PerformanceObserver(once);
-  observer.observe({ type: LCP, buffered: true });
-  const noLcp = setTimeout(() => {
-    observer.disconnect();
-    stopPaint = afterFirstPaint(once);
-  }, NO_LCP_MS);
-  return () => {
-    fired = true;
-    observer.disconnect();
-    clearTimeout(noLcp);
-    stopPaint();
-  };
-}
-
-/** Runs `run` in idle time, WAIT_AFTER_LCP_MS past the LCP. `atLcp` runs at the LCP itself, for network-only work
- *  that should be under way while the wait runs (W15-D2: the mesh and the probe). Returns a cancel for both. */
-export function afterLcpThenIdle(run: () => void, atLcp?: () => void): () => void {
-  let cancelled = false;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const whenIdle = (go: () => void) =>
-    typeof requestIdleCallback === "function" ? requestIdleCallback(go, { timeout: IDLE_TIMEOUT_MS }) : setTimeout(go, 0);
-  const stopLcp = whenLcp(() => {
-    if (cancelled) return;
-    atLcp?.();
-    timer = setTimeout(() => whenIdle(() => !cancelled && run()), WAIT_AFTER_LCP_MS);
-  });
-  return () => {
-    cancelled = true;
-    stopLcp();
-    if (timer !== null) clearTimeout(timer);
-  };
-}
-
-/** W15-D2: S0's mesh, asked for on the main thread as soon as the probe says the GPU is real, so it downloads while
- *  the wait and the worker's script run instead of after them. Its bytes go to the worker (host.ts) in one transfer. */
+/** W15-D2: a mesh asked for on the main thread ahead of the 3D, so it downloads while the worker's script runs instead
+ *  of after it. Its bytes go to the worker (host.ts) in one transfer. */
 export interface MeshPrefetch {
   readonly url: string;
   /** The mesh's bytes, or null when the download failed: the 3D then fetches the mesh itself. */

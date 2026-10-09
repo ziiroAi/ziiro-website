@@ -79,7 +79,7 @@ export const LINES: Readonly<Record<string, string>> = {
   "s8.l2": "Matching it against a map of 137 business jobs…",
   "s8.l3": "Sizing it for a team of {team}…",
   "s8.l3.one": "Sizing it for a team of one…",
-  // S0's live spine (LandingSpine) labels its canvas with the plan hero's alt lines.
+  // The plan hero labels its spine canvas with these alt lines.
   "hx.alt.light": "A tall spine of glossy black vertebrae, every disc between them glowing orange.",
   "hx.alt.dark": "A tall spine of dark chrome vertebrae, every disc glowing a cool blue-white.",
 };

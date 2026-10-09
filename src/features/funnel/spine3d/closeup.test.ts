@@ -16,3 +16,10 @@ describe("the close-up's ring gaps (W16-A)", () => {
     }
   });
 });
+
+describe("the close-up's lowest gap (W16-C5)", () => {
+  it("sits in the disc, 0.03 up its normal from W16-A's fit, and is as wide as the other two", () => {
+    expect(CLOSEUP.gaps[0].centre).toEqual([0.03427, 0.1654, 0.10166]);
+    expect(CLOSEUP.gaps[0].width).toBe(0.045);
+  });
+});

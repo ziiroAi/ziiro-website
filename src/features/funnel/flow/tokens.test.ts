@@ -84,11 +84,8 @@ describe("S0's small print on a phone (W15-A, worker-2's W14-Y LOW)", () => {
   });
 });
 
-describe("S0's spine layer on desktop (W15-A, the owner's \"this line\")", () => {
-  it("has no CSS fade from 1200 px: the canvas's own edges are the page colour, and a fade drew them as bands", () => {
-    const wide = flowCss.slice(flowCss.indexOf("@media (min-width: 1200px)"));
-    const rule = wide.slice(0, wide.indexOf("\n}\n"));
-    expect(rule).toContain(".f-spine {");
-    expect(rule).not.toMatch(/mask-image:\s*linear-gradient/);
+describe("S0 has no spine layer (W16-B: the spine belongs to the plan only)", () => {
+  it("styles no .f-spine at any width", () => {
+    expect(flowCss).not.toContain(".f-spine");
   });
 });
