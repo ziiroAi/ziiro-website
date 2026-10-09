@@ -3,6 +3,7 @@
  * first paint on a full load of "/"; head-script.test.ts keeps the two in step.
  */
 import type { DayPart, FunnelStage, Theme } from "@/features/funnel/data/light";
+import { savedTheme } from "./theme";
 
 export type SubId = "s0.sub.early" | "s0.sub.day" | "s0.sub.late";
 /** A row of the greeting map in index.html. `lang` is lower case; `checked` turns the row on (decision 21). */
@@ -20,7 +21,7 @@ export interface Boot {
 }
 export interface BootInput {
   hour: number;
-  deviceDark: boolean;
+  saved: Theme | null;        // the visitor's own choice from the header toggle (W15-A)
   languages: readonly string[];
   map: readonly GreetingRow[] | null;
   t0: number;
@@ -48,8 +49,13 @@ export function subFor(hour: number): SubId {
   return "s0.sub.late";
 }
 
-export function themeFor(hour: number, deviceDark: boolean): Theme {
-  return deviceDark || hour >= 17 || hour < 5 ? "dark" : "light";
+/** W15-A: light by day, 06:00–17:59 by the visitor's clock, and dark at night. Their own choice wins. */
+export const LIGHT_FROM_HOUR = 6;
+export const DARK_FROM_HOUR = 18;
+
+export function themeFor(hour: number, saved: Theme | null): Theme {
+  if (saved) return saved;
+  return hour >= LIGHT_FROM_HOUR && hour < DARK_FROM_HOUR ? "light" : "dark";
 }
 
 /** The first browser language with a live row, by full tag and then its first part; else English (D4). */
@@ -63,12 +69,12 @@ export function pickRow(map: readonly GreetingRow[], languages: readonly string[
   return live("en") ?? null;
 }
 
-export function computeBoot({ hour, deviceDark, languages, map, t0 }: BootInput): Boot {
+export function computeBoot({ hour, saved, languages, map, t0 }: BootInput): Boot {
   const dayPart = dayPartFor(hour);
   const row = map ? pickRow(map, languages) : null;
   return {
     hour, t0, dayPart,
-    theme: themeFor(hour, deviceDark),
+    theme: themeFor(hour, saved),
     sub: subFor(hour),
     lang: row?.lang ?? "en",
     greeting: row ? row.lines[LINE_FOR[dayPart]] : STATIC_GREETING,
@@ -89,16 +95,10 @@ export function readGreetingMap(doc: Document): GreetingRow[] | null {
 /** The head script's result on a full load of "/"; worked out here when the visitor came from another page. */
 export function readBoot(win: BootWindow): Boot {
   if (win.__funnelBoot) return win.__funnelBoot;
-  let deviceDark = false;
-  try {
-    deviceDark = win.matchMedia("(prefers-color-scheme: dark)").matches;
-  } catch {
-    deviceDark = false;       // no matchMedia: the clock decides
-  }
   const nav = win.navigator;
   const boot = computeBoot({
     hour: new Date().getHours(),
-    deviceDark,
+    saved: savedTheme(),
     languages: nav.languages?.length ? nav.languages : [nav.language || "en"],
     map: readGreetingMap(win.document),
     t0: win.performance.now(),

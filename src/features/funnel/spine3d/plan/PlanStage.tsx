@@ -30,10 +30,6 @@ const FADE = "linear-gradient(to right, transparent, #000 10%, #000 92%, transpa
 const SOFT_EDGES: CSSProperties = {
   maskImage: FADE, WebkitMaskImage: FADE, maskComposite: "intersect", WebkitMaskComposite: "source-in",
 };
-/** W14-X: in light, r17's background renders (235, 234, 232) against the page's (250, 250, 248); this lift puts it on
- *  the page colour. The dark background already matches its page. */
-const LIGHT_LIFT = 250 / 235;
-const LIFTED: CSSProperties = { ...SOFT_EDGES, filter: `brightness(${LIGHT_LIFT.toFixed(3)})` };
 /** On a phone the band covers the top of the screen, so a section is read this far into the space left below it. */
 const PHONE_LINE_SHARE = 1 / 3;
 /** The camera moves over this share of the reading space's height before the next keyframe. */
@@ -203,7 +199,7 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
         data-stage-screen
         className="relative overflow-hidden lg:sticky lg:top-[var(--nav-h,84px)] lg:h-[calc(100vh-var(--nav-h,84px))]"
       >
-        <div data-soft-edges style={theme === "light" ? LIFTED : SOFT_EDGES}>
+        <div data-soft-edges style={SOFT_EDGES}>
           <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={departments} onApi={onApi} onPhase={onPhase}>
             <div ref={stillRef} data-stage-still>
               <HeroPicture className={STILL} />

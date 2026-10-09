@@ -117,9 +117,9 @@ test("a dark visit (22:00) fetches only dark files", async ({ page }) => {
   expect(paths.every((p) => p.startsWith("/spine/r17/dark/hero/"))).toBe(true);
 });
 
-test.describe("a device set to dark", () => {
-  test.use({ colorScheme: "dark" });
-  test("is dark at 10:00 and fetches only dark files (D9)", async ({ page }) => {
+test.describe("a visitor who chose dark with the header toggle", () => {
+  test("is dark at 10:00 and fetches only dark files (D9, W15-A)", async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem("ziiro-theme", "dark"));
     const paths = await reachS5(page, "10:00");
     expect(paths.every((p) => p.startsWith("/spine/r17/dark/hero/"))).toBe(true);
   });

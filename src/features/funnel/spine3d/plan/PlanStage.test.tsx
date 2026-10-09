@@ -156,11 +156,11 @@ describe("PlanStage: one spine for the whole plan (W15-B)", () => {
     expect(stage.querySelector("[data-soft-edges] [data-legend], [data-soft-edges] [data-callout]")).toBeNull();
   });
 
-  it("lifts the light stage so its background meets the page colour, and leaves dark alone (W14-X)", async () => {
+  it("puts no filter on the stage in either theme: the canvas itself now paints the page colour (W15-A)", async () => {
     document.documentElement.dataset.theme = "light";
     const { stage } = mount();
     const soft = () => stage.querySelector<HTMLElement>("[data-soft-edges]")!;
-    expect(soft().style.filter).toMatch(/^brightness\(1\.06\d*\)$/);
+    expect(soft().style.filter).toBe("");
     await act(async () => {
       document.documentElement.dataset.theme = "dark";
       await Promise.resolve();

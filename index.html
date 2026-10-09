@@ -25,12 +25,12 @@
       (function () {
         try {
           if (location.pathname !== "/") return;
-          var d = document, w = window, h = new Date().getHours(), dark = false;
-          try { dark = w.matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) {}
+          var d = document, w = window, h = new Date().getHours(), s = null;
+          try { s = w.localStorage.getItem("ziiro-theme"); } catch (e) {}
           var part = h >= 5 && h < 12 ? 0 : h >= 12 && h < 17 ? 1 : 2;
           var b = {
             hour: h, t0: w.performance.now(), dayPart: ["morning", "afternoon", "evening"][part],
-            theme: dark || h >= 17 || h < 5 ? "dark" : "light",
+            theme: s === "light" || s === "dark" ? s : h >= 6 && h < 18 ? "light" : "dark",
             sub: h >= 5 && h < 8 ? "s0.sub.early" : h >= 8 && h < 22 ? "s0.sub.day" : "s0.sub.late",
             lang: "en", greeting: "Hello.", early: null, ready: false
           };
