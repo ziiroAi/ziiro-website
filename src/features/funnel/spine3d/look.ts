@@ -117,15 +117,15 @@ export const LOOK = {
 
   ring: {
     radiusK: 1.04,         // the band's radius as a share of the groove radius: just proud of the groove
-    heightK: 2.2,          // its height as a share of the gap width; the rims hide what overflows
+    heightK: 0.9,          // its height as a share of the gap width; the rims hide what overflows
     segments: 128,
     /** Glow by facing: a full ring, brightest where it faces the camera, so it reads as r17's camera-side arc at
      *  every angle as the model turns. base is the share left at the sides. */
     facingPower: 0.8,
-    facingBase: 0.3,
-    coreSharpness: 6,     // how thin the hot centre line is
+    facingBase: 0.65,
+    coreSharpness: 8,     // how thin the hot centre line is
     /** The disc's own face as a second emissive: brightest at its camera-side rim (r17's wide crescent). 0 = off. */
-    capK: 0.5,
+    capK: 0,
     capRadiusK: 0.94,     // its radius as a share of the body radius at the gap
   },
 
@@ -136,7 +136,7 @@ export const LOOK = {
         colour: [0.06, 0.06, 0.062], metalness: 0.85, roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.4,
         normalScale: 0.6, envIntensity: 0.7,
       },
-      maskFill: { colour: [1, 0.25, 0.02], intensity: 0.8 },
+      maskFill: { colour: [1, 0.25, 0.02], intensity: 0.15 },
       env: {
         top: [0.9, 0.9, 0.9], horizon: [0.45, 0.45, 0.45], bottom: [0.08, 0.08, 0.08],
         panels: [
@@ -152,12 +152,12 @@ export const LOOK = {
         rim: { dir: [0.7, 0.3, -0.6], colour: [1, 1, 1], intensity: 0.1 },
       },
       ring: {
-        edge: [1, 0.12, 0.004], mid: [1, 0.26, 0.015], core: [1, 0.42, 0.1], intensity: 4,
-        spill: { colour: [1, 0.3, 0.03], intensity: 1.2, distanceK: 0.2 },
+        edge: [1, 0.16, 0], mid: [1, 0.3, 0], core: [1, 0.62, 0.18], intensity: 1.3,
+        spill: { colour: [1, 0.3, 0.03], intensity: 0.25, distanceK: 0.08 },
       },
       toneMapping: "neutral", exposure: LIGHT_EXPOSURE,
       // W15-A: 2, over the page-matched background (luminance 1.87), so the page itself never blooms; the rings sit far above
-      bloom: { strength: 0.45, radius: 0.3, threshold: 2 },
+      bloom: { strength: 0.18, radius: 0.08, threshold: 2 },
     } as ThemeLook,
     dark: {
       background: {
@@ -171,7 +171,7 @@ export const LOOK = {
         colour: [0.13, 0.08, 0.05], metalness: 0.9, roughness: 0.14, clearcoat: 1, clearcoatRoughness: 0.25,
         normalScale: 0.7, envIntensity: 1.1,
       },
-      maskFill: { colour: [0.5, 0.65, 1], intensity: 0.8 },
+      maskFill: { colour: [0.5, 0.65, 1], intensity: 0.15 },
       env: {
         top: [0.35, 0.4, 0.52], horizon: [0.09, 0.105, 0.14], bottom: [0.01, 0.012, 0.018],
         panels: [
@@ -186,11 +186,11 @@ export const LOOK = {
         rim: { dir: [0.8, 0.2, -0.5], colour: [0.75, 0.85, 1], intensity: 0.45 },
       },
       ring: {
-        edge: [0.15, 0.35, 1], mid: [0.4, 0.62, 1], core: [0.68, 0.8, 1], intensity: 5,      // still blue, softer
-        spill: { colour: [0.5, 0.7, 1], intensity: 1, distanceK: 0.2 },
+        edge: [0, 0.3, 1], mid: [0.02, 0.48, 1], core: [0.35, 0.8, 1], intensity: 2.2,      // still blue, softer
+        spill: { colour: [0.5, 0.7, 1], intensity: 0.25, distanceK: 0.08 },
       },
       toneMapping: "neutral", exposure: DARK_EXPOSURE,
-      bloom: { strength: 0.38, radius: 0.4, threshold: 6 },
+      bloom: { strength: 0.18, radius: 0.08, threshold: 6 },
     } as ThemeLook,
   },
 

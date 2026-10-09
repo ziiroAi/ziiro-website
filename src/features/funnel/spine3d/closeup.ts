@@ -14,6 +14,10 @@ export interface CloseupLook {
   gaps: readonly Gap[];
 }
 
+/** Its bands' height as a share of each gap's width (worker-3, W16-C step 3): its gaps are 3-6x taller than the full
+ *  spine's, so the full spine's share made solid drums. */
+export const CLOSEUP_RING_HEIGHT_K = 0.25;
+
 export const CLOSEUP: CloseupLook = {
   matrix: [
     0.5450681, -0.0027418, -0.0013452, 0,
@@ -29,3 +33,8 @@ export const CLOSEUP: CloseupLook = {
     { centre: [-0.00925, 0.56465, -0.0207], normal: [0.03703, 0.96036, -0.27629], radius: 0.07372, width: 0.05178, grooveRadius: 0.06029 },
   ],
 };
+
+/** Its gaps for makeRings, which sizes every band by the full spine's `heightK`: each width is scaled so its band
+ *  comes out CLOSEUP_RING_HEIGHT_K of the real width tall. */
+export const closeupRingGaps = (heightK: number): Gap[] =>
+  CLOSEUP.gaps.map((gap) => ({ ...gap, width: (gap.width * CLOSEUP_RING_HEIGHT_K) / heightK }));

@@ -98,7 +98,7 @@ const axisOf = (c: Vec3): number => {
   return v3(c).sub(v3(LOOK.model.pivot)).dot(a);
 };
 const END_FADE = new THREE.Vector4(
-  axisOf(LOOK.gaps[0].centre) - 0.075, axisOf(LOOK.gaps[0].centre) - 0.012,      // bottom: invisible -> full
+  axisOf(LOOK.gaps[0].centre) - 0.06, axisOf(LOOK.gaps[0].centre) - 0.035,      // bottom: invisible -> full
   axisOf(LOOK.gaps[LOOK.gaps.length - 1].centre) - 0.035, axisOf(LOOK.gaps[LOOK.gaps.length - 1].centre) + 0.03,   // top: full -> invisible; gap 8 sits on the top cut, so it fades too
 );
 

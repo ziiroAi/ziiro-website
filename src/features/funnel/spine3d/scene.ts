@@ -11,7 +11,7 @@ import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoad
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { DISCS, type DiscId, type Theme } from "../data/contract";
 import type { View } from "./camera";
-import { CLOSEUP } from "./closeup";
+import { CLOSEUP, closeupRingGaps } from "./closeup";
 import { GAPS, type Gap } from "./gaps";
 import type { DiscLevels } from "./levels";
 import { LOOK, type Vec3 } from "./look";
@@ -80,9 +80,6 @@ export const NO_WEBGL2 = "no-webgl2";
 export const MESH_FAILED = "mesh-failed";
 
 const UP = new Vector3(0, 1, 0);
-/** W16-A: the close-up's own glowing bands. Off: his textures already paint glowing discs, and the full spine's bands
- *  drew solid cans in his open gaps. worker-3's neon rings (W16-C step 3) turn them on. */
-const CLOSEUP_RINGS = false;
 const RIM_POINTS = 16;
 /** The pick stand-ins: wider and taller than the band, so a finger finds a disc in close-up. Layer 1 never renders. */
 const PICK = { layer: 1, radiusScale: 1.12, heightScale: 3, minHeight: 0.024 } as const;
@@ -292,7 +289,8 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
       mesh.material = body;
       return body;
     });
-    const closeRings = options.closeupUrl && CLOSEUP_RINGS ? dissolvable(makeRings(t, CLOSEUP.gaps, shared)) : null;
+    // W16-C step 3's neon line at its own height: the full spine's band height drew solid drums in its tall gaps.
+    const closeRings = options.closeupUrl ? dissolvable(makeRings(t, closeupRingGaps(LOOK.ring.heightK), shared)) : null;
     if (closeRings) {
       closeRings.group.visible = false;
       inner.add(closeRings.group);
