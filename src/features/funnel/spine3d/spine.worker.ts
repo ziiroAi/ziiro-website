@@ -40,6 +40,8 @@ const nextFrame = (draw: () => void): void => {
 
 let spine: SpineScene | null = null;
 let disposed = false;
+/** W15-D2: hands the scene the bytes the page moves over (a "mesh" message), or null so it fetches the mesh itself. */
+let meshArrived: ((buffer: ArrayBuffer | null) => void) | null = null;
 /** Set while the scene is built, so dispose can stop the download and close once the half-built scene is let go. */
 let building: { abort: AbortController; done: Promise<void> } | null = null;
 /** W14-U M1: the latest view not yet drawn. Views that arrive faster than the GPU draws are dropped, not queued, so a
@@ -61,8 +63,12 @@ let latest: {
 async function init(message: Extract<ToWorker, { type: "init" }>, signal: AbortSignal): Promise<void> {
   try {
     if (!isOurMesh(message.meshUrl)) throw new Error("mesh-failed");
+    const meshBytes = message.meshFromHost
+      ? new Promise<ArrayBuffer | null>((resolve) => (meshArrived = resolve))
+      : undefined;
     const built = await createSpineScene({
       ...message,
+      meshBytes,
       width: clamp(message.width, 0, MAX_SIDE, 0),
       height: clamp(message.height, 0, MAX_SIDE, 0),
       dpr: clamp(message.dpr, 0.5, MAX_DPR, 1),
@@ -128,8 +134,15 @@ function handle(data: ToWorker): void {
       if (!spine) latest = { ...latest, levels: data.levels };
       spine?.setLevels(data.levels);
       return;
+    case "mesh":
+      meshArrived?.(data.buffer);
+      meshArrived = null;
+      return;
     case "dispose":
       disposed = true;
+      // A build still waiting for the page's bytes gets none, so it ends and the worker can close.
+      meshArrived?.(null);
+      meshArrived = null;
       spine?.dispose();
       spine = null;
       // A scene still being built holds a context already: stop its download and close once it has let go (W14-U L2).

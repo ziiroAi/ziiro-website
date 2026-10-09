@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { afterLcpThenIdle, isSoftwareGl, NO_LCP_MS, PROBE_TIMEOUT_MS, probeSoftwareGl, WAIT_AFTER_LCP_MS } from "./first-screen";
+import { afterLcpThenIdle, isSoftwareGl, NO_LCP_MS, prefetchMesh, PROBE_TIMEOUT_MS, probeSoftwareGl, WAIT_AFTER_LCP_MS } from "./first-screen";
 
 const UNMASKED_RENDERER = 0x9246;
 function canvasWith(gpu: string | null) {
@@ -153,5 +153,82 @@ describe("starting a second past the LCP, in idle time (W14-R)", () => {
     expect(run).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(run).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("starting sooner, with the mesh on its way at the LCP (W15-D2)", () => {
+  it("waits 300 ms past the LCP, not a second: the 3D draws in a worker, so its own main-thread work is small", () => {
+    expect(WAIT_AFTER_LCP_MS).toBe(300);
+  });
+
+  it("calls atLcp as soon as the LCP is in, before the wait and the idle time", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
+    vi.stubGlobal("requestIdleCallback", idleNow);
+    const run = vi.fn();
+    const atLcp = vi.fn();
+    afterLcpThenIdle(run, atLcp);
+    vi.advanceTimersByTime(NO_LCP_MS - 1);
+    expect(atLcp).not.toHaveBeenCalled();
+    FakeLcpObserver.all[0].emit();
+    expect(atLcp).toHaveBeenCalledTimes(1);
+    expect(run).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(WAIT_AFTER_LCP_MS);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(atLcp).toHaveBeenCalledTimes(1);
+  });
+
+  it("never calls atLcp once cancelled", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("PerformanceObserver", FakeLcpObserver);
+    const atLcp = vi.fn();
+    const cancel = afterLcpThenIdle(vi.fn(), atLcp);
+    cancel();
+    FakeLcpObserver.all[0].emit();
+    expect(atLcp).not.toHaveBeenCalled();
+  });
+});
+
+describe("fetching the mesh ahead of the 3D (W15-D2)", () => {
+  const bytes = new Uint8Array([1, 2, 3]).buffer;
+
+  it("asks for the mesh once and hands its bytes on", async () => {
+    const fetch = vi.fn(async (_url: string) => new Response(bytes));
+    vi.stubGlobal("fetch", fetch);
+    const prefetch = prefetchMesh("/spine/3d/m1/spine-phone.glb");
+    expect(prefetch.url).toBe("/spine/3d/m1/spine-phone.glb");
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch.mock.calls[0][0]).toBe("/spine/3d/m1/spine-phone.glb");
+    expect(new Uint8Array((await prefetch.bytes)!)).toEqual(new Uint8Array([1, 2, 3]));
+  });
+
+  it("hands on nothing when the network fails, so the 3D fetches the mesh itself", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("offline"))));
+    await expect(prefetchMesh("/spine/3d/m1/spine-phone.glb").bytes).resolves.toBeNull();
+  });
+
+  it("hands on nothing when the server says no, so the 3D fetches the mesh itself", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("gone", { status: 404 })));
+    await expect(prefetchMesh("/spine/3d/m1/spine-phone.glb").bytes).resolves.toBeNull();
+  });
+});
+
+describe("dropping the probe (W15-D2)", () => {
+  it("ends the probe worker when its signal aborts, and says hardware so nothing waits on it", async () => {
+    const terminate = vi.fn();
+    vi.stubGlobal("OffscreenCanvas", class {});
+    vi.stubGlobal(
+      "Worker",
+      class {
+        onmessage = null;
+        onerror = null;
+        terminate = terminate;
+      },
+    );
+    const stop = new AbortController();
+    const answer = isSoftwareGl(undefined, stop.signal);
+    stop.abort();
+    expect(terminate).toHaveBeenCalledTimes(1);
+    await expect(answer).resolves.toBe(false);
   });
 });

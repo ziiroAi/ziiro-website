@@ -36,6 +36,8 @@ export interface SceneOptions {
   levels: DiscLevels;
   /** Aborted when the viewer leaves before the scene is built: the mesh download stops (W14-U L2). */
   signal?: AbortSignal;
+  /** W15-D2: the mesh's bytes, fetched ahead by S0. Null or absent: the scene downloads meshUrl itself. */
+  meshBytes?: Promise<ArrayBuffer | null>;
   /** Called once if the GPU drops the context. The viewer then gives the still back. */
   onContextLost(): void;
 }
@@ -99,12 +101,20 @@ interface LoadedMesh {
   parts: { mesh: Mesh; source: MeshStandardMaterial }[];
 }
 
-async function loadMesh(url: string, signal?: AbortSignal): Promise<LoadedMesh> {
+/** The mesh's bytes: the ones handed over (S0 fetched them ahead, W15-D2), else a download of its own. */
+async function meshBytesOf(url: string, given: Promise<ArrayBuffer | null> | undefined, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const handed = given ? await given : null;
+  signal?.throwIfAborted();
+  if (handed) return handed;
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(MESH_FAILED);
+  return response.arrayBuffer();
+}
+
+async function loadMesh(url: string, given: Promise<ArrayBuffer | null> | undefined, signal?: AbortSignal): Promise<LoadedMesh> {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).register(imageBitmapTextures);
   try {
-    const response = await fetch(url, { signal });
-    if (!response.ok) throw new Error(MESH_FAILED);
-    const gltf = await loader.parseAsync(await response.arrayBuffer(), LoaderUtils.extractUrlBase(url));
+    const gltf = await loader.parseAsync(await meshBytesOf(url, given, signal), LoaderUtils.extractUrlBase(url));
     signal?.throwIfAborted();
     const parts: LoadedMesh["parts"] = [];
     gltf.scene.traverse((node) => {
@@ -202,7 +212,7 @@ export async function createSpineScene(options: SceneOptions): Promise<SpineScen
 async function buildScene(options: SceneOptions, renderer: WebGLRenderer, release: () => void): Promise<SpineScene> {
   const { size } = options;
   const gpu = gpuNameOf(renderer.getContext());
-  const loaded = await loadMesh(options.meshUrl, options.signal);
+  const loaded = await loadMesh(options.meshUrl, options.meshBytes, options.signal);
   const scene = new Scene();
   const proxies = GAPS.map(discProxy);
 

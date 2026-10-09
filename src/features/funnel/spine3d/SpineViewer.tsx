@@ -10,7 +10,7 @@ import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
-import { afterLcpThenIdle, isSoftwareGl, onOptionPress } from "./first-screen";
+import { afterLcpThenIdle, isSoftwareGl, onOptionPress, prefetchMesh, probesOffThread, type MeshPrefetch } from "./first-screen";
 import { shouldRelease } from "./gpu";
 import type { Motion } from "./orbit";
 import { isSoftwareRenderer } from "./pace";
@@ -184,10 +184,14 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         box.append(canvas);
         const { width, height } = box.getBoundingClientRect();
         const size = meshFor(window.innerWidth);
+        const meshUrl = MESH_URLS[size];
+        // W15-D2: S0's download goes to the first build only; its bytes move to that worker, so a later build fetches.
+        const meshBytes = prefetch?.url === meshUrl ? prefetch.bytes : undefined;
+        prefetch = null;
         /** A late message from a handle this viewer has let go (asleep, then started again) is ignored (W14-V T2). */
         const mine = () => !cancelled && live.current?.handle === handle;
         const handle: SpineHandle = startSpine(canvas, {
-          width, height, dpr: devicePixelRatio || 1, size, meshUrl: MESH_URLS[size],
+          width, height, dpr: devicePixelRatio || 1, size, meshUrl, meshBytes,
           theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: baseFraming(size) },
           onReady: (boxes, gpu) => {
             if (!mine() || !live.current) return;
@@ -256,20 +260,39 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     near?.observe(box);
     presenceListeners.add(settle);
     const firstScreen = latest.current.firstScreen === true;
+    /** W15-D2: S0's mesh, on its way from the probe's answer while the wait and the worker's script run. */
+    let prefetch: MeshPrefetch | null = null;
+    /** The probe's answer, asked once: at S0's LCP where it runs in a worker, else when the 3D starts. */
+    let probe: Promise<boolean> | null = null;
+    const stopProbe = new AbortController();
+    const askProbe = () => (probe ??= isSoftwareGl(undefined, stopProbe.signal));
+    /** W15-D2: at S0's LCP, where the probe runs off the main thread, ask it now; on a real GPU start the mesh
+     *  download at once. A software renderer gets no request at all. Nothing here parses, decodes or touches the GPU. */
+    const atLcp = () => {
+      if (cancelled || interrupted || failed || !probesOffThread()) return;
+      void askProbe().then((software) => {
+        if (cancelled || interrupted || failed || software) return;
+        prefetch = prefetchMesh(MESH_URLS[meshFor(window.innerWidth)]);
+      });
+    };
     /** W14-X: no viewer runs its 3D on a software renderer; the still stays (worker-2's W14-S, SwiftShader phone tour
      *  taps of 3-10 s). The probe is a 1×1 context in a worker, read and given back before any 3D code loads. */
     const start = () =>
-      void isSoftwareGl().then((software) => {
+      void askProbe().then((software) => {
         if (cancelled || interrupted || failed) return;
         if (software) fail("software-gl");
         else void begin();
       });
-    const cancelStart = firstScreen ? afterLcpThenIdle(start) : afterFirstPaint(start);
+    const cancelStart = firstScreen ? afterLcpThenIdle(start, atLcp) : afterFirstPaint(start);
     /** S0: an option pressed before the first frame means the visitor is leaving, so the 3D stops wherever it got to. */
     const interrupt = () => {
       if (cancelled || failed || live.current?.drive) return;
       interrupted = true;
       cancelStart();
+      stopProbe.abort();
+      // A download under way may finish (network only, and the plan page shows the same mesh next, from the HTTP
+      // cache), but nothing is built from it.
+      prefetch = null;
       teardown();
       setLeft(true);
       setState({ phase: "still", reason: null });
@@ -288,6 +311,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     return () => {
       cancelled = true;
       cancelStart();
+      stopProbe.abort();
       stopWatching();
       motionQuery?.removeEventListener?.("change", onMotionChange);
       near?.disconnect();

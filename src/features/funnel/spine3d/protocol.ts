@@ -15,6 +15,8 @@ export interface SpineStart {
   meshUrl: string;
   levels: DiscLevels;
   view: View;
+  /** W15-D2: S0 already has the mesh on its way; its bytes follow as a "mesh" message, so the worker doesn't fetch. */
+  meshFromHost?: boolean;
 }
 
 export type ToWorker =
@@ -24,6 +26,8 @@ export type ToWorker =
   | { type: "resize"; width: number; height: number; dpr: number }
   | { type: "theme"; theme: Theme }
   | { type: "levels"; levels: DiscLevels }
+  /** W15-D2: the bytes promised by meshFromHost, moved (not copied); null when S0's download failed. */
+  | { type: "mesh"; buffer: ArrayBuffer | null }
   | { type: "dispose" };
 
 /** "boxes" carries the worker's own frame time (W14-U M1): the time since its last frame when views piled up meanwhile
