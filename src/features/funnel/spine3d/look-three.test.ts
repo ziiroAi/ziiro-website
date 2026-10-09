@@ -6,7 +6,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { describe, expect, it, vi } from "vitest";
 import { LOOK } from "./look";
 import { baseFraming } from "./camera";
-import { backgroundOffsetX, disposeComposer, makeBackground, makeComposer, makeEnvironment } from "./look-three";
+import { LEAK_FACING, LEAK_GLSL, backgroundOffsetX, disposeComposer, makeBackground, makeBody, makeComposer, makeEnvironment } from "./look-three";
 
 /** The site sets the renderer's pixel ratio; three's EffectComposer.addPass used to multiply sizes by it again. */
 const renderer = { getPixelRatio: () => 2, getSize: (v: THREE.Vector2) => v.set(300, 200) } as unknown as THREE.WebGLRenderer;
@@ -96,5 +96,37 @@ describe("the background follows the spine across the stage (W15-B2)", () => {
   it("offsets the shaft and the bokeh through a bgOffset uniform, not the vignette", () => {
     const { shared } = makeBackground(LOOK.themes.dark, 16 / 9);
     expect(shared.uniforms.bgOffset.value).toBeInstanceOf(THREE.Vector2);
+  });
+});
+
+describe("a lit gap's leak stays on the rims that face into its slit (W19-GHOST)", () => {
+  // Stop 1 drew the rings above the lit one as faint arcs across the bone: the leak lit the outward faces of the bone
+  // standing in front of the ring, at the ring's level, so the hidden ring's arc showed through.
+  const compiled = () => {
+    const { shared } = makeBackground(LOOK.themes.light, 9 / 16);
+    const body = makeBody(LOOK.themes.light, null, null, 0, shared);
+    const sh = {
+      uniforms: {}, defines: {},
+      vertexShader: "#include <common>\n#include <project_vertex>",
+      fragmentShader: "#include <common>\n#include <emissivemap_fragment>\n#include <opaque_fragment>",
+    } as unknown as THREE.WebGLProgramParametersWithUniforms;
+    body.onBeforeCompile(sh, renderer);
+    return sh;
+  };
+
+  it("hands the fragment the surface's normal in the model's space", () => {
+    const sh = compiled();
+    expect(sh.vertexShader).toMatch(/vNm = mat3\(uToModel\) \* mat3\(modelMatrix\) \* objectNormal/);
+    expect(sh.fragmentShader).toContain("leak(vM, normalize(vNm))");
+  });
+
+  it("weights every gap's band by how squarely the face looks along the column", () => {
+    expect(LEAK_GLSL).toContain("smoothstep(LEAK_FACING_FROM, LEAK_FACING_TO, abs(dot(nm, n)))");
+    expect(LEAK_GLSL.match(/leakOne\(m, nm, /g)).toHaveLength(LOOK.gaps.length);
+  });
+
+  it("gives an outward face (normal at 60 degrees or more off the column) none, and a rim all of it", () => {
+    expect(LEAK_FACING.from).toBeGreaterThanOrEqual(Math.cos((60 * Math.PI) / 180));
+    expect(LEAK_FACING.to).toBeLessThan(Math.cos((20 * Math.PI) / 180));
   });
 });
