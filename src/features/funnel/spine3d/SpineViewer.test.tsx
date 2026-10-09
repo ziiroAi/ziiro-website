@@ -11,6 +11,8 @@ import type { DiscBox } from "./scene";
 import { forgetSoftwareGl } from "./first-screen";
 import { forgetWarmMeshes, warmMesh } from "./mesh-warm";
 import { LOAD_TIMEOUT_MS, MESH_URLS, SpineViewer } from "./SpineViewer";
+import { chooseTheme, resetThemeChoice } from "../flow/theme";
+import { THEME_FADE_MS } from "../flow/themeFade";
 
 let picked: DiscId | null = null;
 const handle = {
@@ -228,6 +230,29 @@ describe("SpineViewer (W14-C)", () => {
     await act(async () => drawn());
     expect(still().className).toContain("invisible");
     expect(canvas()?.style.opacity).toBe("1");
+  });
+
+  it("with the page's crossfade under way, hands its clock to the 3D and keeps the canvas on screen (W18-B)", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }));
+    document.documentElement.setAttribute("data-funnel", "plan");
+    try {
+      await mount();
+      ready();
+      await act(async () => {
+        chooseTheme("dark");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      // Handed over in the frame the page's colours start in, once chooseTheme has re-timed the fade to it.
+      expect(handle.setTheme).not.toHaveBeenCalledWith("dark", expect.anything());
+      act(() => flush());
+      expect(handle.setTheme).toHaveBeenLastCalledWith("dark", expect.objectContaining({ ms: THEME_FADE_MS }));
+      expect(still().className).toContain("invisible");
+      expect(canvas()?.style.opacity).not.toBe("0");
+    } finally {
+      resetThemeChoice();
+      document.documentElement.removeAttribute("data-funnel");
+      document.documentElement.removeAttribute("data-theme-fade");
+    }
   });
 
   it("lets a vertical swipe scroll the page on a phone", async () => {

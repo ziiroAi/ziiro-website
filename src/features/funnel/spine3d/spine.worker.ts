@@ -86,6 +86,11 @@ async function init(message: Extract<ToWorker, { type: "init" }>, signal: AbortS
   }
 }
 
+/** W18-B: redraws each frame while a theme crossfade runs, whether or not the page sends views (an idle spine). */
+function fadeFrame(): void {
+  if (spine?.step()) nextFrame(fadeFrame);
+}
+
 function draw(): void {
   const view = unseen;
   const now = performance.now();
@@ -127,8 +132,10 @@ function handle(data: ToWorker): void {
         latest = { ...latest, theme: data.theme };
         return;
       }
-      spine.setTheme(data.theme);
+      if (data.fade) spine.setTheme(data.theme, data.fade);
+      else spine.setTheme(data.theme);
       scope.postMessage({ type: "themed", theme: data.theme });
+      if (data.fade) nextFrame(fadeFrame);
       return;
     case "levels":
       if (!spine) latest = { ...latest, levels: data.levels };

@@ -2,6 +2,7 @@
 // the main thread only sends one View per frame. Elsewhere (older Safari) three.js runs here, loaded with import().
 // This file is its own lazy chunk and imports no three.js itself.
 import type { DiscId, Theme } from "../data/contract";
+import type { ThemeFade } from "../flow/themeFade";
 import type { View } from "./camera";
 import type { DiscLevels } from "./levels";
 import { isFromWorker, type SpineStart, type ToWorker } from "./protocol";
@@ -19,8 +20,9 @@ export interface SpineHandle {
   render(view: View): void;
   pick(x: number, y: number): Promise<DiscId | null>;
   resize(width: number, height: number, dpr: number): void;
-  /** Settles once a frame in the new look is drawn (or the 3D stops), so the viewer can hold the still till then. */
-  setTheme(theme: Theme): Promise<void>;
+  /** Settles once a frame in the new look is drawn (or the 3D stops), so the viewer can hold the still till then.
+   *  W18-B: with `fade`, the old look fades out over the new on the page's clock instead (scene.ts setTheme). */
+  setTheme(theme: Theme, fade?: ThemeFade | null): Promise<void>;
   setLevels(levels: DiscLevels): void;
   dispose(): void;
 }
@@ -91,10 +93,10 @@ function inWorker(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, meshByt
         send({ type: "pick", id, x, y });
       }),
     resize: (width, height, dpr) => send({ type: "resize", width, height, dpr }),
-    setTheme: (theme) =>
+    setTheme: (theme, fade = null) =>
       new Promise<void>((settle) => {
         themed = [...themed, { theme, settle }];
-        send({ type: "theme", theme });
+        send(fade ? { type: "theme", theme, fade } : { type: "theme", theme });
       }),
     setLevels: (levels) => send({ type: "levels", levels }),
     dispose: () => {
@@ -153,9 +155,16 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
       if (spine) spine.resize(width, height, dpr);
       else pending = { ...pending, size: [width, height, dpr] };
     },
-    setTheme: (theme) => {
+    setTheme: (theme, fade = null) => {
       if (spine) {
-        spine.setTheme(theme); // draws the new look before it returns
+        if (fade) spine.setTheme(theme, fade);
+        else spine.setTheme(theme);
+        // Either way the new look is drawn (under the old one's fading copy) before it returns.
+        const live = spine;
+        const step = () => {
+          if (!disposed && spine === live && live.step()) requestAnimationFrame(step);
+        };
+        if (fade) requestAnimationFrame(step);
         return Promise.resolve();
       }
       pending = { ...pending, theme };

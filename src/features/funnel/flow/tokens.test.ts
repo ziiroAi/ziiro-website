@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { THEME_FADE_MS, cssEaseInOut } from "./themeFade";
 
 // node:fs, not ?raw: Vitest empties every .css module (its css option), ?raw included.
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
@@ -87,5 +88,81 @@ describe("S0's small print on a phone (W15-A, worker-2's W14-Y LOW)", () => {
 describe("S0 has no spine layer (W16-B: the spine belongs to the plan only)", () => {
   it("styles no .f-spine at any width", () => {
     expect(flowCss).not.toContain(".f-spine");
+  });
+});
+
+// W18-B: the light/dark crossfade's ink, read from tokens.css's keyframes and played frame by frame at 60 fps.
+const INK = ["fg", "muted", "title-from", "title-to"] as const;
+const GROUNDS = ["bg", "card", "line"] as const;
+type Stop = { at: number; values: Record<string, string> };
+
+/** A @keyframes block's stops, in order: "30%, 52.99%" gives two stops with the same values. */
+function keyframes(name: string): Stop[] {
+  const body = tokens.match(new RegExp(`@keyframes ${name}\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1];
+  if (!body) throw new Error(`no @keyframes ${name}`);
+  return [...body.matchAll(/([\d.%,\s]+)\{([^}]*)\}/g)]
+    .flatMap(([, at, decl]) => {
+      const values = Object.fromEntries([...decl.matchAll(/--funnel-([a-z-]+):\s*(#[0-9a-fA-F]{6})/g)].map(([, k, v]) => [k, v]));
+      return at.split(",").map((pct) => ({ at: parseFloat(pct) / 100, values }));
+    })
+    .sort((a, b) => a.at - b.at);
+}
+
+const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const hex = (c: number[]) => `#${c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+/** CSS's interpolation of legacy colours: in gamma-encoded sRGB. */
+const mix = (a: string, b: string, t: number) => hex(rgb(a).map((v, i) => v + (rgb(b)[i] - v) * t));
+
+/** One token's value at linear progress x through the keyframes. */
+function inkAt(stops: Stop[], name: string, x: number): string {
+  const next = stops.findIndex((s) => s.at > x);
+  if (next <= 0) return stops[next === 0 ? 0 : stops.length - 1].values[name];
+  const [a, b] = [stops[next - 1], stops[next]];
+  return mix(a.values[name], b.values[name], (x - a.at) / (b.at - a.at));
+}
+
+describe("the light/dark crossfade (W18-B)", () => {
+  const light = block('[data-theme="light"]');
+  const dark = block('[data-theme="dark"]');
+  const runs = [
+    { name: "funnel-ink-to-dark", from: light, to: dark },
+    { name: "funnel-ink-to-light", from: dark, to: light },
+  ];
+
+  it("lasts THEME_FADE_MS, the 3D's own fade length, everywhere tokens.css says it", () => {
+    const lengths = [...tokens.matchAll(/(\d+)ms/g)].map(([, ms]) => Number(ms));
+    expect(lengths.length).toBeGreaterThan(0);
+    expect(new Set(lengths)).toEqual(new Set([THEME_FADE_MS]));
+    expect(tokens).toMatch(/--funnel-bg 450ms ease-in-out/);
+  });
+
+  it("registers each eased token as a colour, starting at the light value", () => {
+    for (const name of [...INK, ...GROUNDS]) {
+      expect(tokens).toMatch(new RegExp(`@property --funnel-${name} \\{ syntax: "<color>"; inherits: true; initial-value: ${light[name]}; \\}`));
+    }
+  });
+
+  it.each(runs)("$name starts at the old ink and ends at the new", ({ name, from, to }) => {
+    const stops = keyframes(name);
+    for (const ink of INK) {
+      expect(stops[0].values[ink]).toBe(from[ink]);
+      expect(stops.at(-1)!.values[ink]).toBe(to[ink]);
+    }
+  });
+
+  it.each(runs)("$name keeps every frame's text readable on the page and on cards", ({ name, from, to }) => {
+    const stops = keyframes(name);
+    const frames = Math.round((THEME_FADE_MS / 1000) * 60);
+    let worst = Infinity;
+    for (let f = 0; f <= frames; f++) {
+      const x = f / frames;
+      const eased = cssEaseInOut(x);
+      for (const ground of ["bg", "card"] as const) {
+        const under = mix(from[ground], to[ground], eased);
+        for (const ink of INK) worst = Math.min(worst, contrast(inkAt(stops, ink, x), under));
+      }
+    }
+    // The ground passes mid-grey, where old ink and new ink each read at about 4:1: the step's frame.
+    expect(worst).toBeGreaterThanOrEqual(3.5);
   });
 });

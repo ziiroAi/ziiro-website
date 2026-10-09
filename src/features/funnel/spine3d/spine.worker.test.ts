@@ -12,6 +12,7 @@ const scene = {
   pick: vi.fn(() => null),
   resize: vi.fn(),
   setTheme: vi.fn(),
+  step: vi.fn(() => false),
   setLevels: vi.fn(),
   dispose: vi.fn(),
 };
@@ -75,6 +76,25 @@ describe("the spine worker (W14-J F1)", () => {
     send({ type: "theme", theme: "light" });
     expect(scene.setTheme).toHaveBeenCalledWith("light");
     expect(posted.at(-1)).toEqual({ type: "themed", theme: "light" });
+  });
+});
+
+describe("the theme crossfade (W18-B)", () => {
+  it("hands the scene the page's fade, then redraws every frame until the fade has run, idle spine or not", async () => {
+    send(init);
+    build();
+    await vi.waitFor(() => expect(posted.some((m) => m.type === "ready")).toBe(true));
+    const fade = { start: 1000, ms: 450 };
+    scene.step.mockReturnValueOnce(true).mockReturnValueOnce(true).mockReturnValueOnce(false);
+    send({ type: "theme", theme: "light", fade });
+    expect(scene.setTheme).toHaveBeenCalledWith("light", fade);
+    expect(posted.at(-1)).toEqual({ type: "themed", theme: "light" });
+    drawFrame();
+    drawFrame();
+    drawFrame();
+    drawFrame();
+    expect(scene.step).toHaveBeenCalledTimes(3);
+    expect(frames).toHaveLength(0);
   });
 });
 

@@ -9,7 +9,7 @@ import { useBoot, useEarlyTap, useFocusOnStep, useFunnelAttributes, useIsoLayout
 import { useFlowHistory } from "./history";
 import { prefetchPlan } from "./plan-chunk";
 import { SCREEN_UI } from "./screens";
-import { useChosenTheme } from "./theme";
+import { startClockTheme, useChosenTheme } from "./theme";
 import { keepPlan, resumedPlan } from "./resume";
 import { PlanPrefetch } from "./screens/Plan";
 import type { FlowEnv, ScreenProps } from "./screens/types";
@@ -49,6 +49,7 @@ export function FunnelRoot(): JSX.Element {
     if (state.nav.seq > 0) gate.lock(performance.now());
   }, [state.nav.seq]);
   useFunnelAttributes(useChosenTheme(boot.theme), funnelStageOf(state));
+  useEffect(() => startClockTheme(), []);  // W18-B: 06:00 and 18:00 cross-fade too, until the visitor chooses
   useEarlyTap(boot, (id) => {
     if (isOneOf(SEGMENTS, id)) dispatch({ type: "segment", value: id });
   });

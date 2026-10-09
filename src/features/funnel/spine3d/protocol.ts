@@ -1,6 +1,7 @@
 // (C) Messages between host.ts (main thread) and spine.worker.ts. The worker owns the canvas, the renderer and the
 // mesh. The main thread sends one View per frame (rotation and camera framing) and gets every disc's screen box back.
 import type { DiscId, Theme } from "../data/contract";
+import type { ThemeFade } from "../flow/themeFade";
 import type { View } from "./camera";
 import type { DiscLevels } from "./levels";
 import type { MeshSize } from "./rules";
@@ -24,7 +25,7 @@ export type ToWorker =
   | { type: "view"; view: View }
   | { type: "pick"; id: number; x: number; y: number }
   | { type: "resize"; width: number; height: number; dpr: number }
-  | { type: "theme"; theme: Theme }
+  | { type: "theme"; theme: Theme; fade?: ThemeFade | null }
   | { type: "levels"; levels: DiscLevels }
   /** W15-D2: the bytes promised by meshFromHost, moved (not copied); null when S0's download failed. */
   | { type: "mesh"; buffer: ArrayBuffer | null }

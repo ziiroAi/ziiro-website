@@ -10,7 +10,9 @@ import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectCom
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { DISCS, type DiscId, type Theme } from "../data/contract";
+import { fadeClock, type ThemeFade } from "../flow/themeFade";
 import type { View } from "./camera";
+import { makeCrossfade } from "./crossfade";
 import { GAPS, type Gap } from "./gaps";
 import type { DiscLevels } from "./levels";
 import { LOOK, type Vec3 } from "./look";
@@ -64,7 +66,11 @@ export interface SpineScene {
   /** The disc under a point (CSS px from the canvas's top left), or null. */
   pick(x: number, y: number): DiscId | null;
   resize(width: number, height: number, dpr: number): void;
-  setTheme(theme: Theme): void;
+  /** W18-B: with `fade`, the old look's last frame fades out over the new one on the page's clock (crossfade.ts);
+   *  the caller then calls step() each frame until it returns false. Without, the new look shows at once. */
+  setTheme(theme: Theme, fade?: ThemeFade | null): void;
+  /** Redraws the last view while a crossfade runs; false once it has run (that frame is the clean new look). */
+  step(): boolean;
   setLevels(levels: DiscLevels): void;
   dispose(): void;
 }
@@ -271,6 +277,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
   };
 
   let dressing = dress();
+  const crossfade = makeCrossfade(renderer);
 
   const rebuildComposer = () => {
     if (composer) disposeComposer(composer);
@@ -281,6 +288,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
   };
 
   const resize = (width: number, height: number, dpr: number) => {
+    crossfade.cancel();  // the copy is the old size
     px = { width, height, ratio: Math.min(dpr, maxDprFor(size)) };
     renderer.setPixelRatio(px.ratio);
     renderer.setSize(width, height, false);
@@ -302,6 +310,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
     pose(next);
     if (px.width <= 0 || px.height <= 0 || !composer) return [];
     composer.render();
+    crossfade.draw(fadeClock());
     return GAPS.map((_, k) => discBox(k, inner, camera, px.width, px.height));
   };
 
@@ -327,13 +336,23 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
       resize(width, height, dpr);
       redraw();
     },
-    setTheme: (next) => {
+    setTheme: (next, fade = null) => {
       if (next === theme) return;
+      // The frame on the canvas now is the old look (or a fade already under way): copy it before the look goes.
+      if (fade && view) {
+        render(view);
+        crossfade.capture(fade);
+      } else crossfade.cancel();
       theme = next;
       undress(dressing);
       dressing = dress();
       rebuildComposer();
       redraw();
+    },
+    step: () => {
+      if (!crossfade.active()) return false;
+      redraw();
+      return crossfade.active();
     },
     setLevels: (next) => {
       levels = next;
@@ -345,6 +364,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
       redraw();
     },
     dispose: () => {
+      crossfade.dispose();
       undress(dressing);
       if (composer) disposeComposer(composer);
       disposeTree(scene);

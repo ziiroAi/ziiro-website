@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { DepartmentId, Theme } from "../data/contract";
 import { useHtmlTheme } from "../plan/useHtmlTheme";
+import { themeFadeNow } from "../flow/theme";
 import type { SpineViewerApi } from "./api";
 import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
@@ -286,6 +287,17 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     if (!current.drive) {
       void current.handle.setTheme(inputs.theme);
       return;
+    }
+    // W18-B: the page is crossfading. The 3D fades on the same clock (scene.ts), so the canvas stays on screen.
+    // It is handed over in the frame the page's colours start in, once chooseTheme has re-timed the fade to it.
+    if (themeFadeNow()) {
+      const drive = current.drive;
+      const frame = requestAnimationFrame(() => {
+        if (live.current !== current) return;
+        void current.handle.setTheme(inputs.theme, themeFadeNow() ?? null);
+        drive.wake();
+      });
+      return () => cancelAnimationFrame(frame);
     }
     let stale = false;
     current.canvas.style.opacity = "0";
