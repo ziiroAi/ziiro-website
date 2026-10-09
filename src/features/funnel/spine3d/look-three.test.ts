@@ -3,7 +3,8 @@ import * as THREE from "three";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { describe, expect, it, vi } from "vitest";
 import { LOOK } from "./look";
-import { disposeComposer, makeComposer, makeEnvironment } from "./look-three";
+import { baseFraming } from "./camera";
+import { backgroundOffsetX, disposeComposer, makeBackground, makeComposer, makeEnvironment } from "./look-three";
 
 /** The site sets the renderer's pixel ratio; three's EffectComposer.addPass used to multiply sizes by it again. */
 const renderer = { getPixelRatio: () => 2, getSize: (v: THREE.Vector2) => v.set(300, 200) } as unknown as THREE.WebGLRenderer;
@@ -61,5 +62,27 @@ describe("makeEnvironment (W14-V T4)", () => {
     expect(disposals.length).toBeGreaterThan(2);
     disposals.forEach((dispose) => expect(dispose).toHaveBeenCalled());
     expect(pmrem.dispose).toHaveBeenCalled();
+  });
+});
+
+describe("the background follows the spine across the stage (W15-B2)", () => {
+  // The bokeh sat on the plan's text column once the spine moved left: r17's shaft and bokeh belong beside the spine.
+  it("doesn't move at r17's own framing, so S0 and the plan's hero keep their look", () => {
+    for (const size of ["desktop", "phone"] as const) {
+      expect(backgroundOffsetX(LOOK.camera[size], size, 1440, 816, baseFraming(size).shift[0])).toBeCloseTo(0, 9);
+    }
+  });
+
+  it("moves by as much as the spine does across the screen", () => {
+    // shiftXFor's desktop rule: the target sits (0.5 - shift * long / width) across the canvas.
+    const across = (shift: number) => 0.5 - (shift * 1440) / 1440;
+    const base = baseFraming("desktop").shift[0];
+    const left = 0.5 - 0.27;
+    expect(backgroundOffsetX(LOOK.camera.desktop, "desktop", 1440, 816, left)).toBeCloseTo(across(left) - across(base), 9);
+  });
+
+  it("offsets the shaft and the bokeh through a bgOffset uniform, not the vignette", () => {
+    const { shared } = makeBackground(LOOK.themes.dark, 16 / 9);
+    expect(shared.uniforms.bgOffset.value).toBeInstanceOf(THREE.Vector2);
   });
 });

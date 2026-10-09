@@ -9,7 +9,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import type { Framing } from "./camera";
+import { baseFraming, type Framing } from "./camera";
 import type { CameraLook, Gap, ThemeLook, Vec3 } from "./look";
 import { LOOK } from "./look";
 import type { MeshSize } from "./rules";
@@ -65,10 +65,11 @@ export function makeEnvironment(
 /** The background as a GLSL function of the screen point p (fractions, origin top left), so the body and the rings can
  *  fade into exactly the pixel behind them. Its uniforms all start with bg. */
 const BG_GLSL = `uniform vec3 bgBase, bgShaftCol, bgBokehCol; uniform float bgVignette, bgAspect, bgShaftWidth; uniform int bgBokehCount;
-  uniform vec2 bgShaftFrom, bgShaftTo; uniform vec4 bgBokeh[BG_BOKEH];
-  vec3 bgColour(vec2 p){
-    vec2 d = (p - 0.5) * vec2(bgAspect, 1.0);
+  uniform vec2 bgShaftFrom, bgShaftTo, bgOffset; uniform vec4 bgBokeh[BG_BOKEH];
+  vec3 bgColour(vec2 screen){
+    vec2 d = (screen - 0.5) * vec2(bgAspect, 1.0);
     vec3 c = bgBase * (1.0 - bgVignette * smoothstep(0.2, 1.1, length(d)));
+    vec2 p = screen - bgOffset;
     vec2 ab = bgShaftTo - bgShaftFrom; float k = clamp(dot(p - bgShaftFrom, ab) / dot(ab, ab), 0.0, 1.0);
     float off = length((p - (bgShaftFrom + ab * k)) * vec2(bgAspect, 1.0));
     c += bgShaftCol * exp(-off * off / (bgShaftWidth * bgShaftWidth)) * (1.0 - k);
@@ -145,6 +146,7 @@ export function makeBackground(t: ThemeLook, aspect: number): { quad: THREE.Mesh
     bgBokehCol: { value: b.bokeh ? col(b.bokeh.colour).multiplyScalar(b.bokeh.intensity) : new THREE.Color(0, 0, 0) },
     bgBokehCount: { value: count },
     bgBokeh: { value: count ? Array.from({ length: count }, (_, i) => new THREE.Vector4(...bokeh.slice(i * 4, i * 4 + 4))) : [new THREE.Vector4()] },
+    bgOffset: { value: new THREE.Vector2(0, 0) },              // the shaft and bokeh follow the spine (backgroundOffsetX)
     uToModel: { value: new THREE.Matrix4() }, uFade: { value: END_FADE }, uRes: { value: new THREE.Vector2(1, 1) },
     uGapLevel: { value: LOOK.gaps.map(() => 1) },             // glow(level) per gap, written by Rings.setLevels
   };
@@ -293,6 +295,23 @@ export function makeLights(t: ThemeLook): THREE.Object3D[] {
  * r17's Blender camera on the canvas, at a framing (lookdev/main.ts makeCamera). Desktop: the canvas is the whole
  * frame. Phone: the canvas shows the lens's view window of its portrait frame, as the shipped band does.
  */
+/**
+ * How far the spine's target has moved across the screen from where r17's own framing puts it, as a fraction of the
+ * canvas width, from a framing's sideways lens shift (applyCamera's view offset). The background's shaft and bokeh move
+ * by this, so they stay beside the spine when the plan's stage slides it left, off the text (W15-B2). Zero at r17's
+ * framing, so S0 and the plan's hero keep their look.
+ */
+/** r17's own sideways shift per size: where backgroundOffsetX is zero. */
+const BASE_SHIFT_X: Readonly<Record<MeshSize, number>> = { desktop: baseFraming("desktop").shift[0], phone: baseFraming("phone").shift[0] };
+
+export function backgroundOffsetX(lens: CameraLook, size: MeshSize, w: number, h: number, shiftX: number): number {
+  const full: readonly [number, number] = size === "desktop" ? [w, h] : lens.full;
+  const viewWidth = size === "desktop" ? full[0] : lens.view[2];
+  const long = Math.max(full[0], full[1]);
+  const base = BASE_SHIFT_X[size];
+  return viewWidth > 0 ? (-(shiftX - base) * long) / viewWidth : 0;
+}
+
 export function applyCamera(cam: THREE.PerspectiveCamera, lens: CameraLook, pose: Framing, size: MeshSize, w: number, h: number): void {
   const full: readonly [number, number] = size === "desktop" ? [w, h] : lens.full;
   const view = size === "desktop" ? [0, 0, full[0], full[1]] : lens.view;

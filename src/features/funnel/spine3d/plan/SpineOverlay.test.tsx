@@ -56,8 +56,8 @@ afterEach(() => {
   view = null;
 });
 
-function mount(api: SpineViewerApi | null, variant: "desktop" | "phone" = "desktop") {
-  view = render(<SpineOverlay api={api} callouts={callouts} planAgentIds={ANANYA.agentIds} variant={variant} view={VIEW} />);
+function mount(api: SpineViewerApi | null, variant: "desktop" | "phone" = "desktop", clearRight?: number) {
+  view = render(<SpineOverlay api={api} callouts={callouts} planAgentIds={ANANYA.agentIds} variant={variant} view={VIEW} clearRight={clearRight} />);
   return view.container;
 }
 
@@ -217,6 +217,38 @@ describe("SpineOverlay: the lit and quiet legend", () => {
     for (const label of container.querySelectorAll<HTMLElement>("[data-callout]")) {
       expect(parseFloat(label.style.top) + parseFloat(label.style.height)).toBeLessThanOrEqual(VIEW.height - LEGEND_STRIP_PX.desktop);
     }
+  });
+
+  it("keeps every callout out of the band the plan's text column covers on the right (W15-B2)", async () => {
+    const fake = fakeApi();
+    const left = BOXES.map((b) => ({ ...b, left: b.left - 700, anchor: { x: b.anchor.x - 700, y: b.anchor.y } }));
+    // The band starts 40 px right of the spine: too tight for a label on that side.
+    const clear = VIEW.width - Math.max(...left.map((b) => b.left + b.width)) - 40;
+    const container = mount(fake.api, "desktop", clear);
+    await fake.emitBoxes(left);
+    for (const label of container.querySelectorAll<HTMLElement>("[data-callout]")) {
+      expect(parseFloat(label.style.left) + parseFloat(label.style.width)).toBeLessThanOrEqual(VIEW.width - clear);
+    }
+  });
+
+  it("still shows the callouts beside the spine when the band leaves them room, as the plan's left spine does", async () => {
+    const fake = fakeApi();
+    const left = BOXES.map((b) => ({ ...b, left: b.left - 700, anchor: { x: b.anchor.x - 700, y: b.anchor.y } }));
+    const clear = Math.round(VIEW.width * 0.46) + 16;
+    const container = mount(fake.api, "desktop", clear);
+    await fake.emitBoxes(left);
+    const shown = [...container.querySelectorAll<HTMLElement>("[data-callout]")];
+    expect(shown.length).toBeGreaterThan(0);
+    for (const label of shown) {
+      expect(parseFloat(label.style.left) + parseFloat(label.style.width)).toBeLessThanOrEqual(VIEW.width - clear);
+    }
+  });
+
+  it("stands under the spine, following it across the stage, so it never sits on the text column (W15-B2)", () => {
+    const legend = mount(fakeApi().api).querySelector<HTMLElement>("[data-legend]")!;
+    expect(legend.style.left).toContain("var(--spine-across, 1)");
+    expect(legend.style.transform).toContain("var(--spine-across, 1)");
+    expect(legend.className).not.toContain("right-3");
   });
 
   it("puts the hover hint in the legend's box, not over the callouts", () => {

@@ -4,12 +4,16 @@ import { describe, expect, it } from "vitest";
 import type { DiscId } from "../../data/contract";
 import { baseFraming, type Framing } from "../camera";
 import { ACROSS, aimFraming, stageAims, stageAnchors, stageAt, stageKeys, type StageAnchor } from "./stagePath";
+import { DISCS as ALL_DISCS } from "../../data/contract";
+import { GAPS } from "../gaps";
 import { tourFraming } from "./tour";
 
 const DESKTOP_VIEW = { width: 1440, height: 816 };
 const PHONE_VIEW = { width: 390, height: 410 };
 const DISCS: DiscId[] = ["G04", "G05", "G06", "G01"];
 
+/** How big the model shows on screen with this framing: the lens is the same for every key, so it goes as 1 / distance. */
+const scaleOf = (f: Framing): number => 1 / Math.hypot(...f.position.map((v, i) => v - f.target[i]));
 const gap = (a: Framing, b: Framing): number =>
   Math.hypot(...a.position.map((v, i) => v - b.position[i])) + Math.hypot(a.shift[0] - b.shift[0], a.shift[1] - b.shift[1]);
 
@@ -45,15 +49,42 @@ describe("the stage's keyframes (W15-B)", () => {
 });
 
 describe("the hero keyframe is r17's own camera (W15-B)", () => {
-  it("starts where the still and the viewer's first frame are, so the 3D arriving never jumps", () => {
+  it("starts on desktop where the still and the viewer's first frame are, so the 3D arriving never jumps", () => {
     expect(stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84).keys[0].framing).toEqual(baseFraming("desktop"));
-    expect(stageKeys(DISCS, "phone", "phone", PHONE_VIEW, 56).keys[0].framing).toEqual(baseFraming("phone"));
   });
 
-  it("holds the phone band's hero framing through block 2, so the band only ever zooms in towards the stops", () => {
+  it("shows the phone band the whole spine in the hero, so block 2's zoom from it stays readable (W15-B2)", () => {
+    // From r17's close crop, a 1.5 x zoom filled the 390 px band with two vertebrae and left no room for a callout.
     const { keys } = stageKeys(DISCS, "phone", "phone", PHONE_VIEW, 56);
-    expect(keys[1].framing).toEqual(keys[0].framing);
+    expect(scaleOf(keys[0].framing)).toBeLessThan(scaleOf(baseFraming("phone")));
+    expect(keys[0].across).toBe(0.5);
   });
+
+});
+
+
+describe("block 2 zooms in as it slides (W15-B2)", () => {
+  // The owner: "it should have a transition and zoom-in effect to the left side when i scroll". At 0.8 of the whole
+  // spine the hero and block 2 showed the spine at the same size (manager's eye, W15-B shots 0 and 25).
+  for (const [variant, view, strip] of [["desktop", DESKTOP_VIEW, 84], ["phone", PHONE_VIEW, 56]] as const) {
+    it(`shows the spine 1.4 to 1.6 times its hero size at block 2 on ${variant}, framed on the lit discs`, () => {
+      const { keys } = stageKeys(DISCS, variant, variant, view, strip);
+      const zoom = scaleOf(keys[1].framing) / scaleOf(keys[0].framing);
+      expect(zoom).toBeGreaterThanOrEqual(1.4);
+      expect(zoom).toBeLessThanOrEqual(1.6);
+      const lit = DISCS.map((d) => GAPS[ALL_DISCS.indexOf(d)].centre);
+      const centroid = [0, 1, 2].map((i) => lit.reduce((sum, c) => sum + c[i], 0) / lit.length);
+      keys[1].framing.target.forEach((v, i) => expect(v).toBeCloseTo(centroid[i], 6));
+    });
+
+    it(`flies further in at each stop than block 2 on ${variant}, and pulls back at the close`, () => {
+      const { keys } = stageKeys(DISCS, variant, variant, view, strip);
+      const step = variant === "desktop" ? 1.2 : 1;
+      keys.slice(2, 2 + DISCS.length).forEach((stop) =>
+        expect(scaleOf(stop.framing) / scaleOf(keys[1].framing)).toBeGreaterThanOrEqual(step - 1e-9));
+      expect(scaleOf(keys.at(-1)!.framing)).toBeLessThan(scaleOf(keys[1].framing));
+    });
+  }
 });
 
 describe("scrubbing between keyframes (W15-B)", () => {

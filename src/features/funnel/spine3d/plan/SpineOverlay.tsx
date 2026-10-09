@@ -8,7 +8,7 @@
 // - The lit and quiet legend (sp.legend.*), headed by the hover hint once on desktop (sp.hint.hover), in a strip at
 //   the bottom that the callouts keep out of.
 // Before the 3D is live (the still, or a fallback) it renders nothing: the still has no panels.
-import { createRef, useCallback, useEffect, useMemo, useRef, useState, type FocusEvent, type RefObject } from "react";
+import { createRef, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FocusEvent, type RefObject } from "react";
 import { copy } from "../../data";
 import type { AgentId, DiscId } from "../../data/contract";
 import type { DiscBox, SpineViewerApi } from "../api";
@@ -41,6 +41,8 @@ export interface SpineOverlayProps {
   view: { width: number; height: number };
   /** The disc in close-up, whose callout gets the first claim on space; null in the overview. */
   focus?: DiscId | null;
+  /** Px at the stage's right that callouts keep clear of: the plan's text column once the spine is left (W15-B2). */
+  clearRight?: number;
 }
 
 /** The latest disc boxes, at most one update per animation frame. */
@@ -98,10 +100,18 @@ function Callouts({ labels, callouts }: { labels: readonly PlacedLabel[]; callou
   );
 }
 
+/** W15-B2: the legend stands under the spine and follows it across the stage (its container sets --spine-across, 0
+ *  to 1): at the right edge when the spine is there, at the left when it is left, so it never sits on the plan's text
+ *  column or its call to action. Without the variable it sits at the bottom right, as before. */
+const FOLLOW_SPINE: CSSProperties = {
+  left: "calc(12px + var(--spine-across, 1) * (100% - 24px))",
+  transform: "translateX(calc(var(--spine-across, 1) * -100%))",
+};
+
 /** The legend, with the hover hint on top of it until the first panel opens. Callouts keep out of its strip. */
 function Legend({ hint }: { hint: boolean }): JSX.Element {
   return (
-    <ul data-legend className={`pointer-events-none absolute bottom-3 right-3 flex flex-col gap-1 ${MICRO} ${BACKED}`}>
+    <ul data-legend style={FOLLOW_SPINE} className={`pointer-events-none absolute bottom-3 flex flex-col gap-1 ${MICRO} ${BACKED}`}>
       {hint && <li>{copy("sp.hint.hover")}</li>}
       <li><span aria-hidden="true" className="text-[color:var(--funnel-accent)]">●</span> {copy("sp.legend.today")}</li>
       <li><span aria-hidden="true">○</span> {copy("sp.legend.later")}</li>
@@ -109,7 +119,7 @@ function Legend({ hint }: { hint: boolean }): JSX.Element {
   );
 }
 
-export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus = null }: SpineOverlayProps): JSX.Element | null {
+export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus = null, clearRight = 0 }: SpineOverlayProps): JSX.Element | null {
   const boxes = useDiscBoxes(api);
   const [opened, setOpened] = useState<Opened | null>(null);
   const [hintSeen, setHintSeen] = useState(false);
@@ -162,10 +172,10 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
   const labels = useMemo(() => {
     const above = {
       width: view.width, height: Math.max(0, view.height - LEGEND_STRIP_PX[variant]),
-      marginRight: CALLOUT_RIGHT_MARGIN_PX[variant], avoid: spineBands(boxes),
+      marginRight: Math.max(CALLOUT_RIGHT_MARGIN_PX[variant], clearRight), avoid: spineBands(boxes),
     };
     return layoutLabels(calloutInputs(boxes, byFocus(callouts, focus), variant), above).labels;
-  }, [boxes, callouts, variant, view, focus]);
+  }, [boxes, callouts, variant, view, focus, clearRight]);
 
   const onButtonBlur = (event: FocusEvent<HTMLButtonElement>) => {
     const next = event.relatedTarget as Node | null;

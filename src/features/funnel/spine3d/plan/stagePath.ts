@@ -19,10 +19,12 @@ export const ACROSS: Readonly<Record<Variant, { hero: number; left: number }>> =
   desktop: { hero: 0.74, left: 0.27 },
   phone: { hero: 0.5, left: 0.5 },
 };
-/** Block 2's zoom, as a share of the whole spine's height: the start of the move in. */
-export const NEED_ZOOM = 0.8;
-/** Block 2 aims this share of the way from the spine's middle to the first stop's disc. */
-const NEED_LEAN = 0.25;
+/** Block 2's zoom on the hero, on screen (W15-B2): the owner asked for "a transition and zoom-in effect to the left
+ *  side", and reads a subtle change as none, so block 2 shows the spine half as big again as the hero does. */
+export const NEED_ZOOM = 1.5;
+/** Each stop comes at least this much closer than block 2: a further step in on desktop. The phone band is already
+ *  close at block 2, so there a stop only keeps that size. */
+export const STOP_STEP: Readonly<Record<Variant, number>> = { desktop: 1.2, phone: 1 };
 
 /** What a keyframe looks at: a point on the spine, how much of the model fills the stage, and where across it sits.
  *  `hold` 1 turns the model to its side view and stops the idle spin; 0 lets it spin. */
@@ -58,15 +60,17 @@ const MIDDLE = mix3(FIRST, LAST, 0.5);
 const WHOLE = length(sub(LAST, FIRST)) + 2 * END_MARGIN;
 
 const whole = (across: number, hold: number, height = WHOLE): StageAim => ({ centre: MIDDLE, height, across, hold, stop: null });
+/** The middle of the plan's lit discs, where block 2 aims: the spine's middle when there are none. */
+const litCentre = (discs: readonly DiscId[]): Vec3 =>
+  discs.length === 0 ? MIDDLE : scale(discs.map(centreOf).reduce((sum, c) => add(sum, c)), 1 / discs.length);
 
 /** The keyframes in scroll order: hero, block 2, one per stop, the close. */
 export function stageAims(discs: readonly DiscId[], size: MeshSize, variant: Variant): StageAim[] {
   const { hero, left } = ACROSS[variant];
   const stopAcross = variant === "desktop" ? left : STOP_ACROSS[size];
-  const lean = discs.length > 0 ? mix3(MIDDLE, centreOf(discs[0]), NEED_LEAN) : MIDDLE;
   return [
     whole(hero, 0),
-    { centre: lean, height: WHOLE * NEED_ZOOM, across: left, hold: 0, stop: null },
+    { centre: litCentre(discs), height: WHOLE / NEED_ZOOM, across: left, hold: 0, stop: null },
     ...discs.map((disc): StageAim => ({ centre: centreOf(disc), height: STOP_HEIGHT[size], across: stopAcross, hold: 1, stop: disc })),
     whole(left, 0),
   ];
@@ -83,15 +87,24 @@ export const pulledAim = (size: MeshSize, variant: Variant): StageAim =>
  */
 export function aimFraming(aim: StageAim, size: MeshSize, view: { width: number; height: number }, stripPx: number): Framing {
   const base = baseFraming(size);
-  const share = view.height > 0 ? Math.min(0.5, stripPx / view.height) : 0;
+  const share = stripShare(view, stripPx);
   const height = aim.stop ? aim.height : aim.height / (1 - share);
-  const distance = height / (2 * shownTan(size, base.lensMm, view));
+  return framingAt(aim.centre, height / (2 * shownTan(size, base.lensMm, view)), aim.across, size, view, share);
+}
+
+const stripShare = (view: { width: number; height: number }, stripPx: number): number =>
+  (view.height > 0 ? Math.min(0.5, stripPx / view.height) : 0);
+
+/** r17's view direction, roll and lens, `distance` back from `centre`, which sits `across` the canvas and in the middle
+ *  of the height above the legend strip. */
+function framingAt(centre: Vec3, distance: number, across: number, size: MeshSize, view: { width: number; height: number }, share: number): Framing {
+  const base = baseFraming(size);
   const back = normalize(sub(base.position, base.target));
   return {
     ...base,
-    target: aim.centre,
-    position: add(aim.centre, scale(back, distance)),
-    shift: [shiftXFor(size, view, aim.across), shiftYFor(size, view, (1 - share) / 2)],
+    target: centre,
+    position: add(centre, scale(back, distance)),
+    shift: [shiftXFor(size, view, across), shiftYFor(size, view, (1 - share) / 2)],
   };
 }
 
@@ -99,9 +112,10 @@ const keyOf = (aim: StageAim, size: MeshSize, view: { width: number; height: num
   ({ framing: aimFraming(aim, size, view, stripPx), hold: aim.hold, stop: aim.stop, across: aim.across });
 
 /**
- * The stage's keyframes on its canvas, and the pull-back between stops. The hero is r17's own camera ("as now"), the
- * frame the still and the viewer's first draw show, so the 3D arriving never jumps. A phone's band already shows r17's
- * close crop there, so it holds that through block 2 and only zooms in from it, towards the stops.
+ * The stage's keyframes on its canvas, and the pull-back between stops. On desktop the hero is r17's own camera ("as
+ * now"), the frame the still and the viewer's first draw show; a phone's band shows the whole spine (PlanStage eases
+ * there from r17's crop when the 3D arrives). Block 2 comes NEED_ZOOM times closer than the hero, on the lit discs,
+ * so the slide left and the zoom in are one move (W15-B2).
  */
 export function stageKeys(
   discs: readonly DiscId[],
@@ -111,10 +125,24 @@ export function stageKeys(
   stripPx: number,
 ): { keys: StageKey[]; pulled: StageKey } {
   const [heroAim, needAim, ...rest] = stageAims(discs, size, variant);
-  const hero: StageKey = { framing: baseFraming(size), hold: heroAim.hold, stop: null, across: heroAim.across };
-  const need = variant === "phone" ? hero : keyOf(needAim, size, view, stripPx);
+  // A phone's band shows the whole spine: from r17's close crop a 1.5 x zoom left two vertebrae in 390 px (W15-B2).
+  const hero: StageKey = variant === "desktop"
+    ? { framing: baseFraming(size), hold: heroAim.hold, stop: null, across: heroAim.across }
+    : keyOf(heroAim, size, view, stripPx);
+  const needDistance = length(sub(hero.framing.position, hero.framing.target)) / NEED_ZOOM;
+  const need: StageKey = {
+    framing: framingAt(needAim.centre, needDistance, needAim.across, size, view, stripShare(view, stripPx)),
+    hold: needAim.hold, stop: null, across: needAim.across,
+  };
+  const stopDistance = needDistance / STOP_STEP[variant];
+  const closer = (aim: StageAim): StageKey => {
+    const key = keyOf(aim, size, view, stripPx);
+    const { position, target } = key.framing;
+    if (!aim.stop || length(sub(position, target)) <= stopDistance) return key;
+    return { ...key, framing: framingAt(aim.centre, stopDistance, aim.across, size, view, stripShare(view, stripPx)) };
+  };
   return {
-    keys: [hero, need, ...rest.map((aim) => keyOf(aim, size, view, stripPx))],
+    keys: [hero, need, ...rest.map(closer)],
     pulled: keyOf(pulledAim(size, variant), size, view, stripPx),
   };
 }

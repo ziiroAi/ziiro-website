@@ -74,7 +74,38 @@ async function spineAcross(page: Page, stage: Locator): Promise<number> {
   return boxes.reduce((sum, x) => sum + x, 0) / boxes.length / width;
 }
 
+/**
+ * What the stage's legend or a callout covers on the plan's text column (blocks 2 to 4) or the close's call to action,
+ * as "legend/callout over depth N or the CTA". Empty when nothing on the stage sits on the words.
+ */
+async function overStageCovers(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const meet = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    const onScreen = (r: DOMRect) => r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+    const words = [...document.querySelectorAll<HTMLElement>("[data-depth]")]
+      .map((el) => ({ name: `depth ${el.dataset.depth}`, box: el.getBoundingClientRect() }));
+    const cta = document.querySelector('[data-depth="5"] a');
+    if (cta) words.push({ name: "the CTA", box: cta.getBoundingClientRect() });
+    const marks = [...document.querySelectorAll<HTMLElement>("[data-testid=spine-stage] [data-legend], [data-testid=spine-stage] [data-callout]")]
+      .map((el) => ({ name: el.dataset.callout ? `callout ${el.dataset.callout}` : "legend", box: el.getBoundingClientRect() }))
+      .filter((m) => onScreen(m.box));
+    return marks.flatMap((m) => words.filter((w) => onScreen(w.box) && meet(m.box, w.box)).map((w) => `${m.name} over ${w.name}`));
+  });
+}
+
 test.describe("the plan's one 3D stage (W15-B)", () => {
+  test("keeps the legend and the callouts off the text column and the close's call to action (W15-B2)", async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop", "on a phone the legend and callouts sit inside the band, above the text");
+    await toPlan(page);
+    await liveStage(page);
+    const end = await page.locator('[data-depth="5"]').evaluate((el) =>
+      el.getBoundingClientRect().top + window.scrollY - window.innerHeight / 2);
+    for (const pct of [25, 50, 75, 100]) {
+      await page.evaluate((y) => window.scrollTo(0, y), Math.round((end * pct) / 100));
+      await expect.poll(() => overStageCovers(page), { timeout: SETTLE_TIMEOUT_MS, message: `at ${pct} % of the path` }).toEqual([]);
+    }
+  });
+
   test("keeps one viewer and one canvas from the hero to the close", async ({ page }) => {
     await toPlan(page);
     await expect(page.getByTestId("spine-viewer")).toHaveCount(1);

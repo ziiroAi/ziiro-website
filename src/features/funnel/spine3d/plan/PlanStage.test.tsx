@@ -81,7 +81,7 @@ function fakeApi(reducedMotion = false) {
     pick: () => Promise.resolve(null),
     boxes: () => [],
     reducedMotion,
-  } as unknown as SpineViewerApi & { scrub: ReturnType<typeof vi.fn>; setLit: ReturnType<typeof vi.fn> };
+  } as unknown as SpineViewerApi & { scrub: ReturnType<typeof vi.fn>; setLit: ReturnType<typeof vi.fn>; flyTo: ReturnType<typeof vi.fn> };
 }
 
 let view: Rendered | null = null;
@@ -120,7 +120,14 @@ function mount(onProgress = vi.fn()) {
   return { stage: q("[data-testid=spine-stage]"), still: q("[data-stage-still]") };
 }
 const keys = () => stageKeys(DISCS, "desktop", "desktop", VIEW, LEGEND_STRIP_PX.desktop).keys;
-const lastScrub = (api: ReturnType<typeof fakeApi>) => api.scrub.mock.calls.at(-1);
+/** The stage's latest camera move, as [framing, hold]: a scrub, or the eased flight it makes when the 3D arrives. */
+function lastScrub(api: ReturnType<typeof fakeApi>): unknown[] | undefined {
+  const scrubbed = api.scrub.mock.invocationCallOrder.at(-1) ?? -1;
+  const flown = api.flyTo.mock.invocationCallOrder.at(-1) ?? -1;
+  if (scrubbed > flown) return api.scrub.mock.calls.at(-1);
+  const flight = api.flyTo.mock.calls.at(-1) as [{ framing: unknown }, { hold?: boolean }] | undefined;
+  return flight && [flight[0].framing, flight[1].hold ? 1 : 0];
+}
 
 describe("PlanStage: one spine for the whole plan (W15-B)", () => {
   it("draws exactly one viewer, in the flow where the plan puts it", () => {
@@ -211,6 +218,21 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(framing).not.toEqual(keys()[1].framing);
   });
 
+  it("eases from the viewer's first frame (r17's) to the stage's framing once when the 3D arrives, then scrubs (W15-B2)", async () => {
+    vi.stubGlobal("matchMedia", (query: string) =>
+      ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList);
+    const api = fakeApi();
+    viewer.nextApi = api;
+    mount();
+    await scrollTo(0);
+    expect(api.flyTo).toHaveBeenCalledTimes(1);
+    expect(api.flyTo.mock.calls[0][0]).toMatchObject({ kind: "framing" });
+    expect(api.flyTo.mock.calls[0][1]).toMatchObject({ animate: true });
+    await scrollTo(arrival(0));
+    expect(api.flyTo).toHaveBeenCalledTimes(1);
+    expect(api.scrub).toHaveBeenCalled();
+  });
+
   it("cuts from keyframe to keyframe under reduced motion (§11.8)", async () => {
     const api = fakeApi(true);
     viewer.nextApi = api;
@@ -233,6 +255,15 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     });
     expect(spy).toHaveBeenCalledTimes(1);
     frames.mockRestore();
+  });
+
+  it("tells the overlay where the spine stands, for the legend to follow it (W15-B2)", async () => {
+    const { stage } = mount();
+    const screen = stage.querySelector<HTMLElement>("[data-stage-screen]")!;
+    await scrollTo(0);
+    expect(screen.style.getPropertyValue("--spine-across")).toBe(String(ACROSS.desktop.hero));
+    await scrollTo(arrival(1));
+    expect(screen.style.getPropertyValue("--spine-across")).toBe(String(ACROSS.desktop.left));
   });
 
   it("slides the still left with the spine while the 3D isn't live, so the words on the right stay clear", async () => {

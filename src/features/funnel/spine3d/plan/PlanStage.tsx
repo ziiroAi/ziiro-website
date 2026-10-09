@@ -6,6 +6,7 @@
 // - The scroll scrubs the camera through stagePath's keyframes: the hero, block 2 (left and zooming in), each stop's
 //   disc, the close (pulled back). It holds each keyframe while its section is read and moves over the last half
 //   screen before the next; under reduced motion it cuts. While the still shows, the still slides with the spine.
+//   When the 3D arrives it eases once from its first frame (r17's) to where the scroll has the stage, then scrubs.
 // - The plan's discs are lit (setLit, D28); SpineOverlay adds the buttons, panels, callouts and legend.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { copy, departments as allDepartments } from "../../data";
@@ -37,6 +38,10 @@ const LIFTED: CSSProperties = { ...SOFT_EDGES, filter: `brightness(${LIGHT_LIFT.
 const PHONE_LINE_SHARE = 1 / 3;
 /** The camera moves over this share of the reading space's height before the next keyframe. */
 const TRAVEL_SHARE = 0.5;
+/** From 1024 px, the share of the width PlanPage gives blocks 2 to 4 on the right (its lg:[&>section]:w-[46%]), plus
+ *  a gap: the callouts keep out of it while the spine is on the left (W15-B2). */
+const TEXT_COLUMN_SHARE = 0.46;
+const TEXT_COLUMN_GAP_PX = 16;
 
 export interface PlanStageProps {
   /** The plan's departments in stop order (§5.5). */
@@ -111,6 +116,9 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
   const stillRef = useRef<HTMLDivElement>(null);
   const [api, setApi] = useState<SpineViewerApi | null>(null);
   const [stop, setStop] = useState<DiscId | null>(null);
+  const [spineLeft, setSpineLeft] = useState(false);
+  /** The viewer whose first move has been made: an eased flight from its first frame (r17's), then scrubs (W15-B2). */
+  const arrived = useRef<SpineViewerApi | null>(null);
   const variant = useVariant();
   const view = useSize(screenRef);
   const width = Math.round(view.width);
@@ -146,11 +154,20 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
       frame = null;
       const { line, travel } = readingSpace(variant, bandRef.current);
       const anchors = stageAnchors(path.keys, spansOf(root), line, travel);
-      const key = stageAt(anchors, window.scrollY, api?.reducedMotion ?? prefersReducedMotion(), path.pulled);
-      api?.scrub(key.framing, key.hold);
+      const reduced = api?.reducedMotion ?? prefersReducedMotion();
+      const key = stageAt(anchors, window.scrollY, reduced, path.pulled);
+      if (api && arrived.current !== api) {
+        arrived.current = api;
+        if (reduced) api.scrub(key.framing, key.hold);
+        else void api.flyTo({ kind: "framing", framing: key.framing }, { animate: true, hold: key.hold >= 1 });
+      } else {
+        api?.scrub(key.framing, key.hold);
+      }
       const slide = Number(((key.across - ACROSS[variant].hero) * 100).toFixed(2));
       if (stillRef.current) stillRef.current.style.transform = `translateX(${slide}%)`;
+      screenRef.current?.style.setProperty("--spine-across", String(Number(key.across.toFixed(4))));
       setStop(key.stop);
+      setSpineLeft(key.across < 0.5);
     };
     const schedule = () => {
       frame ??= requestAnimationFrame(update);
@@ -184,7 +201,15 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
             </div>
           </SpineViewer>
         </div>
-        <SpineOverlay api={api} callouts={callouts} planAgentIds={planAgentIds} variant={variant} view={view} focus={stop} />
+        <SpineOverlay
+          api={api}
+          callouts={callouts}
+          planAgentIds={planAgentIds}
+          variant={variant}
+          view={view}
+          focus={stop}
+          clearRight={variant === "desktop" && spineLeft ? view.width * TEXT_COLUMN_SHARE + TEXT_COLUMN_GAP_PX : 0}
+        />
       </div>
     </div>
   );

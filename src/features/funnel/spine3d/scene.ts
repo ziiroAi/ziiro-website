@@ -15,7 +15,7 @@ import { GAPS, type Gap } from "./gaps";
 import type { DiscLevels } from "./levels";
 import { LOOK, type Vec3 } from "./look";
 import {
-  applyCamera, disposeComposer, glow, makeBackground, makeBody, makeComposer, makeEnvironment, makeLights, makeRings, TONE, type Rings,
+  applyCamera, backgroundOffsetX, disposeComposer, glow, makeBackground, makeBody, makeComposer, makeEnvironment, makeLights, makeRings, TONE, type Rings,
   type Shared,
 } from "./look-three";
 import { bloomScaleFor, maxDprFor, releaseOnThrow, samplesFor } from "./gpu";
@@ -280,6 +280,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
 
   const pose = (next: View) => {
     applyCamera(camera, LOOK.camera[size], next.framing, size, px.width, px.height);
+    dressing.shared.uniforms.bgOffset.value.set(backgroundOffsetX(LOOK.camera[size], size, px.width, px.height, next.framing.shift[0]), 0);
     const right = new Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
     pivot.quaternion.setFromAxisAngle(right, next.pitch).multiply(new Quaternion().setFromAxisAngle(axis, next.yaw));
     scene.updateMatrixWorld();
