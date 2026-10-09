@@ -138,9 +138,20 @@ describe("buildPlanView: the sample plan for a visitor who runs no business (W17
     expect(guest.headline).toEqual({ desktop: copy("sp.hero.h.fallback", { n: 3 }), phone: copy("ph.hero.h.fallback", { n: 3 }) });
   });
 
+  it("never tells the guest what they need: scroll line, stop heads, later and the close's lead (W18-A)", () => {
+    const lines = [guest.scroll, guest.later, guest.ctaLead].flatMap((l) => [l.desktop, l.phone]);
+    const heads = guest.stops.map((s) => s.agentsHead);
+    expect(heads).toHaveLength(plan.stops.length);
+    for (const line of [...lines, ...heads]) expect(line).not.toMatch(/you need|today's/i);
+    expect(guest.scroll.desktop).toBe(copy("sp.hero.scroll.guest", { d: plan.stops.length }));
+    expect(heads[0]).toBe(copy("sp.part.agents.guest"));
+  });
+
   it("leaves a visitor who answered the questions as before", () => {
     const owner = buildPlanView({ plan, name: "Ananya", problemText: "" });
     expect(owner.heroText.desktop).toBe(copy("hx.p", { name: "Ananya" }));
     expect(owner.sub.desktop).toBe(copy("sp.hero.sub", { n: 3, j: plan.jobIds.length }));
+    expect(owner.stops[0].agentsHead).toBe(copy("sp.part.agents"));
+    expect(owner.ctaLead.desktop).toBe(copy("sp.cta.lead", { n: 3 }));
   });
 });

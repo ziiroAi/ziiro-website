@@ -3,7 +3,7 @@
 // transitioning". One spine starts at the hero on the right and, scrolled into block 2, travels left as it zooms in.
 import { act, useEffect, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { composePlan, copy } from "../../data";
+import { composePlan, copy, departments } from "../../data";
 import { render, type Rendered } from "../../plan/test-utils";
 import type { SpineViewerApi } from "../api";
 import type { FallbackReason } from "../rules";
@@ -52,6 +52,8 @@ const ANANYA = composePlan({
   problemText: "Enquiries come in, but by the time someone calls back they've gone cold.",
 });
 const STOPS = ["deals", "sales", "marketing", "back-office"] as const;
+/** W18-A: every department, in the data's order. */
+const ALL_DEPARTMENTS = departments.map((d) => d.id);
 const DISCS = ["G04", "G05", "G06", "G01"] as const;
 const VIEW = { width: 1440, height: 816 };
 
@@ -104,9 +106,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function mount(onProgress = vi.fn()) {
+function mount(onProgress = vi.fn(), guest = false) {
   view = render(
-    <PlanStage departments={STOPS} planAgentIds={ANANYA.agentIds} onProgress={onProgress}>
+    <PlanStage departments={STOPS} planAgentIds={ANANYA.agentIds} onProgress={onProgress} guest={guest}>
       {(stage) => (
         <>
           <section>hero</section>
@@ -180,6 +182,16 @@ describe("PlanStage: one spine for the whole plan (W15-B)", () => {
     viewer.nextPhase = ["fallback", "software-gl"];
     mount(onProgress);
     expect(onProgress).toHaveBeenCalledWith({ planView: "still", stillReason: "unsupported" });
+  });
+
+  it("lights every department for the guest's sample plan, while the stops stay the plan's (W18-A)", async () => {
+    const api = fakeApi();
+    viewer.nextApi = api;
+    const { stage } = mount(vi.fn(), true);
+    await settle();
+    expect(api.setLit).toHaveBeenLastCalledWith(ALL_DEPARTMENTS);
+    expect(stage.querySelectorAll("[data-callout]").length).toBe(0);  // no boxes yet in jsdom; the lit set is the claim
+    expect(api.setLit).not.toHaveBeenCalledWith(STOPS);
   });
 
   it("lights the plan's departments when the 3D arrives", async () => {

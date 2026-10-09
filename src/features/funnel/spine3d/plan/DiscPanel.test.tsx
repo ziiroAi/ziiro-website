@@ -223,3 +223,30 @@ describe("DiscPanel: §6.2 'Opening a disc'", () => {
     expect(view.container.innerHTML).toBe("");
   });
 });
+
+describe("discCopy and DiscPanel for the guest's sample plan, every disc lit (W18-A)", () => {
+  const SAMPLE = composePlan({ teamBand: "2_5", revenueBand: "band_2", currency: "INR", chips: [], problemText: "" });
+  const MARKETING = departments.find((d) => d.id === "marketing")!;
+
+  it("heads every callout with the department and its size in a full spine, never 'k of m' or names it 'needs'", () => {
+    expect(discCallout(MARKETING, SAMPLE.agentIds, true)).toEqual({
+      head: copy("sp.disc.call.guest", { Department: "Marketing", m: MARKETING.agentIds.length }), lines: [],
+    });
+    expect(discCallout(BACK_OFFICE, SAMPLE.agentIds, true).head).not.toMatch(/ of /);
+  });
+
+  it("names each disc button with the department's size, never 'you need'", () => {
+    const label = discAria(MARKETING, SAMPLE.agentIds, true);
+    expect(label).toBe(copy("sp.disc.aria.guest", { Department: "Marketing", m: MARKETING.agentIds.length }));
+    expect(label).not.toMatch(/you need|nothing here/i);
+  });
+
+  it("marks the sample's own agents as in the sample, and says nothing about 'today' or 'later' for the rest", () => {
+    view = render(<DiscPanel disc="G01" planAgentIds={SAMPLE.agentIds} onClose={vi.fn()} guest />);
+    const rows = [...view.container.querySelectorAll("li[data-today]")];
+    const text = view.container.textContent ?? "";
+    expect(rows.filter((r) => r.getAttribute("data-today") === "true").every((r) => r.textContent!.includes(copy("sp.vert.sample")))).toBe(true);
+    expect(text).not.toContain(copy("sp.vert.today"));
+    expect(text).not.toContain(copy("sp.vert.later"));
+  });
+});

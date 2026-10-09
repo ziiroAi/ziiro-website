@@ -324,3 +324,25 @@ describe("SpineOverlay: the lit and quiet legend", () => {
     expect(textOf(mount(fakeApi().api, "phone"))).not.toContain(copy("sp.hint.hover"));
   });
 });
+
+describe("SpineOverlay for the guest's sample plan, every disc lit (W18-A)", () => {
+  const SAMPLE = composePlan({ teamBand: "2_5", revenueBand: "band_2", currency: "INR", chips: [], problemText: "" });
+  const ALL = departments.map((d) => d.id);
+
+  it("gives all 7 lit discs a callout with the department's size, no 'k of m'", () => {
+    const guest = calloutsFor(ALL, SAMPLE.agentIds, true);
+    expect(guest).toHaveLength(7);
+    expect(guest.every((c) => !/ of /.test(c.head) && c.lines.length === 0)).toBe(true);
+  });
+
+  it("says every part is lit in its legend, with no quiet line, and names the buttons without 'you need'", () => {
+    view = render(<SpineOverlay api={fakeApi().api} callouts={calloutsFor(ALL, SAMPLE.agentIds, true)} planAgentIds={SAMPLE.agentIds} variant="desktop" view={VIEW} guest />);
+    const legend = textOf(view.container.querySelector("[data-legend]"));
+    expect(legend).toContain(copy("sp.legend.guest"));
+    expect(legend).not.toContain(copy("sp.legend.today"));
+    expect(legend).not.toContain(copy("sp.legend.later"));
+    const labels = [...view.container.querySelectorAll("button[data-disc]")].map((b) => b.getAttribute("aria-label") ?? "");
+    expect(labels.length).toBe(7);
+    expect(labels.some((l) => /you need|nothing here/i.test(l))).toBe(false);
+  });
+});

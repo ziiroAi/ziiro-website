@@ -186,11 +186,11 @@ export function calloutInputs(boxes: readonly DiscBox[], callouts: readonly Call
 }
 
 /** §6.7's callout for each of the plan's departments, in plan order. */
-export function calloutsFor(lit: readonly DepartmentId[], planAgentIds: readonly AgentId[]): Callout[] {
+export function calloutsFor(lit: readonly DepartmentId[], planAgentIds: readonly AgentId[], guest = false): Callout[] {
   return lit.flatMap((id) => {
     const department = departments.find((d) => d.id === id);
     if (!department) return [];
-    const { head, lines } = discCallout(department, planAgentIds);
+    const { head, lines } = discCallout(department, planAgentIds, guest);
     return [{ disc: department.disc, head, lines }];
   });
 }

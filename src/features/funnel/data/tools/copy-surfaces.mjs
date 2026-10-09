@@ -35,8 +35,19 @@ const OVERLAY = {
   // W17-B: S1b leads to a sample plan on the plan page (the owner vetoed D15's /products). S1b asks no name, so the
   // hero line has none, and nothing says what they need: they run no business.
   "s1b.btn.plan": "Show me a sample plan",
-  "hx.p.guest": "This is what a full Business Spine looks like: 33 AI agents for 137 jobs, one for each part of a business. No business needs all of it on day one. Scroll down for a sample: where a small business starts.",
-  "ph.hx.p.guest": "This is the full spine. No business needs all of it. Scroll for a sample: where a small business starts.",
+  // W18-A: the guest's spine has every disc lit, so its lines say so, and that a business starts with a few.
+  "hx.p.guest": "This is the full Business Spine, every part lit: 33 AI agents for 137 jobs, one for each part of a business. A business starts with a few. Scroll down for a sample: where a small business starts.",
+  "ph.hx.p.guest": "This is the full spine, every part lit. A business starts with a few. Scroll for a sample.",
+  "sp.legend.guest": "Lit: every part of a full spine",
+  "sp.disc.call.guest": "{Department} · {m} agents",
+  "sp.disc.aria.guest": "{Department}: {m} agents in a full spine.",
+  "sp.hero.scroll.guest": "Scroll through the {d} parts a small business starts with.",
+  "sp.part.agents.guest": "Where a small business starts in this part",
+  "sp.later.guest": "A business pays only for the agents it starts with. The full spine can be built later.",
+  "ph.later.guest": "A business starts with {n}. The rest comes later.",
+  "sp.cta.lead.guest": "Running a business, or about to? Book a call and we'll draw the plan for yours.",
+  "ph.cta.lead.guest": "Book a call for your own plan.",
+  "sp.vert.sample": "In the sample plan",
   "sp.hero.sub.guest": "A full Business Spine is 33 agents, one for each part of a business. This sample starts with {n} of them, carrying {j} jobs between them. The rest can wait.",
   "hx.scroll.guest": "Scroll to explore",
   "sp.guest.note": "A sample plan: the one we draw for a small business before it tells us anything.",
@@ -79,6 +90,8 @@ const SURFACES = {
     // Phase 1b's lines, generated now so the data module is complete.
     "sp.legend.today", "sp.legend.later", "sp.hero.alt", "sp.hint.hover", "sp.disc.call", "sp.disc.aria", "sp.disc.aria.none",
     "sp.vert.dept", "sp.vert.today", "sp.vert.later",
+    "sp.legend.guest", "sp.disc.call.guest", "sp.disc.aria.guest", "sp.vert.sample",
+    "sp.hero.scroll.guest", "sp.part.agents.guest", "sp.later.guest", "ph.later.guest", "sp.cta.lead.guest", "ph.cta.lead.guest",
   ]],
   "copy/email.ts": ["EMAIL_COPY", [
     "em.from", "em.subject", "em.subject.fallback", "em.preview", "em.hi", "em.open", "em.said", "em.said.chips",

@@ -18,10 +18,12 @@ export interface DiscPanelProps {
   /** Where focus goes when the panel closes; defaults to whatever had focus when it took focus. */
   returnFocusTo?: RefObject<HTMLElement>;
   className?: string;
+  /** W18-A: the guest's sample plan: its agents read "In the sample plan", and no row says "today" or "later". */
+  guest?: boolean;
 }
 
 export function DiscPanel({
-  disc, planAgentIds, onClose, focusOnOpen = false, returnFocusTo, className = "",
+  disc, planAgentIds, onClose, focusOnOpen = false, returnFocusTo, className = "", guest = false,
 }: DiscPanelProps): JSX.Element | null {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -72,7 +74,9 @@ export function DiscPanel({
           <li key={row.id} data-today={row.today}>
             <p className="font-medium">{copy("sp.vert.title", { v: row.number, "agent name": row.name })}</p>
             <p className="mt-1 text-sm text-[color:var(--funnel-muted)]">{copy("sp.vert.line", { "agent line": row.line })}</p>
-            <p className={`mt-2 ${MICRO}`}>{copy(row.today ? "sp.vert.today" : "sp.vert.later")}</p>
+            {guest
+              ? row.today && <p className={`mt-2 ${MICRO}`}>{copy("sp.vert.sample")}</p>
+              : <p className={`mt-2 ${MICRO}`}>{copy(row.today ? "sp.vert.today" : "sp.vert.later")}</p>}
             <p className="mt-1 text-sm">{copy("sp.vert.jobs", { j: row.jobs })}</p>
             {row.live > 0 && (
               <p data-live className="mt-1 text-sm">{copy("sp.vert.live", { k: row.live, j: row.jobs })}</p>

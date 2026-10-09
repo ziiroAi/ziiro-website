@@ -46,6 +46,8 @@ export interface SpineOverlayProps {
   /** Which side of the stage the spine stands on. The desktop disc panel docks on that side, so it never opens under
    *  the words beside the spine: the hero's on the left, the text column on the right (W15-B4 H1). */
   spineSide?: "left" | "right";
+  /** W18-A: the guest's sample plan, every disc lit: guest disc labels, panel rows and legend (sp.legend.guest). */
+  guest?: boolean;
 }
 
 /** The latest disc boxes, at most one update per animation frame. */
@@ -114,18 +116,28 @@ const FOLLOW_SPINE: CSSProperties = {
 };
 
 /** The legend, with the hover hint on top of it until the first panel opens. Callouts keep out of its strip. */
-function Legend({ hint }: { hint: boolean }): JSX.Element {
+function Legend({ hint, guest }: { hint: boolean; guest: boolean }): JSX.Element {
   return (
     <ul data-legend style={FOLLOW_SPINE} className={`pointer-events-none absolute bottom-3 flex flex-col gap-1 ${MICRO} ${BACKED}`}>
       {hint && <li>{copy("sp.hint.hover")}</li>}
-      <li><span aria-hidden="true" className="text-[color:var(--funnel-accent)]">●</span> {copy("sp.legend.today")}</li>
-      <li><span aria-hidden="true">○</span> {copy("sp.legend.later")}</li>
+      <LegendLines guest={guest} />
     </ul>
   );
 }
 
+/** Lit and quiet; the guest's spine has every disc lit, so one line says so (W18-A). */
+function LegendLines({ guest }: { guest: boolean }): JSX.Element {
+  if (guest) return <li><span aria-hidden="true" className="text-[color:var(--funnel-accent)]">●</span> {copy("sp.legend.guest")}</li>;
+  return (
+    <>
+      <li><span aria-hidden="true" className="text-[color:var(--funnel-accent)]">●</span> {copy("sp.legend.today")}</li>
+      <li><span aria-hidden="true">○</span> {copy("sp.legend.later")}</li>
+    </>
+  );
+}
+
 /** W15-B4 L1: a phone's legend, in a row under the band (PlanStage), so it never covers the spine's lower vertebrae. */
-export function LegendRow(): JSX.Element {
+export function LegendRow({ guest = false }: { guest?: boolean }): JSX.Element {
   return (
     <ul
       data-legend
@@ -133,13 +145,12 @@ export function LegendRow(): JSX.Element {
       style={{ opacity: "var(--zoomed-out, 1)" }}
       className="flex flex-wrap gap-x-4 gap-y-1 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.08em] text-[color:var(--funnel-muted)]"
     >
-      <li><span aria-hidden="true" className="text-[color:var(--funnel-accent)]">●</span> {copy("sp.legend.today")}</li>
-      <li><span aria-hidden="true">○</span> {copy("sp.legend.later")}</li>
+      <LegendLines guest={guest} />
     </ul>
   );
 }
 
-export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus = null, clearRight = 0, spineSide = "left" }: SpineOverlayProps): JSX.Element | null {
+export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus = null, clearRight = 0, spineSide = "left", guest = false }: SpineOverlayProps): JSX.Element | null {
   const boxes = useDiscBoxes(api);
   const [opened, setOpened] = useState<Opened | null>(null);
   const [hintSeen, setHintSeen] = useState(false);
@@ -216,7 +227,7 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
             ref={buttonRefs[disc]}
             type="button"
             data-disc={disc}
-            aria-label={discAria(department, planAgentIds)}
+            aria-label={discAria(department, planAgentIds, guest)}
             aria-expanded={opened?.disc === disc}
             className={`pointer-events-none rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--funnel-accent)] ${area ? "absolute" : "sr-only"}`}
             style={area ? { left: area.x0, top: area.y0, width: area.x1 - area.x0, height: area.y1 - area.y0 } : undefined}
@@ -244,10 +255,11 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
             focusOnOpen={opened.by === "tap" || opened.by === "key"}
             returnFocusTo={buttonRefs[opened.disc]}
             className="min-h-0 overflow-y-auto"
+            guest={guest}
           />
         </div>
       )}
-      {variant === "desktop" && <Legend hint={!hintSeen} />}
+      {variant === "desktop" && <Legend hint={!hintSeen} guest={guest} />}
     </div>
   );
 }

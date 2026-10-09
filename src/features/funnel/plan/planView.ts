@@ -35,6 +35,8 @@ export interface StopView {
   agents: readonly AgentView[];
   /** The department's other agents, by name, for sp.part.rest. */
   rest: readonly string[];
+  /** The agents' heading: sp.part.agents, or sp.part.agents.guest on the sample plan (W18-A). */
+  agentsHead: string;
 }
 
 export interface PlanViewModel {
@@ -70,7 +72,7 @@ function agentOf(id: string): Agent {
   return agent;
 }
 
-function stopView(stop: PlanStop, index: number, total: number, quote: string | null): StopView {
+function stopView(stop: PlanStop, index: number, total: number, quote: string | null, guest: boolean): StopView {
   const department = departmentOf(stop.department);
   const key = `dp.${department.copyKey}`;
   return {
@@ -92,6 +94,7 @@ function stopView(stop: PlanStop, index: number, total: number, quote: string | 
       jobsToggle: copy("ph.vert.jobs", { j: a.jobs.length }),
     })),
     rest: department.agentIds.filter((id) => !stop.agentIds.includes(id)).map((id) => agentOf(id).name),
+    agentsHead: copy(guest ? "sp.part.agents.guest" : "sp.part.agents"),
   };
 }
 
@@ -113,13 +116,20 @@ export function buildPlanView({ plan, name, problemText, guest = false }: PlanVi
     sub: { desktop: copy(guest ? "sp.hero.sub.guest" : "sp.hero.sub", { n, j: plan.jobIds.length }), phone: copy("ph.hero.sub") },
     // D37: a one-part plan gets the singular line, so it never reads "the 1 parts".
     scroll: {
-      desktop: copy(parts === 1 ? "sp.hero.scroll.one" : "sp.hero.scroll", { d: parts }),
+      desktop: guest
+        ? copy("sp.hero.scroll.guest", { d: parts })
+        : copy(parts === 1 ? "sp.hero.scroll.one" : "sp.hero.scroll", { d: parts }),
       phone: copy("ph.hero.scroll"),
     },
     pilot: plan.pilot,
-    stops: plan.stops.map((stop, i) => stopView(stop, i, parts, quoteAt(stop))),
-    later: { desktop: copy("sp.later"), phone: copy("ph.later", { n }) },
-    ctaLead: { desktop: copy("sp.cta.lead", { n }), phone: copy("ph.cta.lead", { n }) },
+    stops: plan.stops.map((stop, i) => stopView(stop, i, parts, quoteAt(stop), guest)),
+    // W18-A: the guest runs no business, so these say what a business starts with, never what "you need".
+    later: guest
+      ? { desktop: copy("sp.later.guest"), phone: copy("ph.later.guest", { n }) }
+      : { desktop: copy("sp.later"), phone: copy("ph.later", { n }) },
+    ctaLead: guest
+      ? { desktop: copy("sp.cta.lead.guest"), phone: copy("ph.cta.lead.guest") }
+      : { desktop: copy("sp.cta.lead", { n }), phone: copy("ph.cta.lead", { n }) },
     closeDepth: parts + 1,
   };
 }

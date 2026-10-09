@@ -43,7 +43,7 @@ export function PartStop({ stop, side = "right" }: { stop: StopView; side?: "lef
       <h2 id={titleId} className="mt-3 text-3xl font-medium lg:text-4xl">{stop.heading}</h2>
       <p className={`mt-2 text-[color:var(--funnel-muted)] ${DESKTOP_ONLY}`}>{stop.tag}</p>
       <p className="mt-6 max-w-2xl text-lg">{stop.body}</p>
-      <h3 className={`mt-10 ${MICRO}`}>{copy("sp.part.agents")}</h3>
+      <h3 className={`mt-10 ${MICRO}`}>{stop.agentsHead}</h3>
       <ul className="mt-4 grid gap-4 lg:grid-cols-3">
         {stop.agents.map((agent) => (
           <li key={agent.id} className="rounded-2xl border border-[color:var(--funnel-line)] bg-[color:var(--funnel-card)] p-5">

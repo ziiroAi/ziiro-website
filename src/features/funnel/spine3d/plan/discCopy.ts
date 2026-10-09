@@ -28,8 +28,10 @@ export interface DiscCallout {
 }
 
 /** §6.7's pinned callout: sp.disc.call "{Department} · {k} of {m}", then the plan's agents in this department by
- *  name (sp.vert.title), in plan order. */
-export function discCallout(department: Department, planAgentIds: readonly AgentId[]): DiscCallout {
+ *  name (sp.vert.title), in plan order. W18-A: on the guest's sample plan every disc is lit, so the callout gives the
+ *  department's size only (sp.disc.call.guest), never what they need. */
+export function discCallout(department: Department, planAgentIds: readonly AgentId[], guest = false): DiscCallout {
+  if (guest) return { head: copy("sp.disc.call.guest", { Department: department.name, m: department.agentIds.length }), lines: [] };
   const head = copy("sp.disc.call", { Department: department.name, k: neededIn(department, planAgentIds), m: department.agentIds.length });
   const lines = planAgentIds
     .filter((id) => department.agentIds.includes(id))
@@ -39,8 +41,10 @@ export function discCallout(department: Department, planAgentIds: readonly Agent
   return { head, lines };
 }
 
-/** The disc button's label: sp.disc.aria, or sp.disc.aria.none when the plan needs nothing there. */
-export function discAria(department: Department, planAgentIds: readonly AgentId[]): string {
+/** The disc button's label: sp.disc.aria, or sp.disc.aria.none when the plan needs nothing there; the guest's,
+ *  the department's size (sp.disc.aria.guest, W18-A). */
+export function discAria(department: Department, planAgentIds: readonly AgentId[], guest = false): string {
+  if (guest) return copy("sp.disc.aria.guest", { Department: department.name, m: department.agentIds.length });
   const k = neededIn(department, planAgentIds);
   return k === 0
     ? copy("sp.disc.aria.none", { Department: department.name })

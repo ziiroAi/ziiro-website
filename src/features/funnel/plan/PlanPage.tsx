@@ -52,7 +52,7 @@ export function PlanPage({ plan, visitor, words, saveNotice, onProgress, guest =
         <title>{`${copy("seo.plan.title")}${TITLE_SUFFIX}`}</title>
       </Helmet>
       <SaveBanner notice={saveNotice} />
-      <PlanStage departments={lit} planAgentIds={plan.agentIds} onProgress={report}>
+      <PlanStage departments={lit} planAgentIds={plan.agentIds} onProgress={report} guest={guest}>
         {(stage) => (
           <>
             <Hero

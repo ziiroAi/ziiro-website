@@ -63,6 +63,8 @@ export interface PlanStageProps {
   /** The plan's departments in stop order (§5.5). */
   departments: readonly DepartmentId[];
   planAgentIds: readonly AgentId[];
+  /** W18-A: the guest's sample plan: every department's disc is lit (the stops stay the plan's), with guest copy. */
+  guest?: boolean;
   onProgress(fields: PlanProgress): void;
   /** The plan, given the stage to place where the phone band sits: after the hero's words. Block 2, the stops and the
    *  close are its sections with data-depth. */
@@ -126,7 +128,7 @@ function spansOf(root: HTMLElement): Span[] {
     });
 }
 
-export function PlanStage({ departments, planAgentIds, onProgress, children }: PlanStageProps): JSX.Element {
+export function PlanStage({ departments, planAgentIds, onProgress, children, guest = false }: PlanStageProps): JSX.Element {
   const theme = useHtmlTheme();
   const rootRef = useRef<HTMLDivElement>(null);
   const bandRef = useRef<HTMLDivElement>(null);
@@ -147,7 +149,9 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
     () => departments.flatMap((id): DiscId[] => allDepartments.filter((d) => d.id === id).map((d) => d.disc)),
     [departments],
   );
-  const callouts = useMemo(() => calloutsFor(departments, planAgentIds), [departments, planAgentIds]);
+  // W18-A: what's lit. The plan's departments, or every one for the guest; the stops (discs, path) stay the plan's.
+  const lit = useMemo(() => (guest ? allDepartments.map((d) => d.id) : departments), [guest, departments]);
+  const callouts = useMemo(() => calloutsFor(lit, planAgentIds, guest), [lit, planAgentIds, guest]);
   const path = useMemo(
     () => stageKeys(discs, meshFor(window.innerWidth), variant, { width, height }, LEGEND_STRIP_PX[variant]),
     [discs, variant, width, height],
@@ -161,8 +165,8 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
   );
 
   useEffect(() => {
-    api?.setLit(departments);
-  }, [api, departments]);
+    api?.setLit(lit);
+  }, [api, lit]);
 
   // The scroll, read at most once a frame. Only scrollY is read then: the sections are measured on a resize of the
   // window or of the plan (late layout, fonts), so a frame forces no style recalc (W15-B4 L3).
@@ -250,7 +254,7 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
         className="relative overflow-hidden lg:sticky lg:top-[var(--nav-h,84px)] lg:h-[calc(100vh-var(--nav-h,84px))]"
       >
         <div data-soft-edges style={api ? SOFT_EDGES : undefined}>
-          <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={departments} onApi={onApi} onPhase={onPhase}>
+          <SpineViewer label={copy(theme === "dark" ? "hx.alt.dark" : "hx.alt.light")} lit={lit} onApi={onApi} onPhase={onPhase}>
             <div ref={stillRef} data-stage-still style={MOVING_STILL}>
               <HeroPicture className={STILL} />
             </div>
@@ -266,10 +270,11 @@ export function PlanStage({ departments, planAgentIds, onProgress, children }: P
             focus={stop}
             clearRight={variant === "desktop" && spineLeft ? view.width * TEXT_COLUMN_SHARE + TEXT_COLUMN_GAP_PX : 0}
             spineSide={spineLeft ? "left" : "right"}
+            guest={guest}
           />
         </div>
       </div>
-      {variant === "phone" && api && <LegendRow />}
+      {variant === "phone" && api && <LegendRow guest={guest} />}
     </div>
   );
   return (
