@@ -42,6 +42,8 @@ export interface SceneOptions {
   /** W16-A: the owner's close-up, loaded after the first frame for the plan stage's dive. Absent: none. If it fails
    *  to load, the full spine stays. */
   closeupUrl?: string;
+  /** W16-A with W15-M6: the close-up's bytes, warmed during the questions. Null or absent: the scene downloads it. */
+  closeupBytes?: Promise<ArrayBuffer | null>;
   /** Called once if the GPU drops the context. The viewer then gives the still back. */
   onContextLost(): void;
 }
@@ -369,7 +371,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
   /** W16-A: the close-up, after the first frame so it never delays it. Its shaders compile before it joins the scene. */
   const loadCloseup = async (url: string) => {
     try {
-      const mesh = await loadMesh(url, undefined, closeupAbort.signal);
+      const mesh = await loadMesh(url, options.closeupBytes, closeupAbort.signal);
       const holder = new Group();
       holder.matrixAutoUpdate = false;
       holder.matrix.copy(new Matrix4().fromArray([...CLOSEUP.matrix]));

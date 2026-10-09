@@ -10,24 +10,15 @@ import { createDrive, type Drive } from "./drive";
 import type { SpineHandle } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming } from "./camera";
-import { afterLcpThenIdle, isSoftwareGl, onOptionPress, prefetchMesh, probesOffThread, type MeshPrefetch } from "./first-screen";
+import { afterLcpThenIdle, isSoftwareGl, onOptionPress, probesOffThread } from "./first-screen";
 import { shouldRelease } from "./gpu";
+import { CLOSEUP_MESH_URLS, MESH_URLS } from "./mesh-urls";
+import { takeWarmMesh, warmMesh } from "./mesh-warm";
 import type { Motion } from "./orbit";
 import { isSoftwareRenderer } from "./pace";
-import { hasWebGL2, meshFor, preflight, readConnection, type FallbackReason, type MeshSize } from "./rules";
+import { hasWebGL2, meshFor, preflight, readConnection, type FallbackReason } from "./rules";
 
-/** W14-A's crunched meshes: 1.5 MB or less on a phone, 3 MB or less on desktop. /spine is cached immutable for a
- *  year (vercel.json, tests/media/immutable.json), so a re-crunched mesh goes in a new folder: m2, m3… */
-export const MESH_URLS: Readonly<Record<MeshSize, string>> = {
-  phone: "/spine/3d/m1/spine-phone.glb",
-  desktop: "/spine/3d/m1/spine-desktop.glb",
-};
-/** W16-A: the owner's close-up for the plan stage's dive, crunched by worker-3 like m1 (W16-C): 1.2 MB or less on a
- *  phone, 2.5 MB or less on desktop. Its placement on the full spine is closeup.ts. */
-export const CLOSEUP_URLS: Readonly<Record<MeshSize, string>> = {
-  phone: "/spine/3d/closeup/phone.glb",
-  desktop: "/spine/3d/closeup/desktop.glb",
-};
+export { MESH_URLS } from "./mesh-urls";
 
 /** requestIdleCallback's deadline, so the 3D still starts on a page that is never idle. */
 const IDLE_TIMEOUT_MS = 2000;
@@ -74,7 +65,7 @@ export interface SpineViewerProps {
    * if the visitor presses one of S1's options before its first frame, even before this viewer mounts (W14-X).
    */
   firstScreen?: boolean;
-  /** W16-A: also loads the owner's close-up (CLOSEUP_URLS) after the first frame, for the plan stage's dive. */
+  /** W16-A: also loads the owner's close-up (CLOSEUP_MESH_URLS) after the first frame, for the plan stage's dive. */
   closeup?: boolean;
 }
 
@@ -194,14 +185,18 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         const { width, height } = box.getBoundingClientRect();
         const size = meshFor(window.innerWidth);
         const meshUrl = MESH_URLS[size];
-        // W15-D2: S0's download goes to the first build only; its bytes move to that worker, so a later build fetches.
-        const meshBytes = prefetch?.url === meshUrl ? prefetch.bytes : undefined;
-        prefetch = null;
+        // W15-D2 / W15-M6: a mesh this page already downloads (S0's at its LCP, or the plan's during the questions)
+        // goes to the first build only; its bytes move to that worker, so a later build fetches, from the HTTP cache.
+        const meshBytes = takeWarmMesh(meshUrl);
+        // W16-A: the plan stage's close-up, the same way: warmed during the questions, moved to the worker.
+        const closeupUrl = latest.current.closeup ? CLOSEUP_MESH_URLS[size] : undefined;
+        const closeupBytes = closeupUrl ? takeWarmMesh(closeupUrl) : undefined;
         /** A late message from a handle this viewer has let go (asleep, then started again) is ignored (W14-V T2). */
         const mine = () => !cancelled && live.current?.handle === handle;
         const handle: SpineHandle = startSpine(canvas, {
           width, height, dpr: devicePixelRatio || 1, size, meshUrl, meshBytes,
-          closeupUrl: latest.current.closeup ? CLOSEUP_URLS[size] : undefined,
+          closeupUrl,
+          closeupBytes,
           theme: latest.current.theme, levels: latest.current.levels, view: { yaw: 0, pitch: 0, framing: baseFraming(size) },
           onReady: (boxes, gpu) => {
             if (!mine() || !live.current) return;
@@ -270,8 +265,6 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     near?.observe(box);
     presenceListeners.add(settle);
     const firstScreen = latest.current.firstScreen === true;
-    /** W15-D2: S0's mesh, on its way from the probe's answer while the wait and the worker's script run. */
-    let prefetch: MeshPrefetch | null = null;
     /** The probe's answer, asked once: at S0's LCP where it runs in a worker, else when the 3D starts. */
     let probe: Promise<boolean> | null = null;
     const stopProbe = new AbortController();
@@ -282,7 +275,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       if (cancelled || interrupted || failed || !probesOffThread()) return;
       void askProbe().then((software) => {
         if (cancelled || interrupted || failed || software) return;
-        prefetch = prefetchMesh(MESH_URLS[meshFor(window.innerWidth)]);
+        warmMesh(MESH_URLS[meshFor(window.innerWidth)]);
       });
     };
     /** W14-X: no viewer runs its 3D on a software renderer; the still stays (worker-2's W14-S, SwiftShader phone tour
@@ -300,9 +293,7 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       interrupted = true;
       cancelStart();
       stopProbe.abort();
-      // A download under way may finish (network only, and the plan page shows the same mesh next, from the HTTP
-      // cache), but nothing is built from it.
-      prefetch = null;
+      // A download under way finishes (network only): S0 builds nothing from it, and the plan's 3D takes it (W15-M6).
       teardown();
       setLeft(true);
       setState({ phase: "still", reason: null });

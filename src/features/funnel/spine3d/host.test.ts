@@ -282,3 +282,31 @@ describe("handing the worker the mesh S0 already fetched (W15-D2)", () => {
     await expect(given).resolves.toBe(buffer);
   });
 });
+
+describe("handing the worker the close-up warmed during the questions (W16-A with W15-M6)", () => {
+  const closeupIn = (worker: FakeWorker) => worker.sent.findIndex((message) => message.type === "closeup");
+
+  it("tells the worker its bytes are coming, then moves them over, like the full spine's", async () => {
+    const buffer = new ArrayBuffer(8);
+    startSpine(offscreenCanvas(), { ...options(), closeupUrl: "/spine/3d/closeup/desktop.glb", closeupBytes: Promise.resolve(buffer) });
+    const worker = FakeWorker.last!;
+    expect(worker.sent[0]).toMatchObject({ type: "init", closeupUrl: "/spine/3d/closeup/desktop.glb", closeupFromHost: true });
+    expect(worker.sent[0]).not.toHaveProperty("closeupBytes");
+    await vi.waitFor(() => expect(closeupIn(worker)).toBeGreaterThan(0));
+    expect(worker.sent[closeupIn(worker)]).toEqual({ type: "closeup", buffer });
+    expect(worker.transfers[closeupIn(worker)]).toEqual([buffer]);
+  });
+
+  it("asks for nothing when no close-up was warmed", () => {
+    startSpine(offscreenCanvas(), { ...options(), closeupUrl: "/spine/3d/closeup/desktop.glb" });
+    expect(FakeWorker.last!.sent[0]).not.toHaveProperty("closeupFromHost");
+  });
+
+  it("builds from its bytes on the main thread too", async () => {
+    const buffer = new ArrayBuffer(8);
+    startSpine(document.createElement("canvas"), { ...options(), closeupUrl: "/spine/3d/closeup/desktop.glb", closeupBytes: Promise.resolve(buffer) });
+    await vi.waitFor(() => expect(createSpineScene).toHaveBeenCalled());
+    const given = (createSpineScene.mock.calls[0][0] as { closeupBytes?: Promise<ArrayBuffer | null> }).closeupBytes;
+    await expect(given).resolves.toBe(buffer);
+  });
+});

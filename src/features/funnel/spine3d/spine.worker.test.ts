@@ -220,3 +220,33 @@ describe("the mesh S0 already fetched (W15-D2)", () => {
     await expect(given()).resolves.toBeNull();
   });
 });
+
+describe("the close-up the page warmed (W16-A with W15-M6)", () => {
+  const given = () => createSpineScene.mock.calls[0][0]!.closeupBytes as Promise<ArrayBuffer | null> | undefined;
+  const withCloseup = { ...init, closeupUrl: "/spine/3d/closeup/desktop.glb" };
+
+  it("hands the scene the close-up's bytes the page moves over", async () => {
+    const buffer = new ArrayBuffer(4);
+    send({ ...withCloseup, closeupFromHost: true });
+    send({ type: "closeup", buffer });
+    await expect(given()).resolves.toBe(buffer);
+  });
+
+  it("lets the scene fetch it by URL when nothing is handed over", () => {
+    send(withCloseup);
+    expect(given()).toBeUndefined();
+    expect(createSpineScene.mock.calls[0][0]!.closeupUrl).toBe("/spine/3d/closeup/desktop.glb");
+  });
+
+  it("drops a close-up from anywhere else", () => {
+    send({ ...init, closeupUrl: "https://example.com/x.glb" });
+    expect(createSpineScene.mock.calls[0][0]!.closeupUrl).toBeUndefined();
+  });
+
+  it("gives a close-up still waiting for its bytes none on dispose", async () => {
+    vi.spyOn(self, "close").mockImplementation(() => undefined);
+    send({ ...withCloseup, closeupFromHost: true });
+    send({ type: "dispose" });
+    await expect(given()).resolves.toBeNull();
+  });
+});
