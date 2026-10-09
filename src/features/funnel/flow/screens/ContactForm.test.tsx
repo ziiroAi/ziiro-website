@@ -35,7 +35,7 @@ const AT_S7 = TO_S7.reduce(reduce, initialFlow(STARTER));
 const send = vi.fn();
 function Harness() {
   const [state, dispatch] = useReducer(reduce, AT_S7);
-  const env: FlowEnv = { boot: PRERENDER_BOOT, introOffsetMs: null, country: null, starter: STARTER, send };
+  const env: FlowEnv = { boot: PRERENDER_BOOT, introOffsetMs: null, country: null, starter: STARTER, send, showGuestPlan: vi.fn() };
   return <ContactForm state={state} act={dispatch} edit={dispatch} env={env} />;
 }
 

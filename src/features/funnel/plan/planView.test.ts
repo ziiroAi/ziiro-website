@@ -122,3 +122,25 @@ describe("markOf and heroTitle", () => {
     ]);
   });
 });
+
+describe("buildPlanView: the sample plan for a visitor who runs no business (W17-B)", () => {
+  const plan = composePlan({ teamBand: "2_5", revenueBand: "band_2", currency: "INR", chips: [], problemText: "" });
+  const guest = buildPlanView({ plan, name: "", problemText: "", guest: true });
+
+  it("opens with no name, and says it's a sample, not what they need", () => {
+    expect(guest.heroText).toEqual({ desktop: copy("hx.p.guest"), phone: copy("ph.hx.p.guest") });
+    expect(guest.heroText.desktop).not.toMatch(/^,|you need/i);
+    expect(guest.sub.desktop).toBe(copy("sp.hero.sub.guest", { n: 3, j: plan.jobIds.length }));
+    expect(guest.sub.desktop).not.toMatch(/you need/i);
+  });
+
+  it("keeps the fallback plan's headline: the start every business gets", () => {
+    expect(guest.headline).toEqual({ desktop: copy("sp.hero.h.fallback", { n: 3 }), phone: copy("ph.hero.h.fallback", { n: 3 }) });
+  });
+
+  it("leaves a visitor who answered the questions as before", () => {
+    const owner = buildPlanView({ plan, name: "Ananya", problemText: "" });
+    expect(owner.heroText.desktop).toBe(copy("hx.p", { name: "Ananya" }));
+    expect(owner.sub.desktop).toBe(copy("sp.hero.sub", { n: 3, j: plan.jobIds.length }));
+  });
+});

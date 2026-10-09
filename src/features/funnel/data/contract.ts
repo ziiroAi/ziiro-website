@@ -421,6 +421,8 @@ export interface PlanPageProps {
   words: { problemText: string; chips: ChipId[] };
   saveNotice: "fail" | "unsure" | null;  // sp.save.fail or sp.save.unsure at the top (§10)
   onProgress(fields: PlanProgress): void;
+  /** W17-B: the sample plan for a visitor from S1b, who runs no business and gave no name: sp.guest.note at the top. */
+  guest?: boolean;
 }
 
 /** "plan" from S9 on; "questions" before it and after Back from S9. On / the header shows only the logo

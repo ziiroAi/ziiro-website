@@ -76,6 +76,17 @@ export function composePlan(input: PlanInput): PlanDescriptor {
   };
 }
 
+/**
+ * W17-B: the sample plan for a visitor who runs no business (S1b), now that S1b leads to the plan page (the owner
+ * vetoed D15's /products). It's what a small business gets before it says anything: no words and no chips, so the
+ * fallback plan, sized for a team of 2 to 5.
+ */
+export const GUEST_PLAN_INPUT: Readonly<PlanInput> = { teamBand: "2_5", revenueBand: "band_2", currency: "INR", chips: [], problemText: "" };
+
+export function composeGuestPlan(): PlanDescriptor {
+  return composePlan({ ...GUEST_PLAN_INPUT, chips: [] });
+}
+
 /** §6.3 and D36: their words, classified alone without the chips, point at a department. A content, support or
  *  hiring problem points at its lane agent's department; any other problem, at its order's first agent's. */
 export function wordsDepartmentFor(problemText: string): DepartmentId | null {

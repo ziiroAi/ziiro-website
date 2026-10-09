@@ -3,6 +3,7 @@ import { Component, Suspense, useEffect, type ReactNode } from "react";
 import { calendlyUrl, copy } from "@/features/funnel/data/light";
 import { ErrorNote } from "../ErrorNote";
 import { LazyHeroPicturePrefetch, LazyPlanPage } from "../plan-chunk";
+import { isGuestPath } from "../state";
 import { problemTextFrom } from "../words";
 import type { ScreenProps } from "./types";
 
@@ -46,6 +47,7 @@ export function PlanScreen({ state, edit, env }: ScreenProps) {
             visitor={state.visitor}
             words={words}
             saveNotice={state.saveNotice}
+            guest={isGuestPath(state.answers)}
             onProgress={(fields) => edit({ type: "progress", fields })}
           />
           {state.secondsToResult === null && <Painted onPaint={() => edit({ type: "planShown", seconds: Math.round((performance.now() - env.boot.t0) / 1_000) })} />}

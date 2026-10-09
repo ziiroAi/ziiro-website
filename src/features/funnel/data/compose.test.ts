@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { agentById, jobIdsFor } from "./agents";
-import { agentsFor, composePlan, laneAgent, priority, ROUTES, wordsDepartmentFor } from "./compose";
+import { agentsFor, composeGuestPlan, composePlan, GUEST_PLAN_INPUT, laneAgent, priority, ROUTES, wordsDepartmentFor } from "./compose";
 import { TIERS } from "./contract";
 import type { OrderVariant, PlanInput } from "./contract";
 
@@ -113,5 +113,18 @@ describe("wordsDepartmentFor (§6.3, D36)", () => {
     expect(wordsDepartmentFor("no time for reels and posting every week")).toBe("marketing");
     expect(wordsDepartmentFor("We answer the same questions again on WhatsApp all day.")).toBe("customer");
     expect(wordsDepartmentFor("We can't find good people, and the good ones leave.")).toBe("back-office");
+  });
+});
+
+describe("the sample plan for a visitor who runs no business (W17-B)", () => {
+  it("is the plan a small business gets before it says anything: no words, no chips, a team of 2 to 5", () => {
+    expect(GUEST_PLAN_INPUT).toEqual({ teamBand: "2_5", revenueBand: "band_2", currency: "INR", chips: [], problemText: "" });
+    expect(composeGuestPlan()).toEqual(composePlan(GUEST_PLAN_INPUT));
+  });
+
+  it("says it's the starting point every business gets, sized small: §5.4's first 3 agents, the fallback", () => {
+    const plan = composeGuestPlan();
+    expect(plan).toMatchObject({ bucketPrimary: "unclassified", fallback: true, tier: "S", orderVariant: "A-default" });
+    expect(names(plan.agentIds)).toEqual(names(priority["A-default"].slice(0, 3)));
   });
 });

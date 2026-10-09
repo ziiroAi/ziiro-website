@@ -76,16 +76,18 @@ test("switches screens at once when the device asks for reduced motion (§4.1)",
   await expect(page.locator(".f-screen").first()).toHaveCSS("animation-name", "none");
 });
 
-test("gives a visitor without a business one question, then the site (D15)", async ({ page, funnelApi }) => {
+test("gives a student one question, then the plan page with a sample plan, never /products (W17-B)", async ({ page, funnelApi }) => {
   await page.goto("/");
   await tapThrough(page, "Student, or just curious");
   await expect(question(page, "What brought you here?")).toBeFocused();
   await tapThrough(page, "Saw a reel or a post");
-  await expect(question(page, "Got it, thanks. Everything's open, have a look around.")).toBeFocused();
+  await expect(page.locator(".f-root")).toHaveAttribute("data-screen", "plan", { timeout: 20_000 });
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator("html")).toHaveAttribute("data-funnel", "plan");
+  await expect(page.locator("[data-guest-note]")).toBeVisible();
+  await expect(page.locator("#plan-hero-title")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Book a call/ }).first()).toBeVisible();
   expect(funnelApi.visits.some((v) => v.step === "S1b" && v.fields.nonOwnerReason === "saw_a_post")).toBe(true);
-  await page.getByRole("link", { name: "Show me the site" }).click();
-  await expect(page).toHaveURL(/\/products$/);
-  await expect(page.locator("html")).not.toHaveAttribute("data-funnel", /.*/);
 });
 
 test("Back goes one step with the answer kept, Forward returns, and the URL never changes (§4.1)", async ({ page }) => {

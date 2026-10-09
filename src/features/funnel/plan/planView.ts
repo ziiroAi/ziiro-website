@@ -54,6 +54,8 @@ export interface PlanViewInput {
   plan: PlanDescriptor;
   name: string;
   problemText: string;
+  /** W17-B: the sample plan for a visitor from S1b. No name, and the sub says "this sample", not "you need". */
+  guest?: boolean;
 }
 
 function departmentOf(id: DepartmentId): Department {
@@ -93,7 +95,7 @@ function stopView(stop: PlanStop, index: number, total: number, quote: string | 
   };
 }
 
-export function buildPlanView({ plan, name, problemText }: PlanViewInput): PlanViewModel {
+export function buildPlanView({ plan, name, problemText, guest = false }: PlanViewInput): PlanViewModel {
   const n = plan.agentIds.length;
   const parts = plan.stops.length;
   const words = cleanProblemText(problemText);
@@ -104,9 +106,11 @@ export function buildPlanView({ plan, name, problemText }: PlanViewInput): PlanV
     stop.department === quoteDepartment ? quoteWords(words, WORDS_MAX) : null;
   const fallback = plan.fallback ? ".fallback" : "";
   return {
-    heroText: { desktop: copy("hx.p", { name }), phone: copy("ph.hx.p", { name }) },
+    heroText: guest
+      ? { desktop: copy("hx.p.guest"), phone: copy("ph.hx.p.guest") }
+      : { desktop: copy("hx.p", { name }), phone: copy("ph.hx.p", { name }) },
     headline: { desktop: copy(`sp.hero.h${fallback}`, { n }), phone: copy(`ph.hero.h${fallback}`, { n }) },
-    sub: { desktop: copy("sp.hero.sub", { n, j: plan.jobIds.length }), phone: copy("ph.hero.sub") },
+    sub: { desktop: copy(guest ? "sp.hero.sub.guest" : "sp.hero.sub", { n, j: plan.jobIds.length }), phone: copy("ph.hero.sub") },
     // D37: a one-part plan gets the singular line, so it never reads "the 1 parts".
     scroll: {
       desktop: copy(parts === 1 ? "sp.hero.scroll.one" : "sp.hero.scroll", { d: parts }),

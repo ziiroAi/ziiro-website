@@ -24,6 +24,7 @@ export const FLOW_COPY = {
   "s1b.o5": "Something else",
   "s1b.done": "Got it, thanks. Everything's open, have a look around.",
   "s1b.btn": "Show me the site",
+  "s1b.btn.plan": "Show me a sample plan",
   "s2.q": "What kind of business?",
   "s2.hint": "Pick the closest one.",
   "s2.o": "Interior design / architecture · Clinic / healthcare · Real estate · Education / coaching / study abroad · Insurance / loans · Law / consultancy · Marketing or creative agency · Retail / boutique / D2C · Gym / salon / fitness · Manufacturing · Restaurant / food · Other",

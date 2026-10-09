@@ -65,6 +65,25 @@ describe("Hero (§6.2 block 1)", () => {
     expect(hold.className.split(" ")).toEqual(expect.arrayContaining(["hidden", "lg:block", "lg:h-48"]));
   });
 
+  it("for a visitor from S1b: the sample note first in the words' column, above the eyebrow, and the cue says explore (W17-B)", () => {
+    screen = render(
+      <Hero heroText={heroText} name="" email="" headingRef={createRef<HTMLHeadingElement>()} onBook={vi.fn()} onProgress={vi.fn()} guest />,
+    );
+    const words = screen.container.querySelector("h1")!.parentElement!;
+    const note = screen.container.querySelector("[data-guest-note]")!;
+    expect(note.parentElement).toBe(words);
+    expect(words.firstElementChild).toBe(note);
+    expect(textOf(note)).toBe(copy("sp.guest.note"));
+    expect(textOf(screen.container.querySelector("[data-scroll-cue]"))).toContain(copy("hx.scroll.guest"));
+    expect(textOf(screen.container.querySelector("[data-scroll-cue]"))).not.toContain(copy("hx.scroll"));
+  });
+
+  it("shows no sample note and keeps hx.scroll for a visitor who answered the questions (W17-B)", () => {
+    const { container } = renderHero();
+    expect(container.querySelector("[data-guest-note]")).toBeNull();
+    expect(textOf(container.querySelector("[data-scroll-cue]"))).toContain(copy("hx.scroll"));
+  });
+
   it("sits over the stage from 1024 px: the words in the left 55 %, and only they take the pointer (W15-B)", () => {
     const { container } = renderHero();
     const section = container.querySelector("section")!;

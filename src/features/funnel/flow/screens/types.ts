@@ -17,6 +17,7 @@ export interface FlowEnv {
   country: string | null;         // from the first /visit save (Task 14)
   starter: string;                // s6.text
   send(widget: TokenSource, contact: CheckedContact): void;  // S7's "Show me my plan" (Task 13)
+  showGuestPlan(): void;          // S1b's answer and s1b.btn.plan: the sample plan on the plan page (W17-B)
 }
 
 export interface ScreenProps {

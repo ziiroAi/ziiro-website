@@ -18,6 +18,7 @@ import { PROGRESS, PROGRESS_TOTAL, createTapGate, funnelStageOf, initialFlow, re
 import { FlowNote } from "./ui";
 import { useLeadSend } from "./useLeadSend";
 import { usePlanWarm } from "./usePlanWarm";
+import { useGuestPlan } from "./useGuestPlan";
 import { useVisitSaves } from "./useVisitSaves";
 import { rotateVisit, startVisit } from "./visit-id";
 
@@ -55,6 +56,7 @@ export function FunnelRoot(): JSX.Element {
   const onPop = useCallback((screen: Screen) => dispatch({ type: "popTo", screen }), []);
   useFlowHistory(state.nav, state.screen, onPop);
   const send = useLeadSend(state, dispatch, starter);
+  const showGuestPlan = useGuestPlan(dispatch);
   usePlanWarm(state.screen);  // the plan's mesh downloads during the questions (W15-M6)
   const [warm, setWarm] = useState(false);
   useEffect(() => {
@@ -76,8 +78,8 @@ export function FunnelRoot(): JSX.Element {
     keepPlan(state);
   }, [state]);
   useEffect(() => {
-    if (state.screen !== "s5") return;
-    prefetchPlan();  // the plan's code loads during S5 to S8 (§13.1)
+    if (state.screen !== "s5" && state.screen !== "s1b") return;
+    prefetchPlan();  // the plan's code loads during S5 to S8 (§13.1), and on S1b for the sample plan (W17-B)
     setWarm(true);   // and the hero still S9 shows (§6.6)
   }, [state.screen]);
   const { country } = useVisitSaves(state, { boot, starter, introOffsetMs: introOffset });
@@ -88,6 +90,7 @@ export function FunnelRoot(): JSX.Element {
     country,
     starter,
     send,
+    showGuestPlan,
   };
   const props: ScreenProps = { state, act, edit: dispatch, env };
   // S7 stays mounted, hidden, while S8 plays, so its fields and the spam check survive a failed send (§10).

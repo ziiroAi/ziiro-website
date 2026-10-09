@@ -40,12 +40,14 @@ export interface HeroProps {
   onProgress(fields: PlanProgress): void;
   /** The plan's stage (W15-B), placed between the words and the stats: the phone's sticky band. */
   stage?: ReactNode;
+  /** W17-B: the sample plan for a visitor from S1b: sp.guest.note above the eyebrow, and the cue says explore. */
+  guest?: boolean;
 }
 
 /** The reference's scroll cue: a mouse outline with its wheel dot, and the line in two short rows beside it. On a
  *  phone, just the line under the stats. From 1024 px it sits at the screen's bottom (the section ends a nav height
  *  short), under the lowest callout and right of the legend. */
-function ScrollCue(): JSX.Element {
+function ScrollCue({ guest }: { guest: boolean }): JSX.Element {
   return (
     <div
       data-scroll-cue
@@ -54,12 +56,12 @@ function ScrollCue(): JSX.Element {
       <span aria-hidden="true" className="relative hidden h-12 w-7 rounded-full border border-[color:var(--funnel-muted)] lg:block">
         <span className="absolute left-1/2 top-2.5 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[color:var(--funnel-fg)]" />
       </span>
-      <Swap as="p" lines={{ desktop: copy("hx.scroll"), phone: copy("ph.hx.scroll") }} className={`${WIDE} lg:max-w-[9rem] lg:leading-relaxed`} />
+      <Swap as="p" lines={{ desktop: copy(guest ? "hx.scroll.guest" : "hx.scroll"), phone: copy("ph.hx.scroll") }} className={`${WIDE} lg:max-w-[9rem] lg:leading-relaxed`} />
     </div>
   );
 }
 
-export function Hero({ heroText, name, email, headingRef, onBook, onProgress, stage }: HeroProps): JSX.Element {
+export function Hero({ heroText, name, email, headingRef, onBook, onProgress, stage, guest = false }: HeroProps): JSX.Element {
   const [filmOpen, setFilmOpen] = useState(false);
   const [firstLine, secondLine] = heroTitle();
   return (
@@ -68,7 +70,13 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress, st
         aria-labelledby="plan-hero-title"
         className={`${OVER_STAGE} ${MAKES_WAY} pb-10 lg:flex lg:min-h-[calc(100vh-var(--nav-h,84px))] lg:items-center lg:pb-0`}
       >
-        <div className="px-4 pt-24 sm:px-6 lg:pointer-events-auto lg:w-[55%] lg:px-10 lg:pt-0 xl:pl-16">
+        <div className={`px-4 pt-24 sm:px-6 lg:pointer-events-auto lg:w-[55%] lg:px-10 xl:pl-16 ${guest ? "lg:pt-14" : "lg:pt-0"}`}>
+          {guest && (
+            // In the words' column, so it sits under the nav and is read before the h1; not an alert, it's how the page opens.
+            <p data-guest-note className="mb-6 w-fit max-w-full rounded-xl border border-[color:var(--funnel-line)] bg-[color:var(--funnel-card)] px-4 py-3 text-sm lg:mb-5 lg:py-2">
+              {copy("sp.guest.note")}
+            </p>
+          )}
           <p className={WIDE}>{copy("hx.eyebrow")}</p>
           <h1
             id="plan-hero-title"
@@ -115,7 +123,7 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress, st
             ))}
           </ul>
         </div>
-        <ScrollCue />
+        <ScrollCue guest={guest} />
       </section>
       {/* The stage starts the hero's travel a screen above block 2; the old stats row and scroll line kept block 2
           that far down, and this keeps it there now they sit in the hero, or reduced motion cuts away at scroll 0. */}

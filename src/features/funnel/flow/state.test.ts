@@ -35,6 +35,27 @@ describe("the questions' state (§4.1, §4.3)", () => {
     expect(funnelStageOf(s)).toBe("questions");  // FunnelStage is "plan" from S9 only; s1b.btn leads on (D15)
   });
 
+  it("S1b: the sample plan opens the plan page, with no name or email, as a new entry (W17-B, the owner's veto of D15)", () => {
+    const s = run({ type: "segment", value: "student" }, { type: "nonOwner", value: "learning" }, { type: "guestPlan", plan: FAKE_PLAN });
+    expect(s).toMatchObject({ screen: "plan", plan: FAKE_PLAN, visitor: { name: "", email: "" }, saveNotice: null, nav: { mode: "push", seq: 3 } });
+    expect(funnelStageOf(s)).toBe("plan");
+  });
+
+  it("S1b: a sample plan that arrives after they left S1b, or before a reason, is dropped (W17-B)", () => {
+    const back = run({ type: "segment", value: "student" }, { type: "nonOwner", value: "learning" }, { type: "popTo", screen: "s1" });
+    expect(from(back, { type: "guestPlan", plan: FAKE_PLAN })).toBe(back);
+    const noReason = run({ type: "segment", value: "student" });
+    expect(from(noReason, { type: "guestPlan", plan: FAKE_PLAN })).toBe(noReason);
+  });
+
+  it("the sample plan's Back goes to S1b, and Forward without the plan returns to S1b, never to S2 (W17-B)", () => {
+    const atPlan = run({ type: "segment", value: "freelance" }, { type: "nonOwner", value: "own_work" }, { type: "guestPlan", plan: FAKE_PLAN });
+    const back = from(atPlan, { type: "popTo", screen: "s1b" });
+    expect(back).toMatchObject({ screen: "s1b", nonOwnerDone: true, plan: null, round: 1 });
+    expect(from(back, { type: "popTo", screen: "plan" }).screen).toBe("s1b");
+    expect(from(atPlan, { type: "popTo", screen: "plan" }).screen).toBe("plan");
+  });
+
   it("S2: a type moves on; Other opens the box, which stops at 80, and its button moves on", () => {
     expect(run(...TO_S6.slice(0, 2)).screen).toBe("s34");
     const s = run({ type: "segment", value: "business" }, { type: "business", value: "other" }, { type: "businessOther", text: "x".repeat(100) });

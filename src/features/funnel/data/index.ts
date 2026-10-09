@@ -4,5 +4,5 @@ export * from "./light.js";
 export { AGENTS_VERSION, agentById, agents, departments, jobIdsFor, stopsFor } from "./agents.js";
 export { tierFor } from "./tier.js";
 export { classify, CLASSIFIER_VERSION } from "./classifier/classify.js";
-export { composePlan, laneAgent, priority, wordsDepartmentFor } from "./compose.js";
+export { composeGuestPlan, composePlan, GUEST_PLAN_INPUT, laneAgent, priority, wordsDepartmentFor } from "./compose.js";
 export { cleanProblemText, quoteWords } from "./words.js";

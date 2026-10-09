@@ -32,6 +32,14 @@ const OVERLAY = {
   "s9.err.sent": "Your plan is on its way to {email}. This page couldn't show it just now, but the email has all of it.",
   "s9.err.unsent": "This page couldn't show your plan just now. Reload to try again, or book a call.",
   "g.reload": "Reload the page",
+  // W17-B: S1b leads to a sample plan on the plan page (the owner vetoed D15's /products). S1b asks no name, so the
+  // hero line has none, and nothing says what they need: they run no business.
+  "s1b.btn.plan": "Show me a sample plan",
+  "hx.p.guest": "This is what a full Business Spine looks like: 33 AI agents for 137 jobs, one for each part of a business. No business needs all of it on day one. Scroll down for a sample: where a small business starts.",
+  "ph.hx.p.guest": "This is the full spine. No business needs all of it. Scroll for a sample: where a small business starts.",
+  "sp.hero.sub.guest": "A full Business Spine is 33 agents, one for each part of a business. This sample starts with {n} of them, carrying {j} jobs between them. The rest can wait.",
+  "hx.scroll.guest": "Scroll to explore",
+  "sp.guest.note": "A sample plan: the one we draw for a small business before it tells us anything.",
 };
 
 const range = (prefix, from, to) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}${i + from}`);
@@ -42,7 +50,7 @@ const SURFACES = {
     "g.about", "g.back", "g.progress", "g.footer", "g.error", "g.noscript",
     "s0.sub.early", "s0.sub.day", "s0.sub.late", "s0.promise",
     "s1.q", ...range("s1.o", 1, 5),
-    "s1b.q", ...range("s1b.o", 1, 5), "s1b.done", "s1b.btn",
+    "s1b.q", ...range("s1b.o", 1, 5), "s1b.done", "s1b.btn", "s1b.btn.plan",
     "s2.q", "s2.hint", "s2.o", "s2.other",
     "s3.q", "s3.why", "s3.o", "s4.q", "s4.why", "s4.o",
     "s5.q", "s5.why", "s5.o.IN", "s5.o.other", "s5.skip",
@@ -57,7 +65,7 @@ const SURFACES = {
     "hx.eyebrow", "hx.h1", "hx.h2", "hx.p", "hx.btn1", "hx.btn2",
     "hx.stat1.n", "hx.stat1.l", "hx.stat2.n", "hx.stat2.l", "hx.stat3.n", "hx.stat3.l",
     "hx.call1.n", "hx.call1.l", "hx.call2.n", "hx.call2.l", "hx.scroll", "hx.alt.light", "hx.alt.dark",
-    "ph.hx.h", "ph.hx.p", "ph.hx.stat2.l", "ph.hx.scroll",
+    "ph.hx.h", "ph.hx.p", "ph.hx.stat2.l", "ph.hx.scroll", "hx.p.guest", "ph.hx.p.guest", "hx.scroll.guest", "sp.hero.sub.guest", "sp.guest.note",
     "sp.save.fail", "sp.save.unsure",
     "sp.hero.eyebrow", "sp.pilot", "sp.brain.label", "sp.brain.tip", "sp.brain.live",
     "sp.hero.h", "sp.hero.h.fallback", "sp.hero.sub", "sp.hero.honest", "sp.pilot.note",

@@ -85,6 +85,7 @@ export type FlowAction =
   | { type: "contactInvalid"; fields: ContactField[] }
   | { type: "sendStarted"; visitor: { name: string; email: string } }
   | { type: "planReady"; plan: PlanDescriptor }
+  | { type: "guestPlan"; plan: PlanDescriptor }
   | { type: "sendFinished"; result: SendResult }
   | { type: "planShown"; seconds: number }
   | { type: "progress"; fields: PlanProgress }
@@ -117,11 +118,22 @@ function logErrors(list: readonly ContactError[], more: readonly ContactError[])
   return [...list, ...more].slice(0, LIMITS.contactErrors);
 }
 
+/** S1's two owner answers go on to S2; the other three are visitors who run no business, and go to S1b. */
+export const isOwnerSegment = (segment: Segment): boolean => segment === "business" || segment === "agency";
+
+/** W17-B: a visitor who runs no business and answered S1b. Their plan is the sample plan, with no name. */
+export const isGuestPath = (answers: Answers): boolean =>
+  answers.segment !== null && !isOwnerSegment(answers.segment) && answers.nonOwnerReason !== null;
+
 /**
  * The first screen before `target` whose answers are missing, else `target` (review H1). A reload keeps the
  * history entries but not the answers, so Back could otherwise reach S6 or S7 with S3 to S5 unanswered.
  */
 function firstGap(answers: Answers, target: Screen): Screen {
+  // W17-B: the sample plan needs only S1 and S1b; its visitor never sees S2 to S7.
+  if (target === "plan" && answers.segment !== null && !isOwnerSegment(answers.segment)) {
+    return answers.nonOwnerReason === null ? "s1b" : target;
+  }
   const needs: readonly [Screen, boolean][] = [
     ["s1", answers.segment !== null],
     ["s2", answers.businessType !== null],
@@ -137,7 +149,9 @@ function popTo(state: FlowState, target: Screen): FlowState {
   const base: FlowState = leavingPlan
     ? { ...state, round: state.round + 1, attempt: 0, contactErrors: [], plan: null, saveNotice: null, secondsToResult: null, progress: {} }
     : state;
-  const entry: Screen = target === "s8" ? "s7" : target === "plan" && !base.plan ? "s6" : target;
+  // A plan entry with no plan left (they went Back from it): the screen before it, S6, or S1b for the sample plan.
+  const noPlan: Screen = isGuestPath(base.answers) ? "s1b" : "s6";
+  const entry: Screen = target === "s8" ? "s7" : target === "plan" && !base.plan ? noPlan : target;
   const wanted = firstGap(base.answers, entry);
   return {
     ...base,
@@ -154,13 +168,17 @@ function popTo(state: FlowState, target: Screen): FlowState {
 export function reduce(state: FlowState, action: FlowAction): FlowState {
   switch (action.type) {
     case "segment": {
-      const owner = action.value === "business" || action.value === "agency";
+      const owner = isOwnerSegment(action.value);
       const preselect = action.value === "agency" && !state.answers.businessType ? "agency" : state.answers.businessType;
       const next = answer(state, { segment: action.value, businessType: preselect });
       return owner ? go(next, "s2") : go({ ...next, nonOwnerDone: false }, "s1b");
     }
     case "nonOwner":
       return go(answer({ ...state, nonOwnerDone: true }, { nonOwnerReason: action.value }), "s1b", "replace");
+    case "guestPlan":
+      // W17-B: S1b's answer opens the sample plan, once its code has loaded. A late one, after Back, is dropped.
+      if (state.screen !== "s1b" || !isGuestPath(state.answers)) return state;
+      return { ...go(state, "plan"), plan: action.plan, visitor: { name: "", email: "" }, saveNotice: null };
     case "business":
       if (action.value === "other") return answer(state, { businessType: "other" });
       return go(answer(state, { businessType: action.value }), "s34");

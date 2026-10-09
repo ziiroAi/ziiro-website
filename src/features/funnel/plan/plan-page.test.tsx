@@ -143,6 +143,22 @@ describe("PlanPage (§6)", () => {
     expect(alert && h1 ? alert.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING : 0).toBeTruthy();
   });
 
+  it("tells a visitor from S1b it's a sample plan, in the hero before the h1, and drops the name (W17-B)", () => {
+    const { container } = renderPage({ guest: true, visitor: { name: "", email: "" }, words: { problemText: "", chips: [] } });
+    const note = container.querySelector("[data-guest-note]");
+    const h1 = container.querySelector("h1");
+    expect(textOf(note)).toBe(copy("sp.guest.note"));
+    expect(note && h1 ? note.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING : 0).toBeTruthy();
+    expect(textOf(container)).toContain(copy("hx.p.guest"));
+    expect(textOf(container)).not.toContain(copy("hx.p", { name: "" }));
+    expect(note?.closest("section")).toBe(h1?.closest("section"));  // under the nav, not behind it at the page's top
+  });
+
+  it("shows no sample note on a plan from the questions (W17-B)", () => {
+    const { container } = renderPage();
+    expect(container.querySelector("[data-guest-note]")).toBeNull();
+  });
+
   it("reports the furthest block reached, and only when it's further (§9 plan_depth)", () => {
     renderPage();
     FakeObserver.last?.show(0);

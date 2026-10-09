@@ -25,10 +25,10 @@ const OVER_STAGE = "relative lg:z-10 lg:pointer-events-none lg:[&>section]:point
 /** The site's title suffix, as SEO.tsx writes it. */
 const TITLE_SUFFIX = " | Ziiro AI";
 
-export function PlanPage({ plan, visitor, words, saveNotice, onProgress }: PlanPageProps): JSX.Element {
+export function PlanPage({ plan, visitor, words, saveNotice, onProgress, guest = false }: PlanPageProps): JSX.Element {
   const view = useMemo(
-    () => buildPlanView({ plan, name: visitor.name, problemText: words.problemText }),
-    [plan, visitor.name, words.problemText],
+    () => buildPlanView({ plan, name: visitor.name, problemText: words.problemText, guest }),
+    [plan, visitor.name, words.problemText, guest],
   );
   const lit = useMemo(() => view.stops.map((stop) => stop.department), [view]);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -63,6 +63,7 @@ export function PlanPage({ plan, visitor, words, saveNotice, onProgress }: PlanP
               onBook={onBook}
               onProgress={report}
               stage={stage}
+              guest={guest}
             />
             <div className={OVER_STAGE}>
               <NeedBlock view={view} />

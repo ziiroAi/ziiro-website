@@ -55,7 +55,7 @@ describe("S1b and Back", () => {
     expect(window.history.state?.funnel).toBe("s1b");
   });
 
-  it("S1b has a Back arrow and no bar; its answer shows s1b.done and the way to /products in the same entry (D15)", () => {
+  it("S1b has a Back arrow and no bar; its answer shows s1b.done and a button to the sample plan in the same entry (W17-B)", () => {
     start();
     tap(button(root(), "I freelance"));
     expect(root().querySelector(".f-bar")).toBeNull();
@@ -65,7 +65,8 @@ describe("S1b and Back", () => {
     const done = "Got it, thanks. Everything's open, have a look around.";
     expect(root().querySelector("h2")?.textContent).toBe(done);
     expect(document.activeElement?.textContent).toBe(done);
-    expect(root().querySelector("a.f-act")?.getAttribute("href")).toBe("/products");
+    expect(root().querySelector('a[href="/products"]')).toBeNull();  // the owner vetoed D15 (W17-B)
+    expect(button(root(), "Show me a sample plan")).not.toBeNull();
     expect(window.history.length).toBe(length);
     expect(document.documentElement.dataset.funnel).toBe("questions");
   });
