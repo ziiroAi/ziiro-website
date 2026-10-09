@@ -1,11 +1,12 @@
 /** (C) S5 (spec §4.3, D10): a year's revenue as a band, in rupees for India and dollars elsewhere. */
 import { copy, currencyFor } from "@/features/funnel/data/light";
 import { revenueOptions } from "../options";
+import { localTimeZone } from "../region";
 import { OptionButton, Question, TopRow } from "../ui";
 import type { ScreenProps } from "./types";
 
 export function Revenue({ state, act, env }: ScreenProps) {
-  const currency = currencyFor(env.country, env.timeZone);
+  const currency = currencyFor(env.country, localTimeZone());
   return (
     <section className="f-screen" data-dir={state.dir}>
       <TopRow screen="s5" />

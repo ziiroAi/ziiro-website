@@ -15,7 +15,6 @@ export interface FlowEnv {
   boot: Boot;
   introOffsetMs: number | null;   // S0's intro: where it already is; null when it doesn't play
   country: string | null;         // from the first /visit save (Task 14)
-  timeZone: string | null;        // the device's (Task 8)
   starter: string;                // s6.text
   send(widget: TokenSource, contact: CheckedContact): void;  // S7's "Show me my plan" (Task 13)
 }

@@ -1,6 +1,17 @@
 /** (C) Where the visitor is, as far as the questions need: the device's time zone, and a dial code for S7 (§4.4, D10). */
 
+let cachedZone: string | null | undefined;
+
+/**
+ * Asked on first use, never during the first render: the first Intl.DateTimeFormat loads ICU's
+ * locale and zone data, ~30 ms on a phone profile (W15-E). S5's currency, S7's dial code and the saves ask.
+ */
 export function localTimeZone(): string | null {
+  if (cachedZone === undefined) cachedZone = readTimeZone();
+  return cachedZone;
+}
+
+function readTimeZone(): string | null {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
   } catch {

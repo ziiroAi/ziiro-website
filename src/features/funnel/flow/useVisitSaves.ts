@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { VisitFields } from "@/features/funnel/data/light";
 import type { Boot } from "./boot";
+import { localTimeZone } from "./region";
 import type { FlowState } from "./state";
 import { S1_SHOWN_MS, answerFields, landingFields, postVisit, stepOf } from "./visit";
 import { markStep } from "./visit-id";
@@ -12,7 +13,6 @@ import { markStep } from "./visit-id";
 interface SaveEnv {
   boot: Boot;
   starter: string;
-  timeZone: string | null;
   introOffsetMs: number;  // minus the time since first paint (Task 2)
 }
 
@@ -33,7 +33,7 @@ export function useVisitSaves(state: FlowState, env: SaveEnv): { country: string
   const key = JSON.stringify([state.round, step, fields]);
 
   useEffect(() => {
-    landing.current ??= landingFields(window, env.boot, env.timeZone);
+    landing.current ??= landingFields(window, env.boot, localTimeZone());
     const visit = markStep(step);
     void postVisit({ id: visit.id, step, fields: { ...landing.current, ...fields } }).then((answer) => {
       if (answer?.success && answer.country) setCountry(answer.country);
