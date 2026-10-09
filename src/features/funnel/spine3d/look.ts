@@ -105,7 +105,7 @@ export const LOOK = {
 
   /** The column, for turning: spin about axis through pivot (the gaps' fitted line). Yaw is free, pitch is the
    *  viewer's own clamp. Spinning about the column's own axis keeps it from wobbling: it leans 17 degrees back. */
-  model: { pivot: [0.01907, 0.51183, -0.0066] as Vec3, axis: [-0.0033, 0.95847, -0.28518] as Vec3 },
+  model: { pivot: [0.02259, 0.5082, -0.01814] as Vec3, axis: [-0.00705, 0.95683, -0.29058] as Vec3 },   // W19: m5's gaps' line (m4's was within 0.01)
 
   /** r17's camera (Blender (x, y, z) -> model (x, z, -y)). desktop: the landscape hero, 16:9. phone: the band
    *  under 600 px, a 1290 x 2796 portrait frame with a 68 mm lens, cropped to rows 282-1634 (1170 x 1230 shipped). */
@@ -201,16 +201,19 @@ export const LOOK = {
     } as ThemeLook,
   },
 
-  /** worker-3's full-gaps.json (funnel/proto/look/owner-models), bottom to top. Disc k is gap k. */
+  /** W19: m5's 9 disc gaps, bottom to top, in its placed space (worker-3's w19 prep-m5.mjs: his painted glow's strongest
+   *  texels, one window per disc, normals checked against the column; W19 r2: each normal along the column's local
+   *  tangent, the line through its neighbours' centres, so the rings sit level in their gaps, not as a helix). Disc k
+   *  is gap k. */
   gaps: [
-    { centre: [0.06315, 0.05504, 0.12523], normal: [-0.30375, 0.927, -0.22001], radius: 0.07507, width: 0.008, grooveRadius: 0.05481 },
-    { centre: [0.02844, 0.16972, 0.09831], normal: [-0.26114, 0.93611, -0.23559], radius: 0.07654, width: 0.016, grooveRadius: 0.05191 },
-    { centre: [0.00512, 0.28931, 0.06294], normal: [-0.18226, 0.9452, -0.27088], radius: 0.07442, width: 0.011, grooveRadius: 0.04968 },
-    { centre: [-0.00933, 0.39726, 0.03092], normal: [-0.09232, 0.94962, -0.29951], radius: 0.07203, width: 0.017, grooveRadius: 0.04764 },
-    { centre: [-0.01194, 0.51052, -0.00342], normal: [0.00635, 0.9495, -0.31372], radius: 0.06969, width: 0.021, grooveRadius: 0.04626 },
-    { centre: [-0.0067, 0.62676, -0.04044], normal: [0.09847, 0.9461, -0.30855], radius: 0.06746, width: 0.023, grooveRadius: 0.04311 },
-    { centre: [0.00961, 0.74395, -0.07737], normal: [0.168, 0.94221, -0.28987], radius: 0.06471, width: 0.023, grooveRadius: 0.03962 },
-    { centre: [0.0332, 0.8607, -0.11352], normal: [0.20192, 0.9403, -0.27399], radius: 0.06221, width: 0.03, grooveRadius: 0.0386 },
-    { centre: [0.06006, 0.95322, -0.14201], normal: [0.1956, 0.93995, -0.27969], radius: 0.06149, width: 0.016, grooveRadius: 0.03961 },
+    { centre: [0.03172, 0.05302, 0.1589], normal: [0.06883, 0.84105, -0.53656], radius: 0.06328, width: 0.022, grooveRadius: 0.04798 },
+    { centre: [0.04012, 0.15566, 0.09342], normal: [-0.02679, 0.87412, -0.48496], radius: 0.07129, width: 0.022, grooveRadius: 0.05665 },
+    { centre: [0.02516, 0.26708, 0.04014], normal: [-0.10094, 0.91937, -0.38021], radius: 0.07704, width: 0.023, grooveRadius: 0.06342 },
+    { centre: [0.01252, 0.40704, -0.01054], normal: [-0.08464, 0.93689, -0.33922], radius: 0.0742, width: 0.023, grooveRadius: 0.06031 },
+    { centre: [0.00181, 0.52554, -0.05344], normal: [-0.01635, 0.95849, -0.28466], radius: 0.07136, width: 0.022, grooveRadius: 0.05721 },
+    { centre: [0.00858, 0.63806, -0.07915], normal: [0.07152, 0.98372, -0.16488], radius: 0.06794, width: 0.021, grooveRadius: 0.05505 },
+    { centre: [0.01785, 0.74617, -0.09042], normal: [0.09583, 0.9904, -0.09959], radius: 0.06318, width: 0.02, grooveRadius: 0.05075 },
+    { centre: [0.02873, 0.84631, -0.10009], normal: [0.0987, 0.98143, -0.16448], radius: 0.05792, width: 0.019, grooveRadius: 0.045 },
+    { centre: [0.03683, 0.9349, -0.12205], normal: [0.0884, 0.96682, -0.23966], radius: 0.04851, width: 0.017, grooveRadius: 0.03861 },
   ] as readonly Gap[],
 } as const;

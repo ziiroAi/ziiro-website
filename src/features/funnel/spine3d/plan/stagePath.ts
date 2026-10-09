@@ -20,10 +20,12 @@ import { add, length, normalize, scale, sub, type Vec3 } from "./vec";
 
 /** Where the spine stands across the stage, from the left: right of the hero's words, left of block 2's, left or right
  *  of a department's text, left of the close's. A zoomed stop's disc stands a little in from either edge: its processes
- *  reach about 0.24 of the width to its left, its body about 0.14 to its right (W17-S strips). A phone's band keeps it
+ *  reach about 0.24 of the width to its left, its body about 0.14 to its right (W17-S strips). W19 r2: m5 reaches about
+ *  0.23 of the width outwards (away from the words) and 0.10 inwards at either stop, so the right stop stands at 0.66
+ *  and the spine never meets the screen's edge. A phone's band keeps it
  *  near its middle. */
 export const ACROSS: Readonly<Record<Variant, { hero: number; need: number; left: number; right: number; close: number }>> = {
-  desktop: { hero: 0.74, need: 0.27, left: 0.32, right: 0.78, close: 0.27 },
+  desktop: { hero: 0.74, need: 0.27, left: 0.32, right: 0.66, close: 0.27 },
   phone: { hero: 0.5, need: 0.5, left: 0.4, right: 0.6, close: 0.5 },
 };
 /** Block 2's zoom on the hero (W15-B2): the owner reads a subtle change as none, so it shows the spine half as big
@@ -158,10 +160,11 @@ export function needWordsOpacity(across: number, variant: Variant): number {
 }
 
 /** Words in the left column show from where the model stands at WORDS_LEFT_FROM (none) to WORDS_LEFT_FULL_AT (all):
- *  the zoomed spine's left edge (its processes), about 0.24 left of that, is then clear of the column's text, which
- *  ends at 43 % (W16-A, W17-S). Full by the hero's 0.74, so no section's words sit half faded in the page (axe, S9). */
-export const WORDS_LEFT_FROM = 0.67;
-export const WORDS_LEFT_FULL_AT = 0.73;
+ *  the zoomed spine's inner edge, about 0.11 left of that on m5 (W19 r2; 0.24 on m4), is then clear of the column's
+ *  text, which ends at 43 % (W16-A, W17-S). Full by the right stop's 0.66, so no section's words sit half faded in the
+ *  page (axe, S9). */
+export const WORDS_LEFT_FROM = 0.58;
+export const WORDS_LEFT_FULL_AT = 0.64;
 
 /** How much of a left-column section's words show, 0 to 1: they wait for the spine to reach the right. Always on a
  *  phone. */

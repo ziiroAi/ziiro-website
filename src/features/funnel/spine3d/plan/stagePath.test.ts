@@ -328,20 +328,21 @@ describe("the words make way for the spine on either side (W15-B3, W16-A)", () =
   });
 
   it("has words fully gone before the zoomed spine's edge reaches their column (W16-R L1)", () => {
-    // The zoomed spine reaches about 0.24 of the stage's width left of where its disc stands (its processes) and 0.14
-    // right of it (the W17-S strips at 1440); the columns are 46 %.
-    const LEFT_REACH = 0.24;
-    const RIGHT_REACH = 0.14;
+    // The zoomed m5 reaches about 0.11 of the stage's width from where its disc stands towards the words (INNER) and
+    // 0.23 away from them (OUTER), at either stop (W19 r2's sweep at 1440 and 1280); the columns are 46 %.
+    const INNER_REACH = 0.11;
+    const OUTER_REACH = 0.23;
     const COLUMN = 0.46;
     // Where the left column's text ends: x 615 of 1440 (its padding takes the rest of the 46 %).
     const LEFT_TEXT_ENDS = 0.43;
-    expect(wordsLeftOpacity(LEFT_TEXT_ENDS + LEFT_REACH, "desktop")).toBe(0);
-    expect(needWordsOpacity(1 - COLUMN - RIGHT_REACH, "desktop")).toBe(0);
+    expect(wordsLeftOpacity(LEFT_TEXT_ENDS + INNER_REACH, "desktop")).toBe(0);
+    expect(needWordsOpacity(1 - COLUMN - INNER_REACH, "desktop")).toBe(0);
     // At their own stops the words are fully in and the spine's edge is clear of them.
-    expect(ACROSS.desktop.right - LEFT_REACH).toBeGreaterThan(COLUMN);
-    expect(ACROSS.desktop.left + RIGHT_REACH).toBeLessThan(1 - COLUMN);
-    // And the processes stay on screen at a left stop.
-    expect(ACROSS.desktop.left - LEFT_REACH).toBeGreaterThan(0.05);
+    expect(ACROSS.desktop.right - INNER_REACH).toBeGreaterThan(COLUMN);
+    expect(ACROSS.desktop.left + INNER_REACH).toBeLessThan(1 - COLUMN);
+    // And the spine never meets the screen's edge at a stop (W19 r2: at least 8 % clear on either side).
+    expect(ACROSS.desktop.left - OUTER_REACH).toBeGreaterThanOrEqual(0.08);
+    expect(ACROSS.desktop.right + OUTER_REACH).toBeLessThanOrEqual(0.92);
     expect(wordsLeftOpacity(ACROSS.desktop.right, "desktop")).toBe(1);
     expect(needWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(1);
   });

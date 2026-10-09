@@ -10,19 +10,19 @@ import { add, dot, normalize, scale, sub, type Vec3 } from "./vec";
 /**
  * Each gap's front, bottom first (disc k is gap k), in the model's own space: the unit vector in the disc's plane
  * pointing away from the mean of the vertices beyond 1.3x the disc's radius within 0.06 of its plane (the arch and
- * processes). Measured on public/spine/3d/m4/spine-desktop.glb (m3's geometry) by worker-4's W18-D script
- * (scratchpad anterior.mjs); a new mesh with new geometry needs it measured again.
+ * processes). W19: measured on public/spine/3d/m5/spine-desktop.glb (the owner's coil, placed) by worker-3 with W18-D's
+ * rule (w19 anterior.mjs); a new mesh with new geometry needs it measured again.
  */
 export const ANTERIOR: readonly Vec3[] = [
-  [0.9489, 0.315, 0.0173],
-  [0.9584, 0.2805, 0.0523],
-  [0.9776, 0.2036, 0.0527],
-  [0.9837, 0.1337, 0.1207],
-  [0.9901, 0.0381, 0.1353],
-  [0.9863, -0.0515, 0.1569],
-  [0.9773, -0.1208, 0.1739],
-  [0.9732, -0.1613, 0.1637],
-  [0.9792, -0.1717, 0.1079],
+  [0.9764, 0.0536, 0.2093],
+  [0.9857, 0.1038, 0.1326],
+  [0.9690, 0.1775, 0.1721],
+  [0.9749, 0.1482, 0.1660],
+  [0.9910, 0.0533, 0.1225],
+  [0.9966, -0.0638, 0.0514],
+  [0.9948, -0.0917, 0.0453],
+  [0.9922, -0.0844, 0.0915],
+  [0.9960, -0.0832, 0.0319],
 ];
 
 const DEG = Math.PI / 180;
