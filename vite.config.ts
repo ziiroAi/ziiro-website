@@ -62,6 +62,17 @@ export default defineConfig({
             { name: "webgl", test: /node_modules[\\/]ogl[\\/]/ },
             { name: "scroll", test: /node_modules[\\/]lenis[\\/]/ },
             { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            // (C) W15-D: the live spine starts as a relay (probe → host → worker → mesh), one round trip per hop,
+            // which costs ~175 ms on a phone on Fast 4G. The host and its message protocol are ~1.4 kB of glue
+            // with no three.js in them, so they ride in the lazy viewer chunk and import("./host") needs no
+            // request. Three.js stays in the worker chunk; tests/build/spine-chain.check.ts holds both.
+            // Only these three files: by default a group also swallows its dependencies, which pulled shared
+            // funnel modules in and put the chunk on the first paint.
+            {
+              name: "spine-viewer",
+              test: /src[\\/]features[\\/]funnel[\\/]spine3d[\\/](SpineViewer\.tsx|host\.ts|protocol\.ts)$/,
+              includeDependenciesRecursively: false,
+            },
           ],
         },
       },
