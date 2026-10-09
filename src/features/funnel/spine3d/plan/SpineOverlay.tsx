@@ -231,7 +231,8 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
           ref={panelRef}
           className={
             variant === "desktop"
-              ? `pointer-events-auto absolute bottom-16 ${spineSide === "right" ? "right-4" : "left-4"} max-h-[70%] w-80 overflow-auto`
+              // On the right (the hero) it sits above the hero's scroll cue at the bottom right (W16-H).
+              ? `pointer-events-auto absolute ${spineSide === "right" ? "bottom-32 right-4" : "bottom-16 left-4"} max-h-[70%] w-80 overflow-auto`
               : "pointer-events-auto absolute inset-x-2 top-full mt-2 max-h-[50vh] overflow-auto"
           }
         >

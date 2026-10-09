@@ -122,12 +122,12 @@ async function stageCrossesWords(page: Page): Promise<string | null> {
     const width = screen.getBoundingClientRect().width;
     const spineLeft = (across - REACH) * width;
     const spineRight = (across + REACH) * width;
-    const hero = document.querySelector<HTMLElement>("#plan-hero-title")!.closest("section")!;
-    const stats = document.querySelector<HTMLElement>("[data-testid=spine-stage] ~ div")!;
+    // W16-H: the hero's words column holds its stats too; its scroll cue sits at the bottom right, past the spine.
+    const hero = document.querySelector<HTMLElement>("#plan-hero-title")!.parentElement!;
     const need = document.querySelector<HTMLElement>('[data-depth="0"]')!;
     // The hero's words are left of the spine, block 2's right of it.
     const parts: [HTMLElement, (box: DOMRect) => boolean][] = [
-      [hero, (box) => box.right >= spineLeft], [stats, (box) => box.right >= spineLeft], [need, (box) => box.left <= spineRight],
+      [hero, (box) => box.right >= spineLeft], [need, (box) => box.left <= spineRight],
     ];
     const legend = screen.querySelector<HTMLElement>("[data-legend]");
     const legendBox = legend && Number(getComputedStyle(legend).opacity) > 0.01 ? legend.getBoundingClientRect() : null;
@@ -219,11 +219,22 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
         const panel = stage.locator('[role=dialog][data-disc="G04"]');
         await expect(panel).toBeVisible();
         const covered = await panel.evaluate((dialog) => {
-          const p = dialog.getBoundingClientRect();
+          // What shows of the panel: its box, cut to every scrolling ancestor (the dock is max-h 70 %, overflow-auto,
+          // so a long list runs on below what the visitor sees).
+          const box = dialog.getBoundingClientRect();
+          const p = { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+          for (let el = dialog.parentElement; el; el = el.parentElement) {
+            if (getComputedStyle(el).overflowY === "visible") continue;
+            const c = el.getBoundingClientRect();
+            p.left = Math.max(p.left, c.left);
+            p.top = Math.max(p.top, c.top);
+            p.right = Math.min(p.right, c.right);
+            p.bottom = Math.min(p.bottom, c.bottom);
+          }
+          // The whole hero: its words, its stats and its scroll cue (W16-H).
           const hero = document.querySelector<HTMLElement>("#plan-hero-title")!.closest("section")!;
-          const stats = document.querySelector<HTMLElement>("[data-testid=spine-stage] ~ div")!;
           const hits: string[] = [];
-          for (const part of [hero, stats]) {
+          for (const part of [hero]) {
             const walker = document.createTreeWalker(part, NodeFilter.SHOW_TEXT);
             for (let node = walker.nextNode(); node; node = walker.nextNode()) {
               if (!node.textContent?.trim()) continue;

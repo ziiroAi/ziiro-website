@@ -30,10 +30,39 @@ function renderHero(onBook = vi.fn(), headingRef = createRef<HTMLHeadingElement>
 }
 
 describe("Hero (§6.2 block 1)", () => {
-  it("puts the plan's stage between the words and the stats, so a phone reads the words first (D34, W15-B)", () => {
+  it("puts the stats directly under the buttons, in the words' column, and the plan's stage after them (W16-H)", () => {
+    // The owner's reference (w16/owner/owner-11-hero-reference.png): the stats row sits under the CTAs, not at the
+    // bottom of the screen. A phone reads the words and the stats first, then the band (D34).
     const { container } = renderHero(vi.fn(), createRef<HTMLHeadingElement>(), vi.fn(), <div data-testid="stage-slot" />);
-    const order = [...container.querySelectorAll("h1, [data-testid=stage-slot], ul")].map((el) => el.tagName);
-    expect(order).toEqual(["H1", "DIV", "UL"]);
+    const order = [...container.querySelectorAll("h1, a, [data-hero-stats], [data-testid=stage-slot]")].map((el) => el.tagName);
+    expect(order).toEqual(["H1", "A", "UL", "DIV"]);
+    const words = container.querySelector("h1")!.parentElement!;
+    expect(words.contains(container.querySelector("[data-hero-stats]"))).toBe(true);
+    expect(container.querySelector("[data-hero-stats]")!.previousElementSibling!.contains(container.querySelector("a"))).toBe(true);
+  });
+
+  it("ends with a scroll cue at the bottom right of the hero from 1024 px, in our words, fading with them (W16-H)", () => {
+    const { container } = renderHero();
+    const cue = container.querySelector<HTMLElement>("[data-scroll-cue]")!;
+    expect(cue.closest("section")).toBe(container.querySelector("section"));
+    expect(cue.className).toContain("lg:absolute");
+    // At the screen's bottom, not the section's (it ends a nav height short): mid-height it met the lowest callout.
+    expect(cue.className).toContain("lg:bottom-[calc(1.5rem-var(--nav-h,84px))]");
+    expect(cue.className).toContain("lg:right-10");
+    expect(textOf(cue)).toContain(copy("hx.scroll"));
+    expect(textOf(cue)).toContain(copy("ph.hx.scroll"));
+    expect(cue.querySelector("[aria-hidden=true]")).not.toBeNull(); // the mouse icon says nothing to a screen reader
+  });
+
+  it("keeps a hold under the hero from 1024 px, so block 2 starts over a screen down and the stage holds the hero first (W16-H)", () => {
+    // PlanStage starts the hero's travel a screen above block 2 (line + travel = 100vh): with the stats moved up into
+    // the hero, block 2 came within a screen and reduced motion cut to the close-up at scroll 0. This keeps the
+    // ~190 px the old stats row and scroll line gave.
+    const { container } = renderHero(vi.fn(), createRef<HTMLHeadingElement>(), vi.fn(), <div data-testid="stage-slot" />);
+    const hold = container.querySelector<HTMLElement>("[data-hero-hold]")!;
+    expect(hold.previousElementSibling).toBe(container.querySelector("section"));
+    expect(hold.getAttribute("aria-hidden")).toBe("true");
+    expect(hold.className.split(" ")).toEqual(expect.arrayContaining(["hidden", "lg:block", "lg:h-48"]));
   });
 
   it("sits over the stage from 1024 px: the words in the left 55 %, and only they take the pointer (W15-B)", () => {
@@ -46,14 +75,12 @@ describe("Hero (§6.2 block 1)", () => {
     expect(words.className).toContain("lg:pointer-events-auto");
   });
 
-  it("fades its words and stats with the stage's --hero-words, and hides them once gone, from 1024 px (W15-B3)", () => {
+  it("fades its words, stats and cue with the stage's --hero-words, and hides them once gone, from 1024 px (W15-B3)", () => {
     const { container } = renderHero();
     const section = container.querySelector("section")!;
-    const stats = container.querySelector("ul")!.parentElement!;
-    for (const el of [section, stats]) {
-      expect(el.className).toContain("lg:opacity-[var(--hero-words,1)]");
-      expect(el.className).toContain("lg:group-data-[hero-hidden]/stage:invisible");
-    }
+    expect(section.contains(container.querySelector("[data-hero-stats]"))).toBe(true);
+    expect(section.className).toContain("lg:opacity-[var(--hero-words,1)]");
+    expect(section.className).toContain("lg:group-data-[hero-hidden]/stage:invisible");
   });
 
   it("shows the eyebrow, both title lines, and their words with the name", () => {
@@ -84,14 +111,14 @@ describe("Hero (§6.2 block 1)", () => {
   it("opens the film from hx.btn2", () => {
     expect(FILM_READY).toBe(true);
     const { container } = renderHero();
-    const button = Array.from(container.querySelectorAll("button")).find((b) => textOf(b) === copy("hx.btn2"));
+    const button = Array.from(container.querySelectorAll("button")).find((b) => textOf(b).startsWith(copy("hx.btn2")));
     click(button ?? null);
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
   });
 
   it("shows the three stats, with the phone's own label for the second", () => {
     const { container } = renderHero();
-    const stats = textOf(container.querySelector("ul"));
+    const stats = textOf(container.querySelector("[data-hero-stats]"));
     for (const id of ["hx.stat1.n", "hx.stat1.l", "hx.stat2.n", "hx.stat2.l", "ph.hx.stat2.l", "hx.stat3.n", "hx.stat3.l"]) {
       expect(stats).toContain(copy(id));
     }

@@ -139,6 +139,14 @@ describe("SpineOverlay: the disc panel docks on the spine's side (W15-B4 H1)", (
     expect(panelBox(container)).not.toMatch(/(^| )left-4( |$)/);
   });
 
+  it("sits above the hero's scroll cue at the bottom right, so the cue's words never print over it (W16-H)", () => {
+    const fake = fakeApi();
+    const container = mount(fake.api, "desktop", 0, "right");
+    fake.pick({ disc: "G04", via: "tap", box: BOXES[3] });
+    expect(panelBox(container)).toMatch(/(^| )bottom-32( |$)/);
+    expect(panelBox(container)).not.toMatch(/(^| )bottom-16( |$)/);
+  });
+
   it("opens on the left while the spine stands left (the stops), clear of the text column", () => {
     const fake = fakeApi();
     const container = mount(fake.api, "desktop", 0, "left");

@@ -1,6 +1,8 @@
 // Block 1 (§6.2): the full spine and its numbers. The spine is the plan's one stage (W15-B, PlanStage): from 1024 px
-// it fills the screen behind the hero, with the words over its left 55 % and the spine on the right. Under that (D34)
-// the words come first, then the stage as a sticky band, then the stats and the scroll line.
+// it fills the screen behind the hero, with the words over its left 55 % and the spine on the right. W16-H lays the
+// words out as the owner's reference (w16/owner/owner-11-hero-reference.png): a wide-tracked eyebrow, a big tight
+// headline, a narrow paragraph, the CTA row, the stats directly under it, and a scroll cue at the bottom right. Under
+// 1024 px (D34) the words and stats come first, then the stage as a sticky band.
 import { useState, type ReactNode, type Ref } from "react";
 import { copy } from "../data";
 import type { CtaFrom, PlanProgress } from "../data/contract";
@@ -18,8 +20,10 @@ const STATS = [
   { number: "hx.stat3.n", label: "hx.stat3.l", phoneLabel: "hx.stat3.l" },
 ] as const;
 
-const MICRO = "font-mono text-xs uppercase tracking-[0.18em] text-[color:var(--funnel-muted)]";
-const BUTTON = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 text-sm font-medium";
+/** The reference's eyebrow and cue: small caps, set very wide. */
+const WIDE = "text-xs uppercase tracking-[0.32em] text-[color:var(--funnel-muted)] lg:text-[13px]";
+/** The reference's buttons: tall pills, about 60 px at 1440, the label and its glyph spaced apart. */
+const BUTTON = "inline-flex min-h-12 items-center justify-center gap-4 rounded-full px-6 text-sm font-medium lg:min-h-[3.75rem] lg:px-8 lg:text-base";
 /** From 1024 px the hero lies over the stage: it fills the screen under the bar and lets the pointer through to the
  *  spine, except on the words themselves. */
 const OVER_STAGE = "relative lg:z-10 lg:pointer-events-none";
@@ -38,6 +42,23 @@ export interface HeroProps {
   stage?: ReactNode;
 }
 
+/** The reference's scroll cue: a mouse outline with its wheel dot, and the line in two short rows beside it. On a
+ *  phone, just the line under the stats. From 1024 px it sits at the screen's bottom (the section ends a nav height
+ *  short), under the lowest callout and right of the legend. */
+function ScrollCue(): JSX.Element {
+  return (
+    <div
+      data-scroll-cue
+      className="mt-8 flex items-center gap-4 px-4 sm:px-6 lg:absolute lg:bottom-[calc(1.5rem-var(--nav-h,84px))] lg:right-10 lg:mt-0 lg:px-0"
+    >
+      <span aria-hidden="true" className="relative hidden h-12 w-7 rounded-full border border-[color:var(--funnel-muted)] lg:block">
+        <span className="absolute left-1/2 top-2.5 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[color:var(--funnel-fg)]" />
+      </span>
+      <Swap as="p" lines={{ desktop: copy("hx.scroll"), phone: copy("ph.hx.scroll") }} className={`${WIDE} lg:max-w-[9rem] lg:leading-relaxed`} />
+    </div>
+  );
+}
+
 export function Hero({ heroText, name, email, headingRef, onBook, onProgress, stage }: HeroProps): JSX.Element {
   const [filmOpen, setFilmOpen] = useState(false);
   const [firstLine, secondLine] = heroTitle();
@@ -47,19 +68,19 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress, st
         aria-labelledby="plan-hero-title"
         className={`${OVER_STAGE} ${MAKES_WAY} pb-10 lg:flex lg:min-h-[calc(100vh-var(--nav-h,84px))] lg:items-center lg:pb-0`}
       >
-        <div className="px-4 pt-24 sm:px-6 lg:pointer-events-auto lg:w-[55%] lg:px-10 lg:pt-0">
-          <p className={MICRO}>{copy("hx.eyebrow")}</p>
+        <div className="px-4 pt-24 sm:px-6 lg:pointer-events-auto lg:w-[55%] lg:px-10 lg:pt-0 xl:pl-16">
+          <p className={WIDE}>{copy("hx.eyebrow")}</p>
           <h1
             id="plan-hero-title"
             ref={headingRef}
             tabIndex={-1}
-            className="mt-4 text-5xl font-medium leading-[1.02] tracking-tight outline-none lg:text-7xl"
+            className="mt-5 text-5xl font-semibold leading-[0.96] tracking-[-0.035em] outline-none lg:mt-7 lg:text-[clamp(4.5rem,7vw,7.5rem)] lg:leading-[0.94]"
           >
             <Swap lines={firstLine} className="block" />{" "}
             <Swap lines={secondLine} className="block text-[color:var(--funnel-muted)]" />
           </h1>
-          <Swap as="p" lines={heroText} className="mt-6 max-w-xl text-base text-[color:var(--funnel-muted)] lg:text-lg" />
-          <div className="mt-8 flex flex-wrap gap-3">
+          <Swap as="p" lines={heroText} className="mt-6 max-w-[30rem] text-base leading-relaxed lg:mt-8 lg:text-lg" />
+          <div className="mt-8 flex flex-wrap gap-3 lg:mt-9 lg:gap-4">
             <BookCallLink
               name={name}
               email={email}
@@ -78,23 +99,28 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress, st
                 className={`${BUTTON} border border-[color:var(--funnel-line)]`}
               >
                 {copy("hx.btn2")}
+                <span aria-hidden="true">▷</span>
               </button>
             )}
           </div>
+          <ul data-hero-stats className="mt-12 grid grid-cols-3 gap-4 lg:mt-20 lg:flex lg:gap-0 lg:divide-x lg:divide-[color:var(--funnel-line)]">
+            {STATS.map((s) => (
+              <li key={s.number} className="lg:px-10 lg:first:pl-0">
+                <span className="block text-3xl font-semibold tracking-tight lg:text-[2rem]">{copy(s.number)}</span>{" "}
+                <Swap
+                  lines={{ desktop: copy(s.label), phone: copy(s.phoneLabel) }}
+                  className="mt-1 block text-sm tracking-[0.04em] text-[color:var(--funnel-muted)] lg:text-base"
+                />
+              </li>
+            ))}
+          </ul>
         </div>
+        <ScrollCue />
       </section>
+      {/* The stage starts the hero's travel a screen above block 2; the old stats row and scroll line kept block 2
+          that far down, and this keeps it there now they sit in the hero, or reduced motion cuts away at scroll 0. */}
+      <div data-hero-hold aria-hidden="true" className="hidden lg:block lg:h-48" />
       {stage}
-      <div className={`${OVER_STAGE} ${MAKES_WAY}`}>
-        <ul className="grid grid-cols-3 gap-4 px-4 pt-8 sm:px-6 lg:pointer-events-auto lg:w-[55%] lg:px-10">
-          {STATS.map((s) => (
-            <li key={s.number}>
-              <span className="block text-3xl font-medium lg:text-4xl">{copy(s.number)}</span>{" "}
-              <Swap lines={{ desktop: copy(s.label), phone: copy(s.phoneLabel) }} className="block text-sm text-[color:var(--funnel-muted)]" />
-            </li>
-          ))}
-        </ul>
-        <Swap as="p" lines={{ desktop: copy("hx.scroll"), phone: copy("ph.hx.scroll") }} className={`px-4 pb-10 pt-6 sm:px-6 lg:px-10 ${MICRO}`} />
-      </div>
       <FilmLightbox open={filmOpen} onClose={() => setFilmOpen(false)} onProgress={onProgress} />
     </>
   );
