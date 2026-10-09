@@ -1,4 +1,5 @@
 import { expect, test } from "./fixtures";
+import { probeAnswers } from "./support/gpu";
 import { answerAsAnanya, expectPlan, fillContact, sendContact } from "./support/questions";
 import type { Page } from "@playwright/test";
 
@@ -17,8 +18,10 @@ async function toPlan(page: Page) {
   await expectPlan(page);
 }
 
-/** No WebGL context anywhere: the worker path removed (init scripts don't reach workers), getContext("webgl*") null. */
+/** No WebGL context anywhere: the worker path removed (init scripts don't reach workers), getContext("webgl*") null,
+ *  and the software-GL probe worker answering as a worker with no WebGL does (W14-X). */
 async function withoutWebGL(page: Page) {
+  await probeAnswers(page, false);
   await page.addInitScript(() => {
     Reflect.deleteProperty(HTMLCanvasElement.prototype, "transferControlToOffscreen");
     const original = HTMLCanvasElement.prototype.getContext;

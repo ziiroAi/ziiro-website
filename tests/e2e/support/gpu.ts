@@ -14,11 +14,15 @@ const HARDWARE_NAME = "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified
 
 /** W14-X: the probe runs in its own worker (gl-probe.worker.ts), which init scripts never reach. */
 const PROBE_WORKER = /\/assets\/gl-probe\.worker-[\w-]+\.js(\?|$)/;
-const PROBE_SEES_HARDWARE = "self.postMessage({ software: false }); self.close();";
+
+/** Makes the probe worker answer as given: `false` for a hardware GPU, or for a browser whose worker has no WebGL. */
+export async function probeAnswers(page: Page, software: boolean): Promise<void> {
+  const body = `self.postMessage({ software: ${software} }); self.close();`;
+  await page.context().route(PROBE_WORKER, (route) => route.fulfill({ status: 200, contentType: "text/javascript", body }));
+}
 
 export async function probeSeesHardware(page: Page): Promise<void> {
-  await page.context().route(PROBE_WORKER, (route) =>
-    route.fulfill({ status: 200, contentType: "text/javascript", body: PROBE_SEES_HARDWARE }));
+  await probeAnswers(page, false);
   await page.addInitScript(({ unmasked, name }) => {
     for (const proto of [WebGL2RenderingContext.prototype, WebGLRenderingContext.prototype]) {
       const real = proto.getParameter;
