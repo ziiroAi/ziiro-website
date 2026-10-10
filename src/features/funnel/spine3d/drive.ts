@@ -5,18 +5,22 @@
 // first frames come too slowly (pace.ts); a drag, a fling or a flight still draws.
 // W15-C4: the idle motion is a sweep across the side and front (sweep.ts), never a full turn: from behind the model
 // reads as lumps. A drag still turns it freely all the way round.
+// W23-C, W23-C4: the sway comes to rest 9 s after the last scroll, drag or hover, so an idle page draws nothing; the
+// phone's 30 fps cap holds for the sway alone, a scroll draws every display frame; and a phone scroll whose frames miss
+// their budget draws at 1 device pixel per CSS pixel until it rests (full quality at rest, always).
 import type { DiscId } from "../data/contract";
+import { themeFadeNow } from "../flow/theme";
 import type { DiscPickEvent, SpineViewerApi, StagePose } from "./api";
 import { baseFraming, blendFraming, easeInOut, FLIGHT_MS, framingFor, type Framing } from "./camera";
 import type { SpineHandle } from "./host";
 import { discLevels } from "./levels";
 import { dragBy, grab, release, REST, step, type Motion } from "./orbit";
-import { isTooSlow, SAMPLE_FRAMES, spinFrameMsFor } from "./pace";
+import { isTooSlow, median, SAMPLE_FRAMES, spinFrameMsFor } from "./pace";
 import { pickDisc, screenDisc } from "./plan/tap";
 import { variantNow } from "./plan/targets";
 import type { MeshSize } from "./rules";
 import type { DiscBox } from "./scene";
-import { enterSweep, stepSweep, type Sweep } from "./sweep";
+import { enterSweep, settleSweep, stepSweep, type Sweep } from "./sweep";
 
 /** A press that moved less than this and lasted less than TAP_MS is a tap, not a drag. */
 const TAP_SLOP_PX = 8;
@@ -26,6 +30,15 @@ const FRAME_MS = 16;
 const MAX_FRAME_MS = 64;
 /** A capped spin draws a frame this much early rather than skip a whole display frame for a millisecond's jitter. */
 const CAP_SLACK_MS = 4;
+/** W23-C, W23-C4: the sway sets off for its rest this long after the last input, and rests SWAY_SETTLE_MS later: 9 s. */
+export const SWAY_REST_AFTER_MS = 6_000;
+/** W23-C: a phone scroll whose median frame over the last BUDGET_FRAMES is over SCROLL_BUDGET_MS draws at LOW_DPR. */
+const SCROLL_BUDGET_MS = 20;
+const BUDGET_FRAMES = 8;
+const LOW_DPR = 1;
+/** W23-C, W23-C3 M2: no scroll frame for this long is rest, and the full pixel ratio comes back. Long enough to hold the
+ *  low ratio through a train of short scrolls, so each switch (a whole composer rebuilt) happens once a train, not a burst. */
+export const SCROLL_REST_MS = 1_500;
 
 export interface DrivePace {
   /** False where the idle spin must never run (a software renderer). */
@@ -94,6 +107,8 @@ export function createDrive(
   let raf = 0;
   let last = 0;
   let visible = true;
+  /** W23-C: the stage's own say (setShown): a faded-out stage draws nothing. */
+  let shown = true;
   /** Set once the GPU proved too slow for the idle spin: it stays off for good (W14-O). */
   let tooSlow = false;
   const spinAllowed = () => motion.spin && pace.idleSpin && !tooSlow;
@@ -115,10 +130,24 @@ export function createDrive(
   /** Judged only where the spin can ever run; a reader may turn reduced motion off later (T8). */
   let judged = !pace.idleSpin;
   const spinFrameMs = spinFrameMsFor(size);
+  /** W23-C: the last input (scroll, drag, hover, focus), when the sway rested, and whether this frame was asked for by
+   *  something other than the sway (the phone's cap is for the sway alone). */
+  let lastInput = performance.now();
+  let rested = false;
+  let moved = false;
+  /** W23-C: a phone scroll's frame times, and whether it draws at LOW_DPR now. */
+  let scrollMs: number[] = [];
+  let lowRes = false;
+  let restTimer: ReturnType<typeof setTimeout> | null = null;
+  let px = (() => {
+    const { width, height } = el.getBoundingClientRect();
+    return { width, height };
+  })();
+  const fullDpr = () => devicePixelRatio || 1;
   const boxListeners = new Set<(boxes: readonly DiscBox[]) => void>();
   const pickListeners = new Set<(event: DiscPickEvent) => void>();
 
-  const running = () => visible && document.visibilityState !== "hidden";
+  const running = () => visible && shown && document.visibilityState !== "hidden";
   const schedule = () => {
     if (!raf && running()) raf = requestAnimationFrame(tick);
   };
@@ -138,6 +167,45 @@ export function createDrive(
     return false;
   }
 
+  /** W23-C: an input: the sway, if rested, sets off again from where it is. */
+  function poke(): void {
+    lastInput = performance.now();
+    // W23-C3 L1: a settling sway too: it carries on from where it is (re-entry is smooth), and rests a while later.
+    if (rested || sweep?.final) sweep = null;
+    rested = false;
+  }
+
+  /** W23-C: the pixel ratio back to full once the scroll rests. */
+  function restore(): void {
+    restTimer = null;
+    scrollMs = [];
+    if (!lowRes) return;
+    // W23-C3 L2: a resize would cut a running theme crossfade; come back once it is over.
+    if (themeFadeNow()) {
+      restTimer = setTimeout(restore, SCROLL_REST_MS);
+      return;
+    }
+    lowRes = false;
+    handle.resize(px.width, px.height, fullDpr());
+  }
+
+  /** W23-C: a scroll frame's time. A phone scroll over budget drops to LOW_DPR once, till it rests. */
+  function budget(ms: number): void {
+    if (size !== "phone" || !restTimer || lowRes || fullDpr() <= LOW_DPR || themeFadeNow()) return;
+    scrollMs = [...scrollMs, ms].slice(-BUDGET_FRAMES);
+    if (scrollMs.length < BUDGET_FRAMES || median(scrollMs) <= SCROLL_BUDGET_MS) return;
+    lowRes = true;
+    handle.resize(px.width, px.height, LOW_DPR);
+  }
+
+  /** W23-C: a frame the scroll asked for; the rest timer runs from the last one. */
+  function scrolled(): void {
+    moved = true;
+    poke();
+    if (restTimer !== null) clearTimeout(restTimer);
+    restTimer = setTimeout(restore, SCROLL_REST_MS);
+  }
+
   /** One frame's time; the spin turns off for good once the first SAMPLE_FRAMES are too slow. */
   function judge(ms: number): void {
     if (judged) return;
@@ -155,7 +223,10 @@ export function createDrive(
    * 16 ms however slow the GPU is, so the worker reports its own frame time with its boxes (takeBoxes).
    */
   function timeFrame(now: number): void {
-    if (!handle.offThread && lastFrame) judge(now - lastFrame);
+    if (!handle.offThread && lastFrame) {
+      judge(now - lastFrame);
+      budget(now - lastFrame);
+    }
     lastFrame = now;
   }
 
@@ -173,8 +244,10 @@ export function createDrive(
   function tick(now: number): void {
     raf = 0;
     timeFrame(now);
-    const idle = spin && focused && !holding;
-    if (idle && spinOnly() && last && now - last < spinFrameMs - CAP_SLACK_MS) {
+    const idle = spin && focused && !holding && !rested;
+    const askedFor = moved;
+    moved = false;
+    if (idle && !askedFor && spinOnly() && last && now - last < spinFrameMs - CAP_SLACK_MS) {
       schedule();
       return;
     }
@@ -185,16 +258,19 @@ export function createDrive(
     const flying = advanceFlight(now);
     const sweeping = idle && spinOnly();
     if (sweeping) {
-      const next = stepSweep(sweep ?? enterSweep(orbit.yaw), dt);
-      sweep = next.sweep;
+      const from = sweep ?? enterSweep(orbit.yaw);
+      const settle = !from.final && performance.now() - lastInput >= SWAY_REST_AFTER_MS;
+      const next = stepSweep(settle ? settleSweep(from) : from, dt);
+      sweep = next.rested ? null : next.sweep;
+      rested = next.rested;
       orbit = { ...orbit, yaw: next.yaw };
-    } else sweep = null;
+    } else if (!rested) sweep = null;
     handle.render({
       yaw: orbit.yaw + holdTurn * scrubHold + pose.turn,
       pitch: orbit.pitch * (1 - scrubHold),
       framing,
     });
-    if (stepped.moving || sweeping || flying || orbit.held) schedule();
+    if (stepped.moving || (sweeping && !rested) || flying || orbit.held) schedule();
     else {
       last = 0;
       lastFrame = 0;
@@ -234,6 +310,7 @@ export function createDrive(
     const { x, y } = local(event);
     press = { id: event.pointerId, type: event.pointerType, x, y, t: event.timeStamp, startX: x, startY: y, startT: event.timeStamp };
     orbit = grab(orbit);
+    poke();
     el.setPointerCapture?.(event.pointerId);
     schedule();
   };
@@ -241,9 +318,14 @@ export function createDrive(
   const onMove = (event: PointerEvent) => {
     const { x, y } = local(event);
     if (!press || event.pointerId !== press.id) {
-      if (event.pointerType === "mouse") hoverAt(x, y);
+      if (event.pointerType !== "mouse") return;
+      hoverAt(x, y);
+      // W23-C: a hover wakes a rested sway.
+      poke();
+      schedule();
       return;
     }
+    poke();
     orbit = dragBy(orbit, x - press.x, y - press.y, event.timeStamp - press.t);
     press = { ...press, x, y, t: event.timeStamp };
     schedule();
@@ -256,6 +338,7 @@ export function createDrive(
     if (event.type === "pointerup" && still && event.timeStamp - press.startT < TAP_MS) tapAt(x, y);
     orbit = release(orbit, motion);
     press = null;
+    poke();
     schedule();
   };
 
@@ -265,11 +348,16 @@ export function createDrive(
     emit({ disc: null, via: "hover", box: null });
   };
 
-  const onVisibility = () => (running() ? schedule() : stopLoop());
+  const onVisibility = () => {
+    if (!running()) return stopLoop();
+    poke();
+    schedule();
+  };
   // Out of focus the spin's next frame is its last; back in focus it carries on.
   const onBlur = () => (focused = false);
   const onFocus = () => {
     focused = true;
+    poke();
     schedule();
   };
   const io = typeof IntersectionObserver === "undefined" ? null : new IntersectionObserver(([entry]) => {
@@ -278,7 +366,8 @@ export function createDrive(
   });
   io?.observe(el);
   const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(([entry]) => {
-    handle.resize(entry.contentRect.width, entry.contentRect.height, devicePixelRatio || 1);
+    px = { width: entry.contentRect.width, height: entry.contentRect.height };
+    handle.resize(px.width, px.height, lowRes ? LOW_DPR : fullDpr());
     schedule();
   });
   ro?.observe(el);
@@ -308,10 +397,12 @@ export function createDrive(
       if (weight === 0) holdTurn = 0;
       scrubHold = weight;
       holding = weight > 0;
+      scrolled();
       schedule();
     },
     setPose: (next) => {
       pose = { turn: next.turn };
+      scrolled();
       schedule();
     },
     flyTo: (target, options) => {
@@ -319,6 +410,7 @@ export function createDrive(
       scrubHold = 0;
       holdTurn = 0;
       const to = framingFor(target, size);
+      poke();
       holding = options?.hold === true;
       const turn = holding ? { fromYaw: orbit.yaw, fromPitch: orbit.pitch, toYaw: Math.round(orbit.yaw / TURN) * TURN } : null;
       if (turn) orbit = { ...orbit, yawSpeed: 0, pitchSpeed: 0 };
@@ -334,6 +426,11 @@ export function createDrive(
         schedule();
       });
     },
+    setShown: (next) => {
+      if (next === shown) return;
+      shown = next;
+      onVisibility();
+    },
     setLit: (lit) => handle.setLevels(discLevels(lit ?? undefined)),
     onDiscBoxes: (listener) => {
       boxListeners.add(listener);
@@ -347,17 +444,22 @@ export function createDrive(
     boxes: () => boxes,
     takeBoxes: (next, frameMs) => {
       boxes = next;
-      if (handle.offThread && frameMs !== undefined) judge(frameMs);
+      if (handle.offThread && frameMs !== undefined) {
+        judge(frameMs);
+        budget(frameMs);
+      }
       boxListeners.forEach((listener) => listener(next));
     },
     wake: schedule,
     setMotion: (next) => {
       motion = next;
       spin = spinAllowed();
+      poke();
       schedule();
     },
     dispose: () => {
       stopLoop();
+      if (restTimer !== null) clearTimeout(restTimer);
       flight?.resolve();
       io?.disconnect();
       ro?.disconnect();

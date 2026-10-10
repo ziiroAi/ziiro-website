@@ -180,6 +180,32 @@ html[data-funnel] .f-s8 span { display: inline-block; animation: f-fade-up 300ms
 @keyframes f-in-left { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
 @keyframes f-clear { to { opacity: 0; visibility: hidden; } }
 
+/* W23-C: the loading cue on the plan's still while its 3D loads. A hairline in the accent, low under the model. It
+   appears after 600 ms (SpineViewer's CUE_DELAY_MS timer, so a warm load never shows it), fades in, and fades out with
+   the 3D's crossfade. Reduced motion: it appears on the same timer and holds still. */
+.f-load-cue {
+  /* Under the model, at the stage's foot where the bone has faded out: the plan stage sets --spine-across, the share
+     of the screen across where the model stands. */
+  position: absolute; left: calc(var(--spine-across, 0.5) * 100%); bottom: 12px; width: 72px; height: 2px; margin-left: -36px;
+  pointer-events: none;
+  transition: opacity 300ms ease-out;
+}
+.f-load-cue > span {
+  position: absolute; inset: 0; overflow: hidden; border-radius: 1px;
+  background: color-mix(in srgb, var(--funnel-accent) 18%, transparent); animation: f-cue-in 400ms ease-out both;
+}
+.f-load-cue > span > span {
+  position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: inherit; background: var(--funnel-accent); opacity: 0.8;
+  animation: f-cue-run 1.4s ease-in-out infinite;
+}
+/* W23-C4: a phone (the band, under 1024 px) shows only the band's top at the plan's hero, where a slow load is waited
+   on: the cue sits at the band's top edge, in view there and still clear of the model's head once the band is stuck. */
+@media (max-width: 1023.98px) {
+  .f-load-cue { top: 16px; bottom: auto; }
+}
+@keyframes f-cue-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes f-cue-run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
 @media (prefers-reduced-motion: reduce) {
   html[data-funnel] .f-root,
   html[data-funnel] .f-root * { animation: none !important; transition: none !important; }

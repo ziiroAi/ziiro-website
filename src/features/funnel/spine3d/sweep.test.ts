@@ -2,7 +2,7 @@
 // full spine on the right "near r17", idle sway narrowed). It was W15-C4's +30° to -150°.
 import { describe, expect, it } from "vitest";
 import { SPIN_RATE } from "./orbit";
-import { enterSweep, stepSweep, SWEEP_HI, SWEEP_LO } from "./sweep";
+import { enterSweep, settleSweep, stepSweep, SWAY_SETTLE_MS, SWEEP_HI, SWEEP_LO } from "./sweep";
 
 const DEG = Math.PI / 180;
 /** Yaw in degrees, wrapped to [-180, 180). */
@@ -67,5 +67,57 @@ describe("the idle sway (W16-A): ±25° about r17's view and back", () => {
   it("from inside the window heads for its farther edge first", () => {
     expect(run(10 * DEG, 500).at(-1)!).toBeLessThan(10 * DEG);
     expect(run(-20 * DEG, 500).at(-1)!).toBeGreaterThan(-20 * DEG);
+  });
+});
+
+describe("the sway comes to rest (W23-C, W23-C4): from wherever it is, in SWAY_SETTLE_MS, then no frames", () => {
+  /** Sways for `afterMs`, then settles; runs till it rests (at most ms). Returns the yaws and the frame it rested on. */
+  function settle(afterMs: number, ms = 20_000, frameMs = 16) {
+    let sweep = enterSweep(0);
+    let yaw = 0;
+    let before = 0;
+    for (let t = 0; t < afterMs; t += frameMs) {
+      const next = stepSweep(sweep, frameMs);
+      before = next.yaw - yaw;
+      sweep = next.sweep;
+      yaw = next.yaw;
+    }
+    sweep = settleSweep(sweep);
+    const yaws: number[] = [yaw];
+    for (let t = 0; t < ms; t += frameMs) {
+      const next = stepSweep(sweep, frameMs);
+      sweep = next.sweep;
+      yaws.push(next.yaw);
+      if (next.rested) return { yaws, before, rested: true, ms: t + frameMs };
+    }
+    return { yaws, before, rested: false, ms };
+  }
+  const OFFSETS = [0, 700, 1_500, 2_900, 4_000, 5_000, 7_300, 9_100];
+  const fastest = (Math.PI / 2) * SPIN_RATE * 0.016;
+
+  it.each(OFFSETS)("from %i ms into the sway: rests in SWAY_SETTLE_MS, on r17's view (the window's middle)", (after) => {
+    const { yaws, rested, ms } = settle(after);
+    expect(rested).toBe(true);
+    expect(ms).toBeGreaterThanOrEqual(SWAY_SETTLE_MS);
+    expect(ms).toBeLessThanOrEqual(SWAY_SETTLE_MS + 16);
+    expect(wrapped(yaws.at(-1)!)).toBeCloseTo(0, 6);
+  });
+
+  it.each(OFFSETS)("from %i ms into the sway: never jerks, keeps near the window, and slows to a stop", (after) => {
+    const { yaws, before } = settle(after);
+    const steps = yaws.slice(1).map((y, i) => y - yaws[i]);
+    expect(Math.abs(steps[0] - before), "the speed it had carries on").toBeLessThan(fastest * 0.05);
+    expect(Math.max(...steps.map(Math.abs))).toBeLessThanOrEqual(fastest * 1.25);
+    expect(Math.abs(steps.at(-1)!)).toBeLessThan(fastest / 20);
+    expect(yaws.every((y) => Math.abs(wrapped(y)) <= 27)).toBe(true);
+  });
+
+  it("a sweep that isn't settling never rests", () => {
+    let sweep = enterSweep(0);
+    for (let t = 0; t < 60_000; t += 16) {
+      const next = stepSweep(sweep, 16);
+      expect(next.rested).toBe(false);
+      sweep = next.sweep;
+    }
   });
 });

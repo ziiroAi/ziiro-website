@@ -269,7 +269,10 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
       if (stillRef.current) stillRef.current.style.transform = `translateX(${slide}%)`;
       screenRef.current?.style.setProperty("--spine-across", String(Number(key.across.toFixed(4))));
       if (screenRef.current && band.height > 0) {
-        screenRef.current.style.opacity = String(Number(bandShown(window.scrollY, band.leaveAt, band.height).toFixed(3)));
+        const shown = Number(bandShown(window.scrollY, band.leaveAt, band.height).toFixed(3));
+        screenRef.current.style.opacity = String(shown);
+        // W23-C: a band faded all the way out draws nothing.
+        cameraApi?.setShown(shown > 0);
       }
       const legend = legendOpacity(key.across, variant, key.zoomed) * stageShown(end - window.scrollY, window.innerHeight) *
         (variant === "desktop" ? key.whole * (key.across >= 0.5 ? heroLegend : 1) : 1);

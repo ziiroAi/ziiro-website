@@ -21,6 +21,10 @@ export interface Sweep {
   readonly hi: number;
   readonly elapsedMs: number;
   readonly durationMs: number;
+  /** W23-C4: the last leg, from the yaw and speed it had to the window's middle (r17's view), at rest. */
+  readonly final?: boolean;
+  /** W23-C4: the speed the last leg starts at, in radians a millisecond (the sway's own, so there is no jerk). */
+  readonly v0?: number;
 }
 
 /** Yaw wrapped to [-180°, 180°). */
@@ -45,12 +49,38 @@ export function enterSweep(yaw: number): Sweep {
   return leg(lo, lo);
 }
 
-/** Moves the sweep on by dtMs; at an edge it turns and heads for the other. */
-export function stepSweep(sweep: Sweep, dtMs: number): { sweep: Sweep; yaw: number } {
+/** W23-C4: how long the sway takes to come to rest from wherever it is in the window. */
+export const SWAY_SETTLE_MS = 3_000;
+
+/** Hermite bases: the start speed's share, and the distance's. Both have no slope at 1, so the leg ends at rest. */
+const startShare = (s: number): number => s * s * s - 2 * s * s + s;
+const distanceShare = (s: number): number => 3 * s * s - 2 * s * s * s;
+
+/** W23-C, W23-C4: the sway set to come to rest. One last leg from the yaw it is at, at the speed it has (so there is no
+ *  jerk), to the window's middle, still at the end. SWAY_SETTLE_MS from anywhere in the window (longer only from far
+ *  outside it, after a drag), so the rest comes at a set time after the last input, then no more frames. */
+export function settleSweep(sweep: Sweep): Sweep {
+  if (sweep.final) return sweep;
+  const u = Math.min(sweep.elapsedMs / sweep.durationMs, 1);
+  const span = sweep.to - sweep.from;
+  const yaw = sweep.from + span * ease(u);
+  const v0 = sweep.durationMs > 0 ? (span * (Math.PI / 2) * Math.sin(Math.PI * u)) / sweep.durationMs : 0;
+  const middle = (sweep.lo + sweep.hi) / 2;
+  return { ...sweep, from: yaw, to: middle, v0, elapsedMs: 0, durationMs: Math.max(SWAY_SETTLE_MS, legMs(yaw, middle)), final: true };
+}
+
+/** Moves the sweep on by dtMs; at an edge it turns and heads for the other. `rested`: a settling sweep has stopped. */
+export function stepSweep(sweep: Sweep, dtMs: number): { sweep: Sweep; yaw: number; rested: boolean } {
   let next: Sweep = { ...sweep, elapsedMs: sweep.elapsedMs + dtMs };
+  if (next.final) {
+    if (next.elapsedMs >= next.durationMs) return { sweep: { ...next, elapsedMs: next.durationMs }, yaw: next.to, rested: true };
+    const s = next.elapsedMs / next.durationMs;
+    const yaw = next.from + (next.v0 ?? 0) * next.durationMs * startShare(s) + (next.to - next.from) * distanceShare(s);
+    return { sweep: next, yaw, rested: false };
+  }
   while (next.elapsedMs >= next.durationMs) {
     const to = next.to === next.lo ? next.hi : next.lo;
     next = { ...next, from: next.to, to, elapsedMs: next.elapsedMs - next.durationMs, durationMs: legMs(next.to, to) };
   }
-  return { sweep: next, yaw: next.from + (next.to - next.from) * ease(next.elapsedMs / next.durationMs) };
+  return { sweep: next, yaw: next.from + (next.to - next.from) * ease(next.elapsedMs / next.durationMs), rested: false };
 }

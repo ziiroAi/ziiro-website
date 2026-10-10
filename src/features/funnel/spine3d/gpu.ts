@@ -11,12 +11,17 @@ const SAMPLES: Readonly<Record<MeshSize, number>> = { phone: 4, desktop: 4 };
 /** The bloom's working size in CSS pixels per CSS pixel, as worker-3 tuned the glow (lookdev, desktop at DPR 2). */
 const BLOOM_CSS_SCALE = 4;
 
+/** W23-C: a phone's bloom runs at this share of the tuned size. The 1:1 gate frames (hero, stops 1 and 2, light and
+ *  dark, 390 @3 on Metal) came out identical, and its targets drop from about 18.7 to 4.7 MiB. */
+const PHONE_BLOOM_SHARE = 0.5;
+
 /**
- * The bloom's size as a multiple of the canvas, at most. A phone keeps the tuned glow at its capped ratio. Desktop
- * never exceeds its size before W14-K (the canvas times the ratio), so a DPR 1 screen pays no more than it did.
+ * The bloom's size as a multiple of the canvas, at most. A phone runs it at PHONE_BLOOM_SHARE of the tuned glow's size
+ * at its capped ratio. Desktop never exceeds its size before W14-K (the canvas times the ratio), so a DPR 1 screen
+ * pays no more than it did.
  */
 const maxBloomScale = (size: MeshSize, ratio: number): number =>
-  size === "phone" ? BLOOM_CSS_SCALE / MAX_DPR.phone : ratio;
+  size === "phone" ? (BLOOM_CSS_SCALE / MAX_DPR.phone) * PHONE_BLOOM_SHARE : ratio;
 
 /** The bloom's size as a multiple of the canvas (device pixels), so the glow keeps its tuned width where it can. */
 export const bloomScaleFor = (size: MeshSize, ratio: number): number =>

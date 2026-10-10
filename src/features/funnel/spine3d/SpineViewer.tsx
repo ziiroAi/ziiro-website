@@ -2,6 +2,8 @@
 // LCP. After the first paint, in idle time, the 3D code loads as its own chunk, draws its first frame on a canvas
 // over the still, and only then swaps the still out. Save-Data, no WebGL2, a lost context or a mesh that won't load
 // leave the still on screen (§4 of W14-C): never a blank box.
+// W23-C: a thin loading line sits on the still until the 3D takes over, and the mesh downloads beside the 3D code (the
+// worker chunk) once the probe says the GPU is real, rather than after it.
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import type { DepartmentId, Theme } from "../data/contract";
 import { useHtmlTheme } from "../plan/useHtmlTheme";
@@ -14,7 +16,7 @@ import { baseFraming, easeInOut, type Framing } from "./camera";
 import { sharedSoftwareGl } from "./first-screen";
 import { shouldRelease } from "./gpu";
 import { MESH_URLS } from "./mesh-urls";
-import { takeWarmMesh } from "./mesh-warm";
+import { takeWarmMesh, warmMesh } from "./mesh-warm";
 import type { Motion } from "./orbit";
 import { isSoftwareRenderer } from "./pace";
 import { FINAL_REASONS, hasWebGL2, MAX_RETRIES, meshFor, preflight, readConnection, RETRY_DELAYS_MS, type FallbackReason } from "./rules";
@@ -37,6 +39,9 @@ const CANVAS_CLASS = "absolute inset-0 h-full w-full";
 export const CROSSFADE_MS = 500;
 /** W18-C: after the crossfade, a viewer with ringsIn fades its discs' light in from none (its still's look) this long. */
 export const RINGS_IN_MS = 700;
+/** W23-C3 L3: the loading cue shows only once the 3D has taken this long, so a warm load never shows it. A timer, not a
+ *  CSS delay: reduced motion turns animations off, delays with them. */
+export const CUE_DELAY_MS = 600;
 
 /** "asleep": off screen while another viewer is live, so its 3D was given back and its still shows (W14-K). */
 export type SpinePhase = "still" | "loading" | "live" | "asleep" | "fallback";
@@ -360,8 +365,13 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     const start = () =>
       void askProbe().then((software) => {
         if (cancelled || failed) return;
-        if (software) fail("software-gl");
-        else void begin();
+        if (software) {
+          fail("software-gl");
+          return;
+        }
+        // W23-C: a real GPU. The mesh's download starts now, beside the 3D code; begin() takes its bytes.
+        void warmMesh(MESH_URLS[meshFor(window.innerWidth)]);
+        void begin();
       });
     const cancelStart = afterFirstPaint(start);
     /** W14-V T8: Reduce Motion turned on or off while the 3D runs stops or starts the idle spin and the flights. */
@@ -477,6 +487,13 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
   const levels = useMemo(() => discLevels(lit), [litKey]);
   const { phase, reason, restyling, covered, spin, diag } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, startFraming, ringsIn });
   const why = useMemo(showWhy, []);
+  const [cueDue, setCueDue] = useState(false);
+  useEffect(() => {
+    const due = setTimeout(() => setCueDue(true), CUE_DELAY_MS);
+    return () => clearTimeout(due);
+  }, []);
+  // W23-C3 M1: a slow load (reason "timeout") keeps loading with no deadline; the still alone then reads as the page.
+  const loading = (phase === "still" || phase === "loading") && reason !== "timeout";
   const live = phase === "live";
   return (
     <div
@@ -491,6 +508,13 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
       <div data-testid="spine-still" className={live && covered && !restyling ? "invisible" : undefined}>
         {children}
       </div>
+      {cueDue && (loading || (live && !covered)) && (
+        <div data-testid="spine-loading" aria-hidden="true" className="f-load-cue" style={{ opacity: live ? 0 : undefined }}>
+          <span>
+            <span />
+          </span>
+        </div>
+      )}
       {why && (
         <p data-testid="why3d" className="pointer-events-none absolute left-2 top-2 z-10 max-w-[90%] rounded bg-black/75 px-2 py-1 font-mono text-[11px] leading-snug text-white">
           {whyLine(phase, reason, diag)}
