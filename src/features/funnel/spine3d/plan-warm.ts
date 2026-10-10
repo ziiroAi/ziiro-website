@@ -3,7 +3,7 @@
 // would run: a real GPU, WebGL2, no Save-Data and no slow connection. Network only; the build, the decode and the GPU
 // upload wait for the plan's own viewer (SpineViewer), which takes these bytes (mesh-warm.ts).
 import { sharedSoftwareGl } from "./first-screen";
-import { PLAN_MESHES } from "./mesh-urls";
+import { DRACO_FILES, PLAN_MESHES } from "./mesh-urls";
 import { warmMesh } from "./mesh-warm";
 import { hasWebGL2, meshFor, preflight, readConnection, type Connection, type MeshSize } from "./rules";
 // The built address of the worker host.ts starts (`new Worker(new URL("./spine.worker.ts", …))`); the same file.
@@ -11,6 +11,10 @@ import spineWorkerScript from "./spine.worker.ts?worker&url";
 
 /** The 3D worker's script (about 180 kB): fetched at the plan otherwise, 0.35 s on Fast 4G (worker-2's W15-M6 runs). */
 export const SPINE_WORKER_SCRIPT: string = spineWorkerScript;
+
+/** What the plan's 3D starts with before its mesh: the worker, then the Draco decoder (W23-B: m5c is Draco), which
+ *  DRACOLoader otherwise asks for only once the mesh has arrived, 0.9 s more on Slow 4G. */
+export const PLAN_SCRIPTS: readonly string[] = [SPINE_WORKER_SCRIPT, ...DRACO_FILES];
 
 /** Files other than meshes this page already warmed: each is asked for once. */
 const warmFiles = new Map<string, Promise<void>>();
@@ -59,7 +63,7 @@ function browserEnv(): WarmEnv {
     webgl2: hasWebGL2(window),
     width: window.innerWidth,
     meshes: PLAN_MESHES,
-    scripts: [SPINE_WORKER_SCRIPT],
+    scripts: PLAN_SCRIPTS,
     probe: (signal) => sharedSoftwareGl(signal),
   };
 }

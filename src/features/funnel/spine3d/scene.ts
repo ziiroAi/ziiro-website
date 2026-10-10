@@ -8,6 +8,7 @@ import {
 } from "three";
 import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { DISCS, type DiscId, type Theme } from "../data/contract";
 import { fadeClock, type ThemeFade } from "../flow/themeFade";
@@ -21,6 +22,7 @@ import {
   type Shared,
 } from "./look-three";
 import { bloomScaleFor, maxDprFor, releaseOnThrow, samplesFor } from "./gpu";
+import { DRACO_PATH } from "./mesh-urls";
 import { gpuNameOf } from "./pace";
 import type { MeshSize } from "./rules";
 
@@ -127,7 +129,12 @@ async function meshBytesOf(url: string, given: Promise<ArrayBuffer | null> | und
 }
 
 async function loadMesh(url: string, given: Promise<ArrayBuffer | null> | undefined, signal?: AbortSignal): Promise<LoadedMesh> {
-  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).register(imageBitmapTextures);
+  // W23-B: m5c's geometry is Draco. DRACOLoader decodes it in a worker of its own, with the decoder from DRACO_PATH.
+  // preload() asks for the decoder now, alongside the mesh (the questions warmed both, except where §12 spares a
+  // slow connection: there the decoder otherwise waited for the whole mesh, 0.9 s on Slow 4G). Meshopt stays wired
+  // for the older meshes.
+  const draco = new DRACOLoader().setDecoderPath(DRACO_PATH).setDecoderConfig({ type: "wasm" }).setWorkerLimit(1).preload();
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).setDRACOLoader(draco).register(imageBitmapTextures);
   try {
     const gltf = await loader.parseAsync(await meshBytesOf(url, given, signal), LoaderUtils.extractUrlBase(url));
     signal?.throwIfAborted();
@@ -139,6 +146,9 @@ async function loadMesh(url: string, given: Promise<ArrayBuffer | null> | undefi
     return { root: gltf.scene, parts };
   } catch {
     throw new Error(MESH_FAILED);
+  } finally {
+    // The geometry is decoded by now; the decoder's worker isn't needed again.
+    draco.dispose();
   }
 }
 
