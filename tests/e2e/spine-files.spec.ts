@@ -9,7 +9,9 @@ import { probeSeesHardware, SWIFTSHADER } from "./support/gpu";
  * W15-M6: the plan's mesh (the big spine, PLAN_MESHES; W17-S dropped the close-up) is downloaded during the questions on a real
  * GPU, so the plan's 3D does not wait on them. W16-B: S0 has no spine any more, so they are the exemption's only use.
  */
-const LIVE_MESH = /^\/spine\/3d\/m5b\//;  // W19 r2's m5b (the owner's coil); W17-S dropped the close-up
+const LIVE_MESH = /^\/spine\/3d\/m5c\//;  // W23-B's m5c (m5b's geometry in Draco); W17-S dropped the close-up
+/** W23-B: the live mesh and the Draco decoder warmed with it, the exemption's files. */
+const WARM_FILES = /^\/spine\/3d\/(m5c|draco-r186)\//;
 // WebGL on SwiftShader, as CI has it: no 3D and no warm mesh on a software renderer (§6.6).
 test.use({ launchOptions: { args: SWIFTSHADER } });
 
@@ -37,7 +39,7 @@ async function spineRequests(page: Page): Promise<SpineLog> {
 }
 
 /** The hero stills and every other /spine/ file: what §12 still holds back until S5. */
-const held = (paths: readonly string[]) => paths.filter((p) => !LIVE_MESH.test(p));
+const held = (paths: readonly string[]) => paths.filter((p) => !WARM_FILES.test(p));
 
 function expectNothingBeforeS5But(log: SpineLog) {
   expect(held(log.paths), "nothing under /spine/ before S5 but the plan's warm mesh (§12)").toEqual([]);
