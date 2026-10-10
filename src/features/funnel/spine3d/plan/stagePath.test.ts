@@ -6,9 +6,10 @@ import { DISCS as ALL_DISCS, type DiscId } from "../../data/contract";
 import { baseFraming, type Framing } from "../camera";
 import { GAPS } from "../gaps";
 import { turnedCentre } from "./facing";
+import { shownTan } from "./tour";
 import {
   ACROSS, HERO_WORDS_GONE_AT, heroWordsOpacity, LEGEND_BACK_FULL_AT, legendOpacity, NEED_WORDS_FROM,
-  NEED_WORDS_FULL_AT, needWordsOpacity, stageAnchors, stageAt, stageKeys, stageShown, STOP_VIEW_HEIGHT, stopSide,
+  NEED_WORDS_FULL_AT, needWordsOpacity, stageAnchors, EDGE_PAD, stopReach, stopZoomOut, BAND_LEAVE_SHARE, bandShown, closeBy, CLOSE_REST_SHARE, stageAt, stageKeys, stageShown, STOP_VIEW_HEIGHT, stopSide,
   WORDS_LEFT_FROM, WORDS_LEFT_FULL_AT, wordsLeftOpacity, type StageAnchor, CUE_FADE_PX, scrollCueOpacity, TRAVEL,
 } from "./stagePath";
 
@@ -369,5 +370,87 @@ describe("the words make way for the spine on either side (W15-B3, W16-A)", () =
     expect(heroWordsOpacity(0.36, "phone")).toBe(1);
     expect(needWordsOpacity(0.74, "phone")).toBe(1);
     expect(wordsLeftOpacity(0.3, "phone")).toBe(1);
+  });
+});
+
+describe("a stop's spine stays on the screen at every width from 768 to 1439 (W20-STOPS, review-w20 F1, F3, F6)", () => {
+  // F1/F3: at 768 and 820 (the phone's band, the desktop mesh) the zoomed column ran off the screen's side; F6: at 1024
+  // the guest's Back Office rest cut its processes at the left edge. 1440 and the phone keep their framing.
+  const STOP_DISCS: DiscId[] = ["G04", "G05", "G06", "G01", "G02", "G03", "G07", "G08"];
+  const views = [
+    { width: 768, height: 807, variant: "phone" as const }, // 768x1024: the band, 1290:1356
+    { width: 820, height: 862, variant: "phone" as const }, // 820x1180
+    { width: 1024, height: 684, variant: "desktop" as const }, // 1024x768, under the 84 px bar
+    { width: 1180, height: 736, variant: "desktop" as const },
+    { width: 1280, height: 716, variant: "desktop" as const },
+  ];
+  /** The stop's visible width in LOOK units at its disc: the lens's height there, times the view's aspect. */
+  const shown = (key: { framing: Framing }, view: { width: number; height: number }): number =>
+    2 * shownTan("desktop", baseFraming("desktop").lensMm, view) * (1 / scaleOf(key.framing)) * (view.width / view.height);
+
+  it.each(views)("keeps every disc's outward reach inside the edge at $width x $height", (view) => {
+    const keys = stageKeys(STOP_DISCS, "desktop", view.variant, view, 0).slice(2, -1);
+    keys.forEach((key, i) => {
+      const k = ALL_DISCS.indexOf(STOP_DISCS[i]);
+      const side = stopSide(i);
+      const room = (side === "left" ? key.across : 1 - key.across) - EDGE_PAD;
+      const reach = stopReach(k, side, stopZoomOut(k, side, key.across, view));
+      expect(reach).toBeLessThanOrEqual(room * shown(key, view) + 1e-9);
+    });
+  });
+
+  it("pulls the 768 band's stops back to fit and leaves their sides alone", () => {
+    const view = views[0];
+    const keys = stageKeys(STOP_DISCS, "desktop", "phone", view, 0).slice(2, -1);
+    expect(Math.max(...keys.map((key) => shown(key, view) / (STOP_VIEW_HEIGHT.desktop * view.width / view.height)))).toBeGreaterThan(1.2);
+    keys.forEach((key, i) => expect(key.across).toBe(ACROSS.phone[stopSide(i)]));
+  });
+
+  it("leaves 1440's stops on the reviewed plans and the phone's exactly as they were", () => {
+    // Ananya's plan (G04, G05, G06, G01) and the guest's (G01, G02), left first. A disc that already sits on the edge at
+    // 1440 in another order (G02 left, G06 / G07 right) pulls back a little too.
+    for (const plan of [["G04", "G05", "G06", "G01"], ["G01", "G02"]] as DiscId[][]) {
+      plan.forEach((disc, i) => expect(stopZoomOut(ALL_DISCS.indexOf(disc), stopSide(i), ACROSS.desktop[stopSide(i)], DESKTOP_VIEW)).toBe(1));
+    }
+    const phone = stageKeys(STOP_DISCS, "phone", "phone", PHONE_VIEW, 0).slice(2, -1);
+    phone.forEach((key) => expect(1 / scaleOf(key.framing)).toBeCloseTo(1 / scaleOf(phone[0].framing), 9));
+  });
+});
+
+describe("a tablet's band lets its spine go before it slides under the nav (W20-STOPS, review-w20 F2, F4)", () => {
+  // F2/F4: at 768 and 820 the band left with the plan's end and its spine rose under the bar, hard-cut at its bottom.
+  it("shows the spine fully until the band is BAND_LEAVE_SHARE of its height from leaving, and none once it leaves", () => {
+    const height = 900;
+    const leaveAt = 5000;
+    expect(bandShown(0, leaveAt, height)).toBe(1);
+    expect(bandShown(leaveAt - height * BAND_LEAVE_SHARE, leaveAt, height)).toBe(1);
+    expect(bandShown(leaveAt - (height * BAND_LEAVE_SHARE) / 2, leaveAt, height)).toBeCloseTo(0.5, 9);
+    expect(bandShown(leaveAt, leaveAt, height)).toBe(0);
+    expect(bandShown(leaveAt + 300, leaveAt, height)).toBe(0);
+  });
+
+  it("shows it always before the band is measured", () => {
+    expect(bandShown(5000, Number.POSITIVE_INFINITY, 900)).toBe(1);
+    expect(bandShown(5000, 4000, 0)).toBe(1);
+  });
+});
+
+describe("a tablet's close rests on screen before its band lets the spine go (W20-STOPS)", () => {
+  const keys = stageKeys(DISCS, "desktop", "phone", { width: 768, height: 807 }, 0);
+  const spans = [{ top: 900, bottom: 1900 }, ...DISCS.map((_, i) => ({ top: 1900 + 1000 * i, bottom: 2900 + 1000 * i })), { top: 5900, bottom: 6600 }];
+
+  it("lands the close by `closeBy`, shortening its pull-back, and never runs backwards", () => {
+    const free = stageAnchors(keys, spans, 400, 512, 512, 512, 102, 1024);
+    expect(free.at(-1)!.at).toBe(5500 - 512 + 1024); // a screen's pull-back, landing late (final review L1)
+    const held = stageAnchors(keys, spans, 400, 512, 512, 512, 102, 1024, 5300);
+    expect(held.at(-1)!.at).toBe(5300);
+    expect(held.at(-2)!.at).toBe(free.at(-2)!.at); // it still leaves the last stop at the same place
+    const tight = stageAnchors(keys, spans, 400, 512, 512, 512, 102, 1024, 100);
+    tight.slice(1).forEach((a, i) => expect(a.at).toBeGreaterThanOrEqual(tight[i].at));
+  });
+
+  it("asks for a rest of CLOSE_REST_SHARE of the screen before the band's fade, and none when there is no band", () => {
+    expect(closeBy({ leaveAt: 6000, height: 800 }, 1000)).toBe(6000 - 800 * BAND_LEAVE_SHARE - 1000 * CLOSE_REST_SHARE);
+    expect(closeBy({ leaveAt: Number.POSITIVE_INFINITY, height: 0 }, 1000)).toBe(Number.POSITIVE_INFINITY);
   });
 });

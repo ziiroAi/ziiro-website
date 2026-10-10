@@ -21,7 +21,7 @@ import { FLIGHT_MS } from "../camera";
 import { CROSSFADE_MS, SpineViewer } from "../SpineViewer";
 import { LegendRow, SpineOverlay } from "./SpineOverlay";
 import {
-  ACROSS, heroWordsOpacity, legendOpacity, needWordsOpacity, scrollCueOpacity, stageAnchors, stageAt, stageKeys,
+  ACROSS, bandShown, closeBy, heroWordsOpacity, legendOpacity, needWordsOpacity, scrollCueOpacity, stageAnchors, stageAt, stageKeys,
   stageShown, TRAVEL, wordsLeftOpacity,
   type Span, type StageAnchor, type StageKey,
 } from "./stagePath";
@@ -124,6 +124,17 @@ function readingSpace(variant: Variant, band: HTMLElement | null): ReadingSpace 
   return { line: stuck + below * PHONE_LINE_SHARE, ...travels };
 }
 
+/** W20-STOPS: where a tablet's band (the phone layout on the desktop mesh) starts to leave, as a scroll position: when
+ *  its bottom meets the root's content bottom (sticky stops there). Phones and desktop: never. */
+function tabletBandLeave(band: HTMLElement | null, root: HTMLElement, variant: Variant, end: number): { leaveAt: number; height: number } {
+  if (!band || variant !== "phone" || meshFor(window.innerWidth) !== "desktop" || !Number.isFinite(end)) {
+    return { leaveAt: Number.POSITIVE_INFINITY, height: 0 };
+  }
+  const top = Number.parseFloat(getComputedStyle(band).top) || 0;
+  const pad = Number.parseFloat(getComputedStyle(root).paddingBottom) || 0;
+  return { leaveAt: end - pad - band.offsetHeight - top, height: band.offsetHeight };
+}
+
 /** The plan's sections in depth order, in page px. */
 function spansOf(root: HTMLElement): Span[] {
   const y = window.scrollY;
@@ -214,13 +225,17 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
     let anchors: StageAnchor[] = [];
     /** The plan's end in page px, where the stage stops; unmeasured (no layout yet), it never ends. */
     let end = Number.POSITIVE_INFINITY;
+    /** W20-STOPS: on a tablet's band, the scroll where the band starts to leave with the plan's end, and its height. */
+    let band = { leaveAt: Number.POSITIVE_INFINITY, height: 0 };
     /** The flight the stage starts when the 3D arrives: where to, and when it lands. */
     let arrivalFlight: { to: string; until: number } | null = null;
     const measure = () => {
-      const { line, travel, heroTravel, minTravel, heroRest, closeTravel } = readingSpace(variant, bandRef.current);
-      anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel, minTravel, heroRest, closeTravel);
       const rect = root.getBoundingClientRect();
       end = rect.height > 0 ? rect.bottom + window.scrollY : Number.POSITIVE_INFINITY;
+      band = tabletBandLeave(bandRef.current, root, variant, end);
+      const { line, travel, heroTravel, minTravel, heroRest, closeTravel } = readingSpace(variant, bandRef.current);
+      anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel, minTravel, heroRest, closeTravel,
+        closeBy(band, window.innerHeight));
     };
     const update = () => {
       frame = null;
@@ -245,6 +260,9 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
       const slide = Number(((key.across - ACROSS[variant].hero) * 100).toFixed(2));
       if (stillRef.current) stillRef.current.style.transform = `translateX(${slide}%)`;
       screenRef.current?.style.setProperty("--spine-across", String(Number(key.across.toFixed(4))));
+      if (screenRef.current && band.height > 0) {
+        screenRef.current.style.opacity = String(Number(bandShown(window.scrollY, band.leaveAt, band.height).toFixed(3)));
+      }
       const legend = legendOpacity(key.across, variant, key.zoomed) * stageShown(end - window.scrollY, window.innerHeight);
       screenRef.current?.style.setProperty("--legend-shown", String(Number(legend.toFixed(3))));
       // W15-B3, W16-A: the model never crosses words. The hero's fade as it sets off left, and are hidden once gone
