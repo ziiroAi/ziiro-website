@@ -37,6 +37,65 @@ export const NEED_ZOOM = 1.5;
  *  shorter, so it shows a little more. */
 export const STOP_VIEW_HEIGHT: Readonly<Record<MeshSize, number>> = { desktop: 0.4, phone: 0.6 };
 
+/**
+ * W20-STOPS: how far each disc's vertebrae reach outwards, toward the screen's edge, at its stop's turn: LOOK units in
+ * the disc's screen plane, at a left stop and at a right stop, for views STOP_REACH_ZOOMS times STOP_VIEW_HEIGHT.desktop
+ * tall (a pulled-back view takes in more vertebrae). Measured on m5b's desktop mesh by worker-4's W20 script (each
+ * disc's own faceTurn, the desktop camera, no roll); a new mesh needs it measured again.
+ */
+export const STOP_REACH_ZOOMS = [1, 1.25, 1.5, 2] as const;
+export const STOP_REACH: readonly { left: readonly number[]; right: readonly number[] }[] = [
+  { left: [0.1505, 0.1557, 0.1594, 0.1644], right: [0.1677, 0.1741, 0.1788, 0.185] },
+  { left: [0.1858, 0.1861, 0.1865, 0.187], right: [0.1677, 0.1728, 0.1764, 0.1814] },
+  { left: [0.2175, 0.2161, 0.2122, 0.2077], right: [0.1712, 0.1747, 0.1772, 0.1806] },
+  { left: [0.1772, 0.1902, 0.1872, 0.2095], right: [0.1916, 0.188, 0.1861, 0.184] },
+  { left: [0.1607, 0.1701, 0.172, 0.1792], right: [0.1727, 0.1643, 0.1702, 0.1993] },
+  { left: [0.1563, 0.162, 0.1638, 0.168], right: [0.2114, 0.2131, 0.2111, 0.2144] },
+  { left: [0.1588, 0.1616, 0.1634, 0.1661], right: [0.2306, 0.232, 0.2436, 0.2573] },
+  { left: [0.1696, 0.1716, 0.172, 0.173], right: [0.2143, 0.2557, 0.2668, 0.2736] },
+  { left: [0.1587, 0.159, 0.171, 0.171], right: [0.1963, 0.2279, 0.2341, 0.297] },
+];
+/** The share of the width a stop's outermost bone stays in from the screen's edge. The table runs about a tenth short
+ *  of the render on the left (the camera's roll, the next vertebra down): at 1024 x 768 the guest's Back Office reached
+ *  the edge (review-w20 F6), and the reviewed plans' 1440 stops keep more than this. */
+export const EDGE_PAD = 0.04;
+
+/** Disc k's outward reach at a stop shown `zoom` times further out than STOP_VIEW_HEIGHT: the table's most at or below
+ *  that zoom, in a line between its rows, held past the last. */
+export function stopReach(k: number, side: "left" | "right", zoom: number): number {
+  const row = STOP_REACH[k][side].map((_, i, all) => Math.max(...all.slice(0, i + 1)));
+  const z = STOP_REACH_ZOOMS;
+  if (zoom <= z[0]) return row[0];
+  for (let i = 1; i < z.length; i += 1) {
+    if (zoom <= z[i]) return row[i - 1] + ((row[i] - row[i - 1]) * (zoom - z[i - 1])) / (z[i] - z[i - 1]);
+  }
+  return row[row.length - 1];
+}
+
+const MAX_ZOOM_OUT = 4;
+const SEARCH_STEPS = 48;
+
+/**
+ * How many times further out than STOP_VIEW_HEIGHT a desktop-mesh stop shows, so its disc's vertebrae stay EDGE_PAD
+ * inside the screen's edge on their side (review-w20 F1, F3: the 768 / 820 band; F6: 1024's left stop): 1 wherever they
+ * already fit, as at 1440, else the least zoom that fits (a search; the reach only grows with the zoom).
+ */
+export function stopZoomOut(k: number, side: "left" | "right", across: number, view: { width: number; height: number }): number {
+  if (view.width <= 0 || view.height <= 0) return 1;
+  const room = ((side === "left" ? across : 1 - across) - EDGE_PAD) * STOP_VIEW_HEIGHT.desktop * (view.width / view.height);
+  const fits = (zoom: number) => stopReach(k, side, zoom) <= room * zoom;
+  if (fits(1)) return 1;
+  if (room <= 0 || !fits(MAX_ZOOM_OUT)) return MAX_ZOOM_OUT;
+  let lo = 1;
+  let hi = MAX_ZOOM_OUT;
+  for (let i = 0; i < SEARCH_STEPS; i += 1) {
+    const mid = (lo + hi) / 2;
+    if (fits(mid)) hi = mid;
+    else lo = mid;
+  }
+  return hi;
+}
+
 /** Which side of the stage department i's stop stands on: left first, then alternating. */
 export const stopSide = (i: number): "left" | "right" => (i % 2 === 0 ? "left" : "right");
 
@@ -123,8 +182,9 @@ export function stageKeys(
     const side = stopSide(i);
     const turn = nearestTurn(faceTurn(DISCS.indexOf(disc), side, size), previous);
     previous = turn;
+    const zoomOut = size === "desktop" ? stopZoomOut(DISCS.indexOf(disc), side, across[side], view) : 1;
     return {
-      framing: framingAt(turnedCentre(centreOf(disc), turn), stopDistance, across[side], size, view, 0),
+      framing: framingAt(turnedCentre(centreOf(disc), turn), stopDistance * zoomOut, across[side], size, view, 0),
       hold: 1, stop: disc, across: across[side], zoomed: 1, whole: 0, turn,
     };
   });
@@ -211,6 +271,28 @@ export function stageShown(endOnScreen: number, screenHeight: number): number {
   return clamp01(1 - (screenHeight - endOnScreen) / (screenHeight * LEAVE_SHARE));
 }
 
+/** W20-STOPS: a tablet's band (the phone layout on the desktop mesh) is taller than the scroll left under the plan, so
+ *  it rides up under the nav with the plan's end (review-w20 F2, F4). Its spine fades out over this share of the band's
+ *  height of scroll before the band starts to leave. */
+export const BAND_LEAVE_SHARE = 0.15;
+
+/** How much of a tablet band's spine shows at this scroll, 1 to 0: `leaveAt` is the scroll where the band starts to
+ *  leave (unmeasured: never), `height` the band's. */
+export function bandShown(scrollY: number, leaveAt: number, height: number): number {
+  if (height <= 0 || !Number.isFinite(leaveAt)) return 1;
+  return clamp01((leaveAt - scrollY) / (height * BAND_LEAVE_SHARE));
+}
+
+/** W20-STOPS: on a tablet's band, the close lands at least this share of the screen before its spine starts to fade,
+ *  so it rests whole on screen a while (its full-screen pull-back would land as the band leaves). */
+export const CLOSE_REST_SHARE = 0.25;
+
+/** The scroll by which the close must have landed, for a tablet's band (see bandShown); never without one. */
+export function closeBy(band: { leaveAt: number; height: number }, screenHeight: number): number {
+  if (band.height <= 0 || !Number.isFinite(band.leaveAt)) return Number.POSITIVE_INFINITY;
+  return band.leaveAt - band.height * BAND_LEAVE_SHARE - screenHeight * CLOSE_REST_SHARE;
+}
+
 /** The stage's ease: smoothstep, whose steepest point is 1.5x its average, so a travel never snaps at normal scroll
  *  speed (W16-R: the cubic ease's 3x let the dive pass in about 50 ms). */
 const smooth = (t: number): number => t * t * (3 - 2 * t);
@@ -280,8 +362,8 @@ export const MAX_TRAVEL_OF_GAP = 0.8;
  * than `minTravel` px: where the 80 % cap would squeeze one under it, the travel starts as early as it can and arrives
  * a little after its section meets the line (W18-E: a phone's block 2 arrives 400 px down, and its 1.5x zoom ran in
  * 140 px). The hero holds for at least `heroRest` px first. The pull-back to the close runs at least `closeTravel` px:
- * it leaves the last stop when the cap lets it and arrives late, so the stop keeps its rest (final review L1). Anchors
- * never run backwards.
+ * it leaves the last stop when the cap lets it and arrives late, so the stop keeps its rest (final review L1), but
+ * lands by `closeLatest` (W20-STOPS: a tablet's band leaves early). Anchors never run backwards.
  */
 export function stageAnchors(
   keys: readonly StageKey[],
@@ -292,6 +374,7 @@ export function stageAnchors(
   minTravel = 0,
   heroRest = 0,
   closeTravel = 0,
+  closeLatest = Number.POSITIVE_INFINITY,
 ): StageAnchor[] {
   const count = Math.min(spans.length, keys.length - 1);
   const arrivals = spans.slice(0, count).map((span) => span.top - line);
@@ -304,7 +387,8 @@ export function stageAnchors(
     const span = Math.max(Math.min(i === 0 ? heroTravel : travel, gap * MAX_TRAVEL_OF_GAP), minTravel);
     push(Math.max(arrival - span, i === 0 ? heroRest : 0), keys[i]);
     const toClose = i + 1 === keys.length - 1;
-    push(Math.max(arrival, last() + (toClose ? Math.max(span, closeTravel) : span)), keys[i + 1]);
+    const lands = Math.max(arrival, last() + (toClose ? Math.max(span, closeTravel) : span));
+    push(toClose ? Math.min(lands, closeLatest) : lands, keys[i + 1]);
   });
   return anchors;
 }
