@@ -296,6 +296,18 @@ describe("SpineOverlay: the lit and quiet legend", () => {
     expect(legend.className).not.toContain("right-3");
   });
 
+  it("stands left of the spine's foot while the spine is on the right, never over the bone (FINAL-B, review-final L2)", () => {
+    // worker-2: at the desktop hero (light) its pale box cut a hard rectangle across the bottom vertebrae.
+    const legend = mount(fakeApi().api, "desktop", 0, "right").querySelector<HTMLElement>("[data-legend]")!;
+    expect(legend.style.transform).toBe("translateX(-100%)");
+    const at = /^calc\(var\(--spine-across, 1\) \* 100% - ([\d.]+)px\)$/.exec(legend.style.left);
+    expect(at, legend.style.left).not.toBeNull();
+    // The m5b foot reaches 0.23 of the framed spine's height left of the spine's line (1440 x 900: 168 of 732 px).
+    const foot = 0.23 * (VIEW.height - LEGEND_STRIP_PX.desktop);
+    expect(Number(at![1])).toBeGreaterThanOrEqual(foot + 16);
+    expect(legend.style.opacity).toBe("var(--legend-shown, 1)");
+  });
+
   it("puts the hover hint in the legend's box, not over the callouts", () => {
     const container = mount(fakeApi().api);
     expect(textOf(container.querySelector("[data-legend]"))).toContain(copy("sp.hint.hover"));

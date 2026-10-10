@@ -116,10 +116,28 @@ const FOLLOW_SPINE: CSSProperties = {
   opacity: "var(--legend-shown, 1)",
 };
 
+/** How far left of the spine's line the m5b foot reaches, as a share of the framed spine's height (the stage less the
+ *  legend's strip): 168 of 732 px at 1440 x 900, measured on the hero. */
+const FOOT_REACH_SHARE = 0.23;
+const FOOT_GAP_PX = 24;
+
+/** FINAL-B (review-final L2): with the spine on the right (the hero) the legend stands left of its foot, right edge
+ *  clear of the bone, so its box never prints over the bottom vertebrae. With the spine on the left (the close) the
+ *  spine is framed small and the legend under it is already clear. */
+function besideFoot(viewHeight: number): CSSProperties {
+  const reach = FOOT_REACH_SHARE * (viewHeight - LEGEND_STRIP_PX.desktop) + FOOT_GAP_PX;
+  return {
+    left: `calc(var(--spine-across, 1) * 100% - ${Number(reach.toFixed(1))}px)`,
+    transform: "translateX(-100%)",
+    opacity: "var(--legend-shown, 1)",
+  };
+}
+
 /** The legend, with the hover hint on top of it until the first panel opens. Callouts keep out of its strip. */
-function Legend({ hint, guest }: { hint: boolean; guest: boolean }): JSX.Element {
+function Legend({ hint, guest, spineSide, viewHeight }: { hint: boolean; guest: boolean; spineSide: "left" | "right"; viewHeight: number }): JSX.Element {
+  const style = spineSide === "right" ? besideFoot(viewHeight) : FOLLOW_SPINE;
   return (
-    <ul data-legend style={FOLLOW_SPINE} className={`pointer-events-none absolute bottom-3 flex flex-col gap-1 ${MICRO} ${BACKED}`}>
+    <ul data-legend style={style} className={`pointer-events-none absolute bottom-3 flex flex-col gap-1 ${MICRO} ${BACKED}`}>
       {hint && <li>{copy("sp.hint.hover")}</li>}
       <LegendLines guest={guest} />
     </ul>
@@ -269,7 +287,7 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
           />
         </div>
       )}
-      {variant === "desktop" && <Legend hint={!hintSeen} guest={guest} />}
+      {variant === "desktop" && <Legend hint={!hintSeen} guest={guest} spineSide={spineSide} viewHeight={view.height} />}
     </div>
   );
 }
