@@ -6,7 +6,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { describe, expect, it, vi } from "vitest";
 import { LOOK } from "./look";
 import { baseFraming } from "./camera";
-import { LEAK_FACING, LEAK_GLSL, RING_EDGE_FACING, backgroundOffsetX, disposeComposer, makeBackground, makeBody, makeComposer, makeEnvironment, makeRings } from "./look-three";
+import { LEAK_FACING, LEAK_GLSL, RING_DEPTH_PULL, RING_EDGE_FACING, RING_END_SOFT, backgroundOffsetX, disposeComposer, makeBackground, makeBody, makeComposer, makeEnvironment, makeRings } from "./look-three";
 
 /** The site sets the renderer's pixel ratio; three's EffectComposer.addPass used to multiply sizes by it again. */
 const renderer = { getPixelRatio: () => 2, getSize: (v: THREE.Vector2) => v.set(300, 200) } as unknown as THREE.WebGLRenderer;
@@ -144,5 +144,32 @@ describe("a lit ring shows no specks where it turns edge-on at the column's silh
   it("only trims the edge-on ends: the arc turned 60 degrees toward the text (W18-D) and everything nearer stays lit", () => {
     expect(RING_EDGE_FACING).toBeGreaterThan(0);
     expect(RING_EDGE_FACING).toBeLessThan(Math.cos((70 * Math.PI) / 180));
+    expect(RING_END_SOFT).toBeGreaterThan(RING_EDGE_FACING);
+    expect(RING_END_SOFT).toBeLessThan(Math.cos((60 * Math.PI) / 180));
+  });
+});
+
+describe("every lit ring sits clean in its gap: no bone lip cuts it, no end is a hard cut (W22-RING)", () => {
+  const band = (): THREE.ShaderMaterial => {
+    const { shared } = makeBackground(LOOK.themes.light, 16 / 9);
+    return (makeRings(LOOK.themes.light, LOOK.gaps, shared).group.children[2] as THREE.Mesh).material as THREE.ShaderMaterial;
+  };
+
+  // The owner's 16:24 frame: a lip of the vertebra above hung across Operations' band and left a black wedge.
+  it("draws the band nearer the camera along each pixel's ray, by less than half the thinnest body", () => {
+    const mat = band();
+    expect(mat.vertexShader).toContain("w.xyz += normalize(cameraPosition - w.xyz) * depthPull;");
+    expect(mat.uniforms.depthPull.value).toBe(RING_DEPTH_PULL);
+    expect(RING_DEPTH_PULL).toBeGreaterThan(0);
+    expect(RING_DEPTH_PULL).toBeLessThan(Math.min(...LOOK.gaps.map((g) => g.radius)) / 2);
+  });
+
+  // The owner's upper ring ended in a sharp diagonal cut; review-w20 M1 and L2 were ring-end specks.
+  it("fades the band's ends in over RING_EDGE_FACING..RING_END_SOFT and blends them over the bone", () => {
+    const mat = band();
+    expect(mat.fragmentShader).toContain("float a = smoothstep(RING_EDGE_FACING, RING_END_SOFT, facing);");
+    expect(mat.fragmentShader).toContain(`#define RING_END_SOFT ${RING_END_SOFT.toFixed(2)}`);
+    expect(mat.transparent).toBe(true);
+    expect(mat.depthWrite).toBe(false);
   });
 });

@@ -227,13 +227,21 @@ export function makeBody(t: ThemeLook, source: THREE.MeshStandardMaterial | null
  *  (square law left a visible amber band). The shaders use the same curve. */
 export const glow = (level: number): number => level * level * level;
 
-const RING_VERT = `varying vec2 vUv; varying vec3 vN; varying vec3 vP;
+/** W22-RING: the band is drawn this far nearer the camera, along each pixel's own ray, so it covers the same pixels
+ *  but a thin bone lip hanging across its slit (the owner's 16:24 wedge on Operations) no longer cuts it. The processes
+ *  and bodies in front stand much further out, so they still hide it. Model units (a body is about 0.07 across). */
+export const RING_DEPTH_PULL = 0.02;
+const RING_VERT = `uniform float depthPull; varying vec2 vUv; varying vec3 vN; varying vec3 vP;
   void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vP = w.xyz;
+  w.xyz += normalize(cameraPosition - w.xyz) * depthPull;
   gl_Position = projectionMatrix * viewMatrix * w; }`;
 /** Final review L3: a ring fragment facing the camera less than this (about 72 degrees off) is dropped. Those are the
  *  band's edge-on ends, which poked 2-3 px past the column's silhouette as specks; the lit arc faces far nearer. */
 export const RING_EDGE_FACING = 0.3;
+/** W22-RING: where a band's end has faded fully in. */
+export const RING_END_SOFT = 0.45;
 const RING_FRAG = `#define RING_EDGE_FACING ${RING_EDGE_FACING.toFixed(2)}
+#define RING_END_SOFT ${RING_END_SOFT.toFixed(2)}
 uniform vec3 edge, mid, core; uniform float intensity, level, facingPower, facingBase, coreSharpness;
   varying vec2 vUv; varying vec3 vN; varying vec3 vP;
   ${FADE_GLSL}
@@ -245,9 +253,11 @@ uniform vec3 edge, mid, core; uniform float intensity, level, facingPower, facin
     c = mix(c, core, pow(h, coreSharpness));
     float facing = max(dot(normalize(vN), normalize(cameraPosition - vP)), 0.0);
     if (facing < RING_EDGE_FACING) discard;
+    // W22-RING: the band's ends fade out over RING_EDGE_FACING..RING_END_SOFT, so no arc ends in a hard cut or a speck
+    float a = smoothstep(RING_EDGE_FACING, RING_END_SOFT, facing);
     float g = facingBase + (1.0 - facingBase) * pow(facing, facingPower);
     vec3 lit = c * intensity * level * level * level * g * smoothstep(0.0, 0.35, h);
-    gl_FragColor = vec4(mix(bgColour(screenP()), lit, endFade(axisCoord(vP))), 1.0);
+    gl_FragColor = vec4(mix(bgColour(screenP()), lit, endFade(axisCoord(vP))), a);
   }`;
 
 const CAP_VERT = `varying vec3 vP; varying vec2 vUv;
@@ -281,9 +291,11 @@ export function makeRings(t: ThemeLook, gaps: readonly Gap[], shared: Shared): R
       uniforms: {
         edge: { value: col(t.ring.edge) }, mid: { value: col(t.ring.mid) }, core: { value: col(t.ring.core) },
         intensity: { value: t.ring.intensity }, level: { value: 1 }, facingPower: { value: R.facingPower },
-        facingBase: { value: R.facingBase }, coreSharpness: { value: R.coreSharpness }, ...shared.uniforms,
+        facingBase: { value: R.facingBase }, coreSharpness: { value: R.coreSharpness }, depthPull: { value: RING_DEPTH_PULL },
+        ...shared.uniforms,
       },
       defines: shared.defines,
+      transparent: true, depthWrite: false,                  // W22-RING: the soft ends blend over the bone behind them
       vertexShader: RING_VERT, fragmentShader: RING_FRAG,
     });
     const r = g.grooveRadius * R.radiusK;
