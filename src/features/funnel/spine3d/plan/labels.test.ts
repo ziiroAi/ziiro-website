@@ -463,3 +463,22 @@ describe("W19-RING: a label pushed down its column clears the spine beside its n
     expect(layoutLabels(hero, wall).labels.every((l) => l.hidden)).toBe(true);
   });
 });
+
+// W20-MID: at the 1024 x 768 desktop hero the right column had no room, so the callouts went left of the spine, over
+// the hero's paragraph and stats. marginLeft keeps every label right of the words' column: right, compact or hidden.
+describe("W20-MID: a label never goes left of marginLeft", () => {
+  const view = { width: 1024, height: 600, marginRight: 24 };
+  const at = (disc: DiscId, x: number, y: number, height: number): LabelInput =>
+    ({ disc, anchor: { x, y }, width: 196, height, compactHeight: 36, keepOut: { x0: x - 70, y0: y - 18, x1: x, y1: y + 18 } });
+  const hero = [at("G04", 812, 330, 84), at("G05", 816, 262, 52), at("G06", 820, 196, 52), at("G01", 836, 520, 52)];
+
+  it("goes left of the spine without it (the bug)", () => {
+    expect(shown(layoutLabels(hero, view).labels).some((l) => l.x < 579)).toBe(true);
+  });
+
+  it("keeps every shown label right of marginLeft with it", () => {
+    const out = shown(layoutLabels(hero, { ...view, marginLeft: 579 }).labels);
+    out.forEach((l) => expect(l.x, l.disc).toBeGreaterThanOrEqual(579));
+    out.forEach((l) => expect(l.x + l.width, l.disc).toBeLessThanOrEqual(1024 - 24));
+  });
+});

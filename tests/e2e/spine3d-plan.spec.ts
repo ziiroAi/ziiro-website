@@ -463,3 +463,50 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
     lines.forEach((height) => expect(height).toBeLessThan(24));
   });
 });
+
+/**
+ * W20-MID: what crosses the hero's words at the top of the page: a callout or the legend over a line of its text, or
+ * the nav's bar reaching below a line's top. "not ready" until the overlay has the disc boxes of this
+ * screen (every disc button inside it).
+ */
+async function heroWordsCrossed(page: Page): Promise<string[] | "not ready"> {
+  return page.evaluate(() => {
+    const stage = document.querySelector<HTMLElement>("[data-testid=spine-stage]")!;
+    const buttons = [...stage.querySelectorAll("button[data-disc]")].map((b) => b.getBoundingClientRect()).filter((r) => r.width > 0);
+    if (stage.dataset.scrolled !== "0" || !buttons.length || buttons.some((r) => r.right > innerWidth)) return "not ready";
+    const meet = (a: DOMRect, b: DOMRect) => a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1;
+    const hero = document.querySelector<HTMLElement>("#plan-hero-title")!.closest("section")!;
+    const lines: { text: string; box: DOMRect }[] = [];
+    const walker = document.createTreeWalker(hero, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim() || node.parentElement?.closest("[data-scroll-cue]")) continue;
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const box of range.getClientRects()) if (box.width > 0) lines.push({ text: node.textContent.trim().slice(0, 24), box });
+    }
+    const shown = (el: HTMLElement) => getComputedStyle(el).visibility !== "hidden" && Number(getComputedStyle(el).opacity) > 0.01;
+    const marks = [...stage.querySelectorAll<HTMLElement>("[data-callout], [data-legend]")].filter(shown)
+      .map((el) => ({ name: el.dataset.callout ? `callout ${el.dataset.callout}` : "legend", box: el.getBoundingClientRect() }));
+    const navBottom = document.querySelector("nav")!.getBoundingClientRect().bottom;
+    return [
+      ...marks.flatMap((m) => lines.filter((l) => meet(m.box, l.box)).map((l) => `${m.name} over "${l.text}"`)),
+      ...lines.filter((l) => l.box.top < navBottom).map((l) => `the nav (to ${Math.round(navBottom)}) over "${l.text}"`),
+    ];
+  });
+}
+
+test.describe("the hero at mid widths (W20-MID)", () => {
+  // The manager at 1024 x 768: the callouts went left of the spine over the paragraph and stats, and the logo sat on
+  // the eyebrow; at 1280 x 720 the nav covered the eyebrow and the headline's top; at 1280 x 800 the logo's rim crossed
+  // the eyebrow (review-w20 F9).
+  for (const size of [{ width: 1024, height: 768 }, { width: 1280, height: 720 }, { width: 1280, height: 800 }]) {
+    test(`keeps the callouts and the legend off the hero's words, and the words under the nav, at ${size.width} x ${size.height}`, async ({ page }, info) => {
+      test.skip(info.project.name !== "desktop", "desktop widths; the phone's hero has no stage beside its words");
+      await page.setViewportSize(size);
+      await toPlan(page);
+      await liveStage(page);
+      await toHero(page);
+      await expect.poll(() => heroWordsCrossed(page), { timeout: SETTLE_TIMEOUT_MS }).toEqual([]);
+    });
+  }
+});

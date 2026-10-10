@@ -61,6 +61,9 @@ interface Viewport {
   height: number;
   /** From the right edge, where it differs from LABEL_MARGIN_PX (W14-X). */
   marginRight?: number;
+  /** From the left edge, where labels may start, where it differs from LABEL_MARGIN_PX: the desktop hero keeps its
+   *  callouts right of its words' column (W20-MID). */
+  marginLeft?: number;
   /** The spine's column on screen: no label may cover any of these boxes (W14-X). */
   avoid?: readonly ScreenBox[];
 }
@@ -74,10 +77,12 @@ interface Column {
 const clamp = (v: number, lo: number, hi: number): number => Math.min(Math.max(v, lo), Math.max(lo, hi));
 /** The furthest right a label may reach. */
 const rightLimit = (view: Viewport): number => view.width - (view.marginRight ?? LABEL_MARGIN_PX);
+/** The furthest left a label may start. */
+const leftLimit = (view: Viewport): number => view.marginLeft ?? LABEL_MARGIN_PX;
 const rightRoom = (l: LabelInput, view: Viewport): number => rightLimit(view) - (l.anchor.x + LABEL_GAP_PX);
 /** Where a left-side label is measured from: the disc's left edge when its box is known, else the anchor. */
 const leftEdge = (l: LabelInput): number => l.keepOut?.x0 ?? l.anchor.x;
-const leftRoom = (l: LabelInput): number => leftEdge(l) - LABEL_GAP_PX - LABEL_MARGIN_PX;
+const leftRoom = (l: LabelInput, view: Viewport): number => leftEdge(l) - LABEL_GAP_PX - leftLimit(view);
 
 const onScreen = (l: LabelInput, view: Viewport): boolean =>
   l.visible !== false && l.anchor.x >= 0 && l.anchor.x <= view.width && l.anchor.y >= 0 && l.anchor.y <= view.height;
@@ -106,22 +111,22 @@ function verticalFit(label: LabelInput, box: ScreenBox, view: Viewport): Vertica
 /** The label's side; null when its disc's box leaves no room anywhere that doesn't cover the disc. */
 function sideFor(label: LabelInput, view: Viewport): Choice {
   if (rightRoom(label, view) >= label.width) return "right";
-  if (leftRoom(label) >= label.width) return "left";
+  if (leftRoom(label, view) >= label.width) return "left";
   const box = label.keepOut;
-  if (!box) return rightRoom(label, view) >= leftRoom(label) ? "right" : "left";
+  if (!box) return rightRoom(label, view) >= leftRoom(label, view) ? "right" : "left";
   return verticalFit(label, box, view);
 }
 
 /** The fallback's choice: the one side, unless it would put the label over its own disc (N2). */
 function forcedSide(label: LabelInput, one: ColumnSide, view: Viewport): Choice {
-  const room = one === "right" ? rightRoom(label, view) : leftRoom(label);
+  const room = one === "right" ? rightRoom(label, view) : leftRoom(label, view);
   if (!label.keepOut || room >= label.width) return one;
   return verticalFit(label, label.keepOut, view);
 }
 
 function xFor(label: LabelInput, side: ColumnSide, view: Viewport): number {
   const wanted = side === "right" ? label.anchor.x + LABEL_GAP_PX : leftEdge(label) - LABEL_GAP_PX - label.width;
-  return clamp(wanted, LABEL_MARGIN_PX, rightLimit(view) - label.width);
+  return clamp(wanted, leftLimit(view), rightLimit(view) - label.width);
 }
 
 /** At most this many slides past the spine's bands: each one clears one more band, and a column has a handful. */
@@ -141,7 +146,7 @@ function slideClear(x: number, y: number, width: number, height: number, side: C
     if (!hit) break;
     at = side === "right" ? hit.x1 + LABEL_GAP_PX : hit.x0 - LABEL_GAP_PX - width;
   }
-  return clamp(at, LABEL_MARGIN_PX, rightLimit(view) - width);
+  return clamp(at, leftLimit(view), rightLimit(view) - width);
 }
 
 const stackHeight = (heights: readonly number[]): number =>
@@ -228,7 +233,7 @@ const collide = (a: PlacedLabel, b: PlacedLabel): boolean =>
 /** A label above or below its disc's box (sideFor has checked it fits), centred on the box across. */
 function placeVertical(label: LabelInput, { side, compact }: VerticalFit, box: ScreenBox, view: Viewport): PlacedLabel {
   const height = compact ? Math.min(label.height, label.compactHeight ?? label.height) : label.height;
-  const x = clamp((box.x0 + box.x1) / 2 - label.width / 2, LABEL_MARGIN_PX, rightLimit(view) - label.width);
+  const x = clamp((box.x0 + box.x1) / 2 - label.width / 2, leftLimit(view), rightLimit(view) - label.width);
   const y = side === "above" ? box.y0 - LABEL_GAP_PX - height : box.y1 + LABEL_GAP_PX;
   return {
     disc: label.disc, x, y, width: label.width, height, side, compact, hidden: false,
@@ -308,7 +313,7 @@ export function layoutLabels(labels: readonly LabelInput[], view: Viewport): Lab
   let result = placeChoices(shown, new Map(shown.map((l) => [l, sideFor(l, view)])), priority, view);
   if (sidesCollide(result.placed)) {
     const right = shown.reduce((sum, l) => sum + rightRoom(l, view), 0);
-    const left = shown.reduce((sum, l) => sum + leftRoom(l), 0);
+    const left = shown.reduce((sum, l) => sum + leftRoom(l, view), 0);
     const one: ColumnSide = right >= left ? "right" : "left";
     const choices = new Map(shown.map((l): [LabelInput, Choice] => {
       const own = sideFor(l, view);

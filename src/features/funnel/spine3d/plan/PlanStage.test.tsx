@@ -463,15 +463,16 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(screen.style.getPropertyValue("--spine-across")).toBe(String(ACROSS.desktop.right));
   });
 
-  it("hides the legend while the spine travels and at a zoomed stop, and shows it under the whole spine (W15-B4 M1, W17-S)", async () => {
+  it("hides the legend while the spine travels, at block 2 and at a zoomed stop, and shows it under the whole spine (W15-B4 M1, W17-S, W20 F5)", async () => {
     const { stage } = mount();
     const screen = stage.querySelector<HTMLElement>("[data-stage-screen]")!;
     await scrollTo(0);
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
     await scrollTo(arrival(0) - window.innerHeight / 4); // halfway through the travel to block 2
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("0");
-    await scrollTo(arrival(0)); // block 2: the whole spine on the left, its legend back under it
-    expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
+    // W20 F5: block 2's spine stands NEED_ZOOM times closer and reaches the stage's foot: a legend there sat on bone.
+    await scrollTo(arrival(0));
+    expect(screen.style.getPropertyValue("--legend-shown")).toBe("0");
     await scrollTo(arrival(1)); // a department: zoomed in on its disc
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("0");
     await scrollTo(closeRest());

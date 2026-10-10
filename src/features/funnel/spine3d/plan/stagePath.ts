@@ -15,7 +15,7 @@ import { GAPS } from "../gaps";
 import type { MeshSize } from "../rules";
 import { faceTurn, nearestTurn, turnedCentre } from "./facing";
 import type { Variant } from "./targets";
-import { END_MARGIN, shiftXFor, shiftYFor, shownTan } from "./tour";
+import { END_MARGIN, LEGEND_STRIP_PX, shiftXFor, shiftYFor, shownTan } from "./tour";
 import { add, length, normalize, scale, sub, type Vec3 } from "./vec";
 
 /** Where the spine stands across the stage, from the left: right of the hero's words, left of block 2's, left or right
@@ -49,6 +49,9 @@ export interface StageKey {
   across: number;
   /** 1 at a zoomed department stop, 0 on the whole spine: the whole spine's overlay and legend leave as it rises. */
   zoomed: number;
+  /** W20-MID F5: 1 where the whole spine is framed with the legend's strip kept free under it (the hero, the close),
+   *  0 on block 2's closer framing and at the stops, where the spine reaches the stage's foot. */
+  whole: number;
   /** A turn about the column added to the model's yaw, in radians. */
   turn: number;
 }
@@ -107,12 +110,12 @@ export function stageKeys(
   const wholeAt = (at: number): Framing => framingAt(MIDDLE, WHOLE / (1 - share) / (2 * tan), at, size, view, share);
   const hero: StageKey = {
     framing: variant === "desktop" ? baseFraming(size) : wholeAt(across.hero),
-    hold: 0, stop: null, across: across.hero, zoomed: 0, turn: 0,
+    hold: 0, stop: null, across: across.hero, zoomed: 0, whole: 1, turn: 0,
   };
   const heroDistance = length(sub(hero.framing.position, hero.framing.target));
   const need: StageKey = {
     framing: framingAt(litCentre(discs), heroDistance / NEED_ZOOM, across.need, size, view, share),
-    hold: 0, stop: null, across: across.need, zoomed: 0, turn: 0,
+    hold: 0, stop: null, across: across.need, zoomed: 0, whole: 0, turn: 0,
   };
   const stopDistance = STOP_VIEW_HEIGHT[size] / (2 * tan);
   let previous = need.turn;
@@ -122,11 +125,11 @@ export function stageKeys(
     previous = turn;
     return {
       framing: framingAt(turnedCentre(centreOf(disc), turn), stopDistance, across[side], size, view, 0),
-      hold: 1, stop: disc, across: across[side], zoomed: 1, turn,
+      hold: 1, stop: disc, across: across[side], zoomed: 1, whole: 0, turn,
     };
   });
   const close: StageKey = {
-    framing: wholeAt(across.close), hold: 0, stop: null, across: across.close, zoomed: 0, turn: nearestTurn(0, previous),
+    framing: wholeAt(across.close), hold: 0, stop: null, across: across.close, zoomed: 0, whole: 1, turn: nearestTurn(0, previous),
   };
   return [hero, need, ...stops, close];
 }
@@ -187,6 +190,17 @@ export function legendOpacity(across: number, variant: Variant, zoomed: number):
   return Math.max(heroWordsOpacity(across, variant), back) * (1 - zoomed);
 }
 
+/**
+ * W20-MID: whether the hero's legend has its strip (LEGEND_STRIP_PX at the screen's bottom) to itself at the top of
+ * the page, 1 or 0: on a short screen (1280 x 720, 1366 x 768) the hero's words, held clear of the nav, run down into
+ * it, and the legend beside the spine's foot sat on the stats. `statsBottom` is the hero's stats' bottom in page px,
+ * null before it is measured.
+ */
+export function heroLegendRoom(statsBottom: number | null, screenHeight: number): 0 | 1 {
+  if (statsBottom === null) return 1;
+  return statsBottom <= screenHeight - LEGEND_STRIP_PX.desktop ? 1 : 0;
+}
+
 /** Over this share of the screen, as the plan's end rises past the screen's bottom, the stage's legend leaves. */
 export const LEAVE_SHARE = 0.25;
 
@@ -224,6 +238,7 @@ export function stageAt(anchors: readonly StageAnchor[], scrollY: number, reduce
     stop: from.key.stop,
     across: mix(from.key.across, to.key.across, e),
     zoomed: mix(from.key.zoomed, to.key.zoomed, e),
+    whole: mix(from.key.whole, to.key.whole, e),
     turn: mix(from.key.turn, to.key.turn, e),
   };
 }

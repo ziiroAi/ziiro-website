@@ -21,7 +21,7 @@ import { FLIGHT_MS } from "../camera";
 import { CROSSFADE_MS, SpineViewer } from "../SpineViewer";
 import { LegendRow, SpineOverlay } from "./SpineOverlay";
 import {
-  ACROSS, heroWordsOpacity, legendOpacity, needWordsOpacity, scrollCueOpacity, stageAnchors, stageAt, stageKeys,
+  ACROSS, heroLegendRoom, heroWordsOpacity, legendOpacity, needWordsOpacity, scrollCueOpacity, stageAnchors, stageAt, stageKeys,
   stageShown, TRAVEL, wordsLeftOpacity,
   type Span, type StageAnchor, type StageKey,
 } from "./stagePath";
@@ -52,6 +52,9 @@ const OVERLAY_GONE_AT = 0.01;
  *  a gap: the callouts keep out of it while the spine is on the left (W15-B2). */
 const TEXT_COLUMN_SHARE = 0.46;
 const TEXT_COLUMN_GAP_PX = 16;
+/** From 1024 px, the hero's words column (Hero's lg:w-[55%]): its callouts keep right of it while the spine is right,
+ *  so with no room right of the spine they go compact or hide, never over the paragraph and stats (W20-MID). */
+const HERO_COLUMN_SHARE = 0.55;
 
 export interface PlanStageProps {
   /** The plan's departments in stop order (§5.5). */
@@ -214,6 +217,8 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
     let anchors: StageAnchor[] = [];
     /** The plan's end in page px, where the stage stops; unmeasured (no layout yet), it never ends. */
     let end = Number.POSITIVE_INFINITY;
+    /** W20-MID: 0 when the hero's words reach into the legend's strip, so the legend stays off them at the hero. */
+    let heroLegend: 0 | 1 = 1;
     /** The flight the stage starts when the 3D arrives: where to, and when it lands. */
     let arrivalFlight: { to: string; until: number } | null = null;
     const measure = () => {
@@ -221,6 +226,8 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
       anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel, minTravel, heroRest, closeTravel);
       const rect = root.getBoundingClientRect();
       end = rect.height > 0 ? rect.bottom + window.scrollY : Number.POSITIVE_INFINITY;
+      const stats = root.querySelector("[data-hero-stats]")?.getBoundingClientRect();
+      heroLegend = heroLegendRoom(stats && stats.height > 0 ? stats.bottom + window.scrollY : null, window.innerHeight);
     };
     const update = () => {
       frame = null;
@@ -245,7 +252,8 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
       const slide = Number(((key.across - ACROSS[variant].hero) * 100).toFixed(2));
       if (stillRef.current) stillRef.current.style.transform = `translateX(${slide}%)`;
       screenRef.current?.style.setProperty("--spine-across", String(Number(key.across.toFixed(4))));
-      const legend = legendOpacity(key.across, variant, key.zoomed) * stageShown(end - window.scrollY, window.innerHeight);
+      const legend = legendOpacity(key.across, variant, key.zoomed) * stageShown(end - window.scrollY, window.innerHeight) *
+        (variant === "desktop" ? key.whole * (key.across >= 0.5 ? heroLegend : 1) : 1);
       screenRef.current?.style.setProperty("--legend-shown", String(Number(legend.toFixed(3))));
       // W15-B3, W16-A: the model never crosses words. The hero's fade as it sets off left, and are hidden once gone
       // (they hold buttons); the sections' words wait for it to clear their column, the right one or the left one, by
@@ -321,6 +329,7 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
             view={view}
             focus={stop}
             clearRight={variant === "desktop" && spineLeft ? view.width * TEXT_COLUMN_SHARE + TEXT_COLUMN_GAP_PX : 0}
+            clearLeft={variant === "desktop" && !spineLeft ? view.width * HERO_COLUMN_SHARE + TEXT_COLUMN_GAP_PX : 0}
             spineSide={spineLeft ? "left" : "right"}
             guest={guest}
           />

@@ -30,6 +30,10 @@ const OVER_STAGE = "relative lg:z-10 lg:pointer-events-none";
 /** W15-B3: PlanStage fades the hero's words and stats out as the spine sets off left (--hero-words, 0 to 1) and hides
  *  them once gone, so the spine never crosses them. */
 const MAKES_WAY = "lg:opacity-[var(--hero-words,1)] lg:group-data-[hero-hidden]/stage:invisible";
+/** W20-MID: the section starts under the fixed nav, so centring the words in it put them under the bar on a short
+ *  screen (1024 x 768, 1280 x 720). Three rows: the words in the middle, the space above at least the nav's height
+ *  and a gap, the space below what's left. Where the words fit centred (1440 x 900: 103 px above) nothing moves. */
+const CLEAR_OF_NAV = "lg:grid-rows-[minmax(calc(var(--nav-h,84px)+16px),1fr)_auto_minmax(0,1fr)]";
 
 export interface HeroProps {
   heroText: Lines;
@@ -68,9 +72,9 @@ export function Hero({ heroText, name, email, headingRef, onBook, onProgress, st
     <>
       <section
         aria-labelledby="plan-hero-title"
-        className={`${OVER_STAGE} ${MAKES_WAY} pb-10 lg:flex lg:min-h-[calc(100vh-var(--nav-h,84px))] lg:items-center lg:pb-0`}
+        className={`${OVER_STAGE} ${MAKES_WAY} pb-10 lg:grid lg:min-h-[calc(100vh-var(--nav-h,84px))] lg:pb-0 ${CLEAR_OF_NAV}`}
       >
-        <div className={`px-4 pt-24 sm:px-6 lg:pointer-events-auto lg:w-[55%] lg:px-10 xl:pl-16 ${guest ? "lg:pt-14" : "lg:pt-0"}`}>
+        <div className={`px-4 pt-24 sm:px-6 lg:row-start-2 lg:pointer-events-auto lg:w-[55%] lg:px-10 xl:pl-16 ${guest ? "lg:pt-14" : "lg:pt-0"}`}>
           {guest && (
             // In the words' column, so it sits under the nav and is read before the h1; not an alert, it's how the page opens.
             <p data-guest-note className="mb-6 w-fit max-w-full rounded-xl border border-[color:var(--funnel-line)] bg-[color:var(--funnel-card)] px-4 py-3 text-sm lg:mb-5 lg:py-2">

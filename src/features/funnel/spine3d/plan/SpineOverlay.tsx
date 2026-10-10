@@ -44,6 +44,8 @@ export interface SpineOverlayProps {
   focus?: DiscId | null;
   /** Px at the stage's right that callouts keep clear of: the plan's text column once the spine is left (W15-B2). */
   clearRight?: number;
+  /** Px at the stage's left that callouts keep clear of: the hero's words column while the spine is right (W20-MID). */
+  clearLeft?: number;
   /** Which side of the stage the spine stands on. The desktop disc panel docks on that side, so it never opens under
    *  the words beside the spine: the hero's on the left, the text column on the right (W15-B4 H1). */
   spineSide?: "left" | "right";
@@ -178,7 +180,7 @@ export function LegendRow({ guest = false }: { guest?: boolean }): JSX.Element {
   );
 }
 
-export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus = null, clearRight = 0, spineSide = "left", guest = false }: SpineOverlayProps): JSX.Element | null {
+export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus = null, clearRight = 0, clearLeft = 0, spineSide = "left", guest = false }: SpineOverlayProps): JSX.Element | null {
   const boxes = useDiscBoxes(api);
   const [opened, setOpened] = useState<Opened | null>(null);
   const [hintSeen, setHintSeen] = useState(false);
@@ -232,9 +234,10 @@ export function SpineOverlay({ api, callouts, planAgentIds, variant, view, focus
     const above = {
       width: view.width, height: Math.max(0, view.height - LEGEND_STRIP_PX[variant]),
       marginRight: Math.max(CALLOUT_RIGHT_MARGIN_PX[variant], clearRight), avoid: spineBands(boxes),
+      ...(clearLeft > 0 ? { marginLeft: clearLeft } : {}),
     };
     return layoutLabels(calloutInputs(boxes, byFocus(callouts, focus), variant), above).labels;
-  }, [boxes, callouts, variant, view, focus, clearRight]);
+  }, [boxes, callouts, variant, view, focus, clearRight, clearLeft]);
 
   const onButtonBlur = (event: FocusEvent<HTMLButtonElement>) => {
     const next = event.relatedTarget as Node | null;

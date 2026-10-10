@@ -10,6 +10,7 @@ import {
   ACROSS, HERO_WORDS_GONE_AT, heroWordsOpacity, LEGEND_BACK_FULL_AT, legendOpacity, NEED_WORDS_FROM,
   NEED_WORDS_FULL_AT, needWordsOpacity, stageAnchors, stageAt, stageKeys, stageShown, STOP_VIEW_HEIGHT, stopSide,
   WORDS_LEFT_FROM, WORDS_LEFT_FULL_AT, wordsLeftOpacity, type StageAnchor, CUE_FADE_PX, scrollCueOpacity, TRAVEL,
+  heroLegendRoom,
 } from "./stagePath";
 
 const DESKTOP_VIEW = { width: 1440, height: 816 };
@@ -277,6 +278,41 @@ describe("reduced motion cuts at the start of each travel (W15-B4 M3)", () => {
   it("cuts straight from one stop to the next", () => {
     expect(stageAt(anchors, 2199, true, keys[0])).toBe(keys[2]);
     expect(stageAt(anchors, 2200, true, keys[0])).toBe(keys[3]);
+  });
+});
+
+describe("W20-MID F5/F7/F8: the legend shows only on the whole spine, never on block 2's zoom", () => {
+  // worker-2 at 1024 x 768, 1180 x 820 and 1280 x 800: at block 2 the spine stands NEED_ZOOM times closer and fills
+  // the stage's height, so the legend under it printed over its lower vertebrae.
+  const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
+  const [hero, need] = keys;
+  const close = keys[keys.length - 1];
+
+  it("marks the hero and the close whole, and block 2 and the stops not", () => {
+    expect(hero.whole).toBe(1);
+    expect(close.whole).toBe(1);
+    expect(need.whole).toBe(0);
+    keys.slice(2, -1).forEach((stop) => expect(stop.whole).toBe(0));
+  });
+
+  it("blends it along a travel, like the zoom", () => {
+    const anchors: StageAnchor[] = [{ at: 0, key: need }, { at: 1000, key: close }];
+    expect(stageAt(anchors, 500, false, need).whole).toBeCloseTo(0.5, 5);
+  });
+});
+
+describe("W20-MID: the hero's legend shows only where the hero's words leave its strip free", () => {
+  it("shows at 1440 x 900, whose stats end at 715 px, well above the strip (816 px)", () => {
+    expect(heroLegendRoom(715, 900)).toBe(1);
+  });
+
+  it("is gone at 1280 x 720 and 1366 x 768, where the stats reach into the strip", () => {
+    expect(heroLegendRoom(712, 720)).toBe(0);
+    expect(heroLegendRoom(712, 768)).toBe(0);
+  });
+
+  it("shows when nothing has been measured", () => {
+    expect(heroLegendRoom(null, 768)).toBe(1);
   });
 });
 

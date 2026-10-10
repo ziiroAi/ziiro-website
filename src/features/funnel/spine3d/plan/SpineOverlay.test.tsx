@@ -57,8 +57,8 @@ afterEach(() => {
   view = null;
 });
 
-function mount(api: SpineViewerApi | null, variant: "desktop" | "phone" = "desktop", clearRight?: number, spineSide?: "left" | "right") {
-  view = render(<SpineOverlay api={api} callouts={callouts} planAgentIds={ANANYA.agentIds} variant={variant} view={VIEW} clearRight={clearRight} spineSide={spineSide} />);
+function mount(api: SpineViewerApi | null, variant: "desktop" | "phone" = "desktop", clearRight?: number, spineSide?: "left" | "right", clearLeft?: number) {
+  view = render(<SpineOverlay api={api} callouts={callouts} planAgentIds={ANANYA.agentIds} variant={variant} view={VIEW} clearRight={clearRight} spineSide={spineSide} clearLeft={clearLeft} />);
   return view.container;
 }
 
@@ -271,6 +271,19 @@ describe("SpineOverlay: the lit and quiet legend", () => {
     await fake.emitBoxes(left);
     for (const label of container.querySelectorAll<HTMLElement>("[data-callout]")) {
       expect(parseFloat(label.style.left) + parseFloat(label.style.width)).toBeLessThanOrEqual(VIEW.width - clear);
+    }
+  });
+
+  it("keeps every callout right of the hero's words when the right has no room (W20-MID, 1024 x 768)", async () => {
+    // The manager at 1024 x 768: with no room right of the spine the callouts went left, over the paragraph and stats.
+    const fake = fakeApi();
+    const shift = VIEW.width - 24 - 150 - Math.max(...BOXES.map((b) => b.left + b.width));
+    const right = BOXES.map((b) => ({ ...b, left: b.left + shift, anchor: { x: b.anchor.x + shift, y: b.anchor.y } }));
+    const words = Math.round(VIEW.width * 0.55) + 16;
+    const container = mount(fake.api, "desktop", 0, "right", words);
+    await fake.emitBoxes(right);
+    for (const label of container.querySelectorAll<HTMLElement>("[data-callout]")) {
+      expect(parseFloat(label.style.left)).toBeGreaterThanOrEqual(words);
     }
   });
 
