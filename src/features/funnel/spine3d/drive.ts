@@ -5,7 +5,7 @@
 // first frames come too slowly (pace.ts); a drag, a fling or a flight still draws.
 // W15-C4: the idle motion is a sweep across the side and front (sweep.ts), never a full turn: from behind the model
 // reads as lumps. A drag still turns it freely all the way round.
-// W23-C: the sway comes to rest a few seconds after the last scroll, drag or hover, so an idle page draws nothing; the
+// W23-C, W23-C4: the sway comes to rest 9 s after the last scroll, drag or hover, so an idle page draws nothing; the
 // phone's 30 fps cap holds for the sway alone, a scroll draws every display frame; and a phone scroll whose frames miss
 // their budget draws at 1 device pixel per CSS pixel until it rests (full quality at rest, always).
 import type { DiscId } from "../data/contract";
@@ -30,8 +30,8 @@ const FRAME_MS = 16;
 const MAX_FRAME_MS = 64;
 /** A capped spin draws a frame this much early rather than skip a whole display frame for a millisecond's jitter. */
 const CAP_SLACK_MS = 4;
-/** W23-C: the sway sets off for its rest this long after the last input; it rests one leg and a half later at most. */
-export const SWAY_REST_AFTER_MS = 8_000;
+/** W23-C, W23-C4: the sway sets off for its rest this long after the last input, and rests SWAY_SETTLE_MS later: 9 s. */
+export const SWAY_REST_AFTER_MS = 6_000;
 /** W23-C: a phone scroll whose median frame over the last BUDGET_FRAMES is over SCROLL_BUDGET_MS draws at LOW_DPR. */
 const SCROLL_BUDGET_MS = 20;
 const BUDGET_FRAMES = 8;
@@ -171,7 +171,7 @@ export function createDrive(
   function poke(): void {
     lastInput = performance.now();
     // W23-C3 L1: a settling sway too: it carries on from where it is (re-entry is smooth), and rests a while later.
-    if (rested || sweep?.settling) sweep = null;
+    if (rested || sweep?.final) sweep = null;
     rested = false;
   }
 
@@ -259,7 +259,7 @@ export function createDrive(
     const sweeping = idle && spinOnly();
     if (sweeping) {
       const from = sweep ?? enterSweep(orbit.yaw);
-      const settle = !from.settling && performance.now() - lastInput >= SWAY_REST_AFTER_MS;
+      const settle = !from.final && performance.now() - lastInput >= SWAY_REST_AFTER_MS;
       const next = stepSweep(settle ? settleSweep(from) : from, dt);
       sweep = next.rested ? null : next.sweep;
       rested = next.rested;

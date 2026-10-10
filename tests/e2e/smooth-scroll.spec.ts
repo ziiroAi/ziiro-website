@@ -16,7 +16,9 @@ function scrollAfterIdle(page: Page, how: "scrollTo" | "wheel", by: number): Pro
       new Promise<{ from: number; ys: number[] }>((resolve) => {
         setTimeout(() => {
           const from = Math.round(scrollY);
-          if (how === "scrollTo") window.__lenis!.scrollTo(from + by, { duration: 1 });
+          // The app declares window.__lenis (SmoothScroll.tsx), outside this tsconfig: the page's own, typed here.
+          const lenis = (window as unknown as { __lenis: { scrollTo(to: number, options: { duration: number }): void } }).__lenis;
+          if (how === "scrollTo") lenis.scrollTo(from + by, { duration: 1 });
           else window.dispatchEvent(new WheelEvent("wheel", { deltaY: by, bubbles: true, cancelable: true }));
           const ys: number[] = [];
           const frame = () => {
@@ -40,7 +42,7 @@ function expectEased({ from, ys }: { from: number; ys: number[] }, by: number) {
 }
 
 async function lenisReady(page: Page) {
-  await page.waitForFunction(() => window.__lenis !== undefined);
+  await page.waitForFunction(() => "__lenis" in window);
 }
 
 test.describe("the smooth scroll after an idle pause (W23-C3 H1)", () => {

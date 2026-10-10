@@ -6,6 +6,7 @@ import type { DiscId } from "../data/contract";
 import type { DiscPickEvent } from "./api";
 import { baseFraming, framingFor } from "./camera";
 import { createDrive, SCROLL_REST_MS, SWAY_REST_AFTER_MS, type Drive } from "./drive";
+import { SWAY_SETTLE_MS } from "./sweep";
 
 /** W23-C3 L2: a page theme crossfade under way, or null. */
 let themeFade: object | null = null;
@@ -408,9 +409,17 @@ describe("the idle sway stays about r17's view, ±25° (W16-A)", () => {
     pointer("pointerup", px);
   }
 
-  it("sways within ±25° for 120 s of idle, and reaches both edges", () => {
+  /** W23-C4: flushes n frames with a mouse hover every 4 s, so the sway stays awake (it rests 9 s after the last input). */
+  const flushAwake = (n: number) => {
+    for (let i = 0; i < n; i += 250) {
+      pointer("pointermove", 1);
+      flush(Math.min(250, n - i));
+    }
+  };
+
+  it("sways within ±25° for 120 s while the reader is about, and reaches both edges", () => {
     start();
-    flush(7500); // 120 s at 16 ms
+    flushAwake(7500); // 120 s at 16 ms
     const yaws = drawn().map(wrapped);
     expect(yaws.filter((y) => Math.abs(y) > 25 + 1e-6)).toEqual([]);
     expect(Math.min(...yaws)).toBeLessThan(-24);
@@ -423,7 +432,7 @@ describe("the idle sway stays about r17's view, ±25° (W16-A)", () => {
     flush();
     expect(wrapped(drawn().at(-1)!)).toBeCloseTo(90, 0); // the first idle frame after the release has already moved it a hair
     const from = handle.render.mock.calls.length;
-    flush(3750); // 60 s
+    flushAwake(3750); // 60 s
     const yaws = drawn(from).map(wrapped);
     expect(yaws.every((y) => y <= 90 + 1e-9 && y > -90)).toBe(true);
     expect(yaws.some((y) => Math.abs(y - 25) < 0.1)).toBe(true);
@@ -477,9 +486,27 @@ describe("render on demand (W23-C)", () => {
     start();
     flush(Math.round((SWAY_REST_AFTER_MS + 200) / 16)); // settling now
     pointer("pointermove", 120);
-    flush(Math.round(9_000 / 16));
-    expect(queue.size, "still swaying 9 s after the hover").toBeGreaterThan(0);
+    flush(Math.round((SWAY_REST_AFTER_MS + 500) / 16));
+    expect(queue.size, "still swaying after the hover").toBeGreaterThan(0);
   });
+
+  it.each([0, 1_300, 2_600, 4_100, 5_700])(
+    "W23-C4: rests SWAY_REST_AFTER_MS + SWAY_SETTLE_MS (9 s) after the last scroll, wherever the sway was (%i ms in)",
+    (swayed) => {
+      start();
+      flush(Math.round(swayed / 16));
+      drive!.scrub(baseFraming("desktop"), 0);
+      const scrolledAt = now;
+      let restedAt = -1;
+      for (let i = 0; i < 2_000 && restedAt < 0; i++) {
+        flush(1);
+        if (queue.size === 0) restedAt = now;
+      }
+      expect(restedAt - scrolledAt).toBeGreaterThanOrEqual(SWAY_REST_AFTER_MS + SWAY_SETTLE_MS - 16);
+      expect(restedAt - scrolledAt).toBeLessThanOrEqual(SWAY_REST_AFTER_MS + SWAY_SETTLE_MS + 48);
+      expect(SWAY_REST_AFTER_MS + SWAY_SETTLE_MS).toBe(9_000);
+    },
+  );
 
   it("a drag wakes the rested sway too", () => {
     start();
