@@ -5,7 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DiscId } from "../data/contract";
 import type { DiscPickEvent } from "./api";
 import { baseFraming, framingFor } from "./camera";
-import { createDrive, type Drive } from "./drive";
+import { createDrive, SCROLL_REST_MS, SWAY_REST_AFTER_MS, type Drive } from "./drive";
+
+/** W23-C3 L2: a page theme crossfade under way, or null. */
+let themeFade: object | null = null;
+vi.mock("../flow/theme", () => ({ themeFadeNow: () => themeFade }));
 import type { SpineHandle } from "./host";
 import type { DiscBox } from "./scene";
 
@@ -63,6 +67,7 @@ const disc = (id: DiscId, left: number, top: number, size: number): DiscBox =>
   ({ disc: id, left, top, width: size, height: size, anchor: { x: left + size, y: top }, onScreen: true });
 
 beforeEach(() => {
+  themeFade = null;
   queue = new Map();
   nextId = 1;
   now = 0;
@@ -468,6 +473,14 @@ describe("render on demand (W23-C)", () => {
     expect(Math.abs(yaw() - from)).toBeGreaterThan(0.01);
   });
 
+  it("W23-C3 L1: a hover during the settle leg calls the rest off; the sway carries on", () => {
+    start();
+    flush(Math.round((SWAY_REST_AFTER_MS + 200) / 16)); // settling now
+    pointer("pointermove", 120);
+    flush(Math.round(9_000 / 16));
+    expect(queue.size, "still swaying 9 s after the hover").toBeGreaterThan(0);
+  });
+
   it("a drag wakes the rested sway too", () => {
     start();
     flush(Math.round(20_000 / 16));
@@ -531,6 +544,35 @@ describe("a phone's fast scroll that misses its frame budget (W23-C)", () => {
     expect(dprs()).toContain(1);
     expect(dprs().filter((d) => d === 1)).toHaveLength(1); // once, not every frame
     vi.advanceTimersByTime(400);
+    expect(dprs().at(-1), "still low 400 ms after the scroll (W23-C3 M2)").toBe(1);
+    vi.advanceTimersByTime(SCROLL_REST_MS);
+    expect(dprs().at(-1)).toBe(3);
+  });
+
+  it("W23-C3 M2: a train of short scrolls with pauses drops once and restores once, at rest", () => {
+    start({ size: "phone", offThread: true });
+    for (let burst = 0; burst < 6; burst++) {
+      scroll(10, 40);
+      vi.advanceTimersByTime(400);
+    }
+    expect(handle.resize).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(SCROLL_REST_MS);
+    expect(dprs()).toEqual([1, 3]);
+  });
+
+  it("W23-C3 L2: never switches the pixel ratio while a theme crossfade runs (a resize would cut it)", () => {
+    start({ size: "phone", offThread: true });
+    themeFade = {};
+    scroll(20, 40);
+    expect(dprs()).not.toContain(1);
+    themeFade = null;
+    scroll(20, 40);
+    expect(dprs()).toContain(1);
+    themeFade = {};
+    vi.advanceTimersByTime(SCROLL_REST_MS + 100);
+    expect(dprs().at(-1), "held low till the fade is over").toBe(1);
+    themeFade = null;
+    vi.advanceTimersByTime(SCROLL_REST_MS + 100);
     expect(dprs().at(-1)).toBe(3);
   });
 

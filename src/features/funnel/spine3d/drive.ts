@@ -9,6 +9,7 @@
 // phone's 30 fps cap holds for the sway alone, a scroll draws every display frame; and a phone scroll whose frames miss
 // their budget draws at 1 device pixel per CSS pixel until it rests (full quality at rest, always).
 import type { DiscId } from "../data/contract";
+import { themeFadeNow } from "../flow/theme";
 import type { DiscPickEvent, SpineViewerApi, StagePose } from "./api";
 import { baseFraming, blendFraming, easeInOut, FLIGHT_MS, framingFor, type Framing } from "./camera";
 import type { SpineHandle } from "./host";
@@ -35,8 +36,9 @@ export const SWAY_REST_AFTER_MS = 8_000;
 const SCROLL_BUDGET_MS = 20;
 const BUDGET_FRAMES = 8;
 const LOW_DPR = 1;
-/** W23-C: no scroll frame for this long is rest: the full pixel ratio comes back. */
-export const SCROLL_REST_MS = 250;
+/** W23-C, W23-C3 M2: no scroll frame for this long is rest, and the full pixel ratio comes back. Long enough to hold the
+ *  low ratio through a train of short scrolls, so each switch (a whole composer rebuilt) happens once a train, not a burst. */
+export const SCROLL_REST_MS = 1_500;
 
 export interface DrivePace {
   /** False where the idle spin must never run (a software renderer). */
@@ -168,7 +170,8 @@ export function createDrive(
   /** W23-C: an input: the sway, if rested, sets off again from where it is. */
   function poke(): void {
     lastInput = performance.now();
-    if (rested) sweep = null;
+    // W23-C3 L1: a settling sway too: it carries on from where it is (re-entry is smooth), and rests a while later.
+    if (rested || sweep?.settling) sweep = null;
     rested = false;
   }
 
@@ -177,13 +180,18 @@ export function createDrive(
     restTimer = null;
     scrollMs = [];
     if (!lowRes) return;
+    // W23-C3 L2: a resize would cut a running theme crossfade; come back once it is over.
+    if (themeFadeNow()) {
+      restTimer = setTimeout(restore, SCROLL_REST_MS);
+      return;
+    }
     lowRes = false;
     handle.resize(px.width, px.height, fullDpr());
   }
 
   /** W23-C: a scroll frame's time. A phone scroll over budget drops to LOW_DPR once, till it rests. */
   function budget(ms: number): void {
-    if (size !== "phone" || !restTimer || lowRes || fullDpr() <= LOW_DPR) return;
+    if (size !== "phone" || !restTimer || lowRes || fullDpr() <= LOW_DPR || themeFadeNow()) return;
     scrollMs = [...scrollMs, ms].slice(-BUDGET_FRAMES);
     if (scrollMs.length < BUDGET_FRAMES || median(scrollMs) <= SCROLL_BUDGET_MS) return;
     lowRes = true;
