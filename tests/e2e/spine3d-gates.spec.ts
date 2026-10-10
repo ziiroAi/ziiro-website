@@ -197,16 +197,14 @@ test("(a) the r17 still paints first, within 2.0 s of the plan showing, at 4× C
   expect(paint.ms).toBeLessThanOrEqual(LCP_LIMIT_MS);
 });
 
-/** A cold page sized as the project, for the 3D-off baseline: Save-Data, so the viewer falls back before any 3D loads. */
-async function saveDataPage(browser: Browser, use: BrowserContextOptions): Promise<Page> {
+/** A cold page sized as the project, for the 3D-off baseline: no WebGL2, so the viewer falls back before any 3D loads
+ *  (W22-LOAD: Save-Data no longer does). */
+async function noWebGlPage(browser: Browser, use: BrowserContextOptions): Promise<Page> {
   const { viewport, deviceScaleFactor, isMobile, hasTouch, userAgent } = use;
   const context = await browser.newContext({ baseURL: PREVIEW_URL, viewport, deviceScaleFactor, isMobile, hasTouch, userAgent });
   const page = await context.newPage();
   await page.addInitScript(() => {
-    Object.defineProperty(Navigator.prototype, "connection", {
-      configurable: true,
-      get: () => ({ saveData: true, effectiveType: "4g", addEventListener() {}, removeEventListener() {} }),
-    });
+    Reflect.deleteProperty(window, "WebGL2RenderingContext");
   });
   return page;
 }
@@ -254,7 +252,7 @@ test(`(b) a first tap while the 3D loads, worst of 5 at 4× CPU, on ${GPU} (§13
   test.setTimeout((INP_RUNS * 2 + 1) * 180_000);
   // W14-X: the first page a fresh browser loads pays its cold start (HTTP and code caches, worker-1 swapped the order:
   // whichever side ran first was 128 / 192 ms slower on run 1). One untimed visit, with no WebGL, warms it for both.
-  const warm = await saveDataPage(browser, info.project.use);
+  const warm = await noWebGlPage(browser, info.project.use);
   await wire(warm);
   await toPlan(warm);
   await warm.context().close();
@@ -263,7 +261,7 @@ test(`(b) a first tap while the 3D loads, worst of 5 at 4× CPU, on ${GPU} (§13
     expect(on).toBeLessThanOrEqual(INP_LIMIT_MS);
     return;
   }
-  const baseline = await saveDataPage(browser, info.project.use);
+  const baseline = await noWebGlPage(browser, info.project.use);
   const off = await worstPlanTap(baseline, false, "3D off");
   await baseline.context().close();
   info.annotations.push({ type: "b: worst of 5", description: `3D on ${on} ms, 3D off ${off} ms` });
@@ -324,23 +322,19 @@ test.describe("(d) the still stays", () => {
     test.info().annotations.push({ type: "d: no WebGL", description: `reason "${reason}"` });
   });
 
-  test("with Save-Data, and nothing 3D is fetched", async ({ page }) => {
-    test.setTimeout(120_000);
-    await page.addInitScript(() => {
-      Object.defineProperty(Navigator.prototype, "connection", {
-        configurable: true,
-        get: () => ({ saveData: true, effectiveType: "4g", addEventListener() {}, removeEventListener() {} }),
-      });
+});
+
+test("(d2) with Save-Data the 3D still loads and takes over (W22-LOAD)", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    Object.defineProperty(Navigator.prototype, "connection", {
+      configurable: true,
+      get: () => ({ saveData: true, effectiveType: "4g", addEventListener() {}, removeEventListener() {} }),
     });
-    const fetched: string[] = [];
-    page.on("request", (r) => { if (CHUNK_URL.test(r.url()) || MESH_URL.test(r.url())) fetched.push(r.url()); });
-    await wire(page);
-    await toPlan(page);
-    await page.waitForTimeout(5_000);
-    await expect(page.locator(SEL.still).first()).toBeVisible();
-    await expect(page.locator(SEL.live)).toHaveCount(0);
-    expect(fetched, "Save-Data fetched 3D files").toEqual([]);
   });
+  await wire(page);
+  await toPlan(page);
+  await expect(page.locator(SEL.live)).toHaveCount(1, { timeout: LIVE_TIMEOUT_MS });
 });
 
 test("(e) the lazy 3D chunk and the mesh, against the budgets", async ({ page }, info) => {

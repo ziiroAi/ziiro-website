@@ -192,6 +192,10 @@ function inline(canvas: HTMLCanvasElement, { onReady, onBoxes, onFail, ...start 
   };
 }
 
-export function startSpine(canvas: HTMLCanvasElement, options: StartOptions): SpineHandle {
-  return canOffscreen(globalThis, canvas) ? inWorker(canvas, options) : inline(canvas, options);
+/** "inline" runs three.js on the main thread even where the worker path exists: W22-LOAD's second try, after a worker
+ *  that couldn't draw (Safari 16.4-16.7 hands a canvas to a worker but gives it no WebGL there). */
+export type StartMode = "auto" | "inline";
+
+export function startSpine(canvas: HTMLCanvasElement, options: StartOptions, mode: StartMode = "auto"): SpineHandle {
+  return mode === "auto" && canOffscreen(globalThis, canvas) ? inWorker(canvas, options) : inline(canvas, options);
 }

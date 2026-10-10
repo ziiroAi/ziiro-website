@@ -5,7 +5,7 @@
 import { sharedSoftwareGl } from "./first-screen";
 import { PLAN_MESHES } from "./mesh-urls";
 import { warmMesh } from "./mesh-warm";
-import { hasWebGL2, meshFor, preflight, readConnection, type MeshSize, type Preflight } from "./rules";
+import { hasWebGL2, meshFor, preflight, readConnection, type Connection, type MeshSize } from "./rules";
 // The built address of the worker host.ts starts (`new Worker(new URL("./spine.worker.ts", …))`); the same file.
 import spineWorkerScript from "./spine.worker.ts?worker&url";
 
@@ -35,7 +35,7 @@ export function forgetWarmFiles(): void {
 }
 
 export interface WarmEnv {
-  readonly connection: Pick<Preflight, "saveData" | "effectiveType">;
+  readonly connection: Connection;
   readonly webgl2: boolean;
   /** The window's width: which size of each mesh the plan will ask for. */
   readonly width: number;
@@ -66,7 +66,7 @@ function browserEnv(): WarmEnv {
  */
 export async function warmPlanMesh(signal: AbortSignal, env: WarmEnv = browserEnv()): Promise<boolean> {
   if (signal.aborted) return false;
-  if (preflight({ ...env.connection, webgl2: env.webgl2 })) return false;
+  if (preflight({ webgl2: env.webgl2 })) return false;
   const software = await env.probe(signal);
   // An abort answers the probe too, so the visitor leaving is checked after it.
   if (signal.aborted || software) return false;
