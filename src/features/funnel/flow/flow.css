@@ -1,0 +1,214 @@
+/* (C) The funnel's questions, S0 to S8: layout and motion (spec §4, §11). Colours come from tokens.css.
+   Motion is transform and opacity only, so nothing shifts (CLS 0.02 at most, §13.10). It runs only under
+   html[data-funnel], which the boot script sets, so "/" without JavaScript gets the still, settled S1. */
+
+.f-root {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: calc(var(--nav-h, 84px) + 0.5rem) 1rem 1.5rem;
+  color: var(--funnel-fg);
+}
+.f-root.is-plan { max-width: none; padding: 0; }
+.f-screen,
+.f-form { position: relative; display: flex; flex: 1; flex-direction: column; }
+.f-screen[hidden],
+.f-form[hidden] { display: none; }
+.f-top { display: flex; align-items: center; gap: 0.5rem; min-height: 44px; margin-bottom: 1.25rem; }
+.f-back {
+  display: inline-grid; place-items: center; width: 44px; height: 44px; margin-left: -10px;
+  border: 0; border-radius: 999px; background: none; color: var(--funnel-fg);
+}
+.f-bar { display: flex; flex: 1; gap: 6px; }
+.f-bar > span { flex: 1; height: 3px; border-radius: 2px; background: var(--funnel-line); }
+.f-bar > span.is-on { background: var(--funnel-fg); }
+
+.f-q { font-size: 1.5rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; color: var(--funnel-fg); outline: none; }
+.f-hint { margin-top: 0.375rem; font-size: 0.875rem; color: var(--funnel-muted); }
+.f-options { display: grid; gap: 0.625rem; margin-top: 1.25rem; }
+.f-row2 { margin-top: 2rem; }
+/* W16-B: short labels (years, team size, revenue) sit two to a row, so each screen fits without scrolling. */
+.f-short { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.f-option,
+.f-tile,
+.f-chip {
+  min-width: 44px; min-height: 44px; border: 1px solid var(--funnel-line);
+  background: var(--funnel-card); color: var(--funnel-fg); font-weight: 600; text-align: left;
+}
+.f-option { display: flex; align-items: center; min-height: 48px; padding: 0.75rem 1rem; border-radius: 0.75rem; }
+.f-tiles,
+.f-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.f-tile { padding: 0.5rem 0.875rem; border-radius: 0.625rem; }
+.f-chip { padding: 0.5rem 0.875rem; border-radius: 999px; font-size: 0.875rem; }
+.f-option.is-selected,
+.f-tile.is-selected,
+.f-option[data-pressed],
+.f-option[aria-pressed="true"],
+.f-chip[aria-pressed="true"] { border-color: var(--funnel-fg); background: var(--funnel-fg); color: var(--funnel-bg); }
+
+.f-field {
+  width: 100%; min-height: 48px; padding: 0.75rem 1rem; border: 1px solid var(--funnel-line);
+  border-radius: 0.75rem; background: var(--funnel-card); color: var(--funnel-fg); font: inherit;
+}
+.f-field::placeholder { color: var(--funnel-muted); opacity: 1; }
+.f-field[aria-invalid="true"] { border: 2px solid var(--funnel-fg); }
+.f-box { min-height: 6.5rem; margin-top: 1rem; resize: vertical; }
+.f-other { display: grid; gap: 0.625rem; margin-top: 0.75rem; }
+.f-label { display: block; margin: 1rem 0 0.375rem; font-size: 0.875rem; font-weight: 600; }
+.f-err { margin-top: 0.375rem; font-size: 0.875rem; font-weight: 600; color: var(--funnel-fg); }
+.f-err:empty { display: none; }
+.f-small { font-size: 0.8125rem; line-height: 1.45; color: var(--funnel-muted); }
+.f-consent { display: flex; gap: 0.75rem; align-items: flex-start; min-height: 44px; margin-top: 1.25rem; }
+.f-consent input { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--funnel-fg); }
+.f-turnstile:empty { display: none; }
+.f-act {
+  display: grid; place-items: center; width: 100%; min-height: 52px; margin-top: 1.5rem;
+  border: 1px solid var(--funnel-accent); border-radius: 999px;
+  background: var(--funnel-accent); color: var(--funnel-on-accent); font-weight: 700; text-decoration: none;
+}
+.f-link { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.f-about { margin-top: 2rem; font-size: 0.75rem; color: var(--funnel-muted); }
+.f-note { margin-top: auto; padding-top: 1.5rem; font-size: 0.75rem; color: var(--funnel-muted); }
+.f-back:focus-visible, .f-option:focus-visible, .f-tile:focus-visible, .f-chip:focus-visible,
+.f-act:focus-visible, .f-link:focus-visible, .f-field:focus-visible, .f-consent input:focus-visible {
+  outline: 2px solid var(--funnel-fg); outline-offset: 2px;
+}
+
+/* W16-B: the questions never scroll (the owner: "the forms can't be scrollable"). On a short screen (a 1280 × 720
+   laptop, a 360 × 640 phone) the spacing tightens and the type steps down; tap targets stay 44 px or more (§11.3). */
+@media (max-height: 760px) {
+  .f-root { padding-top: calc(var(--nav-h, 84px) - 0.5rem); padding-bottom: 0.75rem; }
+  .f-top { margin-bottom: 0.5rem; }
+  .f-q { font-size: 1.25rem; }
+  .f-hint { margin-top: 0.25rem; font-size: 0.8125rem; }
+  .f-options { gap: 0.5rem; margin-top: 0.75rem; }
+  .f-option { min-height: 44px; padding: 0.5rem 0.875rem; }
+  .f-row2 { margin-top: 1.25rem; }
+  .f-tiles, .f-chips { gap: 0.375rem; margin-top: 0.5rem; }
+  .f-tile, .f-chip { padding: 0.375rem 0.75rem; font-size: 0.875rem; }
+  .f-box { min-height: 4.5rem; margin-top: 0.625rem; }
+  .f-label { margin: 0.625rem 0 0.25rem; }
+  .f-field { min-height: 44px; padding: 0.5rem 0.875rem; }
+  .f-small { font-size: 0.75rem; line-height: 1.4; }
+  .f-box + .f-small { margin-top: 0.375rem; }
+  .f-consent { margin-top: 0.75rem; }
+  .f-act { min-height: 48px; margin-top: 1rem; }
+  .f-about { margin-top: 1rem; }
+  .f-note { padding-top: 0.75rem; }
+  .f-s1 { margin-top: 0.75rem; }
+}
+
+/* A phone's S6 chips: smaller, so two or three share a row instead of one or two. */
+@media (max-width: 599px) {
+  .f-chips { gap: 0.375rem; }
+  .f-chip { padding: 0.375rem 0.625rem; font-size: 0.8125rem; }
+}
+/* A small phone (360 × 640): one more step. */
+@media (max-height: 700px) {
+  .f-q { font-size: 1.125rem; }
+  .f-box { min-height: 3.75rem; }
+  .f-bridge { margin-bottom: 0.25rem; }
+  .f-label { margin: 0.5rem 0 0.25rem; }
+  .f-consent { margin-top: 0.5rem; }
+  .f-act { margin-top: 0.75rem; }
+  .f-note { padding-top: 0.5rem; }
+  .f-top { margin-bottom: 0.25rem; }
+  .f-label { margin-top: 0.25rem; }
+  .f-small { line-height: 1.3; }
+  .f-act { min-height: 44px; }
+}
+/* A small phone's S6 chips: three to a row, so all nine fit in three rows above the button. */
+@media (max-height: 700px) and (max-width: 599px) {
+  .f-chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .f-chip { padding: 0.25rem 0.5rem; border-radius: 0.875rem; font-size: 0.75rem; line-height: 1.2; }
+}
+
+/* S0 (§4.2): the greeting fades up big, then settles into the header while S1 rises under it.
+   --f-t is 0 in the prerendered HTML. React sets it to minus the time since first paint, because
+   createRoot rebuilds these nodes and they must carry on where the prerendered ones were. */
+.f-head h1 { font-size: 1.75rem; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; color: var(--funnel-fg); }
+.f-head p { margin-top: 0.25rem; font-size: 0.875rem; color: var(--funnel-muted); }
+.f-s1 { margin-top: 1.25rem; }
+.f-intro { display: none; }
+html[data-funnel] .f-intro-on .f-intro {
+  position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 0 1.5rem; text-align: center; pointer-events: none;
+  animation: f-greet-in 500ms ease-out both, f-intro-out 450ms ease-in both;
+  animation-delay: var(--f-t, 0ms), calc(var(--f-t, 0ms) + 900ms);
+}
+.f-intro-greet { font-size: clamp(2.75rem, 12vw, 4.5rem); font-weight: 800; line-height: 1.02; letter-spacing: -0.03em; color: var(--funnel-fg); }
+.f-intro-sub { margin-top: 1rem; font-weight: 700; color: var(--funnel-fg); }
+.f-intro-promise { max-width: 22rem; margin-top: 0.75rem; color: var(--funnel-muted); }
+html[data-funnel] .f-intro-on .f-head { animation: f-fade-up 350ms ease-out both; animation-delay: calc(var(--f-t, 0ms) + 1000ms); }
+html[data-funnel] .f-intro-on .f-s1 { animation: f-rise 450ms cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--f-t, 0ms) + 900ms); }
+/* W15-A: the small print sits at the foot of the screen while S1 rises through it, so on a phone it showed over the first
+   option for about a second (worker-2's W14-Y). It waits until the options have landed (900 + 450 ms). */
+html[data-funnel] .f-root:has(.f-intro-on) .f-note { animation: f-fade-up 300ms ease-out both; animation-delay: calc(var(--f-t, 0ms) + 1350ms); }
+
+
+/* Each step slides in within a quarter of a second (§4.1), from the left on Back. */
+html[data-funnel] .f-screen[data-dir="forward"] { animation: f-in-right 250ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+html[data-funnel] .f-screen[data-dir="back"] { animation: f-in-left 250ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+html[data-funnel] .f-row2.is-forward { animation: f-fade-up 300ms ease-out both; }
+
+/* S6's bridge (§4.3) holds about a second over the screen, then clears to leave its small line above
+   the question. The overlay is decoration (aria-hidden); the line and the question are always in the page. */
+.f-bridge { margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--funnel-muted); }
+.f-bridge-hold { display: none; }
+html[data-funnel] .f-s6-intro .f-bridge-hold {
+  position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; padding: 0 1.5rem;
+  background: var(--funnel-bg); color: var(--funnel-fg); font-size: 1.5rem; font-weight: 700; text-align: center;
+  pointer-events: none; animation: f-fade-up 400ms ease-out both, f-clear 300ms ease-in 900ms both;
+}
+
+/* S8 (§4.3). */
+.f-s8 { display: flex; flex: 1; align-items: center; outline: none; }
+.f-s8 p { font-size: 1.5rem; font-weight: 700; line-height: 1.25; color: var(--funnel-fg); }
+html[data-funnel] .f-s8 span { display: inline-block; animation: f-fade-up 300ms ease-out both; }
+.f-plan { outline: none; }
+
+@keyframes f-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* The greeting's fade starts at 1 %, not 0: the browser skips a fully transparent element when it times the first
+   paint, so a fade from 0 made the LCP wait for the next frame, after the page's script had run (§13.10). */
+@keyframes f-greet-in { from { opacity: 0.01; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes f-intro-out { to { opacity: 0; transform: translateY(-18svh) scale(0.6); visibility: hidden; } }
+@keyframes f-rise { from { transform: translateY(58svh); } to { transform: none; } }
+@keyframes f-in-right { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes f-in-left { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+@keyframes f-clear { to { opacity: 0; visibility: hidden; } }
+
+/* W23-C: the loading cue on the plan's still while its 3D loads. A hairline in the accent, low under the model. It
+   appears after 600 ms (SpineViewer's CUE_DELAY_MS timer, so a warm load never shows it), fades in, and fades out with
+   the 3D's crossfade. Reduced motion: it appears on the same timer and holds still. */
+.f-load-cue {
+  /* Under the model, at the stage's foot where the bone has faded out: the plan stage sets --spine-across, the share
+     of the screen across where the model stands. */
+  position: absolute; left: calc(var(--spine-across, 0.5) * 100%); bottom: 12px; width: 72px; height: 2px; margin-left: -36px;
+  pointer-events: none;
+  transition: opacity 300ms ease-out;
+}
+.f-load-cue > span {
+  position: absolute; inset: 0; overflow: hidden; border-radius: 1px;
+  background: color-mix(in srgb, var(--funnel-accent) 18%, transparent); animation: f-cue-in 400ms ease-out both;
+}
+.f-load-cue > span > span {
+  position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: inherit; background: var(--funnel-accent); opacity: 0.8;
+  animation: f-cue-run 1.4s ease-in-out infinite;
+}
+/* W23-C4: a phone (the band, under 1024 px) shows only the band's top at the plan's hero, where a slow load is waited
+   on: the cue sits at the band's top edge, in view there and still clear of the model's head once the band is stuck. */
+@media (max-width: 1023.98px) {
+  .f-load-cue { top: 16px; bottom: auto; }
+}
+@keyframes f-cue-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes f-cue-run { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-funnel] .f-root,
+  html[data-funnel] .f-root * { animation: none !important; transition: none !important; }
+  html[data-funnel] .f-intro-on .f-intro,
+  html[data-funnel] .f-s6-intro .f-bridge-hold { display: none; }
+}

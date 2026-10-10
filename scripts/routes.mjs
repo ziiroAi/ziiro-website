@@ -8,7 +8,7 @@
 export const routes = [
   {
     path: "/",
-    sources: ["src/pages/Index.tsx", "src/features/home"],
+    sources: ["src/pages/Index.tsx", "src/features/funnel"],
     changefreq: "weekly",
     priority: "1.0",
     // Fallback <lastmod> for build environments without usable git history

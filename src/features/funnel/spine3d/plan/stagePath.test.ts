@@ -1,0 +1,492 @@
+// (C) W15-B, re-choreographed by W16-A and W17-S: the one plan stage's scroll path. The owner (wave17.md): no close-up
+// any more; the big spine alone zooms to each department's disc, alternating sides, while the text takes the other
+// side; W18-D turns the disc's glowing front toward that text (facing.test.ts).
+import { describe, expect, it } from "vitest";
+import { DISCS as ALL_DISCS, type DiscId } from "../../data/contract";
+import { baseFraming, type Framing } from "../camera";
+import { GAPS } from "../gaps";
+import { turnedCentre } from "./facing";
+import { shownTan } from "./tour";
+import {
+  ACROSS, HERO_WORDS_GONE_AT, heroWordsOpacity, LEGEND_BACK_FULL_AT, legendOpacity, NEED_WORDS_FROM,
+  NEED_WORDS_FULL_AT, needWordsOpacity, stageAnchors, EDGE_PAD, stopReach, stopZoomOut, BAND_LEAVE_SHARE, bandShown, closeBy, CLOSE_REST_SHARE, stageAt, stageKeys, stageShown, STOP_VIEW_HEIGHT, stopSide,
+  WORDS_LEFT_FROM, WORDS_LEFT_FULL_AT, wordsLeftOpacity, type StageAnchor, CUE_FADE_PX, scrollCueOpacity, TRAVEL,
+  heroLegendRoom,
+} from "./stagePath";
+
+const DESKTOP_VIEW = { width: 1440, height: 816 };
+const PHONE_VIEW = { width: 390, height: 410 };
+const DISCS: DiscId[] = ["G04", "G05", "G06", "G01"];
+
+/** How big the model shows on screen with this framing: the lens is the same for every key, so it goes as 1 / distance. */
+const scaleOf = (f: Framing): number => 1 / Math.hypot(...f.position.map((v, i) => v - f.target[i]));
+const gap = (a: Framing, b: Framing): number =>
+  Math.hypot(...a.position.map((v, i) => v - b.position[i])) + Math.hypot(a.shift[0] - b.shift[0], a.shift[1] - b.shift[1]);
+/** Where a disc stands once the stop's turn has carried it round the column (W18-D). */
+const discCentre = (disc: DiscId, turn: number) => turnedCentre(GAPS[ALL_DISCS.indexOf(disc)].centre, turn);
+/** The full spine's mean distance between neighbouring discs: one vertebra. */
+const VERTEBRA = Math.hypot(...GAPS[GAPS.length - 1].centre.map((v, i) => v - GAPS[0].centre[i])) / (GAPS.length - 1);
+
+describe("the stage's keyframes (W17-S: the big spine only)", () => {
+  const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
+  const [hero, need, ...rest] = keys;
+  const stops = rest.slice(0, DISCS.length);
+  const close = rest.at(-1)!;
+
+  it("has the hero, block 2, one key per department and the close", () => {
+    expect(keys).toHaveLength(DISCS.length + 3);
+    expect(stops.map((s) => s.stop)).toEqual(DISCS);
+  });
+
+  it("shows the full spine on the right in the hero, at r17's own camera, with no turn", () => {
+    expect(hero.framing).toEqual(baseFraming("desktop"));
+    expect(hero.across).toBe(ACROSS.desktop.hero);
+    expect(hero.zoomed).toBe(0);
+    expect(hero.turn).toBe(0);
+    expect(hero.hold).toBe(0);
+  });
+
+  it("travels left at block 2 and zooms in a little, the full spine still whole enough for its legend", () => {
+    expect(need.across).toBe(ACROSS.desktop.need);
+    expect(need.zoomed).toBe(0);
+    expect(scaleOf(need.framing)).toBeGreaterThan(scaleOf(hero.framing));
+  });
+
+  it("zooms each department in on its own disc on the big spine, 2-3 vertebrae around it", () => {
+    stops.forEach((stop, i) => {
+      stop.framing.target.forEach((v, k) => expect(v).toBeCloseTo(discCentre(DISCS[i], stop.turn)[k], 6));
+      expect(scaleOf(stop.framing)).toBeGreaterThan(scaleOf(need.framing));
+      expect(stop.zoomed).toBe(1);
+      expect(stop.hold).toBe(1);
+    });
+    expect(STOP_VIEW_HEIGHT.desktop / VERTEBRA).toBeGreaterThanOrEqual(3);
+    expect(STOP_VIEW_HEIGHT.desktop / VERTEBRA).toBeLessThanOrEqual(5);
+  });
+
+  it("alternates sides per department: left, then right, left..., turning each disc's front toward its text (W18-D)", () => {
+    expect(DISCS.map((_, i) => stopSide(i))).toEqual(["left", "right", "left", "right"]);
+    stops.forEach((stop, i) => expect(stop.across).toBe(stopSide(i) === "left" ? ACROSS.desktop.left : ACROSS.desktop.right));
+    expect(stops[0].across).toBeLessThan(0.4);
+    expect(stops[1].across).toBeGreaterThan(0.6);
+    stops.forEach((stop) => expect(stop.turn).not.toBe(0));
+    expect(stops[1].turn).toBeLessThan(stops[0].turn);
+    expect(stops[3].turn).toBeLessThan(stops[2].turn);
+  });
+
+  it("pulls back out to the whole spine on the left at the close, with the text on the right", () => {
+    expect(close.zoomed).toBe(0);
+    expect(close.turn).toBe(0);
+    expect(close.hold).toBe(0);
+    expect(close.across).toBe(ACROSS.desktop.close);
+    expect(scaleOf(close.framing)).toBeLessThan(scaleOf(stops[0].framing));
+  });
+
+  it("keeps a phone's stops inside the band, alternating their offset and turn", () => {
+    const phone = stageKeys(DISCS, "phone", "phone", PHONE_VIEW, 0);
+    expect(phone[0].across).toBe(0.5);
+    const across = phone.slice(2, 2 + DISCS.length).map((k) => k.across);
+    expect(across).toEqual([ACROSS.phone.left, ACROSS.phone.right, ACROSS.phone.left, ACROSS.phone.right]);
+    across.forEach((a) => expect(Math.abs(a - 0.5)).toBeLessThanOrEqual(0.15));
+    expect(phone[2].turn).not.toBe(phone[3].turn);
+    phone.slice(2, 2 + DISCS.length).forEach((k, i) =>
+      k.framing.target.forEach((v, j) => expect(v).toBeCloseTo(discCentre(DISCS[i], k.turn)[j], 6)));
+  });
+
+  it("shows the phone band the whole spine in the hero (W15-B2)", () => {
+    const [phoneHero] = stageKeys(DISCS, "phone", "phone", PHONE_VIEW, 56);
+    expect(scaleOf(phoneHero.framing)).toBeLessThan(scaleOf(baseFraming("phone")));
+  });
+});
+
+describe("the zoom reads as a move at normal scroll speed (W16-R's bar for W17-S)", () => {
+  it("zooms in at least 1.6x from block 2 to a department stop", () => {
+    const [, need, stop] = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
+    expect(scaleOf(stop.framing) / scaleOf(need.framing)).toBeGreaterThanOrEqual(1.6);
+  });
+
+  it("over a desktop travel (0.75 of a 900 px screen), no 10 px of scroll moves the zoom more than about 1 %", () => {
+    const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
+    const anchors: StageAnchor[] = [{ at: 0, key: keys[1] }, { at: 675, key: keys[2] }];
+    let before = scaleOf(stageAt(anchors, 0, false, keys[0]).framing);
+    for (let y = 10; y <= 675; y += 10) {
+      const now = scaleOf(stageAt(anchors, y, false, keys[0]).framing);
+      expect(Math.abs(now / before - 1)).toBeLessThanOrEqual(0.011);
+      before = now;
+    }
+  });
+});
+
+describe("the zoom into a department blends with the camera (W17-S)", () => {
+  const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
+  const anchors: StageAnchor[] = [{ at: 0, key: keys[1] }, { at: 1000, key: keys[2] }];
+  const at = (y: number) => stageAt(anchors, y, false, keys[0]);
+
+  it("rises once with the scroll, from 0 at block 2 to 1 at the stop", () => {
+    const ws = Array.from({ length: 1001 }, (_, y) => at(y).zoomed);
+    ws.slice(1).forEach((w, i) => expect(w).toBeGreaterThanOrEqual(ws[i]));
+    expect(ws[0]).toBe(0);
+    expect(ws[1000]).toBe(1);
+  });
+
+  it("blends the turn with the camera", () => {
+    expect(at(500).turn).toBeCloseTo(keys[2].turn / 2, 5);
+  });
+});
+
+describe("scrubbing between keyframes (W15-B)", () => {
+  const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 0);
+  const anchors: StageAnchor[] = keys.map((key, i) => ({ at: i * 800, key }));
+  const at = (y: number, reduced = false) => stageAt(anchors, y, reduced, keys[0]);
+
+  it("sits on each keyframe as its section reaches the line, and holds the ends past them", () => {
+    anchors.forEach(({ at: y, key }) => expect(at(y).framing).toEqual(key.framing));
+    expect(at(-500).framing).toEqual(keys[0].framing);
+    expect(at(1e6).framing).toEqual(keys.at(-1)!.framing);
+  });
+
+  it("returns the fallback before anything is measured", () => {
+    expect(stageAt([], 300, false, keys[0])).toBe(keys[0]);
+  });
+
+  it("moves continuously, with no pop, over every pixel of the scroll", () => {
+    const total = Math.max(...keys.slice(1).map((key, i) => gap(keys[i].framing, key.framing)));
+    let before = at(0);
+    for (let y = 1; y <= anchors.at(-1)!.at; y += 1) {
+      const now = at(y);
+      expect(gap(before.framing, now.framing)).toBeLessThan(total / 100);
+      expect(Math.abs(now.hold - before.hold)).toBeLessThan(0.01);
+      expect(Math.abs(now.zoomed - before.zoomed)).toBeLessThan(0.02);
+      expect(Math.abs(now.turn - before.turn)).toBeLessThan(0.01);
+      before = now;
+    }
+  });
+
+  it("goes straight from one department to the next, with no pull-back to the whole spine between (D30 dropped)", () => {
+    const between = at(2 * 800 + 400);
+    expect(between.zoomed).toBe(1);
+    expect(between.across).toBeCloseTo((keys[2].across + keys[3].across) / 2, 5);
+  });
+
+  it("knows which stop is in view: the last keyframe reached, or none outside the stops", () => {
+    expect(at(100).stop).toBeNull();
+    expect(at(1700).stop).toBe("G04");
+    expect(at(2500).stop).toBe("G05");
+    expect(at(anchors.at(-1)!.at).stop).toBeNull();
+  });
+});
+
+describe("anchoring the keyframes to the page (W15-B)", () => {
+  const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 0);
+  /** Block 2 at 900, each stop 1000 tall after it, the close last. */
+  const spans = [{ top: 900, bottom: 1900 }, ...DISCS.map((_, i) => ({ top: 1900 + 1000 * i, bottom: 2900 + 1000 * i })), { top: 5900, bottom: 6600 }];
+
+  it("arrives at each keyframe as its section reaches the reading line, and leaves one travel before the next", () => {
+    const anchors = stageAnchors(keys, spans, 400, 300);
+    expect(anchors.map((a) => a.at)).toEqual([0, 200, 500, 1200, 1500, 2200, 2500, 3200, 3500, 4200, 4500, 5200, 5500]);
+    expect(anchors.map((a) => keys.indexOf(a.key))).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6]);
+  });
+
+  it("travels into block 2 over its own shorter distance, so the hero still rests at the top of the page (W17-S)", () => {
+    const anchors = stageAnchors(keys, spans, 400, 600, 300);
+    expect(anchors.map((a) => a.at).slice(0, 5)).toEqual([0, 200, 500, 900, 1500]);
+  });
+
+  it("caps each travel at 80 % of its section, so every keyframe rests a while, even where sections are short (W17-S)", () => {
+    const anchors = stageAnchors(keys, spans, 400, 2000, 2000);
+    // Block 2 arrives at 500 (the hero rests 0-100), each stop 1000 after the last (each rests 200).
+    expect(anchors.map((a) => a.at).slice(0, 5)).toEqual([0, 100, 500, 700, 1500]);
+  });
+
+  it("pulls back to the close over a whole screen, keeping the last stop's rest and arriving late (final review L1)", () => {
+    // L1: the close ran 0.47 of a phone screen and 0.71 of a desktop one, the steepest move left on the page.
+    const anchors = stageAnchors(keys, spans, 400, 750, 450, 0, 0, 900);
+    const at = anchors.map((a) => a.at);
+    expect(at.slice(-3)).toEqual([4500, 4750, 5650]); // the stop rests 4500-4750, then 900 px out to the close
+    expect(anchors.at(-1)?.key).toBe(keys.at(-1));
+    expect(stageAnchors(keys, spans, 400, 750, 450).map((a) => a.at).slice(-2)).toEqual([4750, 5500]); // no close travel: as before
+  });
+
+  it("gives the close about one screen on both shapes", () => {
+    expect(TRAVEL.desktop.close).toBeCloseTo(1, 1);
+    expect(TRAVEL.phone.close).toBeCloseTo(1, 1);
+  });
+
+  it("never runs backwards when a section is shorter than the travel or starts above the line", () => {
+    const anchors = stageAnchors(keys, [{ top: 100, bottom: 200 }, ...spans.slice(1)], 400, 300);
+    anchors.slice(1).forEach((a, i) => expect(a.at).toBeGreaterThanOrEqual(anchors[i].at));
+  });
+});
+
+describe("a phone's travels read as moves too (W18-E, worker-2's review-w17 N2)", () => {
+  const keys = stageKeys(DISCS, "phone", "phone", PHONE_VIEW, 0);
+
+  it("gives every phone travel at least half a screen, like desktop's hero travel", () => {
+    expect(TRAVEL.phone.travel).toBeGreaterThanOrEqual(0.5);
+    expect(TRAVEL.phone.hero).toBeGreaterThanOrEqual(0.5);
+    expect(TRAVEL.phone.min).toBeGreaterThanOrEqual(0.5);
+    expect(TRAVEL.phone.heroRest).toBeGreaterThan(0);
+    expect(TRAVEL.desktop).toEqual({ travel: 0.75, hero: 0.5, min: 0, heroRest: 0, close: 1 });
+  });
+
+  it("never squeezes a travel under the minimum: a short first section rests the hero briefly, then arrives a little late", () => {
+    // N2: block 2 reached the phone's line 400 px down and the hero travel was capped to 140 px of it.
+    const spans = [{ top: 900, bottom: 1500 }, ...DISCS.map((_, i) => ({ top: 1500 + 700 * i, bottom: 2200 + 700 * i })), { top: 4300, bottom: 5000 }];
+    const anchors = stageAnchors(keys, spans, 500, 422, 422, 422, 84);
+    const at = anchors.map((a) => a.at);
+    expect(at.slice(0, 3)).toEqual([0, 84, 506]); // block 2 arrives at 400 by the line, but its travel runs 422
+    for (let i = 1; i < at.length; i += 2) expect(at[i + 1] - at[i]).toBeGreaterThanOrEqual(422);
+    at.slice(1).forEach((a, i) => expect(a).toBeGreaterThanOrEqual(at[i]));
+  });
+
+  it("shows the hero at the top of the page under reduced motion: the cut into block 2 comes after the hero's rest", () => {
+    // A software renderer runs the stage as reduced motion; a travel starting at 0 cut the phone's hero away at once.
+    const spans = [{ top: 900, bottom: 1500 }, ...DISCS.map((_, i) => ({ top: 1500 + 700 * i, bottom: 2200 + 700 * i })), { top: 4300, bottom: 5000 }];
+    const anchors = stageAnchors(keys, spans, 500, 422, 422, 422, 84);
+    expect(stageAt(anchors, 0, true, keys[0])).toBe(keys[0]);
+    expect(stageAt(anchors, 60, true, keys[0])).toBe(keys[0]);
+    expect(stageAt(anchors, 100, true, keys[0])).toBe(keys[1]);
+  });
+
+  it("keeps the 80 % cap where a section is long enough, so the phone's stops still rest", () => {
+    const spans = [{ top: 1500, bottom: 2400 }, ...DISCS.map((_, i) => ({ top: 2400 + 900 * i, bottom: 3300 + 900 * i })), { top: 6000, bottom: 6700 }];
+    const anchors = stageAnchors(keys, spans, 500, 422, 422, 422);
+    expect(anchors.map((a) => a.at).slice(0, 5)).toEqual([0, 578, 1000, 1478, 1900]);
+  });
+});
+
+describe("the hero's scroll cue (W18-E, worker-2's review-w17 N1)", () => {
+  it("shows at the top of the page and is gone a short scroll down, before the first callout can reach it", () => {
+    expect(scrollCueOpacity(0)).toBe(1);
+    expect(scrollCueOpacity(CUE_FADE_PX / 2)).toBeCloseTo(0.5, 5);
+    expect(scrollCueOpacity(CUE_FADE_PX)).toBe(0);
+    expect(scrollCueOpacity(5000)).toBe(0);
+    // Clear at 72 px, over the callout by 144 on desktop (N1); the desktop hero sets off about 105 px down.
+    expect(CUE_FADE_PX).toBeLessThanOrEqual(72);
+  });
+});
+
+describe("reduced motion cuts at the start of each travel (W15-B4 M3)", () => {
+  const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 0);
+  const spans = [{ top: 900, bottom: 1900 }, ...DISCS.map((_, i) => ({ top: 1900 + 1000 * i, bottom: 2900 + 1000 * i })), { top: 5900, bottom: 6600 }];
+  const anchors = stageAnchors(keys, spans, 400, 300); // the hero leaves at 200, block 2 arrives at 500
+
+  it("holds the hero until its travel starts, then shows block 2's keyframe at once", () => {
+    expect(stageAt(anchors, 199, true, keys[0])).toBe(keys[0]);
+    expect(stageAt(anchors, 200, true, keys[0])).toBe(keys[1]);
+    expect(stageAt(anchors, 500, true, keys[0])).toBe(keys[1]);
+  });
+
+  it("cuts straight from one stop to the next", () => {
+    expect(stageAt(anchors, 2199, true, keys[0])).toBe(keys[2]);
+    expect(stageAt(anchors, 2200, true, keys[0])).toBe(keys[3]);
+  });
+});
+
+describe("W20-MID F5/F7/F8: the legend shows only on the whole spine, never on block 2's zoom", () => {
+  // worker-2 at 1024 x 768, 1180 x 820 and 1280 x 800: at block 2 the spine stands NEED_ZOOM times closer and fills
+  // the stage's height, so the legend under it printed over its lower vertebrae.
+  const keys = stageKeys(DISCS, "desktop", "desktop", DESKTOP_VIEW, 84);
+  const [hero, need] = keys;
+  const close = keys[keys.length - 1];
+
+  it("marks the hero and the close whole, and block 2 and the stops not", () => {
+    expect(hero.whole).toBe(1);
+    expect(close.whole).toBe(1);
+    expect(need.whole).toBe(0);
+    keys.slice(2, -1).forEach((stop) => expect(stop.whole).toBe(0));
+  });
+
+  it("blends it along a travel, like the zoom", () => {
+    const anchors: StageAnchor[] = [{ at: 0, key: need }, { at: 1000, key: close }];
+    expect(stageAt(anchors, 500, false, need).whole).toBeCloseTo(0.5, 5);
+  });
+});
+
+describe("W20-MID: the hero's legend shows only where the hero's words leave its strip free", () => {
+  it("shows at 1440 x 900, whose stats end at 715 px, well above the strip (816 px)", () => {
+    expect(heroLegendRoom(715, 900)).toBe(1);
+  });
+
+  it("is gone at 1280 x 720 and 1366 x 768, where the stats reach into the strip", () => {
+    expect(heroLegendRoom(712, 720)).toBe(0);
+    expect(heroLegendRoom(712, 768)).toBe(0);
+  });
+
+  it("shows when nothing has been measured", () => {
+    expect(heroLegendRoom(null, 768)).toBe(1);
+  });
+});
+
+describe("the legend keeps off the words (W15-B4 M1, W17-S)", () => {
+  it("shows on the hero and once the full spine stands left, and is gone while it travels", () => {
+    expect(legendOpacity(ACROSS.desktop.hero, "desktop", 0)).toBe(1);
+    [0.6, 0.5, NEED_WORDS_FROM, NEED_WORDS_FULL_AT].forEach((a) => expect(legendOpacity(a, "desktop", 0)).toBe(0));
+    expect(legendOpacity(ACROSS.desktop.close, "desktop", 0)).toBe(1);
+  });
+
+  it("is gone at a zoomed department stop: it names the whole spine's discs, and the spine may stand right", () => {
+    expect(legendOpacity(ACROSS.desktop.left, "desktop", 1)).toBe(0);
+    expect(legendOpacity(ACROSS.desktop.right, "desktop", 1)).toBe(0);
+    expect(legendOpacity(ACROSS.desktop.close, "desktop", 0.5)).toBeCloseTo(0.5, 5);
+  });
+
+  it("comes back only after block 2's words are fully in", () => {
+    expect(LEGEND_BACK_FULL_AT).toBeLessThan(NEED_WORDS_FULL_AT);
+    expect(LEGEND_BACK_FULL_AT).toBeGreaterThan(ACROSS.desktop.need);
+  });
+
+  it("always shows on a phone", () => {
+    expect(legendOpacity(0.5, "phone", 1)).toBe(1);
+  });
+});
+
+describe("the legend leaves with the stage at the end of the plan (W15-B4, worker-4's W15-S LOW 3)", () => {
+  it("shows fully while the stage is stuck, the plan's end at or below the screen's bottom", () => {
+    expect(stageShown(900, 900)).toBe(1);
+    expect(stageShown(1400, 900)).toBe(1);
+  });
+
+  it("is gone once the plan's end has risen a quarter of the screen", () => {
+    expect(stageShown(900 * 0.75, 900)).toBe(0);
+    expect(stageShown(100, 900)).toBe(0);
+    expect(stageShown(900 * 0.875, 900)).toBeCloseTo(0.5, 5);
+  });
+});
+
+describe("the words make way for the spine on either side (W15-B3, W16-A)", () => {
+  it("shows the hero's left column fully while the spine stands in the hero, and fades it as it sets off", () => {
+    expect(heroWordsOpacity(ACROSS.desktop.hero, "desktop")).toBe(1);
+    expect(heroWordsOpacity((ACROSS.desktop.hero + HERO_WORDS_GONE_AT) / 2, "desktop")).toBeCloseTo(0.5, 5);
+    expect(heroWordsOpacity(HERO_WORDS_GONE_AT, "desktop")).toBe(0);
+    expect(heroWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(0);
+  });
+
+  it("shows words on the right only once the spine has cleared the right column", () => {
+    expect(needWordsOpacity(ACROSS.desktop.right, "desktop")).toBe(0);
+    expect(needWordsOpacity(NEED_WORDS_FROM, "desktop")).toBe(0);
+    expect(needWordsOpacity(NEED_WORDS_FULL_AT, "desktop")).toBe(1);
+    expect(needWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(1);
+  });
+
+  it("shows words on the left only once the spine stands right, clear of the left column", () => {
+    expect(wordsLeftOpacity(ACROSS.desktop.left, "desktop")).toBe(0);
+    expect(wordsLeftOpacity(0.5, "desktop")).toBe(0);
+    expect(wordsLeftOpacity(WORDS_LEFT_FROM, "desktop")).toBe(0);
+    expect(wordsLeftOpacity(WORDS_LEFT_FULL_AT, "desktop")).toBe(1);
+    expect(wordsLeftOpacity(ACROSS.desktop.right, "desktop")).toBe(1);
+    // Never both sides at once: the spine crossing the middle has words on neither side.
+    expect(WORDS_LEFT_FROM).toBeGreaterThan(NEED_WORDS_FROM);
+  });
+
+  it("has words fully gone before the zoomed spine's edge reaches their column (W16-R L1)", () => {
+    // The zoomed m5 reaches about 0.11 of the stage's width from where its disc stands towards the words (INNER) and
+    // 0.23 away from them (OUTER), at either stop (W19 r2's sweep at 1440 and 1280); the columns are 46 %.
+    const INNER_REACH = 0.11;
+    const OUTER_REACH = 0.23;
+    const COLUMN = 0.46;
+    // Where the left column's text ends: x 615 of 1440 (its padding takes the rest of the 46 %).
+    const LEFT_TEXT_ENDS = 0.43;
+    expect(wordsLeftOpacity(LEFT_TEXT_ENDS + INNER_REACH, "desktop")).toBe(0);
+    expect(needWordsOpacity(1 - COLUMN - INNER_REACH, "desktop")).toBe(0);
+    // At their own stops the words are fully in and the spine's edge is clear of them.
+    expect(ACROSS.desktop.right - INNER_REACH).toBeGreaterThan(COLUMN);
+    expect(ACROSS.desktop.left + INNER_REACH).toBeLessThan(1 - COLUMN);
+    // And the spine never meets the screen's edge at a stop (W19 r2: at least 8 % clear on either side).
+    expect(ACROSS.desktop.left - OUTER_REACH).toBeGreaterThanOrEqual(0.08);
+    expect(ACROSS.desktop.right + OUTER_REACH).toBeLessThanOrEqual(0.92);
+    expect(wordsLeftOpacity(ACROSS.desktop.right, "desktop")).toBe(1);
+    expect(needWordsOpacity(ACROSS.desktop.left, "desktop")).toBe(1);
+  });
+
+  it("shows every section's words fully while the spine stands in the hero, so none sit faded in the page (axe, S9)", () => {
+    expect(wordsLeftOpacity(ACROSS.desktop.hero, "desktop")).toBe(1);
+  });
+
+  it("leaves the phone's words alone: the band sits between them", () => {
+    expect(heroWordsOpacity(0.36, "phone")).toBe(1);
+    expect(needWordsOpacity(0.74, "phone")).toBe(1);
+    expect(wordsLeftOpacity(0.3, "phone")).toBe(1);
+  });
+});
+
+describe("a stop's spine stays on the screen at every width from 768 to 1439 (W20-STOPS, review-w20 F1, F3, F6)", () => {
+  // F1/F3: at 768 and 820 (the phone's band, the desktop mesh) the zoomed column ran off the screen's side; F6: at 1024
+  // the guest's Back Office rest cut its processes at the left edge. 1440 and the phone keep their framing.
+  const STOP_DISCS: DiscId[] = ["G04", "G05", "G06", "G01", "G02", "G03", "G07", "G08"];
+  const views = [
+    { width: 768, height: 807, variant: "phone" as const }, // 768x1024: the band, 1290:1356
+    { width: 820, height: 862, variant: "phone" as const }, // 820x1180
+    { width: 1024, height: 684, variant: "desktop" as const }, // 1024x768, under the 84 px bar
+    { width: 1180, height: 736, variant: "desktop" as const },
+    { width: 1280, height: 716, variant: "desktop" as const },
+  ];
+  /** The stop's visible width in LOOK units at its disc: the lens's height there, times the view's aspect. */
+  const shown = (key: { framing: Framing }, view: { width: number; height: number }): number =>
+    2 * shownTan("desktop", baseFraming("desktop").lensMm, view) * (1 / scaleOf(key.framing)) * (view.width / view.height);
+
+  it.each(views)("keeps every disc's outward reach inside the edge at $width x $height", (view) => {
+    const keys = stageKeys(STOP_DISCS, "desktop", view.variant, view, 0).slice(2, -1);
+    keys.forEach((key, i) => {
+      const k = ALL_DISCS.indexOf(STOP_DISCS[i]);
+      const side = stopSide(i);
+      const room = (side === "left" ? key.across : 1 - key.across) - EDGE_PAD;
+      const reach = stopReach(k, side, stopZoomOut(k, side, key.across, view));
+      expect(reach).toBeLessThanOrEqual(room * shown(key, view) + 1e-9);
+    });
+  });
+
+  it("pulls the 768 band's stops back to fit and leaves their sides alone", () => {
+    const view = views[0];
+    const keys = stageKeys(STOP_DISCS, "desktop", "phone", view, 0).slice(2, -1);
+    expect(Math.max(...keys.map((key) => shown(key, view) / (STOP_VIEW_HEIGHT.desktop * view.width / view.height)))).toBeGreaterThan(1.2);
+    keys.forEach((key, i) => expect(key.across).toBe(ACROSS.phone[stopSide(i)]));
+  });
+
+  it("leaves 1440's stops on the reviewed plans and the phone's exactly as they were", () => {
+    // Ananya's plan (G04, G05, G06, G01) and the guest's (G01, G02), left first. A disc that already sits on the edge at
+    // 1440 in another order (G02 left, G06 / G07 right) pulls back a little too.
+    for (const plan of [["G04", "G05", "G06", "G01"], ["G01", "G02"]] as DiscId[][]) {
+      plan.forEach((disc, i) => expect(stopZoomOut(ALL_DISCS.indexOf(disc), stopSide(i), ACROSS.desktop[stopSide(i)], DESKTOP_VIEW)).toBe(1));
+    }
+    const phone = stageKeys(STOP_DISCS, "phone", "phone", PHONE_VIEW, 0).slice(2, -1);
+    phone.forEach((key) => expect(1 / scaleOf(key.framing)).toBeCloseTo(1 / scaleOf(phone[0].framing), 9));
+  });
+});
+
+describe("a tablet's band lets its spine go before it slides under the nav (W20-STOPS, review-w20 F2, F4)", () => {
+  // F2/F4: at 768 and 820 the band left with the plan's end and its spine rose under the bar, hard-cut at its bottom.
+  it("shows the spine fully until the band is BAND_LEAVE_SHARE of its height from leaving, and none once it leaves", () => {
+    const height = 900;
+    const leaveAt = 5000;
+    expect(bandShown(0, leaveAt, height)).toBe(1);
+    expect(bandShown(leaveAt - height * BAND_LEAVE_SHARE, leaveAt, height)).toBe(1);
+    expect(bandShown(leaveAt - (height * BAND_LEAVE_SHARE) / 2, leaveAt, height)).toBeCloseTo(0.5, 9);
+    expect(bandShown(leaveAt, leaveAt, height)).toBe(0);
+    expect(bandShown(leaveAt + 300, leaveAt, height)).toBe(0);
+  });
+
+  it("shows it always before the band is measured", () => {
+    expect(bandShown(5000, Number.POSITIVE_INFINITY, 900)).toBe(1);
+    expect(bandShown(5000, 4000, 0)).toBe(1);
+  });
+});
+
+describe("a tablet's close rests on screen before its band lets the spine go (W20-STOPS)", () => {
+  const keys = stageKeys(DISCS, "desktop", "phone", { width: 768, height: 807 }, 0);
+  const spans = [{ top: 900, bottom: 1900 }, ...DISCS.map((_, i) => ({ top: 1900 + 1000 * i, bottom: 2900 + 1000 * i })), { top: 5900, bottom: 6600 }];
+
+  it("lands the close by `closeBy`, shortening its pull-back, and never runs backwards", () => {
+    const free = stageAnchors(keys, spans, 400, 512, 512, 512, 102, 1024);
+    expect(free.at(-1)!.at).toBe(5500 - 512 + 1024); // a screen's pull-back, landing late (final review L1)
+    const held = stageAnchors(keys, spans, 400, 512, 512, 512, 102, 1024, 5300);
+    expect(held.at(-1)!.at).toBe(5300);
+    expect(held.at(-2)!.at).toBe(free.at(-2)!.at); // it still leaves the last stop at the same place
+    const tight = stageAnchors(keys, spans, 400, 512, 512, 512, 102, 1024, 100);
+    tight.slice(1).forEach((a, i) => expect(a.at).toBeGreaterThanOrEqual(tight[i].at));
+  });
+
+  it("asks for a rest of CLOSE_REST_SHARE of the screen before the band's fade, and none when there is no band", () => {
+    expect(closeBy({ leaveAt: 6000, height: 800 }, 1000)).toBe(6000 - 800 * BAND_LEAVE_SHARE - 1000 * CLOSE_REST_SHARE);
+    expect(closeBy({ leaveAt: Number.POSITIVE_INFINITY, height: 0 }, 1000)).toBe(Number.POSITIVE_INFINITY);
+  });
+});

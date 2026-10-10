@@ -1,12 +1,16 @@
 /**
- * Shared helpers for the Vercel Edge email endpoint (send-contact).
+ * Shared helpers for the site's functions: api/send-contact.ts (Edge) and the
+ * funnel's api/funnel/visit.ts and api/funnel/lead.ts (Node.js, region sin1).
  * Files prefixed with "_" are bundled into functions but never routed themselves.
  *
- * This endpoint replaces the former Supabase Edge Functions. It delivers mail
- * through Resend and intentionally does NOT persist to a database. The previous
- * Supabase insert was the single point of failure whenever the free project
- * auto-paused, silently swallowing every submission. Email delivery is the goal.
+ * /contact delivers mail through Resend and keeps no copy. The Supabase insert
+ * it replaced was the single point of failure whenever the free project
+ * auto-paused, silently swallowing every submission. The funnel is different on
+ * purpose: it saves each lead to Neon Postgres AND sends the team alert, so a
+ * lead survives either one failing. See api/funnel/ and spec §13.2.
  */
+
+export { isValidEmail } from "../src/shared/lib/contact-checks.js";
 
 const allowedOrigins = new Set([
   "https://ziiroai.com",
@@ -34,20 +38,19 @@ const rateLimitMax = 5;
  * one; that is a dashboard setting, not code, so it cannot live in this file.
  */
 const rateLimitBuckets = new Map<string, number[]>();
+let lastSweepAt = Date.now();
 
-const disposableDomains = new Set([
-  "mailinator.com", "guerrillamail.com", "tempmail.com", "throwaway.email", "yopmail.com",
-  "sharklasers.com", "guerrillamailblock.com", "grr.la", "guerrillamail.info", "spam4.me",
-  "trashmail.com", "trashmail.me", "trashmail.net", "dispostable.com", "maildrop.cc",
-  "10minutemail.com", "10minutemail.net", "10minutemail.org", "minutemail.com", "temp-mail.org",
-  "fakeinbox.com", "mailnull.com", "spamgourmet.com", "spamgourmet.net", "discard.email",
-  "mailnesia.com", "spamspot.com", "spamthisplease.com", "byom.de", "getnada.com",
-  "anonaddy.com", "tempinbox.com", "tempr.email", "emailondeck.com", "getairmail.com",
-  "filzmail.com", "zetmail.com", "mohmal.com", "owlpic.com", "cfl.fr",
-  "spamfree24.org", "spamfree24.de", "spamfree24.eu", "spamfree24.info", "spaml.de",
-  "spaml.com", "disigntime.com", "no-spam.ws", "antispam24.de", "wegwerfmail.de",
-  "wegwerfmail.net", "wegwerfmail.org", "abcmail.email", "armyspy.com",
-]);
+/** Drops every key whose window has passed, at most once a window, so a long-lived instance doesn't grow (review L6). */
+const sweepRateLimits = (now: number) => {
+  if (now - lastSweepAt < rateLimitWindowMs) return;
+  lastSweepAt = now;
+  for (const [key, times] of rateLimitBuckets) {
+    if (times.every((time) => now - time >= rateLimitWindowMs)) rateLimitBuckets.delete(key);
+  }
+};
+
+/** How many keys the limiter holds. For tests. */
+export const rateLimitKeyCount = () => rateLimitBuckets.size;
 
 /**
  * CORS is NOT a security control here and must not be counted as one: the
@@ -87,15 +90,12 @@ export const sanitizeText = (value: unknown, maxLength = 500) =>
 export const sanitizeHeader = (value: unknown, maxLength = 120) =>
   sanitizeText(value, maxLength).replace(/[\r\n]/g, " ");
 
-export const isValidEmail = (email: string) =>
-  /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email) &&
-  email.length <= 254 &&
-  !disposableDomains.has(email.split("@")[1]?.toLowerCase());
-
-export const isRateLimited = (key: string) => {
+/** `max` defaults to the /contact setting, 5 per 10 minutes. /api/funnel/visit passes its own. */
+export const isRateLimited = (key: string, max = rateLimitMax) => {
   const now = Date.now();
+  sweepRateLimits(now);
   const recent = (rateLimitBuckets.get(key) ?? []).filter((time) => now - time < rateLimitWindowMs);
-  if (recent.length >= rateLimitMax) {
+  if (recent.length >= max) {
     rateLimitBuckets.set(key, recent);
     return true;
   }
@@ -222,18 +222,33 @@ export const isJsonRequest = (req: Request) =>
     .trim()
     .toLowerCase() === "application/json";
 
-export const readJson = async (req: Request) => {
+const maxBodyBytes = 10_000;
+
+/** `maxBytes` defaults to the 10 KB cap /contact and /api/funnel/lead use. /api/funnel/visit passes 4 KB. */
+export const readJson = async (req: Request, maxBytes = maxBodyBytes) => {
   // Cheap pre-check on the declared length before buffering. F4 noted the old
   // order let an attacker make the isolate buffer up to Vercel's 4.5MB cap for
   // a request that was then rejected anyway.
   const declared = Number(req.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declared) && declared > 10_000) {
+  if (Number.isFinite(declared) && declared > maxBytes) {
     throw new Error("Payload too large");
   }
   const body = await req.text();
-  if (body.length > 10_000) throw new Error("Payload too large");
+  if (body.length > maxBytes) throw new Error("Payload too large");
   return JSON.parse(body || "{}");
 };
+
+const siteverifyUrl = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+/**
+ * "missing": no token came. "refused": Cloudflare said no. "unavailable": the check itself is down, because the
+ * secret isn't set, Cloudflare rejects it, or Cloudflare didn't answer in time (review M1). Kept apart from
+ * "refused" so an outage doesn't look like a spam wave.
+ */
+export type TurnstileOutcome = "passed" | "missing" | "refused" | "unavailable";
+
+/** Cloudflare's error codes that mean our secret is wrong, not the visitor's token. */
+const SECRET_ERRORS = new Set(["missing-input-secret", "invalid-input-secret"]);
 
 /**
  * Verifies a Cloudflare Turnstile token server-side.
@@ -241,74 +256,114 @@ export const readJson = async (req: Request) => {
  * This is the control that replaces the in-process Map as the primary defence:
  * it is per-submission, and a fresh isolate cannot reset it the way it resets a
  * counter. Fails CLOSED. A missing secret, a network error or a malformed
- * response all return false, because the alternative is an endpoint that
+ * response are all "refused", because the alternative is an endpoint that
  * silently becomes an open relay the moment configuration drifts.
+ *
+ * "missing" is told apart from "refused" because /api/funnel/lead flags the two
+ * differently on a second try (§13.2). `action`, when given, must match the
+ * widget's; Cloudflare's test keys report none, so an empty one passes and only
+ * a different one is refused. `hostnames`, when given, must include the one the
+ * token was made on (review L2); Production passes its own. `timeoutMs` bounds
+ * the call; /contact passes none. /contact's verifyTurnstile still treats
+ * everything but "passed" as a no.
  *
  * Requires TURNSTILE_SECRET_KEY. The matching public site key belongs on the
  * form as VITE_TURNSTILE_SITE_KEY.
  */
-export const verifyTurnstile = async (
-  token: string,
+export const turnstileOutcome = async (
+  token: string | undefined,
   ip: string,
-): Promise<boolean> => {
+  opts: { action?: string; hostnames?: readonly string[]; timeoutMs?: number } = {},
+): Promise<TurnstileOutcome> => {
+  if (!token) return "missing";
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  if (!secret || !token) return false;
+  if (!secret) {
+    logEvent("error", "turnstile.misconfigured", { missing: "TURNSTILE_SECRET_KEY" });
+    return "unavailable";
+  }
   try {
     const form = new URLSearchParams({ secret, response: token });
     // Cloudflare treats remoteip as advisory; send it only when the platform
     // gave us a real one rather than the "unknown" placeholder.
     if (ip && ip !== "unknown") form.set("remoteip", ip);
-    const res = await fetch(
-      "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: form,
-      },
-    );
-    const data = (await res.json().catch(() => ({}))) as { success?: boolean };
-    return data.success === true;
+    const res = await fetch(siteverifyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form,
+      ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
+    });
+    // A 5xx or a reply that isn't JSON is Cloudflare's outage, not the visitor's no (recheck M1).
+    const data = res.ok ? ((await res.json().catch(() => null)) as {
+      success?: boolean; action?: string; hostname?: string; "error-codes"?: string[];
+    } | null) : null;
+    if (data === null || typeof data !== "object") {
+      logEvent("error", "turnstile.unavailable", { status: res.status });
+      return "unavailable";
+    }
+    if (data.success !== true) {
+      if (!(data["error-codes"] ?? []).some((code) => SECRET_ERRORS.has(code))) return "refused";
+      logEvent("error", "turnstile.misconfigured", { rejected: "TURNSTILE_SECRET_KEY" });
+      return "unavailable";
+    }
+    if (opts.action && data.action && data.action !== opts.action) return "refused";
+    return opts.hostnames && !opts.hostnames.includes(data.hostname ?? "") ? "refused" : "passed";
   } catch (error) {
-    console.error("Turnstile verification failed:", error);
-    return false;
+    logEvent("error", "turnstile.unreachable", { name: error instanceof Error ? error.name : "unknown" });
+    return "unavailable";
   }
 };
+
+/** /contact's check, unchanged: true only when the token passed. */
+export const verifyTurnstile = async (token: string, ip: string): Promise<boolean> =>
+  (await turnstileOutcome(token, ip)) === "passed";
 
 export const clientIp = (req: Request) =>
   req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
 
 /**
- * Sends one email through Resend. Throws on a non-2xx response so the caller
- * returns a 500. `from` defaults to Resend's shared sandbox sender; set a
- * RESEND_FROM env var to a verified-domain address (e.g. "Ziiro AI <contact@ziiroai.com>")
- * for reliable delivery to arbitrary recipients.
+ * Sends one email through Resend and returns its id. Throws UpstreamError on a
+ * non-2xx response, or when Resend can't be reached or `timeoutMs` runs out, so
+ * the caller decides what the visitor sees. `from` defaults to Resend's shared
+ * sandbox sender; set a RESEND_FROM env var to a verified-domain address (e.g.
+ * "Ziiro AI <contact@ziiroai.com>") for reliable delivery to arbitrary recipients.
+ *
+ * Give it `html`, `text` or both. With `idempotencyKey`, Resend sends once per key
+ * for 24 hours, however often it's called (spec §13.2). /contact passes neither a
+ * key nor a timeout, and behaves as it always has.
  */
 export const sendResendEmail = async (opts: {
   apiKey: string;
   from: string;
   to: string[];
   subject: string;
-  html: string;
+  html?: string;
+  text?: string;
   /** Only ever pass an address that has already cleared isValidEmail. An
    *  unvalidated Reply-To is the single change that turns this endpoint into a
    *  usable spoofing primitive, which security review F4 called out by name. */
   replyTo?: string;
-}) => {
+  idempotencyKey?: string;
+  timeoutMs?: number;
+}): Promise<{ id: string | null }> => {
+  if (!opts.html && !opts.text) throw new Error("sendResendEmail needs html or text");
   let res: Response;
   try {
     res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${opts.apiKey}`,
-      "Content-Type": "application/json",
-    },
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${opts.apiKey}`,
+        "Content-Type": "application/json",
+        ...(opts.idempotencyKey ? { "Idempotency-Key": opts.idempotencyKey } : {}),
+      },
       body: JSON.stringify({
         from: opts.from,
         to: opts.to,
         subject: opts.subject,
-        html: opts.html,
+        ...(opts.html ? { html: opts.html } : {}),
+        ...(opts.text ? { text: opts.text } : {}),
         ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
       }),
+      ...(opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : {}),
     });
   } catch (error) {
     // Resend unreachable: DNS, TLS, timeout. Same class of outcome for the
@@ -330,7 +385,8 @@ export const sendResendEmail = async (opts: {
     });
     throw new UpstreamError("resend", res.status);
   }
-  return res.json().catch(() => ({}));
+  const data = (await res.json().catch(() => ({}))) as { id?: unknown };
+  return { id: typeof data.id === "string" ? data.id : null };
 };
 
 export const resendFrom = () => process.env.RESEND_FROM || "Ziiro AI <onboarding@resend.dev>";

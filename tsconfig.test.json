@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["tests/**/*.ts", "playwright.config.ts", "vitest.build.config.ts", "src/vite-env.d.ts"],
+  "exclude": ["tests/api/**"]
+}

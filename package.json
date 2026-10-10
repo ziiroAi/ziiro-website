@@ -9,9 +9,21 @@
     "build:client": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.app.json && tsc -p tsconfig.api.json && tsc -p tsconfig.test.json",
+    "hash:immutable": "node scripts/hash-immutable.mjs",
+    "test:e2e": "playwright test --grep-invert \"@perf|@preview|landing-spine\\.spec|spine3d|spine-files\"",
+    "test:e2e:spine3d": "playwright test tests/e2e/landing-spine.spec.ts tests/e2e/spine-files.spec.ts tests/e2e/spine3d.spec.ts tests/e2e/spine3d-plan.spec.ts tests/e2e/spine3d-fallback.spec.ts tests/e2e/spine3d-software.spec.ts --workers=1",
+    "test:perf": "playwright test --grep @perf",
+    "perf:home": "node scripts/lighthouse-home.mjs",
+    "test:preview": "playwright test --grep @preview --project phone",
+    "check:build": "vitest run --config vitest.build.config.ts --passWithNoTests"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "@radix-ui/react-toast": "^1.2.14",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@splinetool/runtime": "^2.0.57",
@@ -31,23 +43,30 @@
     "react-router-dom": "^6.30.1",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "three": "0.186.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.64.0",
     "@types/node": "^22.16.5",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
+    "@types/three": "0.186.0",
     "@vitejs/plugin-react-swc": "^4.3.1",
+    "@vitest/coverage-v8": "^4.1.11",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^8.0.16"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.11"
   }
 }

@@ -174,7 +174,7 @@ const Privacy = () => {
               style={{ opacity: 0 }}
               className="mt-10 font-mono text-[11px] uppercase tracking-[0.25em] text-[var(--text-muted)]"
             >
-              Effective date: September 2026
+              Effective date: October 2026
             </p>
           </header>
 
@@ -301,8 +301,67 @@ const Privacy = () => {
                 We do not sell your personal information.
               </p>
             </LegalSection>
+            <LegalSection index="05" title="Your Plan on ziiroai.com">
+              <p>
+                When you answer the questions on our homepage to get a plan, we keep a
+                record of that visit: the options you tap, the plan we show you, how far
+                you get, the page you came from, and how you view it (phone or computer,
+                light or dark, time zone and language). We read your approximate country
+                from a header our hosting provider adds. We do not store your IP address.
+              </p>
+              <p>
+                If you ask for your plan by email, we also store your name, your email
+                address, your phone number if you give one, the words you type about your
+                business, when you agreed, and which version of this notice you agreed to.
+                We never store audio, your precise location or a WhatsApp number.
+              </p>
+              <p>These services handle it for us:</p>
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3">
+                  <Dot />
+                  <span>
+                    <strong className="font-semibold text-[var(--text-primary)]">Vercel</strong>{" "}
+                    hosts the site and runs the code that saves your answers.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Dot />
+                  <span>
+                    <strong className="font-semibold text-[var(--text-primary)]">Neon</strong>{" "}
+                    stores them in a database in Singapore.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Dot />
+                  <span>
+                    <strong className="font-semibold text-[var(--text-primary)]">Resend</strong>{" "}
+                    sends your plan email, and our team&apos;s copy of your request.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Dot />
+                  <span>
+                    <strong className="font-semibold text-[var(--text-primary)]">Cloudflare Turnstile</strong>{" "}
+                    checks that a person, not a bot, sent the form.
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Dot />
+                  <span>
+                    <strong className="font-semibold text-[var(--text-primary)]">Calendly</strong>{" "}
+                    handles the call, if you book one.
+                  </span>
+                </li>
+              </ul>
+              <p>
+                We keep your contact details and the record of your plan email for 12
+                months, and the visit record for 24 months. To have your details deleted
+                sooner, reply to the plan email and say so. That is enough: we delete them
+                within 7 days.
+              </p>
+            </LegalSection>
 
-            <LegalSection index="05" title="Data Retention">
+            <LegalSection index="06" title="Data Retention">
               <p>
                 We retain personal information for as long as necessary to provide our
                 services, comply with legal obligations, resolve disputes, and enforce
@@ -326,7 +385,7 @@ const Privacy = () => {
               </p>
             </LegalSection>
 
-            <LegalSection index="06" title="Your Rights">
+            <LegalSection index="07" title="Your Rights">
               <p>
                 Depending on your jurisdiction, you may have the right to access,
                 correct, delete, or port your personal information, and to object to or
@@ -335,14 +394,14 @@ const Privacy = () => {
               </p>
             </LegalSection>
 
-            <LegalSection index="07" title="Children">
+            <LegalSection index="08" title="Children">
               <p>
                 Our services are not directed to children under 13, and we do not
                 knowingly collect personal information from them.
               </p>
             </LegalSection>
 
-            <LegalSection index="08" title="Changes to This Policy">
+            <LegalSection index="09" title="Changes to This Policy">
               <p>
                 We may update this Privacy Policy from time to time. The
                 &quot;Effective Date&quot; above indicates when it was last revised.
@@ -351,7 +410,7 @@ const Privacy = () => {
               </p>
             </LegalSection>
 
-            <LegalSection index="09" title="Contact">
+            <LegalSection index="10" title="Contact">
               <p className="font-semibold text-[var(--text-primary)]">Ziiro AI</p>
               {/* The `space-y-2` wrapper that used to sit here is gone. It
                   existed to space TWO stacked addresses; with one there is
