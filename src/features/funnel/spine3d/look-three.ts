@@ -6,8 +6,8 @@
 import * as THREE from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { FullScreenQuad, Pass } from "three/examples/jsm/postprocessing/Pass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { baseFraming, type Framing } from "./camera";
 import type { CameraLook, Gap, ThemeLook, Vec3 } from "./look";
@@ -159,6 +159,8 @@ export function makeBackground(t: ThemeLook, aspect: number): { quad: THREE.Mesh
     bgBokeh: { value: count ? Array.from({ length: count }, (_, i) => new THREE.Vector4(...bokeh.slice(i * 4, i * 4 + 4))) : [new THREE.Vector4()] },
     bgOffset: { value: new THREE.Vector2(0, 0) },              // the shaft and bokeh follow the spine (backgroundOffsetX)
     uToModel: { value: new THREE.Matrix4() }, uFade: { value: END_FADE }, uRes: { value: new THREE.Vector2(1, 1) },
+    // W22-RING2: the bone's depth for the rings' soft depth test, written by RingPass each frame
+    uDepth: { value: null }, uNear: { value: 0.1 }, uFar: { value: 10 },
     uGapLevel: { value: LOOK.gaps.map(() => 1) },             // glow(level) per gap, written by Rings.setLevels
   };
   // BG_EDGE: how far in from each canvas edge (a share of its side) the shaft and the bokeh fade from nothing to full.
@@ -227,21 +229,42 @@ export function makeBody(t: ThemeLook, source: THREE.MeshStandardMaterial | null
  *  (square law left a visible amber band). The shaders use the same curve. */
 export const glow = (level: number): number => level * level * level;
 
-/** W22-RING: the band is drawn this far nearer the camera, along each pixel's own ray, so it covers the same pixels
- *  but a thin bone lip hanging across its slit (the owner's 16:24 wedge on Operations) no longer cuts it. The processes
- *  and bodies in front stand much further out, so they still hide it. Model units (a body is about 0.07 across). */
-export const RING_DEPTH_PULL = 0.02;
-const RING_VERT = `uniform float depthPull; varying vec2 vUv; varying vec3 vN; varying vec3 vP;
+/** W22-RING2: the rings draw in their own pass (RingPass) on this layer, after the bone, with no hard depth test. Each
+ *  fragment fades out by how far it sits behind the bone in front of it: fully lit up to RING_SOFT_DEPTH.from, gone by
+ *  .to (model units; a body is about 0.07 across). A thin lip hanging across a slit (the owner's 16:24 wedge, the 1024
+ *  Operations stop's diagonal) only veils the ring, while a body or process standing well in front still hides it, so a
+ *  ring never ends in a hard cut where bone crosses it. Replaces W22-RING's fixed depth pull. */
+export const RING_LAYER = 2;
+export const RING_SOFT_DEPTH = { from: 0.006, to: 0.04 };
+/** W22-RING2: the depth test is averaged over a disc this share of the frame's height across (12 taps and the centre),
+ *  so where bone crosses a ring, even at a silhouette whose depth jumps, the ring fades out over that width instead of
+ *  stopping on a hard edge. */
+export const RING_SOFT_EDGE = 0.03;
+const RING_VERT = `varying vec2 vUv; varying vec3 vN; varying vec3 vP;
   void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vP = w.xyz;
-  w.xyz += normalize(cameraPosition - w.xyz) * depthPull;
   gl_Position = projectionMatrix * viewMatrix * w; }`;
 /** Final review L3: a ring fragment facing the camera less than this (about 72 degrees off) is dropped. Those are the
  *  band's edge-on ends, which poked 2-3 px past the column's silhouette as specks; the lit arc faces far nearer. */
 export const RING_EDGE_FACING = 0.3;
 /** W22-RING: where a band's end has faded fully in. */
 export const RING_END_SOFT = 0.45;
+/** W22-RING2: and over at least this share of the band's half-width on screen. Near the column's silhouette a band
+ *  turns edge-on, so its facing falls from RING_END_SOFT to RING_EDGE_FACING within a few pixels and the end read as a
+ *  square cut (the 1024 Operations stop). The sine across the band runs about evenly across the screen, so the shader
+ *  fades on that instead; a share of the band (not of the frame) keeps the hero's small arcs full. */
+export const RING_END_SCREEN = 0.25;
 const RING_FRAG = `#define RING_EDGE_FACING ${RING_EDGE_FACING.toFixed(2)}
 #define RING_END_SOFT ${RING_END_SOFT.toFixed(2)}
+#define RING_END_SCREEN ${RING_END_SCREEN.toFixed(4)}
+#define RING_SOFT_FROM ${RING_SOFT_DEPTH.from.toFixed(4)}
+#define RING_SOFT_TO ${RING_SOFT_DEPTH.to.toFixed(4)}
+#define RING_SOFT_EDGE ${RING_SOFT_EDGE.toFixed(4)}
+#include <packing>
+uniform sampler2D uDepth; uniform float uNear, uFar;
+  float seen(vec2 px, vec2 size, float ringZ){
+    float bone = -perspectiveDepthToViewZ(texture2D(uDepth, px / size).r, uNear, uFar);
+    return 1.0 - smoothstep(RING_SOFT_FROM, RING_SOFT_TO, ringZ - bone);
+  }
 uniform vec3 edge, mid, core; uniform float intensity, level, facingPower, facingBase, coreSharpness;
   varying vec2 vUv; varying vec3 vN; varying vec3 vP;
   ${FADE_GLSL}
@@ -254,7 +277,19 @@ uniform vec3 edge, mid, core; uniform float intensity, level, facingPower, facin
     float facing = max(dot(normalize(vN), normalize(cameraPosition - vP)), 0.0);
     if (facing < RING_EDGE_FACING) discard;
     // W22-RING: the band's ends fade out over RING_EDGE_FACING..RING_END_SOFT, so no arc ends in a hard cut or a speck
-    float a = smoothstep(RING_EDGE_FACING, RING_END_SOFT, facing);
+    vec2 size = vec2(textureSize(uDepth, 0));
+    float across = sqrt(1.0 - facing * facing) / sqrt(1.0 - RING_EDGE_FACING * RING_EDGE_FACING);   // 0 mid-band, 1 at its end
+    float a = smoothstep(RING_EDGE_FACING, RING_END_SOFT, facing) * smoothstep(0.0, RING_END_SCREEN, 1.0 - across);
+    // W22-RING2: the soft depth test against the bone (RING_SOFT_DEPTH)
+    float ringZ = -(viewMatrix * vec4(vP, 1.0)).z;
+    float r = RING_SOFT_EDGE * size.y * 0.5;
+    float vis = seen(gl_FragCoord.xy, size, ringZ);
+    for (int i = 0; i < 12; i++) {
+      float ang = float(i) * 0.5236 + (i < 6 ? 0.0 : 0.2618);
+      vis += seen(gl_FragCoord.xy + vec2(cos(ang), sin(ang)) * r * (i < 6 ? 0.5 : 1.0), size, ringZ);
+    }
+    a *= vis / 13.0;
+    if (a <= 0.0) discard;
     float g = facingBase + (1.0 - facingBase) * pow(facing, facingPower);
     vec3 lit = c * intensity * level * level * level * g * smoothstep(0.0, 0.35, h);
     gl_FragColor = vec4(mix(bgColour(screenP()), lit, endFade(axisCoord(vP))), a);
@@ -291,17 +326,18 @@ export function makeRings(t: ThemeLook, gaps: readonly Gap[], shared: Shared): R
       uniforms: {
         edge: { value: col(t.ring.edge) }, mid: { value: col(t.ring.mid) }, core: { value: col(t.ring.core) },
         intensity: { value: t.ring.intensity }, level: { value: 1 }, facingPower: { value: R.facingPower },
-        facingBase: { value: R.facingBase }, coreSharpness: { value: R.coreSharpness }, depthPull: { value: RING_DEPTH_PULL },
-        ...shared.uniforms,
+        facingBase: { value: R.facingBase }, coreSharpness: { value: R.coreSharpness }, ...shared.uniforms,
       },
       defines: shared.defines,
-      transparent: true, depthWrite: false,                  // W22-RING: the soft ends blend over the bone behind them
+      // W22-RING: the soft ends blend over the bone behind them; W22-RING2: RingPass tests depth softly in the shader
+      transparent: true, depthWrite: false, depthTest: false,
       vertexShader: RING_VERT, fragmentShader: RING_FRAG,
     });
     const r = g.grooveRadius * R.radiusK;
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(r, r, g.width * R.heightK, R.segments, 1, true), mat);
     ring.position.copy(v3(g.centre));
     ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v3(g.normal).normalize());
+    ring.layers.set(RING_LAYER);                              // drawn by RingPass, not the scene's RenderPass
     group.add(ring);
     bands.push(ring);
     if (R.capK > 0) {                                         // the disc's own face, glowing towards the camera-side rim
@@ -410,6 +446,8 @@ const SANITISE = {
 export interface ComposerOptions {
   /** MSAA samples on the scene's target. */
   samples: number;
+  /** The look's shared uniforms (makeBackground), where RingPass hands the rings the bone's depth. */
+  shared: Shared;
   /** The bloom's working size as a multiple of the canvas (it halves that for its first mip). */
   bloomScale: number;
 }
@@ -424,23 +462,62 @@ export interface ComposerOptions {
  */
 export function makeComposer(
   renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, t: ThemeLook, width: number, height: number,
-  { samples, bloomScale }: ComposerOptions,
+  { samples, bloomScale, shared }: ComposerOptions,
 ): EffectComposer {
   const sceneTarget = new THREE.WebGLRenderTarget(width, height, { type: THREE.HalfFloatType, samples });
+  sceneTarget.depthTexture = new THREE.DepthTexture(width, height);   // W22-RING2: the bone's depth, for RingPass
   const passTarget = new THREE.WebGLRenderTarget(width, height, { type: THREE.HalfFloatType, depthBuffer: false });
   const composer = new EffectComposer(renderer, passTarget);
   composer.setPixelRatio(1);
-  // RenderPass draws into the read buffer. Sanitise and Output each swap, so it is the scene's target every frame.
+  // RenderPass draws the bone into the read buffer. RingPass (sanitise, then the rings) and Output each swap, so it is
+  // the scene's target every frame.
   composer.renderTarget2.dispose();
   composer.renderTarget2 = sceneTarget;
   composer.readBuffer = sceneTarget;
   composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(new ShaderPass(SANITISE));
+  composer.addPass(new RingPass(scene, camera, shared));
   const bloom = new UnrealBloomPass(new THREE.Vector2(width, height), t.bloom.strength, t.bloom.radius, t.bloom.threshold);
   composer.addPass(bloom);
   bloom.setSize(Math.round(width * bloomScale), Math.round(height * bloomScale));
   composer.addPass(withDither(new OutputPass()));
   return composer;
+}
+
+/** W22-RING2: copies the bone's frame through SANITISE into the write buffer, then draws the rings (RING_LAYER) over it
+ *  with the bone's depth texture bound, for their soft depth test. The write buffer has no depth, so no feedback loop. */
+export class RingPass extends Pass {
+  private readonly copy = new THREE.ShaderMaterial({
+    uniforms: THREE.UniformsUtils.clone(SANITISE.uniforms), vertexShader: SANITISE.vertexShader, fragmentShader: SANITISE.fragmentShader,
+  });
+  private readonly quad = new FullScreenQuad(this.copy);
+
+  constructor(private readonly scene: THREE.Scene, private readonly camera: THREE.Camera, private readonly shared: Shared) {
+    super();
+    this.needsSwap = true;
+  }
+
+  render(renderer: THREE.WebGLRenderer, writeBuffer: THREE.WebGLRenderTarget, readBuffer: THREE.WebGLRenderTarget): void {
+    this.copy.uniforms.tDiffuse.value = readBuffer.texture;
+    renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
+    this.quad.render(renderer);
+    const u = this.shared.uniforms;
+    u.uDepth.value = readBuffer.depthTexture;
+    const cam = this.camera as THREE.PerspectiveCamera;
+    u.uNear.value = cam.near;
+    u.uFar.value = cam.far;
+    const mask = this.camera.layers.mask;
+    const autoClear = renderer.autoClear;
+    this.camera.layers.set(RING_LAYER);
+    renderer.autoClear = false;
+    renderer.render(this.scene, this.camera);
+    renderer.autoClear = autoClear;
+    this.camera.layers.mask = mask;
+  }
+
+  dispose(): void {
+    this.copy.dispose();
+    this.quad.dispose();
+  }
 }
 
 /** EffectComposer.dispose frees its two targets but not its passes' (the bloom's eleven). */

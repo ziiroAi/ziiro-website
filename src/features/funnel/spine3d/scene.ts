@@ -303,6 +303,7 @@ async function buildScene(options: SceneOptions, renderer: WebGLRenderer, releas
     composer = makeComposer(renderer, scene, camera, LOOK.themes[theme], px.width * px.ratio, px.height * px.ratio, {
       samples: samplesFor(size),
       bloomScale: bloomScaleFor(size, px.ratio),
+      shared: dressing.shared,
     });
   };
 
