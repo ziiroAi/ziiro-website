@@ -78,6 +78,8 @@ async function scrollTo(y: number) {
 const settle = () => act(async () => { for (let i = 0; i < 5; i += 1) await Promise.resolve(); });
 /** Where block 2 (depth 0) and the stops reach the desktop reading line, the screen's middle. */
 const arrival = (depth: number) => 1000 + 1000 * depth - window.innerHeight / 2;
+/** Where the close has landed: its pull-back runs a screen and arrives up to a screen late (final review L1). */
+const closeRest = () => arrival(STOPS.length + 1) + window.innerHeight;
 
 function fakeApi(reducedMotion = false) {
   return {
@@ -247,7 +249,7 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     await scrollTo(arrival(2)); // department 2: spine right, words left
     expect(root.hasAttribute("data-words-right-off")).toBe(true);
     expect(root.hasAttribute("data-words-left-off")).toBe(false);
-    await scrollTo(arrival(STOPS.length + 1)); // the close: spine left, the left column's words gone
+    await scrollTo(closeRest()); // the close: spine left, the left column's words gone
     expect(root.hasAttribute("data-words-left-off")).toBe(true);
     expect(root.hasAttribute("data-words-right-off")).toBe(false);
   });
@@ -472,7 +474,7 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
     await scrollTo(arrival(1)); // a department: zoomed in on its disc
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("0");
-    await scrollTo(arrival(STOPS.length + 1));
+    await scrollTo(closeRest());
     expect(screen.style.getPropertyValue("--legend-shown")).toBe("1");
   });
 
@@ -494,7 +496,7 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     await scrollTo(arrival(2));
     expect(api.setPose).toHaveBeenLastCalledWith({ turn: keys()[3].turn });
     expect(keys()[3].turn).not.toBe(keys()[2].turn);
-    await scrollTo(arrival(STOPS.length + 1));
+    await scrollTo(closeRest());
     expect(api.setPose).toHaveBeenLastCalledWith({ turn: 0 });
   });
 
@@ -508,7 +510,7 @@ describe("PlanStage: scrubbed by the scroll (W15-B)", () => {
     expect(overlay().style.visibility).toBe("");
     await scrollTo(arrival(1));
     expect(overlay().style.visibility).toBe("hidden");
-    await scrollTo(arrival(STOPS.length + 1));
+    await scrollTo(closeRest());
     expect(overlay().style.visibility).toBe("");
   });
 

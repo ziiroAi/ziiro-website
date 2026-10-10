@@ -6,7 +6,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { describe, expect, it, vi } from "vitest";
 import { LOOK } from "./look";
 import { baseFraming } from "./camera";
-import { LEAK_FACING, LEAK_GLSL, backgroundOffsetX, disposeComposer, makeBackground, makeBody, makeComposer, makeEnvironment } from "./look-three";
+import { LEAK_FACING, LEAK_GLSL, RING_EDGE_FACING, backgroundOffsetX, disposeComposer, makeBackground, makeBody, makeComposer, makeEnvironment, makeRings } from "./look-three";
 
 /** The site sets the renderer's pixel ratio; three's EffectComposer.addPass used to multiply sizes by it again. */
 const renderer = { getPixelRatio: () => 2, getSize: (v: THREE.Vector2) => v.set(300, 200) } as unknown as THREE.WebGLRenderer;
@@ -128,5 +128,21 @@ describe("a lit gap's leak stays on the rims that face into its slit (W19-GHOST)
   it("gives an outward face (normal at 60 degrees or more off the column) none, and a rim all of it", () => {
     expect(LEAK_FACING.from).toBeGreaterThanOrEqual(Math.cos((60 * Math.PI) / 180));
     expect(LEAK_FACING.to).toBeLessThan(Math.cos((20 * Math.PI) / 180));
+  });
+});
+
+describe("a lit ring shows no specks where it turns edge-on at the column's silhouette (final review L3)", () => {
+  // L3: at the phone's Sales rest the lit rings' ends poked 2-3 px past the left rim, edge-on to the camera.
+  it("drops a ring's fragments that face the camera less than RING_EDGE_FACING", () => {
+    const { shared } = makeBackground(LOOK.themes.dark, 9 / 16);
+    const rings = makeRings(LOOK.themes.dark, LOOK.gaps, shared);
+    const band = rings.group.children[0] as THREE.Mesh;
+    expect((band.material as THREE.ShaderMaterial).fragmentShader).toMatch(/if \(facing < RING_EDGE_FACING\) discard;/);
+    expect((band.material as THREE.ShaderMaterial).fragmentShader).toContain(`#define RING_EDGE_FACING ${RING_EDGE_FACING.toFixed(2)}`);
+  });
+
+  it("only trims the edge-on ends: the arc turned 60 degrees toward the text (W18-D) and everything nearer stays lit", () => {
+    expect(RING_EDGE_FACING).toBeGreaterThan(0);
+    expect(RING_EDGE_FACING).toBeLessThan(Math.cos((70 * Math.PI) / 180));
   });
 });
