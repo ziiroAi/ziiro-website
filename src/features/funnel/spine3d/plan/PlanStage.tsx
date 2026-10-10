@@ -103,6 +103,7 @@ interface ReadingSpace {
   heroTravel: number;
   minTravel: number;
   heroRest: number;
+  closeTravel: number;
 }
 
 /**
@@ -115,6 +116,7 @@ function readingSpace(variant: Variant, band: HTMLElement | null): ReadingSpace 
   const shares = TRAVEL[variant === "desktop" || !band ? "desktop" : "phone"];
   const travels = {
     travel: screen * shares.travel, heroTravel: screen * shares.hero, minTravel: screen * shares.min, heroRest: screen * shares.heroRest,
+    closeTravel: screen * shares.close,
   };
   if (variant === "desktop" || !band) return { line: screen / 2, ...travels };
   const stuck = (Number.parseFloat(getComputedStyle(band).top) || 0) + band.getBoundingClientRect().height;
@@ -215,8 +217,8 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
     /** The flight the stage starts when the 3D arrives: where to, and when it lands. */
     let arrivalFlight: { to: string; until: number } | null = null;
     const measure = () => {
-      const { line, travel, heroTravel, minTravel, heroRest } = readingSpace(variant, bandRef.current);
-      anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel, minTravel, heroRest);
+      const { line, travel, heroTravel, minTravel, heroRest, closeTravel } = readingSpace(variant, bandRef.current);
+      anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel, minTravel, heroRest, closeTravel);
       const rect = root.getBoundingClientRect();
       end = rect.height > 0 ? rect.bottom + window.scrollY : Number.POSITIVE_INFINITY;
     };

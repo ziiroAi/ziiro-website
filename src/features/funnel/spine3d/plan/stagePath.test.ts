@@ -195,6 +195,20 @@ describe("anchoring the keyframes to the page (W15-B)", () => {
     expect(anchors.map((a) => a.at).slice(0, 5)).toEqual([0, 100, 500, 700, 1500]);
   });
 
+  it("pulls back to the close over a whole screen, keeping the last stop's rest and arriving late (final review L1)", () => {
+    // L1: the close ran 0.47 of a phone screen and 0.71 of a desktop one, the steepest move left on the page.
+    const anchors = stageAnchors(keys, spans, 400, 750, 450, 0, 0, 900);
+    const at = anchors.map((a) => a.at);
+    expect(at.slice(-3)).toEqual([4500, 4750, 5650]); // the stop rests 4500-4750, then 900 px out to the close
+    expect(anchors.at(-1)?.key).toBe(keys.at(-1));
+    expect(stageAnchors(keys, spans, 400, 750, 450).map((a) => a.at).slice(-2)).toEqual([4750, 5500]); // no close travel: as before
+  });
+
+  it("gives the close about one screen on both shapes", () => {
+    expect(TRAVEL.desktop.close).toBeCloseTo(1, 1);
+    expect(TRAVEL.phone.close).toBeCloseTo(1, 1);
+  });
+
   it("never runs backwards when a section is shorter than the travel or starts above the line", () => {
     const anchors = stageAnchors(keys, [{ top: 100, bottom: 200 }, ...spans.slice(1)], 400, 300);
     anchors.slice(1).forEach((a, i) => expect(a.at).toBeGreaterThanOrEqual(anchors[i].at));
@@ -209,7 +223,7 @@ describe("a phone's travels read as moves too (W18-E, worker-2's review-w17 N2)"
     expect(TRAVEL.phone.hero).toBeGreaterThanOrEqual(0.5);
     expect(TRAVEL.phone.min).toBeGreaterThanOrEqual(0.5);
     expect(TRAVEL.phone.heroRest).toBeGreaterThan(0);
-    expect(TRAVEL.desktop).toEqual({ travel: 0.75, hero: 0.5, min: 0, heroRest: 0 });
+    expect(TRAVEL.desktop).toEqual({ travel: 0.75, hero: 0.5, min: 0, heroRest: 0, close: 1 });
   });
 
   it("never squeezes a travel under the minimum: a short first section rests the hero briefly, then arrives a little late", () => {

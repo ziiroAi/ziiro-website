@@ -219,7 +219,11 @@ export const glow = (level: number): number => level * level * level;
 const RING_VERT = `varying vec2 vUv; varying vec3 vN; varying vec3 vP;
   void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vP = w.xyz;
   gl_Position = projectionMatrix * viewMatrix * w; }`;
-const RING_FRAG = `uniform vec3 edge, mid, core; uniform float intensity, level, facingPower, facingBase, coreSharpness;
+/** Final review L3: a ring fragment facing the camera less than this (about 72 degrees off) is dropped. Those are the
+ *  band's edge-on ends, which poked 2-3 px past the column's silhouette as specks; the lit arc faces far nearer. */
+export const RING_EDGE_FACING = 0.3;
+const RING_FRAG = `#define RING_EDGE_FACING ${RING_EDGE_FACING.toFixed(2)}
+uniform vec3 edge, mid, core; uniform float intensity, level, facingPower, facingBase, coreSharpness;
   varying vec2 vUv; varying vec3 vN; varying vec3 vP;
   ${FADE_GLSL}
   ${SCREEN_GLSL}
@@ -229,6 +233,7 @@ const RING_FRAG = `uniform vec3 edge, mid, core; uniform float intensity, level,
     vec3 c = mix(edge, mid, smoothstep(0.0, 0.55, h));
     c = mix(c, core, pow(h, coreSharpness));
     float facing = max(dot(normalize(vN), normalize(cameraPosition - vP)), 0.0);
+    if (facing < RING_EDGE_FACING) discard;
     float g = facingBase + (1.0 - facingBase) * pow(facing, facingPower);
     vec3 lit = c * intensity * level * level * level * g * smoothstep(0.0, 0.35, h);
     gl_FragColor = vec4(mix(bgColour(screenP()), lit, endFade(axisCoord(vP))), 1.0);
