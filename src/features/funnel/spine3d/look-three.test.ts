@@ -6,18 +6,20 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { describe, expect, it, vi } from "vitest";
 import { LOOK } from "./look";
 import { baseFraming } from "./camera";
-import { LEAK_FACING, LEAK_GLSL, RING_DEPTH_PULL, RING_EDGE_FACING, RING_END_SOFT, backgroundOffsetX, disposeComposer, makeBackground, makeBody, makeComposer, makeEnvironment, makeRings } from "./look-three";
+import { LEAK_FACING, LEAK_GLSL, RING_EDGE_FACING, RING_END_SCREEN, RING_END_SOFT, RING_LAYER, RING_SOFT_DEPTH, RING_SOFT_EDGE, RingPass, backgroundOffsetX, disposeComposer, makeBackground, makeBody, makeComposer, makeEnvironment, makeRings } from "./look-three";
 
 /** The site sets the renderer's pixel ratio; three's EffectComposer.addPass used to multiply sizes by it again. */
 const renderer = { getPixelRatio: () => 2, getSize: (v: THREE.Vector2) => v.set(300, 200) } as unknown as THREE.WebGLRenderer;
-const build = (options = { samples: 2, bloomScale: 1 }) =>
-  makeComposer(renderer, new THREE.Scene(), new THREE.PerspectiveCamera(), LOOK.themes.dark, 600, 400, options);
+const build = (options: { samples: number; bloomScale: number } = { samples: 2, bloomScale: 1 }) =>
+  makeComposer(renderer, new THREE.Scene(), new THREE.PerspectiveCamera(), LOOK.themes.dark, 600, 400,
+    { ...options, shared: makeBackground(LOOK.themes.dark, 1.5).shared });
 
 describe("makeComposer (W14-K)", () => {
   it("draws the scene into the only multisampled target, with depth, and runs the passes after it on a plain one", () => {
     const composer = build();
     expect(composer.readBuffer.samples).toBe(2);
     expect(composer.readBuffer.depthBuffer).toBe(true);
+    expect(composer.readBuffer.depthTexture).toBeInstanceOf(THREE.DepthTexture);   // W22-RING2: read by RingPass
     expect([composer.readBuffer.width, composer.readBuffer.height]).toEqual([600, 400]);
     expect(composer.writeBuffer.samples).toBe(0);
     expect(composer.writeBuffer.depthBuffer).toBe(false);
@@ -36,7 +38,8 @@ describe("makeComposer (W14-K)", () => {
     const fs = output.material.fragmentShader;
     expect(fs).toContain("w15Dither");
     expect(fs.lastIndexOf("w15Dither")).toBeGreaterThan(fs.lastIndexOf("sRGBTransferOETF"));
-    expect(passes.filter((pass) => pass instanceof ShaderPass)).toHaveLength(1);   // SANITISE only
+    expect(passes.filter((pass) => pass instanceof ShaderPass)).toHaveLength(0);
+    expect(passes.filter((pass) => pass instanceof RingPass)).toHaveLength(1);     // SANITISE, then the rings (W22-RING2)
   });
 
   it("sizes the bloom from the canvas times bloomScale, not times the renderer's pixel ratio on top", () => {
@@ -149,27 +152,61 @@ describe("a lit ring shows no specks where it turns edge-on at the column's silh
   });
 });
 
-describe("every lit ring sits clean in its gap: no bone lip cuts it, no end is a hard cut (W22-RING)", () => {
-  const band = (): THREE.ShaderMaterial => {
+describe("every lit ring sits clean in its gap: no bone cuts it, no end is a hard cut (W22-RING, W22-RING2)", () => {
+  const band = (): THREE.Mesh => {
     const { shared } = makeBackground(LOOK.themes.light, 16 / 9);
-    return (makeRings(LOOK.themes.light, LOOK.gaps, shared).group.children[2] as THREE.Mesh).material as THREE.ShaderMaterial;
+    return makeRings(LOOK.themes.light, LOOK.gaps, shared).group.children[2] as THREE.Mesh;
   };
+  const material = (): THREE.ShaderMaterial => band().material as THREE.ShaderMaterial;
 
-  // The owner's 16:24 frame: a lip of the vertebra above hung across Operations' band and left a black wedge.
-  it("draws the band nearer the camera along each pixel's ray, by less than half the thinnest body", () => {
-    const mat = band();
-    expect(mat.vertexShader).toContain("w.xyz += normalize(cameraPosition - w.xyz) * depthPull;");
-    expect(mat.uniforms.depthPull.value).toBe(RING_DEPTH_PULL);
-    expect(RING_DEPTH_PULL).toBeGreaterThan(0);
-    expect(RING_DEPTH_PULL).toBeLessThan(Math.min(...LOOK.gaps.map((g) => g.radius)) / 2);
+  // The owner's 16:24 wedge, then the 1024 Operations stop's diagonal: bone lips crossing the band cut it hard.
+  it("draws the bands in RingPass on their own layer, with a soft depth test in the shader instead of a hard one", () => {
+    const ring = band();
+    expect(ring.layers.isEnabled(RING_LAYER)).toBe(true);
+    expect(ring.layers.isEnabled(0)).toBe(false);
+    const mat = material();
+    expect(mat.depthTest).toBe(false);
+    expect(mat.depthWrite).toBe(false);
+    expect(mat.transparent).toBe(true);
+    expect(mat.uniforms.uDepth).toBeDefined();
+    expect(mat.fragmentShader).toContain("a *= vis / 13.0;");
+    expect(mat.fragmentShader).toContain("1.0 - smoothstep(RING_SOFT_FROM, RING_SOFT_TO, ringZ - bone)");
   });
 
-  // The owner's upper ring ended in a sharp diagonal cut; review-w20 M1 and L2 were ring-end specks.
-  it("fades the band's ends in over RING_EDGE_FACING..RING_END_SOFT and blends them over the bone", () => {
-    const mat = band();
-    expect(mat.fragmentShader).toContain("float a = smoothstep(RING_EDGE_FACING, RING_END_SOFT, facing);");
-    expect(mat.fragmentShader).toContain(`#define RING_END_SOFT ${RING_END_SOFT.toFixed(2)}`);
-    expect(mat.transparent).toBe(true);
-    expect(mat.depthWrite).toBe(false);
+  it("veils a ring under a thin lip but hides it behind a body, over a soft edge a little wider than a gap", () => {
+    expect(RING_SOFT_DEPTH.from).toBeGreaterThan(0);
+    expect(RING_SOFT_DEPTH.to).toBeLessThan(Math.min(...LOOK.gaps.map((g) => g.radius)));
+    expect(RING_SOFT_EDGE).toBeGreaterThan(0);
+    expect(RING_SOFT_EDGE).toBeLessThan(0.05);
+  });
+
+  // The owner's upper ring ended in a sharp diagonal cut; review-w20 M1 and L2 were ring-end specks; the 1024 stop's end
+  // was square because the band turns edge-on at the column's silhouette.
+  it("fades the band's ends over its last RING_END_SCREEN of half-width on screen, as well as by facing", () => {
+    const fs = material().fragmentShader;
+    expect(fs).toContain("smoothstep(RING_EDGE_FACING, RING_END_SOFT, facing) * smoothstep(0.0, RING_END_SCREEN, 1.0 - across)");
+    expect(fs).toContain(`#define RING_END_SOFT ${RING_END_SOFT.toFixed(2)}`);
+    expect(RING_END_SCREEN).toBeGreaterThan(0.1);
+    expect(RING_END_SCREEN).toBeLessThan(0.5);
+  });
+
+  it("RingPass swaps, copies the scene through SANITISE and draws only the ring layer, then restores the camera", () => {
+    const camera = new THREE.PerspectiveCamera();
+    const { shared } = makeBackground(LOOK.themes.dark, 1.5);
+    const pass = new RingPass(new THREE.Scene(), camera, shared);
+    expect(pass.needsSwap).toBe(true);
+    const seen: number[] = [];
+    const fake = {
+      setRenderTarget: vi.fn(), render: vi.fn(() => seen.push(camera.layers.mask)), autoClear: true,
+    } as unknown as THREE.WebGLRenderer;
+    const read = new THREE.WebGLRenderTarget(4, 4);
+    read.depthTexture = new THREE.DepthTexture(4, 4);
+    const quadRender = vi.spyOn((pass as unknown as { quad: { render: () => void } }).quad, "render").mockImplementation(() => undefined);
+    pass.render(fake, new THREE.WebGLRenderTarget(4, 4), read);
+    expect(quadRender).toHaveBeenCalled();
+    expect(seen).toEqual([1 << RING_LAYER]);
+    expect(camera.layers.mask).toBe(1);
+    expect(shared.uniforms.uDepth.value).toBe(read.depthTexture);
+    expect(fake.autoClear).toBe(true);
   });
 });
