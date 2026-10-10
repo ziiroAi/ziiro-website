@@ -1,4 +1,4 @@
-// §6.6: one <picture> for the hero still. AVIF first, then WebP. Only the visitor's theme loads. W18-C, W19: r20 (W19 r2), drawn
+// §6.6: one <picture> for the hero still. AVIF first, then WebP. Only the visitor's theme loads. W18-C, W19, W21: r21 (W21's gunmetal finish), drawn
 // by the live 3D itself (m5b, the owner's coil, discs unlit) at the frame it starts on, one per stage shape: the phone band under 600 px
 // (phone mesh), the 1290:1356 band from 600 px (desktop mesh), the landscape stage from 1024 px (r17's camera, drawn
 // on a 1440 x 816 stage). The 3D fades in over it and then lights its discs, so the handover reads as one picture. No preload and no high priority: the plan is never the first screen.
@@ -18,7 +18,7 @@ const TABLET_MEDIA = "(min-width: 600px) and (max-width: 1023px)";
 const STILL_MEDIA = "(min-width: 1024px)";
 const FORMATS = ["avif", "webp"] as const;
 
-const folder = (theme: Theme): string => `/spine/r20/${theme}/hero`;
+const folder = (theme: Theme): string => `/spine/r21/${theme}/hero`;
 const srcSet = (theme: Theme, name: "hero" | "tablet" | "phone", widths: readonly number[], ext: string): string =>
   widths.map((w) => `${folder(theme)}/${name}-${w}.${ext} ${w}w`).join(", ");
 

@@ -55,6 +55,12 @@ export interface ThemeLook {
     maps?: boolean;
     /** W17-M: multiplies the map's colour (maps only); dark pulls m4's warm graphite toward near-black graphite. */
     mapTint?: Vec3;
+    /** W21: a fixed metalness in place of the GLB's metalness map (maps only). */
+    mapMetalness?: number;
+    /** W21: a fixed roughness in place of the GLB's roughness map (maps only): broad, soft highlights. */
+    mapRoughness?: number;
+    /** W21: read only the map's luminance (maps only), so its compression's colour noise never tints the metal. */
+    mapGrey?: boolean;
   };
   /** His painted disc mask (the GLB's emissive texture) as a weak warm fill, scaled by the disc level. */
   maskFill: { colour: Vec3; intensity: number };
@@ -140,6 +146,10 @@ export const LOOK = {
       body: {
         colour: [0.06, 0.06, 0.062], metalness: 0.85, roughness: 0.1, clearcoat: 0, clearcoatRoughness: 0.4,
         normalScale: 1, envIntensity: 1.0, maps: true,   // W17-M: machined metal, no lacquer coat
+        // W21: satin titanium-black gunmetal (the owner: "a bit less shiny… titanium black gunmetal"): his near-zero
+        // metalness and glossy roughness maps give way to metal 0.75 and roughness 0.6, and the map, read as grey, is
+        // lifted 12x so the lit faces read dark gunmetal grey at a glance (a pure metal in this world reads black).
+        mapTint: [12, 12, 12], mapMetalness: 0.75, mapRoughness: 0.6, mapGrey: true,
       },
       maskFill: { colour: [1, 0.25, 0.02], intensity: 0 },  // W16-I: off, it spilled onto the bodies (W16-C2)
       env: {
@@ -175,7 +185,8 @@ export const LOOK = {
        *  body and the owner's close-up GLB, in place of the washed light silver. */
       body: {
         colour: [0.13, 0.08, 0.05], metalness: 0.9, roughness: 0.14, clearcoat: 0, clearcoatRoughness: 0.25,
-        normalScale: 1, envIntensity: 1.4, maps: true, mapTint: [0.72, 0.75, 0.82],   // W17-M: machined metal, no lacquer coat
+        normalScale: 1, envIntensity: 1.4, maps: true, mapTint: [15.4, 16, 17.4],   // W17-M: machined metal, no lacquer coat
+        mapMetalness: 0.75, mapRoughness: 0.6, mapGrey: true,   // W21: the light theme's gunmetal, a touch cool, lifted more for the dimmer world (was [0.72, 0.75, 0.82])
       },
       maskFill: { colour: [0.5, 0.65, 1], intensity: 0 },  // W16-I: off, as in light
       env: {
@@ -207,13 +218,17 @@ export const LOOK = {
    *  gap 0 re-centred inside its rims (worker-3's r2u fit); gaps 2 and 3 moved into their slits, measured on m5b as
    *  the sharpest waist of the disc's front between the bodies (gap 2 sat 0.028 above its slit, so the upper body hid
    *  its ring, the owner's "Operations" stop; gap 3 sat 0.025 above, its slit at y 0.377 between its neighbours'),
-   *  their grooves no wider than the slit, and gap 3 slid across to the centre that leaves its ring most room. Every
-   *  ring now sits inside its rims (worst -1 % of its radius). Disc k is gap k. */
+   *  their grooves no wider than the slit, and gap 3 slid across to the centre that leaves its ring most room. W21:
+   *  in the slit the hero's view (r17, from a little above) lost both rings behind the upper body's lip (the owner:
+   *  Operations barely shows, Customer a sliver). Gap 3 sits halfway between its W19 r2 place and its slit, with its
+   *  W19 r2 groove; gap 2 sits where the hero sees its slit open (0.006 up its normal from its W19 r2 place), its band
+   *  out at the lips' radius (groove 0.071), so it reads as full as Deals at the hero and as a clean arc at its
+   *  stop (GPU sweep, funnel/spine3d/w21/opsweep). Disc k is gap k. */
   gaps: [
     { centre: [0.03871, 0.04605, 0.14886], normal: [0.06883, 0.84105, -0.53656], radius: 0.06328, width: 0.022, grooveRadius: 0.04798 },
     { centre: [0.04012, 0.15566, 0.09342], normal: [-0.02679, 0.87412, -0.48496], radius: 0.07129, width: 0.022, grooveRadius: 0.05665 },
-    { centre: [0.04429, 0.24104, 0.04574], normal: [-0.10094, 0.91937, -0.38021], radius: 0.07361, width: 0.023, grooveRadius: 0.05293 },
-    { centre: [0.02338, 0.37344, -0.01354], normal: [-0.08464, 0.93689, -0.33922], radius: 0.0742, width: 0.023, grooveRadius: 0.0599 },
+    { centre: [0.04085, 0.2723, 0.03281], normal: [-0.10094, 0.91937, -0.38021], radius: 0.07361, width: 0.023, grooveRadius: 0.071 },
+    { centre: [0.0193, 0.38775, -0.01926], normal: [-0.08464, 0.93689, -0.33922], radius: 0.0742, width: 0.023, grooveRadius: 0.06031 },
     { centre: [0.00181, 0.52554, -0.05344], normal: [-0.01635, 0.95849, -0.28466], radius: 0.07136, width: 0.022, grooveRadius: 0.05721 },
     { centre: [0.00858, 0.63806, -0.07915], normal: [0.07152, 0.98372, -0.16488], radius: 0.06794, width: 0.021, grooveRadius: 0.05505 },
     { centre: [0.01785, 0.74617, -0.09042], normal: [0.09583, 0.9904, -0.09959], radius: 0.06318, width: 0.02, grooveRadius: 0.05075 },
