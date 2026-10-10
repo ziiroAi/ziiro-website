@@ -11,6 +11,7 @@ import type { DiscBox } from "./scene";
 import { forgetSoftwareGl } from "./first-screen";
 import { forgetWarmMeshes, warmMesh } from "./mesh-warm";
 import { CROSSFADE_MS, LOAD_TIMEOUT_MS, MESH_URLS, RINGS_IN_MS, SpineViewer } from "./SpineViewer";
+import { MAX_RETRIES, RETRY_DELAYS_MS } from "./rules";
 import { chooseTheme, resetThemeChoice } from "../flow/theme";
 import { THEME_FADE_MS } from "../flow/themeFade";
 
@@ -24,8 +25,10 @@ const handle = {
   setGlow: vi.fn(),
   dispose: vi.fn(),
 };
-const startSpine = vi.fn((_canvas: HTMLCanvasElement, _options: StartOptions) => handle);
-vi.mock("./host", () => ({ startSpine: (canvas: HTMLCanvasElement, options: StartOptions) => startSpine(canvas, options) }));
+const startSpine = vi.fn((_canvas: HTMLCanvasElement, _options: StartOptions, _mode?: "auto" | "inline") => handle);
+vi.mock("./host", () => ({
+  startSpine: (canvas: HTMLCanvasElement, options: StartOptions, mode?: "auto" | "inline") => startSpine(canvas, options, mode),
+}));
 
 let screen: Rendered | null = null;
 let saveData = false;
@@ -112,6 +115,21 @@ async function mount(lit?: Parameters<typeof SpineViewer>[0]["lit"]) {
   });
 }
 
+/** mount() for fake timers: the dynamic import of ./host settles on the fake clock (vi.waitFor would run it on). */
+async function mountWith(node = ui()) {
+  await act(async () => {
+    screen = render(node);
+  });
+  act(() => flush(2));
+  for (let i = 0; i < 5 && !startSpine.mock.calls.length; i++) await act(async () => void (await vi.advanceTimersByTimeAsync(0)));
+}
+
+/** Runs the fake clock on by `ms`, then lets a restarted begin()'s dynamic import of ./host settle. */
+async function advance(ms: number) {
+  await act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+  for (let i = 0; i < 5; i++) await act(async () => void (await vi.advanceTimersByTimeAsync(0)));
+}
+
 /** A real GPU, unless a test says otherwise. */
 const HARDWARE_GPU = "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, Unspecified Version)";
 const ready = (boxes: DiscBox[] = [], gpu = HARDWARE_GPU) => act(() => lastOptions().onReady(boxes, gpu));
@@ -165,12 +183,12 @@ describe("SpineViewer (W14-C)", () => {
   });
 
   it.each(["no-webgl2", "context-lost", "mesh-failed", "error"] as const)(
-    "gives the still back, drops the canvas and withdraws the API on %s",
+    "gives the still back, drops the canvas and withdraws the API on %s (for good on no-webgl2, else while it tries again)",
     async (reason) => {
       await mount();
       ready();
       act(() => lastOptions().onFail(reason));
-      expect(viewer().dataset.spine).toBe("fallback");
+      expect(viewer().dataset.spine).toBe(reason === "no-webgl2" ? "fallback" : "loading");
       expect(viewer().dataset.spineReason).toBe(reason);
       expect(still().className).not.toContain("invisible");
       expect(canvas()).toBeNull();
@@ -188,28 +206,33 @@ describe("SpineViewer (W14-C)", () => {
     expect(viewer().dataset.spineReason).toBe("no-webgl2");
   });
 
-  it("reports live once, and the fallback with its reason, for the plan_view record (§9)", async () => {
-    await mount();
+  it("reports live once, and the fallback with its reason once its retries are spent, for the plan_view record (§9)", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await mountWith();
     ready();
-    act(() => lastOptions().onFail("mesh-failed"));
+    for (let i = 0; i <= MAX_RETRIES; i++) {
+      act(() => lastOptions().onFail("mesh-failed"));
+      await advance(RETRY_DELAYS_MS.at(-1)! + 1);
+    }
     expect(onPhase.mock.calls).toEqual([["live", null], ["fallback", "mesh-failed"]]);
   });
 
-  it("never loads the 3D on a 3G connection", async () => {
+  // W22-LOAD: a teammate's phone kept the still for good. A 3G reading (Chrome's effectiveType, from a busy network)
+  // or Save-Data kept it before any 3D loaded; now the 3D loads in the background and fades in when it is ready.
+  it("loads the 3D on a 3G connection, in the background behind the still (W22-LOAD)", async () => {
     Object.defineProperty(navigator, "connection", { configurable: true, get: () => ({ saveData: false, effectiveType: "3g" }) });
     await mount();
-    expect(startSpine).not.toHaveBeenCalled();
-    expect(viewer().dataset.spineReason).toBe("slow-connection");
-    expect(onPhase).toHaveBeenCalledWith("fallback", "slow-connection");
+    expect(startSpine).toHaveBeenCalledTimes(1);
+    expect(viewer().dataset.spine).toBe("loading");
+    ready();
+    expect(viewer().dataset.spine).toBe("live");
   });
 
-  it("never loads the 3D under Save-Data", async () => {
+  it("loads the 3D under Save-Data too (W22-LOAD)", async () => {
     saveData = true;
     await mount();
-    expect(startSpine).not.toHaveBeenCalled();
-    expect(viewer().dataset.spine).toBe("fallback");
-    expect(viewer().dataset.spineReason).toBe("save-data");
-    expect(canvas()).toBeNull();
+    expect(startSpine).toHaveBeenCalledTimes(1);
+    expect(viewer().dataset.spine).toBe("loading");
   });
 
   it("follows the page theme and the plan's discs", async () => {
@@ -742,16 +765,17 @@ describe("a 3D that never arrives (W14-V T6)", () => {
   }
   const started = () => startSpine.mock.results.at(-1)!.value as typeof handle;
 
-  it("gives the still back after 20 s of loading, records the fallback, and lets the stalled 3D go", async () => {
+  it("keeps loading past 20 s on a slow network: records the slow load, keeps the 3D, and fades it in when ready (W22-LOAD)", async () => {
     await mountLoading();
     expect(viewer().dataset.spine).toBe("loading");
-    await act(async () => void (await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS - 1)));
+    await act(async () => void (await vi.advanceTimersByTimeAsync(LOAD_TIMEOUT_MS)));
     expect(viewer().dataset.spine).toBe("loading");
-    await act(async () => void (await vi.advanceTimersByTimeAsync(1)));
-    expect(viewer().dataset.spine).toBe("fallback");
     expect(viewer().dataset.spineReason).toBe("timeout");
     expect(onPhase).toHaveBeenCalledWith("fallback", "timeout");
-    expect(started().dispose).toHaveBeenCalled();
+    expect(started().dispose).not.toHaveBeenCalled();
+    ready();
+    expect(viewer().dataset.spine).toBe("live");
+    expect(onPhase).toHaveBeenLastCalledWith("live", null);
   });
 
   it("never times out once the first frame is drawn", async () => {
@@ -804,5 +828,90 @@ describe("what the viewer tells a screen reader, and how it moves, after it star
     expect(api!.reducedMotion).toBe(true);
     flush(2);
     expect(frames).toHaveLength(0);
+  });
+});
+
+describe("a real GPU always gets its 3D (W22-LOAD)", () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }));
+  afterEach(() => vi.useRealTimers());
+
+  it("starts again on the main thread when the worker path fails before its first frame (Safari 16's OffscreenCanvas has no WebGL)", async () => {
+    startSpine.mockImplementationOnce(() => ({ ...handle, offThread: true, dispose: vi.fn() }) as typeof handle);
+    await mountWith();
+    expect(startSpine.mock.calls[0][2]).toBe("auto");
+    act(() => lastOptions().onFail("no-webgl2"));
+    await advance(0);
+    expect(startSpine).toHaveBeenCalledTimes(2);
+    expect(startSpine.mock.calls[1][2]).toBe("inline");
+    expect(viewer().dataset.spine).toBe("loading");
+    expect(onPhase).not.toHaveBeenCalledWith("fallback", expect.anything());
+    ready();
+    expect(viewer().dataset.spine).toBe("live");
+  });
+
+  it.each(["context-lost", "mesh-failed", "error"] as const)("tries again after a %s, MAX_RETRIES times, then gives the still back", async (reason) => {
+    await mountWith();
+    for (let i = 0; i < MAX_RETRIES; i++) {
+      act(() => lastOptions().onFail(reason));
+      expect(viewer().dataset.spine).toBe("loading");
+      await advance(RETRY_DELAYS_MS[i]);
+      expect(startSpine).toHaveBeenCalledTimes(i + 2);
+    }
+    act(() => lastOptions().onFail(reason));
+    expect(viewer().dataset.spine).toBe("fallback");
+    expect(viewer().dataset.spineReason).toBe(reason);
+  });
+
+  it("comes back after a lost context once it was live", async () => {
+    await mountWith();
+    ready();
+    act(() => lastOptions().onFail("context-lost"));
+    await advance(RETRY_DELAYS_MS[0]);
+    expect(startSpine).toHaveBeenCalledTimes(2);
+    ready();
+    expect(viewer().dataset.spine).toBe("live");
+    expect(onPhase.mock.calls).toEqual([["live", null]]);
+  });
+});
+
+describe("?why3d=1 shows why the 3D did or didn't take over (W22-LOAD)", () => {
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+    sessionStorage.clear();
+  });
+  const why = () => screen!.container.querySelector<HTMLElement>("[data-testid=why3d]");
+
+  it("shows nothing without the flag", async () => {
+    await mount();
+    expect(why()).toBeNull();
+  });
+
+  it("shows the phase, the reason and the network, then the GPU once live", async () => {
+    window.history.replaceState(null, "", "/?why3d=1");
+    effectiveType = "3g";
+    await mount();
+    expect(why()!.textContent).toMatch(/loading/);
+    expect(why()!.textContent).toMatch(/3g/);
+    ready();
+    expect(why()!.textContent).toMatch(/live/);
+    expect(why()!.textContent).toMatch(/Apple M2/);
+  });
+
+  it("keeps showing once asked this session, after the funnel's steps change the address", async () => {
+    window.history.replaceState(null, "", "/?why3d=1");
+    await mount();
+    screen!.unmount();
+    window.history.replaceState(null, "", "/plan");
+    await mount();
+    expect(why()).not.toBeNull();
+  });
+
+  it("names the reason when it keeps the still", async () => {
+    window.history.replaceState(null, "", "/?why3d=1");
+    vi.stubGlobal("WebGL2RenderingContext", undefined);
+    Reflect.deleteProperty(window, "WebGL2RenderingContext");
+    await mount();
+    expect(why()!.textContent).toMatch(/fallback/);
+    expect(why()!.textContent).toMatch(/no-webgl2/);
   });
 });

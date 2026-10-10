@@ -8,7 +8,7 @@ import { useHtmlTheme } from "../plan/useHtmlTheme";
 import { themeFadeNow } from "../flow/theme";
 import type { SpineViewerApi } from "./api";
 import { createDrive, type Drive } from "./drive";
-import type { SpineHandle } from "./host";
+import type { SpineHandle, StartMode } from "./host";
 import { discLevels, type DiscLevels } from "./levels";
 import { baseFraming, easeInOut, type Framing } from "./camera";
 import { sharedSoftwareGl } from "./first-screen";
@@ -17,7 +17,7 @@ import { MESH_URLS } from "./mesh-urls";
 import { takeWarmMesh } from "./mesh-warm";
 import type { Motion } from "./orbit";
 import { isSoftwareRenderer } from "./pace";
-import { hasWebGL2, meshFor, preflight, readConnection, type FallbackReason } from "./rules";
+import { FINAL_REASONS, hasWebGL2, MAX_RETRIES, meshFor, preflight, readConnection, RETRY_DELAYS_MS, type FallbackReason } from "./rules";
 
 export { MESH_URLS } from "./mesh-urls";
 
@@ -26,9 +26,10 @@ const IDLE_TIMEOUT_MS = 2000;
 /** Where requestIdleCallback is missing (Safari), the 3D starts this long after the first paint. */
 const IDLE_FALLBACK_MS = 300;
 const FRAME_FALLBACK_MS = 16;
-/** W14-V T6: a 3D with no first frame by now (a stalled mesh fetch or worker) gives way to the still, and the visit
- *  still gets its plan_view record. */
+/** W14-V T6: a 3D with no first frame by now gets its plan_view record as a slow load ("timeout"). W22-LOAD: it keeps
+ *  loading in the background and fades in over the still when it is ready; only a software renderer keeps the still. */
 export const LOAD_TIMEOUT_MS = 20_000;
+
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 const CANVAS_CLASS = "absolute inset-0 h-full w-full";
 /** W18-C: the 3D's first frame fades in over the still this long; the still stays under it till the fade ends, so the
@@ -155,11 +156,13 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
   const latest = useRef(inputs);
   latest.current = inputs;
   const live = useRef<Live | null>(null);
+  /** W22-LOAD: what ?why3d=1 shows beside the phase and reason. */
+  const [diag, setDiag] = useState<Diag>({ mode: null, gpu: null, tries: 0 });
 
   useEffect(() => {
     const box = boxRef.current;
     if (!box) return;
-    const blocked = preflight({ ...readConnection(navigator), webgl2: hasWebGL2(window) });
+    const blocked = preflight({ webgl2: hasWebGL2(window) });
     if (blocked) {
       setState({ phase: "fallback", reason: blocked });
       latest.current.onPhase?.("fallback", blocked);
@@ -173,6 +176,11 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     /** W14-O: the idle spin is off on this GPU (software, or too slow), whatever the visitor's motion setting. */
     let paceSpin = true;
     let loadTimer: ReturnType<typeof setTimeout> | null = null;
+    /** W22-LOAD: "inline" after a worker that never drew; the waits before each further try. */
+    let mode: StartMode = "auto";
+    let tries = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let reportedSlow = false;
     /** W18-C: the crossfade's end, then the discs' light coming in. */
     let handover: ReturnType<typeof setTimeout> | null = null;
     let stopRamp: (() => void) | null = null;
@@ -183,6 +191,8 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     };
     const teardown = () => {
       stopLoadTimer();
+      if (retryTimer !== null) clearTimeout(retryTimer);
+      retryTimer = null;
       if (handover !== null) clearTimeout(handover);
       handover = null;
       stopRamp?.();
@@ -203,6 +213,44 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
       latest.current.onApi?.(null);
       latest.current.onPhase?.("fallback", reason);
     };
+    /** W22-LOAD: no first frame by LOAD_TIMEOUT_MS: the plan_view record says so once, and the 3D keeps loading. */
+    const slow = () => {
+      loadTimer = null;
+      if (cancelled) return;
+      setState({ phase: "loading", reason: "timeout" });
+      if (reportedSlow || reportedLive) return;
+      reportedSlow = true;
+      latest.current.onPhase?.("fallback", "timeout");
+    };
+    /** W22-LOAD: starts the 3D again after `delay`, with the still showing meanwhile. */
+    const restart = (reason: FallbackReason, delay: number) => {
+      teardown();
+      setState({ phase: "loading", reason });
+      latest.current.onApi?.(null);
+      retryTimer = setTimeout(() => {
+        retryTimer = null;
+        void begin();
+      }, delay);
+    };
+    /** W22-LOAD: a failure tries again where it can (on the main thread after a worker that never drew, or after a
+     *  wait), and gives the still back only when the tries are spent or nothing could mend it. */
+    const retry = (reason: FallbackReason, workerNeverDrew: boolean) => {
+      if (cancelled) return;
+      if (workerNeverDrew && mode === "auto" && reason !== "software-gl") {
+        mode = "inline";
+        setDiag((d) => ({ ...d, mode: "inline" }));
+        restart(reason, 0);
+        return;
+      }
+      if (FINAL_REASONS.includes(reason) || tries >= MAX_RETRIES) {
+        fail(reason);
+        return;
+      }
+      const delay = RETRY_DELAYS_MS[Math.min(tries, RETRY_DELAYS_MS.length - 1)];
+      tries += 1;
+      setDiag((d) => ({ ...d, tries }));
+      restart(reason, delay);
+    };
     const begin = async () => {
       if (cancelled) return;
       try {
@@ -220,12 +268,15 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
         const ringsIn = latest.current.ringsIn === true;
         /** A late message from a handle this viewer has let go (asleep, then started again) is ignored (W14-V T2). */
         const mine = () => !cancelled && live.current?.handle === handle;
+        let drew = false;
         const handle: SpineHandle = startSpine(canvas, {
           width, height, dpr: devicePixelRatio || 1, size, meshUrl, meshBytes,
           theme: latest.current.theme, levels: latest.current.levels, glow: ringsIn ? 0 : 1, view: { yaw: 0, pitch: 0, framing },
           onReady: (boxes, gpu) => {
             if (!mine() || !live.current) return;
+            drew = true;
             stopLoadTimer();
+            setDiag((d) => ({ ...d, gpu }));
             canvas.style.opacity = "1";
             canvas.removeAttribute("aria-hidden");
             const motion = readMotion();
@@ -261,14 +312,15 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
             if (mine()) live.current?.drive?.takeBoxes(boxes, frameMs);
           },
           onFail: (reason) => {
-            if (mine()) fail(reason);
+            if (mine()) retry(reason, handle.offThread === true && !drew);
           },
-        });
+        }, mode);
         live.current = { handle, drive: null, canvas };
-        loadTimer = setTimeout(() => fail("timeout"), LOAD_TIMEOUT_MS);
-        setState({ phase: "loading", reason: null });
+        setDiag((d) => ({ ...d, mode: handle.offThread === true ? "worker" : "inline" }));
+        if (!reportedSlow && !reportedLive) loadTimer = setTimeout(slow, LOAD_TIMEOUT_MS);
+        setState((now) => ({ phase: "loading", reason: now.reason === "timeout" ? "timeout" : null }));
       } catch {
-        fail("error");
+        retry("error", false);
       }
     };
     /** W14-K: off screen while another viewer is live, give the context back; near the screen again, start over. */
@@ -380,7 +432,41 @@ function useSpine(boxRef: RefObject<HTMLDivElement>, inputs: Inputs) {
     live.current?.drive?.wake();
   }, [inputs.levels]);
 
-  return { ...state, restyling, covered, spin };
+  return { ...state, restyling, covered, spin, diag };
+}
+
+interface Diag {
+  /** "worker" (OffscreenCanvas) or "inline" (the main thread), once started. */
+  mode: "worker" | "inline" | null;
+  /** The renderer's name, once the first frame is drawn. */
+  gpu: string | null;
+  tries: number;
+}
+
+const WHY_KEY = "why3d";
+
+/** W22-LOAD: true once ?why3d=1 has been in the address this session (the funnel's steps change the address before the
+ *  plan), so a visitor whose 3D never takes over can read why on screen. */
+function showWhy(): boolean {
+  if (typeof location === "undefined") return false;
+  try {
+    if (new URLSearchParams(location.search).get(WHY_KEY) === "1") sessionStorage.setItem(WHY_KEY, "1");
+    return sessionStorage.getItem(WHY_KEY) === "1";
+  } catch {
+    return new URLSearchParams(location.search).get(WHY_KEY) === "1";
+  }
+}
+
+function whyLine(phase: SpinePhase, reason: FallbackReason | null, diag: Diag): string {
+  const { saveData, effectiveType } = readConnection(typeof navigator === "undefined" ? undefined : navigator);
+  return [
+    `3D ${phase}`,
+    reason ?? "ok",
+    diag.mode ?? "not started",
+    `tries ${diag.tries}`,
+    `net ${effectiveType ?? "?"}${saveData ? " save-data" : ""}`,
+    diag.gpu ? `gpu ${diag.gpu}` : null,
+  ].filter(Boolean).join(" · ");
 }
 
 export function SpineViewer({ label, lit, className = "", children, onApi, onPhase, startFraming, ringsIn }: SpineViewerProps): JSX.Element {
@@ -389,7 +475,8 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
   const litKey = lit?.join(",");
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the departments' names, not the array's identity
   const levels = useMemo(() => discLevels(lit), [litKey]);
-  const { phase, reason, restyling, covered, spin } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, startFraming, ringsIn });
+  const { phase, reason, restyling, covered, spin, diag } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, startFraming, ringsIn });
+  const why = useMemo(showWhy, []);
   const live = phase === "live";
   return (
     <div
@@ -404,6 +491,11 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
       <div data-testid="spine-still" className={live && covered && !restyling ? "invisible" : undefined}>
         {children}
       </div>
+      {why && (
+        <p data-testid="why3d" className="pointer-events-none absolute left-2 top-2 z-10 max-w-[90%] rounded bg-black/75 px-2 py-1 font-mono text-[11px] leading-snug text-white">
+          {whyLine(phase, reason, diag)}
+        </p>
+      )}
     </div>
   );
 }
