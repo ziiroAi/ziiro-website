@@ -127,10 +127,11 @@ function readingSpace(variant: Variant, band: HTMLElement | null): ReadingSpace 
   return { line: stuck + below * PHONE_LINE_SHARE, ...travels };
 }
 
-/** W20-STOPS: where a tablet's band (the phone layout on the desktop mesh) starts to leave, as a scroll position: when
- *  its bottom meets the root's content bottom (sticky stops there). Phones and desktop: never. */
-function tabletBandLeave(band: HTMLElement | null, root: HTMLElement, variant: Variant, end: number): { leaveAt: number; height: number } {
-  if (!band || variant !== "phone" || meshFor(window.innerWidth) !== "desktop" || !Number.isFinite(end)) {
+/** W20-STOPS: where a band (the phone layout, under 1024 px) starts to leave, as a scroll position: when its bottom
+ *  meets the root's content bottom (sticky stops there). Desktop: never. W22-L1 (review-w20-rc L1): phones too, not
+ *  only tablets, so a 390 band's spine fades before it rides up under the header. */
+function bandLeave(band: HTMLElement | null, root: HTMLElement, variant: Variant, end: number): { leaveAt: number; height: number } {
+  if (!band || variant !== "phone" || !Number.isFinite(end)) {
     return { leaveAt: Number.POSITIVE_INFINITY, height: 0 };
   }
   const top = Number.parseFloat(getComputedStyle(band).top) || 0;
@@ -230,14 +231,14 @@ export function PlanStage({ departments, planAgentIds, onProgress, children, gue
     let end = Number.POSITIVE_INFINITY;
     /** W20-MID: 0 when the hero's words reach into the legend's strip, so the legend stays off them at the hero. */
     let heroLegend: 0 | 1 = 1;
-    /** W20-STOPS: on a tablet's band, the scroll where the band starts to leave with the plan's end, and its height. */
+    /** W20-STOPS, W22-L1: on a band (phone or tablet), the scroll where it starts to leave with the plan's end, and its height. */
     let band = { leaveAt: Number.POSITIVE_INFINITY, height: 0 };
     /** The flight the stage starts when the 3D arrives: where to, and when it lands. */
     let arrivalFlight: { to: string; until: number } | null = null;
     const measure = () => {
       const rect = root.getBoundingClientRect();
       end = rect.height > 0 ? rect.bottom + window.scrollY : Number.POSITIVE_INFINITY;
-      band = tabletBandLeave(bandRef.current, root, variant, end);
+      band = bandLeave(bandRef.current, root, variant, end);
       const { line, travel, heroTravel, minTravel, heroRest, closeTravel } = readingSpace(variant, bandRef.current);
       anchors = stageAnchors(path, spansOf(root), line, travel, heroTravel, minTravel, heroRest, closeTravel,
         closeBy(band, window.innerHeight));

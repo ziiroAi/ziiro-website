@@ -451,6 +451,19 @@ test.describe("the plan's one 3D stage (W15-B)", () => {
     expect(band.y + band.height, "the band's bottom against the footer's top").toBeLessThan(footer.y - 1);
   });
 
+  test("fades a phone band's spine out before the band rides under the header at the plan's end (W22-L1)", async ({ page }, info) => {
+    // review-w20-rc L1: at the phone's close the band scrolled up under the opaque header, and the spine, its bokeh
+    // and the top callout were cut at the header's bottom edge. 59e7f4b's tablet fade now covers the phone's band too.
+    test.skip(info.project.name !== "phone", "the phone's sticky band");
+    await toPlan(page);
+    const stage = await liveStage(page);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const under = await stage.evaluate((band) => band.getBoundingClientRect().top < document.querySelector("nav")!.getBoundingClientRect().bottom - 1);
+    expect(under, "the band has ridden under the header at the plan's end").toBe(true);
+    await expect.poll(() => stage.locator("[data-stage-screen]").evaluate((el) => Number(getComputedStyle(el).opacity)),
+      { timeout: SETTLE_TIMEOUT_MS }).toBeLessThanOrEqual(0.01);
+  });
+
   test("keeps a phone's legend under the band, off the spine's lower vertebrae (W15-B4 L1)", async ({ page }, info) => {
     test.skip(info.project.name !== "phone", "desktop keeps its legend under the spine, on the stage");
     await toPlan(page);
