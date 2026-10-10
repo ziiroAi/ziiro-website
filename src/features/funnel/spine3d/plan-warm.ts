@@ -29,6 +29,12 @@ function warmFile(url: string): Promise<void> {
   return done;
 }
 
+/** §12: the prefetch during the questions stays off under Save-Data or on a 2G/3G reading, so it never takes the
+ *  questions' own bandwidth or data. W22-LOAD: the plan's viewer still loads the 3D there, from the plan. */
+const SLOW_CONNECTIONS = ["slow-2g", "2g", "3g"];
+const sparesData = ({ saveData, effectiveType }: Connection): boolean =>
+  saveData || (effectiveType !== undefined && SLOW_CONNECTIONS.includes(effectiveType));
+
 /** Tests: a fresh page. */
 export function forgetWarmFiles(): void {
   warmFiles.clear();
@@ -66,7 +72,7 @@ function browserEnv(): WarmEnv {
  */
 export async function warmPlanMesh(signal: AbortSignal, env: WarmEnv = browserEnv()): Promise<boolean> {
   if (signal.aborted) return false;
-  if (preflight({ webgl2: env.webgl2 })) return false;
+  if (preflight({ webgl2: env.webgl2 }) || sparesData(env.connection)) return false;
   const software = await env.probe(signal);
   // An abort answers the probe too, so the visitor leaving is checked after it.
   if (signal.aborted || software) return false;

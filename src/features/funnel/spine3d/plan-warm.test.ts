@@ -70,14 +70,9 @@ describe("warming the plan's mesh during the questions (W15-M6)", () => {
   it.each([
     ["Save-Data", { connection: { saveData: true, effectiveType: "4g" } }],
     ["a 3g connection", { connection: { saveData: false, effectiveType: "3g" } }],
-  ] as const)("warms the mesh on %s, where the plan's 3D now loads too (W22-LOAD)", async (_name, over) => {
-    expect(await warmPlanMesh(new AbortController().signal, env(over))).toBe(true);
-    expect(meshFetch).toHaveBeenCalled();
-  });
-
-  it.each([
+    ["a 2g connection", { connection: { saveData: false, effectiveType: "2g" } }],
     ["no WebGL2", { webgl2: false }],
-  ] as const)("asks neither the probe nor for a mesh on %s", async (_name, over) => {
+  ] as const)("asks neither the probe nor for a mesh on %s (the plan's own viewer still loads the 3D, W22-LOAD)", async (_name, over) => {
     expect(await warmPlanMesh(new AbortController().signal, env(over))).toBe(false);
     expect(probes).toBe(0);
     expect(meshFetch).not.toHaveBeenCalled();
