@@ -28,6 +28,7 @@ function fakeApi() {
     flyTo: vi.fn(() => Promise.resolve()),
     scrub: vi.fn(),
     setPose: vi.fn(),
+    setShown: vi.fn(),
     setLit: vi.fn(),
     onDiscBoxes: (l) => { boxListener = l; return () => { boxListener = null; }; },
     onDiscPick: (l) => { pickListener = l; return () => { pickListener = null; }; },

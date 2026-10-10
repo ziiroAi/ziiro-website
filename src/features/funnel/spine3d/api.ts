@@ -37,6 +37,8 @@ export interface SpineViewerApi {
    * next call; starts at 0.
    */
   setPose(pose: StagePose): void;
+  /** W23-C: false while the stage is faded out (the phone band past the plan's end): nothing is drawn till true. */
+  setShown(shown: boolean): void;
   /** Lights these departments' discs; the rest keep 12 % (D28). null lights all nine. */
   setLit(lit: readonly DepartmentId[] | null): void;
   /** Called after every drawn frame with all nine discs' screen boxes. Returns an unsubscribe. */

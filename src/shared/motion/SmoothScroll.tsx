@@ -65,12 +65,25 @@ export default function SmoothScroll() {
     // Lets CSS opt individual things out, and gives us a hook for debugging.
     document.documentElement.classList.add("lenis-active");
 
+    // W23-C: the loop runs only while Lenis is scrolling. A wheel notch or an anchor jump goes through scrollTo (Lenis's
+    // own wheel handler calls it too), and a scroll Lenis follows emits "scroll": either wakes it; an idle page (and a
+    // phone, whose touch scroll is native) asks for no frames at all.
     let raf = 0;
     const frame = (time: number) => {
+      raf = 0;
       lenis.raf(time);
-      raf = requestAnimationFrame(frame);
+      if (lenis.isScrolling) raf = requestAnimationFrame(frame);
     };
-    raf = requestAnimationFrame(frame);
+    const wake = () => {
+      if (!raf) raf = requestAnimationFrame(frame);
+    };
+    const scrollTo = lenis.scrollTo.bind(lenis);
+    lenis.scrollTo = (...args: Parameters<Lenis["scrollTo"]>) => {
+      scrollTo(...args);
+      wake();
+    };
+    lenis.on("scroll", wake);
+    wake();
 
     return () => {
       cancelAnimationFrame(raf);

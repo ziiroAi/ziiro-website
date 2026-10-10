@@ -21,6 +21,10 @@ export interface Sweep {
   readonly hi: number;
   readonly elapsedMs: number;
   readonly durationMs: number;
+  /** W23-C: at its next edge it heads for the window's middle (r17's view) instead, and rests there. */
+  readonly settling?: boolean;
+  /** W23-C: this leg ends at the middle, at rest. */
+  readonly final?: boolean;
 }
 
 /** Yaw wrapped to [-180°, 180°). */
@@ -45,12 +49,17 @@ export function enterSweep(yaw: number): Sweep {
   return leg(lo, lo);
 }
 
-/** Moves the sweep on by dtMs; at an edge it turns and heads for the other. */
-export function stepSweep(sweep: Sweep, dtMs: number): { sweep: Sweep; yaw: number } {
+/** W23-C: the sway set to come to rest. It finishes the leg it is on (so it never turns round mid-swing), then
+ *  eases to the window's middle and stops, still at both ends of that last leg: no jerk, and then no more frames. */
+export const settleSweep = (sweep: Sweep): Sweep => ({ ...sweep, settling: true });
+
+/** Moves the sweep on by dtMs; at an edge it turns and heads for the other. `rested`: a settling sweep has stopped. */
+export function stepSweep(sweep: Sweep, dtMs: number): { sweep: Sweep; yaw: number; rested: boolean } {
   let next: Sweep = { ...sweep, elapsedMs: sweep.elapsedMs + dtMs };
   while (next.elapsedMs >= next.durationMs) {
-    const to = next.to === next.lo ? next.hi : next.lo;
-    next = { ...next, from: next.to, to, elapsedMs: next.elapsedMs - next.durationMs, durationMs: legMs(next.to, to) };
+    if (next.final) return { sweep: { ...next, elapsedMs: next.durationMs }, yaw: next.to, rested: true };
+    const to = next.settling ? (next.lo + next.hi) / 2 : next.to === next.lo ? next.hi : next.lo;
+    next = { ...next, from: next.to, to, elapsedMs: next.elapsedMs - next.durationMs, durationMs: legMs(next.to, to), final: next.settling };
   }
-  return { sweep: next, yaw: next.from + (next.to - next.from) * ease(next.elapsedMs / next.durationMs) };
+  return { sweep: next, yaw: next.from + (next.to - next.from) * ease(next.elapsedMs / next.durationMs), rested: false };
 }

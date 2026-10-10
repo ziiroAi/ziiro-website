@@ -2,7 +2,7 @@
 // full spine on the right "near r17", idle sway narrowed). It was W15-C4's +30° to -150°.
 import { describe, expect, it } from "vitest";
 import { SPIN_RATE } from "./orbit";
-import { enterSweep, stepSweep, SWEEP_HI, SWEEP_LO } from "./sweep";
+import { enterSweep, settleSweep, stepSweep, SWEEP_HI, SWEEP_LO } from "./sweep";
 
 const DEG = Math.PI / 180;
 /** Yaw in degrees, wrapped to [-180, 180). */
@@ -67,5 +67,49 @@ describe("the idle sway (W16-A): ±25° about r17's view and back", () => {
   it("from inside the window heads for its farther edge first", () => {
     expect(run(10 * DEG, 500).at(-1)!).toBeLessThan(10 * DEG);
     expect(run(-20 * DEG, 500).at(-1)!).toBeGreaterThan(-20 * DEG);
+  });
+});
+
+describe("the sway comes to rest (W23-C): idle frames stop", () => {
+  /** Runs a settling sweep from mid-leg till it rests, at most ms. */
+  function settle(ms = 20_000, frameMs = 16) {
+    let sweep = stepSweep(enterSweep(0), 2_000).sweep;
+    sweep = settleSweep(sweep);
+    const yaws: number[] = [];
+    for (let t = 0; t < ms; t += frameMs) {
+      const next = stepSweep(sweep, frameMs);
+      sweep = next.sweep;
+      yaws.push(next.yaw);
+      if (next.rested) return { yaws, rested: true, ms: t + frameMs };
+    }
+    return { yaws, rested: false, ms };
+  }
+
+  it("finishes its leg, then eases to r17's view (the window's middle) and stops there", () => {
+    const { yaws, rested } = settle();
+    expect(rested).toBe(true);
+    expect(wrapped(yaws.at(-1)!)).toBeCloseTo(0, 6);
+    expect(yaws.every(inWindow)).toBe(true);
+  });
+
+  it("never jerks: no step is bigger than the sway's own fastest, and it slows to a stop", () => {
+    const { yaws } = settle();
+    const steps = yaws.slice(1).map((y, i) => Math.abs(y - yaws[i]));
+    const fastest = (Math.PI / 2) * SPIN_RATE * 0.016 * 1.01;
+    expect(Math.max(...steps)).toBeLessThanOrEqual(fastest);
+    expect(steps.at(-1)!).toBeLessThan(fastest / 20);
+  });
+
+  it("rests within one leg and a half (under 9 s)", () => {
+    expect(settle().ms).toBeLessThan(9_000);
+  });
+
+  it("a sweep that isn't settling never rests", () => {
+    let sweep = enterSweep(0);
+    for (let t = 0; t < 60_000; t += 16) {
+      const next = stepSweep(sweep, 16);
+      expect(next.rested).toBe(false);
+      sweep = next.sweep;
+    }
   });
 });

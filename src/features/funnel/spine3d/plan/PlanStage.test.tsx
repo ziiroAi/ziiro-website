@@ -85,6 +85,7 @@ function fakeApi(reducedMotion = false) {
   return {
     scrub: vi.fn(),
     setPose: vi.fn(),
+    setShown: vi.fn(),
     flyTo: vi.fn(() => Promise.resolve()),
     setLit: vi.fn(),
     onDiscBoxes: () => () => undefined,
