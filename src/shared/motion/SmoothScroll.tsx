@@ -72,7 +72,8 @@ export default function SmoothScroll() {
     const frame = (time: number) => {
       raf = 0;
       lenis.raf(time);
-      if (lenis.isScrolling) raf = requestAnimationFrame(frame);
+      // Lenis's own "scroll" from inside raf may have woken it already: one loop, never two.
+      if (lenis.isScrolling && !raf) raf = requestAnimationFrame(frame);
     };
     const wake = () => {
       if (!raf) raf = requestAnimationFrame(frame);

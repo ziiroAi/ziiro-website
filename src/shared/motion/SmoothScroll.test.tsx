@@ -15,7 +15,10 @@ const lenis = vi.hoisted(() => ({
 vi.mock("lenis", () => ({
   default: class {
     isScrolling: false | "smooth" | "native" = false;
-    raf = vi.fn();
+    // Lenis emits "scroll" from inside raf while it moves the page.
+    raf = vi.fn(() => {
+      if (this.isScrolling) this.emit("scroll");
+    });
     destroy = vi.fn();
     listeners = new Map<string, (() => void)[]>();
     constructor() {
@@ -72,6 +75,15 @@ describe("Lenis's loop (W23-C)", () => {
     lenis.instance!.isScrolling = false;
     flush(2);
     expect(frames).toHaveLength(0);
+  });
+
+  it("keeps one loop, never more, while Lenis reports scrolls from inside its own frame", () => {
+    flush(3);
+    act(() => window.__lenis!.scrollTo(400));
+    for (let i = 0; i < 6; i++) {
+      flush(1);
+      expect(frames).toHaveLength(1);
+    }
   });
 
   it("wakes on a scroll Lenis reports (a native scroll it follows)", () => {
