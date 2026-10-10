@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const lenis = vi.hoisted(() => ({
   instance: null as null | {
     isScrolling: false | "smooth" | "native";
+    time: number;
     raf: ReturnType<typeof vi.fn>;
     emit: (event: string) => void;
   },
@@ -15,8 +16,10 @@ const lenis = vi.hoisted(() => ({
 vi.mock("lenis", () => ({
   default: class {
     isScrolling: false | "smooth" | "native" = false;
-    // Lenis emits "scroll" from inside raf while it moves the page.
-    raf = vi.fn(() => {
+    time = 0;
+    // Lenis keeps the last frame's time (its next step is time - this.time) and emits "scroll" from inside raf.
+    raf = vi.fn((time: number) => {
+      this.time = time;
       if (this.isScrolling) this.emit("scroll");
     });
     destroy = vi.fn();
@@ -41,8 +44,12 @@ import SmoothScroll from "./SmoothScroll";
 
 let frames: FrameRequestCallback[] = [];
 let root: Root | null = null;
+let clock = 1000;
 const flush = (n = 1) => {
-  for (let i = 0; i < n; i++) frames.splice(0).forEach((frame) => frame(i * 16));
+  for (let i = 0; i < n; i++) {
+    clock += 16;
+    frames.splice(0).forEach((frame) => frame(clock));
+  }
 };
 
 beforeEach(() => {
@@ -84,6 +91,16 @@ describe("Lenis's loop (W23-C)", () => {
       flush(1);
       expect(frames).toHaveLength(1);
     }
+  });
+
+  it("W23-C3 H1: forgets its clock when the loop stops, so the first frame after a pause steps 0 ms, not the pause", () => {
+    flush(3);
+    act(() => window.__lenis!.scrollTo(400));
+    flush(4);
+    lenis.instance!.isScrolling = false;
+    flush(1);
+    expect(frames).toHaveLength(0);
+    expect(lenis.instance!.time).toBe(0);
   });
 
   it("wakes on a scroll Lenis reports (a native scroll it follows)", () => {

@@ -73,7 +73,13 @@ export default function SmoothScroll() {
       raf = 0;
       lenis.raf(time);
       // Lenis's own "scroll" from inside raf may have woken it already: one loop, never two.
-      if (lenis.isScrolling && !raf) raf = requestAnimationFrame(frame);
+      if (lenis.isScrolling) {
+        if (!raf) raf = requestAnimationFrame(frame);
+        return;
+      }
+      // W23-C3 H1: Lenis steps by time - lenis.time, its last frame's. Stopped, that frame goes stale, and the first frame
+      // after a pause would step the whole pause and finish the next scroll at once. 0 makes that first step 0 ms.
+      if (!raf) lenis.time = 0;
     };
     const wake = () => {
       if (!raf) raf = requestAnimationFrame(frame);

@@ -39,6 +39,9 @@ const CANVAS_CLASS = "absolute inset-0 h-full w-full";
 export const CROSSFADE_MS = 500;
 /** W18-C: after the crossfade, a viewer with ringsIn fades its discs' light in from none (its still's look) this long. */
 export const RINGS_IN_MS = 700;
+/** W23-C3 L3: the loading cue shows only once the 3D has taken this long, so a warm load never shows it. A timer, not a
+ *  CSS delay: reduced motion turns animations off, delays with them. */
+export const CUE_DELAY_MS = 600;
 
 /** "asleep": off screen while another viewer is live, so its 3D was given back and its still shows (W14-K). */
 export type SpinePhase = "still" | "loading" | "live" | "asleep" | "fallback";
@@ -484,6 +487,13 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
   const levels = useMemo(() => discLevels(lit), [litKey]);
   const { phase, reason, restyling, covered, spin, diag } = useSpine(boxRef, { label, theme, levels, onApi, onPhase, startFraming, ringsIn });
   const why = useMemo(showWhy, []);
+  const [cueDue, setCueDue] = useState(false);
+  useEffect(() => {
+    const due = setTimeout(() => setCueDue(true), CUE_DELAY_MS);
+    return () => clearTimeout(due);
+  }, []);
+  // W23-C3 M1: a slow load (reason "timeout") keeps loading with no deadline; the still alone then reads as the page.
+  const loading = (phase === "still" || phase === "loading") && reason !== "timeout";
   const live = phase === "live";
   return (
     <div
@@ -498,7 +508,7 @@ export function SpineViewer({ label, lit, className = "", children, onApi, onPha
       <div data-testid="spine-still" className={live && covered && !restyling ? "invisible" : undefined}>
         {children}
       </div>
-      {(phase === "still" || phase === "loading" || (live && !covered)) && (
+      {cueDue && (loading || (live && !covered)) && (
         <div data-testid="spine-loading" aria-hidden="true" className="f-load-cue" style={{ opacity: live ? 0 : undefined }}>
           <span>
             <span />
