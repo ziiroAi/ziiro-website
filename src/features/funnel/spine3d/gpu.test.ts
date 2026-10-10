@@ -7,9 +7,12 @@ describe("the GPU budget (W14-K)", () => {
     expect(maxDprFor("desktop")).toBe(2);
   });
 
-  it("keeps the bloom at the size worker-3 tuned the glow at, 4 CSS px per CSS px, on a phone and a retina desktop", () => {
+  it("keeps the bloom at the size worker-3 tuned the glow at, 4 CSS px per CSS px, on a retina desktop", () => {
     expect(bloomScaleFor("desktop", 2)).toBe(2);
-    expect(bloomScaleFor("phone", 1.5) * 1.5).toBeCloseTo(4);
+  });
+
+  it("W23-C: runs a phone's bloom at half that, 2 CSS px per CSS px (1:1 gate frames identical, about 14 MiB less GPU memory)", () => {
+    expect(bloomScaleFor("phone", 1.5) * 1.5).toBeCloseTo(2);
   });
 
   it("never makes the desktop bloom bigger than it was before W14-K (the canvas times the pixel ratio), so a DPR 1 screen pays no more", () => {

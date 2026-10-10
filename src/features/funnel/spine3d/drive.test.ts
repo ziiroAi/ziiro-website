@@ -43,10 +43,10 @@ const yaw = () => handle.render.mock.calls.at(-1)![0].yaw as number;
 const el = document.createElement("div");
 el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 300, right: 400, bottom: 300, x: 0, y: 0, toJSON: () => ({}) });
 
-function start(options: { offThread?: boolean; spin?: boolean } = {}) {
+function start(options: { offThread?: boolean; spin?: boolean; size?: "phone" | "desktop" } = {}) {
   handle = handleOf(options.offThread);
   const onSpinOff = vi.fn();
-  drive = createDrive(el, handle as unknown as SpineHandle, "desktop", { spin: options.spin ?? true, inertia: true }, { idleSpin: true, onSpinOff });
+  drive = createDrive(el, handle as unknown as SpineHandle, options.size ?? "desktop", { spin: options.spin ?? true, inertia: true }, { idleSpin: true, onSpinOff });
   return onSpinOff;
 }
 
@@ -437,5 +437,119 @@ describe("the idle sway stays about r17's view, ±25° (W16-A)", () => {
     start({ spin: false });
     flush(600);
     expect(drawn().every((y) => y === 0)).toBe(true);
+  });
+});
+
+describe("render on demand (W23-C)", () => {
+  /** Frames drawn over ms of display frames, stepMs apart. */
+  function drawnOver(ms: number, stepMs = 16): number {
+    const before = handle.render.mock.calls.length;
+    flush(Math.round(ms / stepMs), stepMs);
+    return handle.render.mock.calls.length - before;
+  }
+
+  it("the idle sway eases to rest and then draws nothing: no frame is even asked for", () => {
+    start();
+    expect(drawnOver(1_000)).toBeGreaterThan(50);
+    flush(Math.round(20_000 / 16));
+    expect(queue.size).toBe(0);
+    expect(drawnOver(5_000)).toBe(0);
+    expect(Math.abs(yaw()) % (2 * Math.PI)).toBeCloseTo(0, 5); // at rest on r17's view
+  });
+
+  it("keeps swaying while the visitor scrolls, and sways again after a scroll once rested", () => {
+    start();
+    flush(Math.round(20_000 / 16));
+    expect(drawnOver(1_000)).toBe(0);
+    drive!.scrub(baseFraming("desktop"), 0);
+    flush(1);
+    const from = yaw();
+    expect(drawnOver(1_000)).toBeGreaterThan(50);
+    expect(Math.abs(yaw() - from)).toBeGreaterThan(0.01);
+  });
+
+  it("a drag wakes the rested sway too", () => {
+    start();
+    flush(Math.round(20_000 / 16));
+    pointer("pointerdown", 100);
+    pointer("pointerup", 100);
+    flush(Math.round(2_000 / 16));
+    expect(drawnOver(1_000)).toBeGreaterThan(50);
+  });
+
+  it("on a phone the sway alone draws at 30 fps, but a scroll draws every display frame", () => {
+    start({ size: "phone" });
+    const idle = drawnOver(1_000);
+    expect(idle).toBeLessThanOrEqual(32);
+    const before = handle.render.mock.calls.length;
+    for (let i = 0; i < 60; i++) {
+      drive!.scrub(baseFraming("phone"), 0);
+      flush(1);
+    }
+    expect(handle.render.mock.calls.length - before).toBeGreaterThanOrEqual(58);
+  });
+});
+
+describe("a stage faded out (W23-C: the phone band at the plan's end)", () => {
+  it("draws nothing while the stage is not shown, and carries on when shown again", () => {
+    start();
+    flush(2);
+    drive!.setShown(false);
+    const paused = handle.render.mock.calls.length;
+    flush(30);
+    expect(handle.render.mock.calls.length).toBe(paused);
+    expect(queue.size).toBe(0);
+    drive!.scrub(baseFraming("desktop"), 0); // a scroll while hidden asks for no frame either
+    flush(2);
+    expect(handle.render.mock.calls.length).toBe(paused);
+    drive!.setShown(true);
+    flush(2);
+    expect(handle.render.mock.calls.length).toBeGreaterThan(paused);
+  });
+});
+
+describe("a phone's fast scroll that misses its frame budget (W23-C)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    vi.stubGlobal("devicePixelRatio", 3);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  /** Scrolls n frames with the worker's frames taking frameMs each. */
+  function scroll(n: number, frameMs: number) {
+    for (let i = 0; i < n; i++) {
+      drive!.scrub(baseFraming("phone"), 0);
+      flush(1);
+      drive!.takeBoxes([], frameMs);
+    }
+  }
+  const dprs = () => handle.resize.mock.calls.map((call) => call[2] as number);
+
+  it("drops to 1 device pixel per CSS pixel while it scrolls, and gives the full ratio back at rest", () => {
+    start({ size: "phone", offThread: true });
+    scroll(20, 40);
+    expect(dprs()).toContain(1);
+    expect(dprs().filter((d) => d === 1)).toHaveLength(1); // once, not every frame
+    vi.advanceTimersByTime(400);
+    expect(dprs().at(-1)).toBe(3);
+  });
+
+  it("never drops while the frames keep to the budget", () => {
+    start({ size: "phone", offThread: true });
+    scroll(40, 12);
+    vi.advanceTimersByTime(400);
+    expect(dprs()).not.toContain(1);
+  });
+
+  it("never drops on desktop, nor for a slow idle sway", () => {
+    start({ size: "desktop", offThread: true });
+    scroll(20, 40);
+    start({ size: "phone", offThread: true });
+    for (let i = 0; i < 40; i++) {
+      flush(1);
+      drive!.takeBoxes([], 40);
+    }
+    vi.advanceTimersByTime(400);
+    expect(dprs()).not.toContain(1);
   });
 });

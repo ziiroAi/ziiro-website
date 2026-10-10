@@ -594,8 +594,12 @@ describe("every viewer on a software renderer (W14-X)", () => {
       getExtension: (ext: string) => (ext === "WEBGL_lose_context" ? { loseContext } : null),
       getParameter: () => "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
     } as unknown as RenderingContext);
+    const meshFetch = vi.fn(async () => new Response(new ArrayBuffer(1)));
+    vi.stubGlobal("fetch", meshFetch);
     await mount();
     expect(startSpine).not.toHaveBeenCalled();
+    expect(meshFetch).not.toHaveBeenCalled(); // W23-C: the mesh preload waits for the probe's answer
+    expect(screen!.container.querySelector("[data-testid=spine-loading]")).toBeNull();
     expect(viewer().dataset.spine).toBe("fallback");
     expect(viewer().dataset.spineReason).toBe("software-gl");
     expect(still().className).not.toContain("invisible");
@@ -668,14 +672,42 @@ describe("the idle spin on a weak GPU (W14-O)", () => {
   });
 });
 
-describe("the plan's viewer and the mesh (W15-D2)", () => {
-  it("fetches nothing ahead of its own start when nothing was warmed", async () => {
+describe("the plan's viewer and the mesh (W15-D2, W23-C)", () => {
+  it("W23-C: once the probe says the GPU is real, downloads its mesh beside the 3D code and hands the bytes over", async () => {
     const meshFetch = vi.fn(async () => new Response(new ArrayBuffer(1)));
     vi.stubGlobal("fetch", meshFetch);
     await mount();
     expect(startSpine).toHaveBeenCalledTimes(1);
-    expect(lastOptions().meshBytes).toBeUndefined();
-    expect(meshFetch).not.toHaveBeenCalled();
+    expect(meshFetch).toHaveBeenCalledTimes(1);
+    expect(meshFetch.mock.calls[0]).toEqual([lastOptions().meshUrl]);
+    expect(lastOptions().meshBytes).toBeDefined();
+  });
+});
+
+describe("the loading cue on the still (W23-C)", () => {
+  const cue = () => screen!.container.querySelector<HTMLElement>("[data-testid=spine-loading]");
+
+  it("shows on the still while the 3D loads, hidden from screen readers", async () => {
+    await mount();
+    expect(viewer().dataset.spine).toBe("loading");
+    expect(cue()).not.toBeNull();
+    expect(cue()!.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("fades out with the handover and is gone once the 3D covers the still", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    await mountWith();
+    ready();
+    expect(cue()!.style.opacity).toBe("0");
+    await act(async () => void (await vi.advanceTimersByTimeAsync(CROSSFADE_MS)));
+    expect(cue()).toBeNull();
+  });
+
+  it("never stays up on the still a visitor keeps (no WebGL2)", async () => {
+    Reflect.deleteProperty(window, "WebGL2RenderingContext");
+    await mount();
+    expect(viewer().dataset.spine).toBe("fallback");
+    expect(cue()).toBeNull();
   });
 });
 
