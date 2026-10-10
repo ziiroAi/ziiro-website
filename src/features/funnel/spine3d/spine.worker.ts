@@ -1,5 +1,5 @@
 // (C) W14-C §1: the spine in a worker, on the OffscreenCanvas the viewer handed over. The renderer, the mesh fetch
-// and parse, the meshopt decode and the shader compile all run here, so a tap on the page while the 3D loads never
+// and parse, the geometry decode (Draco since W23-B) and the shader compile all run here, so a tap on the page while the 3D loads never
 // waits on them (the INP gate).
 import type { Theme } from "../data/contract";
 import type { View } from "./camera";

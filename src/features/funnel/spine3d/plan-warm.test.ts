@@ -1,8 +1,8 @@
 // (C) W15-M6: the plan's mesh downloads during the questions on a real GPU, so the plan's 3D does not wait on it.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { forgetWarmMeshes, takeWarmMesh } from "./mesh-warm";
-import { MESH_URLS, PLAN_MESHES } from "./mesh-urls";
-import { SPINE_WORKER_SCRIPT, forgetWarmFiles, warmPlanMesh, type WarmEnv } from "./plan-warm";
+import { DRACO_FILES, MESH_URLS, PLAN_MESHES } from "./mesh-urls";
+import { PLAN_SCRIPTS, SPINE_WORKER_SCRIPT, forgetWarmFiles, warmPlanMesh, type WarmEnv } from "./plan-warm";
 
 const bytes = new Uint8Array([4, 5, 6]).buffer;
 let meshFetch: ReturnType<typeof vi.fn>;
@@ -147,6 +147,11 @@ describe("warming the plan's mesh during the questions (W15-M6)", () => {
 
   it("warms the worker the 3D host starts (spine.worker.ts, as built)", () => {
     expect(SPINE_WORKER_SCRIPT).toMatch(/spine\.worker/);
+  });
+
+  it("warms the worker, then the Draco decoder, ahead of the Draco mesh (W23-B)", () => {
+    // Asked for only once the mesh has arrived otherwise: 0.9 s more on Slow 4G (W23-B's runs).
+    expect(PLAN_SCRIPTS).toEqual([SPINE_WORKER_SCRIPT, ...DRACO_FILES]);
   });
 
   it("makes one mesh request in all, however often it is asked", async () => {

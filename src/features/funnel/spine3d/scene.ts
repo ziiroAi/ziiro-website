@@ -8,7 +8,6 @@ import {
 } from "three";
 import type { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { GLTFLoader, type GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { DISCS, type DiscId, type Theme } from "../data/contract";
 import { fadeClock, type ThemeFade } from "../flow/themeFade";
 import type { View } from "./camera";
@@ -21,6 +20,7 @@ import {
   type Shared,
 } from "./look-three";
 import { bloomScaleFor, maxDprFor, releaseOnThrow, samplesFor } from "./gpu";
+import { withDraco } from "./draco";
 import { gpuNameOf } from "./pace";
 import type { MeshSize } from "./rules";
 
@@ -126,17 +126,21 @@ async function meshBytesOf(url: string, given: Promise<ArrayBuffer | null> | und
   return response.arrayBuffer();
 }
 
+/** W23-B: m5c's geometry is Draco (draco.ts). W23-B2 (review-w23b L5): no plan mesh is meshopt any more, so the
+ *  meshopt decoder (29 kB of JS in the scene and worker chunks, its wasm compiled on every scene start) is gone. */
 async function loadMesh(url: string, given: Promise<ArrayBuffer | null> | undefined, signal?: AbortSignal): Promise<LoadedMesh> {
-  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).register(imageBitmapTextures);
   try {
-    const gltf = await loader.parseAsync(await meshBytesOf(url, given, signal), LoaderUtils.extractUrlBase(url));
-    signal?.throwIfAborted();
-    const parts: LoadedMesh["parts"] = [];
-    gltf.scene.traverse((node) => {
-      const mesh = node as Mesh;
-      if (mesh.isMesh) parts.push({ mesh, source: mesh.material as MeshStandardMaterial });
+    return await withDraco(async (draco) => {
+      const loader = new GLTFLoader().setDRACOLoader(draco).register(imageBitmapTextures);
+      const gltf = await loader.parseAsync(await meshBytesOf(url, given, signal), LoaderUtils.extractUrlBase(url));
+      signal?.throwIfAborted();
+      const parts: LoadedMesh["parts"] = [];
+      gltf.scene.traverse((node) => {
+        const mesh = node as Mesh;
+        if (mesh.isMesh) parts.push({ mesh, source: mesh.material as MeshStandardMaterial });
+      });
+      return { root: gltf.scene, parts };
     });
-    return { root: gltf.scene, parts };
   } catch {
     throw new Error(MESH_FAILED);
   }

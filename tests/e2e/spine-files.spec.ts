@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import { answerTeam, at, toTeamQuestion } from "./helpers/flow";
 import { probeSeesHardware, SWIFTSHADER } from "./support/gpu";
+import { DRACO_FILES } from "../../src/features/funnel/spine3d/mesh-urls";
 
 /**
  * §12 as amended in W14-R: no hero still or any other /spine/ file before S5. The one exemption is the live mesh,
@@ -9,20 +10,25 @@ import { probeSeesHardware, SWIFTSHADER } from "./support/gpu";
  * W15-M6: the plan's mesh (the big spine, PLAN_MESHES; W17-S dropped the close-up) is downloaded during the questions on a real
  * GPU, so the plan's 3D does not wait on them. W16-B: S0 has no spine any more, so they are the exemption's only use.
  */
-const LIVE_MESH = /^\/spine\/3d\/m5b\//;  // W19 r2's m5b (the owner's coil); W17-S dropped the close-up
+const LIVE_MESH = /^\/spine\/3d\/m5c\//;  // W23-B's m5c (m5b's geometry in Draco); W17-S dropped the close-up
+/** W23-B, W23-B2 (review-w23b M1): the exemption's files, the live mesh and exactly the Draco decoder's files
+ *  warmed with it; anything else in the decoder's folder is held like any other /spine/ file. */
+const isWarm = (path: string) => LIVE_MESH.test(path) || DRACO_FILES.includes(path);
 // WebGL on SwiftShader, as CI has it: no 3D and no warm mesh on a software renderer (§6.6).
 test.use({ launchOptions: { args: SWIFTSHADER } });
 
 interface SpineLog {
   /** Every /spine/ path asked for, in order. */
   paths: string[];
-  /** When each live-mesh request and the first paint happened, on this process's clock. */
+  /** When each live-mesh request happened, on this process's clock. */
   meshAt: number[];
+  /** When each warm request (the mesh and the decoder's files) happened, on the same clock (W23-B2). */
+  warmAt: number[];
   paintAt: () => number | null;
 }
 
 async function spineRequests(page: Page): Promise<SpineLog> {
-  const log = { paths: [] as string[], meshAt: [] as number[], paint: null as number | null };
+  const log = { paths: [] as string[], meshAt: [] as number[], warmAt: [] as number[], paint: null as number | null };
   await page.exposeFunction("__firstPaint", () => void (log.paint ??= Date.now()));
   await page.addInitScript(() => {
     new PerformanceObserver(() => (window as unknown as { __firstPaint(): void }).__firstPaint()).observe({ type: "paint", buffered: true });
@@ -32,19 +38,20 @@ async function spineRequests(page: Page): Promise<SpineLog> {
     if (!pathname.startsWith("/spine/")) return;
     log.paths.push(pathname);
     if (LIVE_MESH.test(pathname)) log.meshAt.push(Date.now());
+    if (isWarm(pathname)) log.warmAt.push(Date.now());
   });
-  return { paths: log.paths, meshAt: log.meshAt, paintAt: () => log.paint };
+  return { paths: log.paths, meshAt: log.meshAt, warmAt: log.warmAt, paintAt: () => log.paint };
 }
 
 /** The hero stills and every other /spine/ file: what §12 still holds back until S5. */
-const held = (paths: readonly string[]) => paths.filter((p) => !LIVE_MESH.test(p));
+const held = (paths: readonly string[]) => paths.filter((p) => !isWarm(p));
 
 function expectNothingBeforeS5But(log: SpineLog) {
   expect(held(log.paths), "nothing under /spine/ before S5 but the plan's warm mesh (§12)").toEqual([]);
   const paint = log.paintAt();
-  for (const at of log.meshAt) {
-    expect(paint, "the live mesh only after the first paint (§12)").not.toBeNull();
-    expect(at, "the live mesh only after the first paint (§12)").toBeGreaterThan(paint!);
+  for (const at of log.warmAt) {
+    expect(paint, "the live mesh and its decoder only after the first paint (§12)").not.toBeNull();
+    expect(at, "the live mesh and its decoder only after the first paint (§12)").toBeGreaterThan(paint!);
   }
 }
 
@@ -88,6 +95,9 @@ test.describe("with the probe told the GPU is real (W14-W, W15-M6)", () => {
     await page.waitForTimeout(2_000);
     expect(log.paths.filter((path) => path.includes("/closeup")), "no close-up warmed (W17-S)").toEqual([]);
     expect(log.meshAt).toHaveLength(1);
+    // W23-B2 (review-w23b M1): the Draco decoder's files, each asked for once, and nothing else of its folder.
+    for (const file of DRACO_FILES) expect(log.paths.filter((path) => path === file), file).toHaveLength(1);
+    expect(log.paths.filter((path) => path.startsWith("/spine/3d/draco-r186/") && !DRACO_FILES.includes(path))).toEqual([]);
   });
 });
 
