@@ -188,8 +188,12 @@ export function makeBody(t: ThemeLook, source: THREE.MeshStandardMaterial | null
   const b = t.body;
   const maps = Boolean(b.maps && source?.map);   // W17-M: m4 carries its own machined colour, roughness and metalness
   const m = new THREE.MeshPhysicalMaterial({
-    color: maps ? (b.mapTint ? col(b.mapTint) : new THREE.Color(1, 1, 1)) : col(b.colour), metalness: maps ? 1 : b.metalness, roughness: maps ? 1 : b.roughness,
-    map: maps ? source!.map : null, roughnessMap: maps ? source!.roughnessMap : null, metalnessMap: maps ? source!.metalnessMap : null,
+    color: maps ? (b.mapTint ? col(b.mapTint) : new THREE.Color(1, 1, 1)) : col(b.colour),
+    // W21: mapMetalness and mapRoughness stand in for his metalness map (median 0.05, so the bone read as glossy black
+    // plastic) and his roughness map (median 0.22, mirror flecks down to 0.09), for the satin gunmetal the owner asked for.
+    metalness: maps ? (b.mapMetalness ?? 1) : b.metalness, roughness: maps ? (b.mapRoughness ?? 1) : b.roughness,
+    map: maps ? source!.map : null, roughnessMap: maps && b.mapRoughness === undefined ? source!.roughnessMap : null,
+    metalnessMap: maps && b.mapMetalness === undefined ? source!.metalnessMap : null,
     clearcoat: b.clearcoat, clearcoatRoughness: b.clearcoatRoughness, envMapIntensity: b.envIntensity,
     normalMap: source?.normalMap ?? null, normalScale: new THREE.Vector2(b.normalScale, b.normalScale),
     emissive: col(t.maskFill.colour), emissiveMap: mask, // even 1 % orange on near-black metal reads as amber, so a quiet fill is fully off
@@ -206,6 +210,13 @@ export function makeBody(t: ThemeLook, source: THREE.MeshStandardMaterial | null
       .replace("#include <project_vertex>", "#include <project_vertex>\nvec3 fw = (modelMatrix * vec4(transformed, 1.0)).xyz; vS = axisCoord(fw); vM = (uToModel * vec4(fw, 1.0)).xyz;\nvNm = mat3(uToModel) * mat3(modelMatrix) * objectNormal;");
     sh.fragmentShader = sh.fragmentShader
       .replace("#include <common>", `#include <common>\n${FADE_GLSL}\n${SCREEN_GLSL}\n${BG_GLSL}\n${LEAK_GLSL}\nvarying float vS; varying vec3 vM; varying vec3 vNm;`)
+      // W21: the base map is lossy webp, so its near-black texels carry a little colour noise; lifted to gunmetal on a metal
+      // that noise is the reflection's colour, and the bloom's luminance threshold picked out its green texels as a
+      // rainbow glint on the brightest lips. mapGrey reads the map's luminance only, capped at a metal's 0.85 reflectance.
+      .replace("#include <map_fragment>", b.mapEven !== undefined
+        // W21 r2: one even tone on bodies and processes (the map's own darker processes read two-tone once lifted).
+        ? `#include <map_fragment>\ndiffuseColor.rgb = diffuse * ${b.mapEven.toFixed(4)};`
+        : b.mapGrey ? "#include <map_fragment>\ndiffuseColor.rgb = vec3(min(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 0.85));" : "#include <map_fragment>")
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += leak(vM, normalize(vNm));")
       .replace("#include <opaque_fragment>", "#include <opaque_fragment>\ngl_FragColor.rgb = mix(bgColour(screenP()), gl_FragColor.rgb, endFade(vS));");
   };

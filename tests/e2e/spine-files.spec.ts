@@ -109,32 +109,32 @@ for (const [name, value] of [
 test("a light visit (10:00) fetches only light files, from S5 on (§6.6, §12)", async ({ page }) => {
   const paths = await reachS5(page, "10:00");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-  expect(paths.every((p) => p.startsWith("/spine/r20/light/hero/"))).toBe(true);
+  expect(paths.every((p) => p.startsWith("/spine/r22/light/hero/"))).toBe(true);
 });
 
 test("a dark visit (22:00) fetches only dark files", async ({ page }) => {
   const paths = await reachS5(page, "22:00");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  expect(paths.every((p) => p.startsWith("/spine/r20/dark/hero/"))).toBe(true);
+  expect(paths.every((p) => p.startsWith("/spine/r22/dark/hero/"))).toBe(true);
 });
 
 test.describe("a visitor who chose dark with the header toggle", () => {
   test("is dark at 10:00 and fetches only dark files (D9, W15-A)", async ({ page }) => {
     await page.addInitScript(() => window.localStorage.setItem("ziiro-theme", "dark"));
     const paths = await reachS5(page, "10:00");
-    expect(paths.every((p) => p.startsWith("/spine/r20/dark/hero/"))).toBe(true);
+    expect(paths.every((p) => p.startsWith("/spine/r22/dark/hero/"))).toBe(true);
   });
 });
 
 test("a 390 × 844 phone at 3× picks phone-585.avif, the 3D's own 1.5× (§12, W18-C)", async ({ page, isMobile }) => {
   test.skip(!isMobile, "phone");
-  expect(await reachS5(page, "10:00")).toContain("/spine/r20/light/hero/phone-585.avif");
+  expect(await reachS5(page, "10:00")).toContain("/spine/r22/light/hero/phone-585.avif");
 });
 
 test.describe("a 1200-wide window at 2×", () => {
   test.use({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 2 });
   test("picks hero-2880.avif (§12, W18-C)", async ({ page, isMobile }) => {
     test.skip(isMobile, "desktop");
-    expect(await reachS5(page, "10:00")).toContain("/spine/r20/light/hero/hero-2880.avif");
+    expect(await reachS5(page, "10:00")).toContain("/spine/r22/light/hero/hero-2880.avif");
   });
 });
