@@ -213,7 +213,10 @@ export function makeBody(t: ThemeLook, source: THREE.MeshStandardMaterial | null
       // W21: the base map is lossy webp, so its near-black texels carry a little colour noise; lifted to gunmetal on a metal
       // that noise is the reflection's colour, and the bloom's luminance threshold picked out its green texels as a
       // rainbow glint on the brightest lips. mapGrey reads the map's luminance only, capped at a metal's 0.85 reflectance.
-      .replace("#include <map_fragment>", b.mapGrey ? "#include <map_fragment>\ndiffuseColor.rgb = vec3(min(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 0.85));" : "#include <map_fragment>")
+      .replace("#include <map_fragment>", b.mapEven !== undefined
+        // W21 r2: one even tone on bodies and processes (the map's own darker processes read two-tone once lifted).
+        ? `#include <map_fragment>\ndiffuseColor.rgb = diffuse * ${b.mapEven.toFixed(4)};`
+        : b.mapGrey ? "#include <map_fragment>\ndiffuseColor.rgb = vec3(min(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)), 0.85));" : "#include <map_fragment>")
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += leak(vM, normalize(vNm));")
       .replace("#include <opaque_fragment>", "#include <opaque_fragment>\ngl_FragColor.rgb = mix(bgColour(screenP()), gl_FragColor.rgb, endFade(vS));");
   };

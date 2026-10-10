@@ -61,6 +61,8 @@ export interface ThemeLook {
     mapRoughness?: number;
     /** W21: read only the map's luminance (maps only), so its compression's colour noise never tints the metal. */
     mapGrey?: boolean;
+    /** W21 r2: an even reflectance (times mapTint) in place of the map's colour (maps only): one tone on every part. */
+    mapEven?: number;
   };
   /** His painted disc mask (the GLB's emissive texture) as a weak warm fill, scaled by the disc level. */
   maskFill: { colour: Vec3; intensity: number };
@@ -146,10 +148,11 @@ export const LOOK = {
       body: {
         colour: [0.06, 0.06, 0.062], metalness: 0.85, roughness: 0.1, clearcoat: 0, clearcoatRoughness: 0.4,
         normalScale: 1, envIntensity: 1.0, maps: true,   // W17-M: machined metal, no lacquer coat
-        // W21: satin titanium-black gunmetal (the owner: "a bit less shiny… titanium black gunmetal"): his near-zero
-        // metalness and glossy roughness maps give way to metal 0.75 and roughness 0.6, and the map, read as grey, is
-        // lifted 12x so the lit faces read dark gunmetal grey at a glance (a pure metal in this world reads black).
-        mapTint: [12, 12, 12], mapMetalness: 0.75, mapRoughness: 0.6, mapGrey: true,
+        // W21 r2: dark titanium gunmetal (the owner: "a bit less shiny… titanium black gunmetal"): his near-zero metalness
+        // and glossy roughness maps give way to metal 0.75 and roughness 0.65, and one even reflectance (0.09) replaces
+        // his colour map, whose darker processes read two-tone once lifted (W21's 12x lift read as chrome). His normal
+        // map keeps the surface detail; the map's colour noise (the W21 glint) never reaches the metal.
+        mapTint: [1, 1, 1], mapMetalness: 0.75, mapRoughness: 0.65, mapEven: 0.09,
       },
       maskFill: { colour: [1, 0.25, 0.02], intensity: 0 },  // W16-I: off, it spilled onto the bodies (W16-C2)
       env: {
@@ -185,8 +188,8 @@ export const LOOK = {
        *  body and the owner's close-up GLB, in place of the washed light silver. */
       body: {
         colour: [0.13, 0.08, 0.05], metalness: 0.9, roughness: 0.14, clearcoat: 0, clearcoatRoughness: 0.25,
-        normalScale: 1, envIntensity: 1.4, maps: true, mapTint: [15.4, 16, 17.4],   // W17-M: machined metal, no lacquer coat
-        mapMetalness: 0.75, mapRoughness: 0.6, mapGrey: true,   // W21: the light theme's gunmetal, a touch cool, lifted more for the dimmer world (was [0.72, 0.75, 0.82])
+        normalScale: 1, envIntensity: 1.4, maps: true, mapTint: [0.96, 1, 1.08],   // W17-M: machined metal, no lacquer coat
+        mapMetalness: 0.75, mapRoughness: 0.65, mapEven: 0.11,   // W21 r2: the light theme's gunmetal, a touch cool, a little brighter for the dimmer world (was [0.72, 0.75, 0.82])
       },
       maskFill: { colour: [0.5, 0.65, 1], intensity: 0 },  // W16-I: off, as in light
       env: {

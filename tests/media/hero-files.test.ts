@@ -105,3 +105,18 @@ describe.each(THEMES)("public/spine/r21/%s/hero (W21)", (theme) => {
     expect(buf.length).toBeLessThanOrEqual(LIMITS[name === "phone" ? "phone" : "desktop"][f]);
   });
 });
+
+// W21 r2: the same stills drawn with the dark, even gunmetal. r21 stays above: immutable.
+describe.each(THEMES)("public/spine/r22/%s/hero (W21 r2)", (theme) => {
+  const dir = `public/spine/r22/${theme}/hero`;
+
+  it("holds exactly the twelve stills", () => {
+    expect(readdirSync(dir).filter((f) => !f.startsWith(".")).sort()).toEqual(r18Cases.map(([n, w, f]) => `${n}-${w}.${f}`).sort());
+  });
+
+  it.each(r18Cases)("%s-%i.%s has its stage's size, within the limit", (name, w, f) => {
+    const buf = readFileSync(`${dir}/${name}-${w}.${f}`);
+    expect(sizeOf[f](buf)).toEqual({ width: w, height: R18[name][w] });
+    expect(buf.length).toBeLessThanOrEqual(LIMITS[name === "phone" ? "phone" : "desktop"][f]);
+  });
+});
