@@ -51,6 +51,11 @@ const OVERLAY = {
   "sp.hero.sub.guest": "A full Business Spine is 33 agents, one for each part of a business. This sample starts with {n} of them, carrying {j} jobs between them. The rest can wait.",
   "hx.scroll.guest": "Scroll to explore",
   "sp.guest.note": "A sample plan: the one we draw for a small business before it tells us anything.",
+  // W24-A: the owner's fix 1, the plan hero says the home headline (main's HEADLINE_LEAD / HEADLINE_TAIL) verbatim.
+  // Kept here so a regenerate doesn't put "137 Jobs." back (W24-M1).
+  "hx.h1": "Your business",
+  "hx.h2": "just run better.",
+  "ph.hx.h": "Your business / just run better.",
 };
 
 const range = (prefix, from, to) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}${i + from}`);
