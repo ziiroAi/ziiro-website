@@ -1,6 +1,7 @@
 /**
  * (C) The visit's ID (spec §13.2): a v4 UUID kept in sessionStorage, or in memory when storage is blocked (§10).
- * A visit that sent its lead is over: a reload, or leaving the plan, starts a new one (§4.1).
+ * A visit that sent its lead is over: leaving the plan, or starting over, starts a new one (§4.1). Until then "/"
+ * reopens its plan, after a reload too (resume.ts, W24-C).
  */
 import { STEPS, isOneOf, type StepId } from "@/features/funnel/data/light";
 

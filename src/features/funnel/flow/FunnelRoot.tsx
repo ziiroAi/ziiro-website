@@ -13,8 +13,10 @@ import { startClockTheme, useChosenTheme } from "./theme";
 import { keepPlan, resumedPlan } from "./resume";
 import { PlanPrefetch } from "./screens/Plan";
 import type { FlowEnv, ScreenProps } from "./screens/types";
-import { setCtaReporter, setStage } from "./session";
-import { PROGRESS, PROGRESS_TOTAL, createTapGate, funnelStageOf, initialFlow, reduce, type FlowAction, type Screen } from "./state";
+import { setCtaReporter, setLeadContact, setStage } from "./session";
+import {
+  PROGRESS, PROGRESS_TOTAL, createTapGate, funnelStageOf, initialFlow, isGuestPath, reduce, type FlowAction, type Screen,
+} from "./state";
 import { FlowNote } from "./ui";
 import { useLeadSend } from "./useLeadSend";
 import { usePlanWarm } from "./usePlanWarm";
@@ -28,8 +30,8 @@ const NOTE_ON: ReadonlySet<Screen> = new Set<Screen>(["s1", "s1b", "s2", "s34", 
 export function FunnelRoot(): JSX.Element {
   const boot = useBoot();
   const [starter] = useState(() => copy("s6.text"));
-  // Back to "/" from another page after the send: the same plan on the same visit (review M3).
-  const [resumed] = useState(() => (typeof window === "undefined" ? null : resumedPlan(window)));
+  // Back to "/" once the plan has shown, by the logo, a link, Back or a reload: the same plan on the same visit (W24-C).
+  const [resumed] = useState(() => (typeof window === "undefined" ? null : resumedPlan()));
   const [state, dispatch] = useReducer(reduce, starter, (text: string) => resumed ?? initialFlow(text));
   const roundAtMount = useRef(state.round);
   const [gate] = useState(() => createTapGate());
@@ -61,7 +63,8 @@ export function FunnelRoot(): JSX.Element {
   usePlanWarm(state.screen);  // the plan's mesh downloads during the questions (W15-M6)
   const [warm, setWarm] = useState(false);
   useEffect(() => {
-    if (!resumed) startVisit();  // a reload after a send starts a new visit (§4.1)
+    if (!resumed) startVisit();  // a reload after a send starts a new visit (§4.1), unless its plan was kept (W24-C)
+    else if (!isGuestPath(resumed.answers)) setLeadContact(resumed.visitor);  // the header's Calendly link, after a reload
     setCtaReporter((from) => dispatch({ type: "progress", fields: { ctaFrom: from, ctaClicked: true } }));
     return () => {
       setCtaReporter(null);
@@ -84,6 +87,11 @@ export function FunnelRoot(): JSX.Element {
     setWarm(true);   // and the hero still S9 shows (§6.6)
   }, [state.screen]);
   const { country } = useVisitSaves(state, { boot, starter, introOffsetMs: introOffset });
+  const startOver = useCallback(() => {
+    if (!gate.allow(performance.now())) return;
+    setLeadContact(null);  // a new visit: the header's booking link drops the last send's name and email
+    dispatch({ type: "restart", starter });
+  }, [gate, starter]);
 
   const env: FlowEnv = {
     boot,
@@ -92,6 +100,7 @@ export function FunnelRoot(): JSX.Element {
     starter,
     send,
     showGuestPlan,
+    startOver,
   };
   const props: ScreenProps = { state, act, edit: dispatch, env };
   // S7 stays mounted, hidden, while S8 plays, so its fields and the spam check survive a failed send (§10).

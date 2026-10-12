@@ -15,6 +15,7 @@ export const LINES: Readonly<Record<string, string>> = {
   "nav.btn": "Book a call",
   "s9.err.sent": "Your plan is on its way to {email}. This page couldn't show it just now, but the email has all of it.",
   "s9.err.unsent": "This page couldn't show your plan just now. Reload to try again, or book a call.",
+  "s9.restart": "Start over",
   "g.reload": "Reload the page",
   "s0.sub.early": "You're up early.",
   "s0.sub.day": "Glad you're here.",

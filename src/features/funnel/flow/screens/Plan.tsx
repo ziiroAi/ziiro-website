@@ -53,6 +53,11 @@ export function PlanScreen({ state, edit, env }: ScreenProps) {
           {state.secondsToResult === null && <Painted onPaint={() => edit({ type: "planShown", seconds: Math.round((performance.now() - env.boot.t0) / 1_000) })} />}
         </Suspense>
       </PlanBoundary>
+      {/* W24-C: "/" opens on the plan for the rest of the visit, so the logo no longer restarts the questions. This
+          does, after the plan's last block and outside them all, so it shows when the plan can't too. */}
+      <p className="f-restart">
+        <button type="button" className="f-link" onClick={env.startOver}>{copy("s9.restart")}</button>
+      </p>
     </div>
   );
 }

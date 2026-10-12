@@ -51,6 +51,8 @@ const OVERLAY = {
   "sp.hero.sub.guest": "A full Business Spine is 33 agents, one for each part of a business. This sample starts with {n} of them, carrying {j} jobs between them. The rest can wait.",
   "hx.scroll.guest": "Scroll to explore",
   "sp.guest.note": "A sample plan: the one we draw for a small business before it tells us anything.",
+  // W24-C: "/" keeps the plan for the visit, so the plan page says how to ask the questions again.
+  "s9.restart": "Start over",
 };
 
 const range = (prefix, from, to) => Array.from({ length: to - from + 1 }, (_, i) => `${prefix}${i + from}`);
@@ -69,7 +71,7 @@ const SURFACES = {
     "s7.q", "s7.sub", "s7.name", "s7.name.ph", "s7.email", "s7.email.ph", "s7.phone", "s7.phone.why", "s7.consent", "s7.links", "s7.btn",
     "s7.err.name", "s7.err.email", "s7.err.phone", "s7.err.consent", "s7.err.bot",
     "s8.l1", "s8.l1.chips", "s8.l2", "s8.l3", "s8.l3.one",
-    "s9.err.sent", "s9.err.unsent", "g.reload",
+    "s9.err.sent", "s9.err.unsent", "g.reload", "s9.restart",
   ]],
   "copy/site.ts": ["SITE_COPY", ["nav.home.aria", "nav.mission", "nav.who", "nav.products", "nav.btn", "ph.nav.menu", "nav.theme.light", "nav.theme.dark"]],
   "copy/plan.ts": ["PLAN_COPY", [

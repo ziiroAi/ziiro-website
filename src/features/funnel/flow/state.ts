@@ -89,7 +89,8 @@ export type FlowAction =
   | { type: "sendFinished"; result: SendResult }
   | { type: "planShown"; seconds: number }
   | { type: "progress"; fields: PlanProgress }
-  | { type: "popTo"; screen: Screen };
+  | { type: "popTo"; screen: Screen }
+  | { type: "restart"; starter: string };
 
 export function initialFlow(starter: string): FlowState {
   return {
@@ -242,6 +243,10 @@ export function reduce(state: FlowState, action: FlowAction): FlowState {
       return { ...state, progress: { ...state.progress, ...action.fields } };
     case "popTo":
       return popTo(state, action.screen);
+    case "restart":
+      // W24-C: the plan's "Start over". S1 with nothing kept, as a new visit (§4.1); the plan's entry becomes S1's.
+      if (state.screen !== "plan") return state;
+      return { ...initialFlow(action.starter), round: state.round + 1, nav: { mode: "replace", seq: state.nav.seq + 1 } };
   }
 }
 

@@ -103,10 +103,18 @@ afterEach(() => {
 
 /** The visitor taps a header link at S9 (FunnelRoot unmounts), then Back brings the plan's entry back. */
 function leaveAndComeBack(): void {
+  comeBack({ funnel: "plan" });
+}
+
+/** "/" mounts again on an entry with this tag: null is a new one, as the logo or a link to "/" makes (W24-C). */
+function comeBack(entry: { funnel: string } | null): void {
   view.unmount();
-  window.history.replaceState({ funnel: "plan" }, "", "/");
+  window.history.replaceState(entry, "", "/");
   view = mount(<MemoryRouter><FunnelRoot /></MemoryRouter>);
 }
+
+const KEPT = "ziiro.funnel.plan";
+const kept = () => JSON.parse(sessionStorage.getItem(KEPT) ?? "null") as { visitId: string; state: Record<string, unknown> } | null;
 
 async function reachPlan(): Promise<string> {
   send();
@@ -140,5 +148,54 @@ describe("leaving / from the plan and coming back (review M3)", () => {
     act(() => window.dispatchEvent(new PopStateEvent("popstate", { state: { funnel: "s6" } })));
     leaveAndComeBack();
     expect(screenNow()).toBe("s1");
+  });
+});
+
+describe("\"/\" opens on the plan for the rest of the visit (W24-C)", () => {
+  it("the logo: a new entry for \"/\" after another page shows the same plan, and sends nothing new", async () => {
+    const visitId = await reachPlan();
+    comeBack(null);
+    expect(screenNow()).toBe("plan");
+    expect(planText()).toBe("Ananya · none");
+    expect(peekVisit()).toMatchObject({ id: visitId, lead: true });
+    expect(window.history.state?.funnel).toBe("plan");
+    await run(0);
+    expect(leads).toHaveLength(1);
+  });
+
+  it("a reload: the plan comes back from sessionStorage, kept beside its visit without the S7 draft", async () => {
+    const visitId = await reachPlan();
+    const copy = kept();
+    expect(copy?.visitId).toBe(visitId);
+    expect(copy?.state).toMatchObject({ screen: "plan", visitor: { name: "Ananya", email: "ananya@example.com" } });
+    expect(copy?.state.contact).toEqual({ name: "", email: "", phone: "", consent: false });
+    // What storage holds is what "/" opens on, not a copy in memory.
+    sessionStorage.setItem(KEPT, JSON.stringify({ ...copy, state: { ...copy?.state, visitor: { name: "Ananya R", email: "ananya@example.com" } } }));
+    comeBack(null);
+    expect(planText()).toBe("Ananya R · none");
+    sessionStorage.removeItem(KEPT);
+    comeBack(null);
+    expect(screenNow()).toBe("s1");
+  });
+
+  it("drops a plan kept for another visit, and asks the questions", async () => {
+    await reachPlan();
+    sessionStorage.setItem("ziiro.funnel.visit", JSON.stringify({ id: "another-visit", lead: false, step: "S1" }));
+    comeBack(null);
+    expect(screenNow()).toBe("s1");
+    expect(kept()).toBeNull();
+  });
+
+  it("start over: S1 on a new visit, the kept plan gone, and \"/\" asks the questions again", async () => {
+    const visitId = await reachPlan();
+    tap(button(root(), "Start over"));
+    expect(screenNow()).toBe("s1");
+    expect(peekVisit()?.id).not.toBe(visitId);
+    expect(kept()).toBeNull();
+    expect(window.history.state?.funnel).toBe("s1");
+    comeBack(null);
+    expect(screenNow()).toBe("s1");
+    await run(0);
+    expect(leads).toHaveLength(1);
   });
 });

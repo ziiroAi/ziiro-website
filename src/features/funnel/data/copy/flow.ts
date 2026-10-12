@@ -73,4 +73,5 @@ export const FLOW_COPY = {
   "s9.err.sent": "Your plan is on its way to {email}. This page couldn't show it just now, but the email has all of it.",
   "s9.err.unsent": "This page couldn't show your plan just now. Reload to try again, or book a call.",
   "g.reload": "Reload the page",
+  "s9.restart": "Start over",
 } as const;

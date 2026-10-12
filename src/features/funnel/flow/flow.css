@@ -169,6 +169,13 @@ html[data-funnel] .f-s6-intro .f-bridge-hold {
 .f-s8 p { font-size: 1.5rem; font-weight: 700; line-height: 1.25; color: var(--funnel-fg); }
 html[data-funnel] .f-s8 span { display: inline-block; animation: f-fade-up 300ms ease-out both; }
 .f-plan { outline: none; }
+/* W24-C: the plan's "Start over", under its close and over the footer, on the page's own ground. */
+.f-restart {
+  display: flex; justify-content: center; padding: 1.25rem 1rem 2.5rem;
+  border-top: 1px solid var(--funnel-line); font-size: 0.875rem; color: var(--funnel-muted);
+}
+.f-restart .f-link { min-height: 44px; padding: 0 0.75rem; border: 0; background: none; font: inherit; cursor: pointer; }
+.f-restart .f-link:hover { color: var(--funnel-fg); }
 
 @keyframes f-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 /* The greeting's fade starts at 1 %, not 0: the browser skips a fully transparent element when it times the first
