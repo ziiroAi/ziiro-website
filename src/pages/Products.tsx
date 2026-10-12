@@ -20,6 +20,7 @@ import {
 } from "@/shared/motion/tokens";
 import TextReveal from "@/shared/motion/TextReveal";
 import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/shared/ui/dot-glyph";
+import SystemDirectory from "@/features/home/directory/SystemDirectory";
 
 /** One deliverable, shown as a label with the detail behind a disclosure.
  *  Every one of these used to get its own always-visible paragraph, which is
@@ -863,6 +864,11 @@ export default function Products() {
           />
         </div>
       </section>
+
+      {/* ---- The system: departments, their agents and every job, read off
+          the funnel's catalog. First under the hero by the owner's call (W24
+          fix 2); the stages follow it. ---- */}
+      <SystemDirectory />
 
       {/* ---- The catalogue: three stages as one progression ---- */}
       <section className="pb-24">

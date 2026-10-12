@@ -17,7 +17,7 @@ export const routes = [
   },
   {
     path: "/products",
-    sources: ["src/pages/Products.tsx"],
+    sources: ["src/pages/Products.tsx", "src/features/home/directory", "src/features/funnel/data/agents.generated.ts"],
     changefreq: "monthly",
     priority: "0.9",
     fallback: "2026-07-27",
