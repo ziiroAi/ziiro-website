@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { createTimeline, cubicBezier } from "animejs";
 import SEO from "@/shared/components/SEO";
 import SplitHeadline from "@/shared/components/SplitHeadline";
 import ArrowFillLink from "@/shared/ui/arrow-fill-link";
@@ -9,15 +8,7 @@ import MotionReveal, { MotionRevealItem } from "@/shared/motion/MotionReveal";
 import Beam from "@/shared/motion/Beam";
 import ScrollStack from "@/shared/motion/ScrollStack";
 import StatefulOrb, { type OrbState } from "@/shared/ui/StatefulOrb";
-import {
-  CSS_EASE,
-  DURATION,
-  EASE_IN_OUT,
-  EASE_OUT_EXPO,
-  MS,
-  STAGGER,
-  TRAVEL,
-} from "@/shared/motion/tokens";
+import { CSS_EASE, DURATION, STAGGER } from "@/shared/motion/tokens";
 import TextReveal from "@/shared/motion/TextReveal";
 import DotGlyph, { type GlyphVariant, type GlyphEnergy } from "@/shared/ui/dot-glyph";
 import SystemDirectory from "@/features/home/directory/SystemDirectory";
@@ -548,10 +539,7 @@ const settledState = (stageName: string): OrbState => {
   return seq ? seq[seq.length - 1] : "idle";
 };
 
-const ms = (seconds: number) => Math.round(seconds * 1000);
-
 export default function Products() {
-  const heroRef = useRef<HTMLElement>(null);
   const energies = useRef<{ current: GlyphEnergy }[]>(
     stages.map(() => ({ current: { speed: 1, gain: 0 } })),
   );
@@ -740,51 +728,6 @@ export default function Products() {
     return () => window.clearInterval(id);
   }, [activeStage, reduced, seen]);
 
-  // Hero entrance: label -> headline -> sub -> hairline, one sequenced
-  // timeline. Elements start hidden via inline style so nothing flashes.
-  useEffect(() => {
-    const root = heroRef.current;
-    if (!root) return;
-    const label = root.querySelector<HTMLElement>("[data-hero-label]");
-    const title = root.querySelector<HTMLElement>("[data-hero-title]");
-    const sub = root.querySelector<HTMLElement>("[data-hero-sub]");
-    const rule = root.querySelector<HTMLElement>("[data-hero-rule]");
-    if (!label || !title || !sub || !rule) return;
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      for (const el of [label, title, sub]) el.style.opacity = "1";
-      rule.style.transform = "scaleX(1)";
-      return;
-    }
-
-    // Absolute positions rather than negative offsets: each element starts one
-    // STAGGER.line after the one before it whatever its own duration is, which
-    // is what keeps the whole entrance inside DURATION.entrance instead of
-    // drifting every time a duration is retuned.
-    const step = ms(STAGGER.line);
-    const tl = createTimeline({
-      defaults: { duration: MS.reveal, ease: cubicBezier(...EASE_OUT_EXPO) },
-    });
-    tl.add(label, { opacity: [0, 1], y: [TRAVEL.reveal, 0] })
-      .add(title, { opacity: [0, 1], y: [TRAVEL.line, 0] }, step)
-      .add(sub, { opacity: [0, 1], y: [TRAVEL.reveal, 0] }, step * 2)
-      // The hairline is the only thing here that returns to where it began if
-      // it is ever reversed, so it takes the symmetric curve.
-      .add(
-        rule,
-        {
-          scaleX: [0, 1],
-          duration: MS.statement,
-          ease: cubicBezier(...EASE_IN_OUT),
-        },
-        step * 3,
-      );
-
-    return () => {
-      tl.cancel();
-    };
-  }, []);
-
   // The stage rows used to have an entrance animation, a hover-follow on their
   // titles and a per-glyph energy ramp, all driven from `listRef` and the
   // `data-prod-row` / `data-prod-title` hooks. The scroll stack replaced those
@@ -815,60 +758,56 @@ export default function Products() {
         ]}
       />
 
-      {/* ---- Page hero ---- */}
-      <section ref={heroRef} className="clears-nav-page pb-20">
-        <div className="mx-auto max-w-7xl px-6 md:px-10">
-          <p
-            data-hero-label
-            className="mb-8 flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]"
-            style={{ opacity: 0 }}
-          >
+      {/* ---- The system first (W24-B2) ----
+          The owner's call: "inside the product, the top thing should be that
+          graph part". So the page opens on the page eyebrow, the counted
+          sentence (the page's h1) and the map, with nothing in between. */}
+      <SystemDirectory
+        lead={
+          <p className="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)]">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--text-primary)] opacity-70" />
             ( Ziiro / Products )
           </p>
-          <h1
-            data-hero-title
-            className="font-display font-semibold text-[var(--text-primary)]"
-            style={{
-              opacity: 0,
-              fontSize: "clamp(2.6rem, 6vw, 4.8rem)",
-              letterSpacing: "-0.03em",
-              lineHeight: 1.04,
-            }}
-          >
-            <SplitHeadline
-              lead="Diagnose. Build. Optimize."
-              tail="Everything we make sits in one of these three."
-            />
-          </h1>
-          <p
-            data-hero-sub
-            className="mt-8 max-w-xl leading-relaxed text-[var(--text-secondary)]"
-            style={{ opacity: 0 }}
-          >
-            What follows is the catalogue: what each stage produces, and what
-            you are actually handed at the end of it. No stage ships a slide
-            deck. What it costs to engage is set out on{" "}
-            <Link
-              to="/pricing"
-              className="text-[var(--text-primary)] underline underline-offset-4"
-            >
-              Pricing
-            </Link>
-            .
-          </p>
-          <div
-            data-hero-rule
-            className="mt-16 border-t border-[var(--border)]"
-            style={{ transform: "scaleX(0)", transformOrigin: "left center" }}
-          />
+        }
+      />
+
+      {/* ---- The stages' lead-in ----
+          What used to be the page hero, copy unchanged, now introducing the
+          stage cards below the graph. An h2, since the page's h1 is the
+          directory's counted sentence. */}
+      <section data-stages-lead className="pb-14">
+        <div className="mx-auto max-w-7xl px-6 md:px-10">
+          <MotionReveal>
+            <div className="border-t border-[var(--border)] pt-16 md:pt-20">
+              <h2
+                className="font-display font-semibold text-[var(--text-primary)]"
+                style={{
+                  fontSize: "clamp(2.6rem, 6vw, 4.8rem)",
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1.04,
+                }}
+              >
+                <SplitHeadline
+                  lead="Diagnose. Build. Optimize."
+                  tail="Everything we make sits in one of these three."
+                />
+              </h2>
+              <p className="mt-8 max-w-xl leading-relaxed text-[var(--text-secondary)]">
+                What follows is the catalogue: what each stage produces, and what
+                you are actually handed at the end of it. No stage ships a slide
+                deck. What it costs to engage is set out on{" "}
+                <Link
+                  to="/pricing"
+                  className="text-[var(--text-primary)] underline underline-offset-4"
+                >
+                  Pricing
+                </Link>
+                .
+              </p>
+            </div>
+          </MotionReveal>
         </div>
       </section>
-
-      {/* ---- The system: departments, their agents and every job, read off
-          the funnel's catalog. First under the hero by the owner's call (W24
-          fix 2); the stages follow it. ---- */}
-      <SystemDirectory />
 
       {/* ---- The catalogue: three stages as one progression ---- */}
       <section className="pb-24">

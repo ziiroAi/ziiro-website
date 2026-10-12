@@ -91,7 +91,17 @@ function useIsWide() {
   return wide;
 }
 
-export default function SystemDirectory() {
+interface SystemDirectoryProps {
+  /**
+   * Set when the directory OPENS the page, as it does on /products (W24-B2):
+   * this is the page's eyebrow, drawn in place of the section header, and the
+   * counted sentence becomes the page's h1. The section then clears the navbar
+   * itself, and nothing sits between the navbar and the map but these two.
+   */
+  lead?: ReactNode;
+}
+
+export default function SystemDirectory({ lead }: SystemDirectoryProps = {}) {
   const [selectedId, setSelectedId] = useState<Selection>(ALL);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
   const isWide = useIsWide();
@@ -128,7 +138,11 @@ export default function SystemDirectory() {
     >
       <Atmosphere />
 
-      <div className="relative z-10 mx-auto max-w-[1400px] px-6 py-24 md:px-10 md:py-32">
+      <div
+        className={`relative z-10 mx-auto max-w-[1400px] px-6 md:px-10 ${
+          lead ? "clears-nav-page pb-20 md:pb-24" : "py-24 md:py-32"
+        }`}
+      >
         {/* No headline. The eyebrow names the section and the counted sentence
             below says what it is; a display title on top of both was a third
             voice saying the same thing.
@@ -139,25 +153,42 @@ export default function SystemDirectory() {
             An sr-only h2 names the section for crawlers and screen readers
             without putting the third voice back on the page — the same trick
             the hero uses to keep its full sentence. */}
-        <h2 className="sr-only">The Ziiro System</h2>
-        <SectionHeader
-          index="01"
-          label="The Ziiro System"
-          meta={`${DIRECTORY_STATS.departments} departments`}
-        />
-
-        {/* Every number here is counted off the catalog, not typed into a
-            sentence, so it cannot drift as the catalog changes. */}
-        <MotionReveal>
-          <p
-            className="mt-8 max-w-[46ch] text-[17px] leading-relaxed md:text-[19px]"
-            style={{ color: "var(--dir-dim)" }}
-          >
-            <Figure>{DIRECTORY_STATS.jobs}</Figure> jobs of work, mapped across{" "}
-            <Figure>{DIRECTORY_STATS.agents}</Figure> agents in{" "}
-            <Figure>{DIRECTORY_STATS.departments}</Figure> departments.
-          </p>
-        </MotionReveal>
+        {lead ? (
+          <>
+            {lead}
+            {/* The page's h1 and its first content, so it is never held back
+                behind a scroll reveal. */}
+            <h1
+              className="mt-6 max-w-[24ch] font-display font-semibold"
+              style={{
+                fontSize: "clamp(1.9rem, 3.6vw, 3rem)",
+                letterSpacing: "-0.03em",
+                lineHeight: 1.1,
+                color: "var(--dir-dim)",
+              }}
+            >
+              <CountedSentence />
+            </h1>
+            <h2 className="sr-only">The Ziiro System</h2>
+          </>
+        ) : (
+          <>
+            <h2 className="sr-only">The Ziiro System</h2>
+            <SectionHeader
+              index="01"
+              label="The Ziiro System"
+              meta={`${DIRECTORY_STATS.departments} departments`}
+            />
+            <MotionReveal>
+              <p
+                className="mt-8 max-w-[46ch] text-[17px] leading-relaxed md:text-[19px]"
+                style={{ color: "var(--dir-dim)" }}
+              >
+                <CountedSentence />
+              </p>
+            </MotionReveal>
+          </>
+        )}
 
         {/* The control row that used to sit here is gone, both halves of it.
             See the note at the top of this file for what each one was and why
@@ -426,6 +457,18 @@ function Crossfade({
     >
       {children}
     </div>
+  );
+}
+
+/** Every number here is counted off the catalog, not typed into a sentence,
+ *  so it cannot drift as the catalog changes. */
+function CountedSentence() {
+  return (
+    <>
+      <Figure>{DIRECTORY_STATS.jobs}</Figure> jobs of work, mapped across{" "}
+      <Figure>{DIRECTORY_STATS.agents}</Figure> agents in{" "}
+      <Figure>{DIRECTORY_STATS.departments}</Figure> departments.
+    </>
   );
 }
 

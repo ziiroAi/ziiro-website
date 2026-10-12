@@ -1,8 +1,8 @@
 import { expect, test } from "./fixtures";
 
-/** (C) W24-B: /products opens on the departments, agents and jobs graph; the three stages follow it. */
+/** (C) W24-B, W24-B2: /products opens on the departments, agents and jobs graph, first under the navbar; the stages follow it. */
 test.describe("/products (W24-B)", () => {
-  test("puts the system graph first under the hero and the stages below it, without console errors", async ({ page }) => {
+  test("opens on the system graph, right under the navbar, with the stages following it, without console errors", async ({ page, isMobile }) => {
     const errors: string[] = [];
     page.on("console", (msg) => msg.type() === "error" && errors.push(msg.text()));
     page.on("pageerror", (err) => errors.push(err.message));
@@ -10,19 +10,33 @@ test.describe("/products (W24-B)", () => {
     await page.goto("/products");
     const directory = page.locator("section#systems");
     await expect(directory).toBeVisible();
-    await expect(directory).toContainText("137 jobs of work, mapped across 33 agents in 7 departments.");
+    await expect(page.locator("h1")).toHaveText("137 jobs of work, mapped across 33 agents in 7 departments.");
+    await expect(directory.locator("h1")).toHaveCount(1);
 
-    const order = await page.evaluate(() => {
-      const hero = document.querySelector("[data-hero-title]")?.closest("section");
-      const systems = document.querySelector("section#systems");
-      const stage = document.querySelector("[data-stage-card]");
+    const layout = await page.evaluate(() => {
+      const sections = [...document.querySelectorAll("section")];
+      const systems = document.querySelector("section#systems")!;
+      const lead = document.querySelector("section[data-stages-lead]")!;
+      const stage = document.querySelector("[data-stage-card]")!;
+      const after = (a: Element, b: Element) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
       return {
-        firstAfterHero: hero?.nextElementSibling === systems,
-        stagesBelow: !!systems && !!stage && !!(systems.compareDocumentPosition(stage) & Node.DOCUMENT_POSITION_FOLLOWING),
+        first: sections[0] === systems,
+        leadNext: systems.nextElementSibling === lead,
+        stagesBelow: after(lead, stage),
+        h1Top: Math.round(systems.querySelector("h1")!.getBoundingClientRect().top),
       };
     });
-    expect(order).toEqual({ firstAfterHero: true, stagesBelow: true });
+    expect(layout).toMatchObject({ first: true, leadNext: true, stagesBelow: true });
+    // The sentence sits straight under the navbar's clearance: no band of empty page above it.
+    expect(layout.h1Top).toBeLessThan(260);
 
+    // The map (desktop) or the phone's intelligence mark above its department list starts on the first screen.
+    const box = await directory.locator("svg").first().boundingBox();
+    expect(box!.y).toBeLessThan(isMobile ? 844 : 900);
+
+    await expect(page.locator("section[data-stages-lead] h2")).toHaveText(
+      "Diagnose. Build. Optimize. Everything we make sits in one of these three.",
+    );
     await page.locator("[data-stage-card]").first().scrollIntoViewIfNeeded();
     await expect(page.locator("[data-stage-card]")).toHaveCount(3);
     expect(errors).toEqual([]);
