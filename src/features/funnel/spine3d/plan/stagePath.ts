@@ -47,7 +47,7 @@ export const STOP_REACH_ZOOMS = [1, 1.25, 1.5, 2] as const;
 export const STOP_REACH: readonly { left: readonly number[]; right: readonly number[] }[] = [
   { left: [0.1505, 0.1557, 0.1594, 0.1644], right: [0.1677, 0.1741, 0.1788, 0.185] },
   { left: [0.1858, 0.1861, 0.1865, 0.187], right: [0.1677, 0.1728, 0.1764, 0.1814] },
-  { left: [0.2175, 0.2161, 0.2122, 0.2077], right: [0.1712, 0.1747, 0.1772, 0.1806] },
+  { left: [0.2285, 0.2281, 0.2239, 0.2145], right: [0.1811, 0.1848, 0.1875, 0.1911] },   // W24: gap 2's new front turns its stops ~7 deg; the W20 row scaled by that turn's reach change (w24 reach.mjs)
   { left: [0.1772, 0.1902, 0.1872, 0.2095], right: [0.1916, 0.188, 0.1861, 0.184] },
   { left: [0.1607, 0.1701, 0.172, 0.1792], right: [0.1727, 0.1643, 0.1702, 0.1993] },
   { left: [0.1563, 0.162, 0.1638, 0.168], right: [0.2114, 0.2131, 0.2111, 0.2144] },

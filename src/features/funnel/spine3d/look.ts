@@ -226,11 +226,17 @@ export const LOOK = {
    *  Operations barely shows, Customer a sliver). Gap 3 sits halfway between its W19 r2 place and its slit, with its
    *  W19 r2 groove; gap 2 sits where the hero sees its slit open (0.006 up its normal from its W19 r2 place), its band
    *  out at the lips' radius (groove 0.071), so it reads as full as Deals at the hero and as a clean arc at its
-   *  stop (GPU sweep, funnel/spine3d/w21/opsweep). Disc k is gap k. */
+   *  stop (GPU sweep, funnel/spine3d/w21/opsweep). W24: there the band sat on the bone (the owner: "overlapping the
+   *  bone… not straight and the groove is a bit slanted"). Gap 2's groove, ray-cast on m5c (worker-3's w24 groove.mjs:
+   *  per azimuth round the front, the floor of the dip between the bodies; a plane and a circle through the floors,
+   *  refitted in their own frame until they hold), is tilted 22.6 degrees off the normal every earlier fix kept: it ran
+   *  0.011 above the band at the hero and 0.039 below it at a right stop, so no centre could seat it. Gap 2 takes the
+   *  groove's own plane and centre, its band 62 % of the way from the groove's floor to its lips (Deals 64 %, Sales
+   *  62 %, measured the same way). Disc k is gap k. */
   gaps: [
     { centre: [0.03871, 0.04605, 0.14886], normal: [0.06883, 0.84105, -0.53656], radius: 0.06328, width: 0.022, grooveRadius: 0.04798 },
     { centre: [0.04012, 0.15566, 0.09342], normal: [-0.02679, 0.87412, -0.48496], radius: 0.07129, width: 0.022, grooveRadius: 0.05665 },
-    { centre: [0.04085, 0.2723, 0.03281], normal: [-0.10094, 0.91937, -0.38021], radius: 0.07361, width: 0.023, grooveRadius: 0.071 },
+    { centre: [0.04091, 0.26302, 0.03526], normal: [0.21915, 0.79317, -0.56821], radius: 0.07361, width: 0.023, grooveRadius: 0.0617 },
     { centre: [0.0193, 0.38775, -0.01926], normal: [-0.08464, 0.93689, -0.33922], radius: 0.0742, width: 0.023, grooveRadius: 0.06031 },
     { centre: [0.00181, 0.52554, -0.05344], normal: [-0.01635, 0.95849, -0.28466], radius: 0.07136, width: 0.022, grooveRadius: 0.05721 },
     { centre: [0.00858, 0.63806, -0.07915], normal: [0.07152, 0.98372, -0.16488], radius: 0.06794, width: 0.021, grooveRadius: 0.05505 },
