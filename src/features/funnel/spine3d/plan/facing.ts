@@ -11,13 +11,13 @@ import { add, dot, normalize, scale, sub, type Vec3 } from "./vec";
  * Each gap's front, bottom first (disc k is gap k), in the model's own space: the unit vector in the disc's plane
  * pointing away from the mean of the vertices beyond 1.3x the disc's radius within 0.06 of its plane (the arch and
  * processes). W19: measured on public/spine/3d/m5/spine-desktop.glb (the owner's coil, placed) by worker-3 with W18-D's
- * rule (w19 anterior.mjs); W19-RING: gaps 0, 2 and 3 measured again on m5b at their new centres. A new mesh with new
- * geometry, or a gap moved, needs it measured again.
+ * rule (w19 anterior.mjs); W19-RING: gaps 0, 2 and 3 measured again on m5b at their new centres; W24: gap 2 again on
+ * m5c, in its groove's own plane. A new mesh with new geometry, or a gap moved, needs it measured again.
  */
 export const ANTERIOR: readonly Vec3[] = [
   [0.9946, -0.0157, 0.103],
   [0.9857, 0.1038, 0.1326],
-  [0.9813, 0.1550, 0.1142],
+  [0.9711, -0.1212, 0.2054],
   [0.9944, 0.1011, 0.0312],
   [0.9910, 0.0533, 0.1225],
   [0.9966, -0.0638, 0.0514],
