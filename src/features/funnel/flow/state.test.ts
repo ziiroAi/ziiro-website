@@ -149,6 +149,15 @@ describe("the questions' state (§4.1, §4.3)", () => {
     expect(s.contact).toEqual(run(...AT_PLAN).contact);
   });
 
+  it("starts over from the plan only: S1 with nothing kept, a new round, and S1 takes the plan's entry (W24-C)", () => {
+    const s = run(...AT_PLAN, { type: "restart", starter: STARTER });
+    const plan = run(...AT_PLAN);
+    expect(s).toEqual({ ...initialFlow(STARTER), round: plan.round + 1, nav: { mode: "replace", seq: plan.nav.seq + 1 } });
+    expect(funnelStageOf(s)).toBe("questions");
+    const atS6 = run(...TO_S6);
+    expect(from(atS6, { type: "restart", starter: STARTER })).toBe(atS6);
+  });
+
   it("merges what the plan reports, and caps the time to plan at a day", () => {
     const s = run({ type: "progress", fields: { planDepth: 2 } }, { type: "progress", fields: { filmPlayed: true } }, { type: "planShown", seconds: 100_000 });
     expect(s.progress).toEqual({ planDepth: 2, filmPlayed: true });

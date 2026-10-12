@@ -14,7 +14,7 @@ vi.mock("../plan-chunk", () => ({
 }));
 
 const VISITOR = { name: "Ananya", email: "ananya@studio.in" };
-const ENV = { boot: { t0: 0 }, starter: "" } as unknown as FlowEnv;
+const ENV = { boot: { t0: 0 }, starter: "", startOver: vi.fn() } as unknown as FlowEnv;
 let view: Mounted | undefined;
 
 function showPlan(saveNotice: FlowState["saveNotice"]): HTMLElement {
@@ -51,5 +51,15 @@ describe("S9 when the plan page can't show (review M4)", () => {
       view?.unmount();
       view = undefined;
     }
+  });
+});
+
+describe("S9's start over (W24-C)", () => {
+  it("shows under the plan even when the plan can't, and asks the questions again", () => {
+    const root = showPlan(null);
+    const restart = [...root.querySelectorAll(".f-restart button")].find((b) => b.textContent === copy("s9.restart"));
+    expect(restart).toBeDefined();
+    (restart as HTMLButtonElement).click();
+    expect(ENV.startOver).toHaveBeenCalledTimes(1);
   });
 });

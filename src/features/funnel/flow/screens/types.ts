@@ -18,6 +18,7 @@ export interface FlowEnv {
   starter: string;                // s6.text
   send(widget: TokenSource, contact: CheckedContact): void;  // S7's "Show me my plan" (Task 13)
   showGuestPlan(): void;          // S1b's answer and s1b.btn.plan: the sample plan on the plan page (W17-B)
+  startOver(): void;              // the plan's s9.restart: S1 again, as a new visit (W24-C)
 }
 
 export interface ScreenProps {
