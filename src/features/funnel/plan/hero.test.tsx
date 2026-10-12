@@ -108,6 +108,21 @@ describe("Hero (§6.2 block 1)", () => {
     expect(section.className).toContain("lg:group-data-[hero-hidden]/stage:invisible");
   });
 
+  it("brings the headline in from the corner: centred under 1024 px, inset and lower from 1024 px, stats at the foot on tall screens (W24-A)", () => {
+    // The owner: "it should be close to the center because it is at one corner".
+    const { container } = renderHero();
+    const words = container.querySelector("h1")!.parentElement!.className.split(" ");
+    expect(words).toEqual(expect.arrayContaining(["text-center", "lg:text-left", "lg:pl-[clamp(2.5rem,calc(22vw_-_185px),15rem)]", "[@media(min-height:860px)]:lg:pt-[var(--nav-h,84px)]"]));
+    expect(container.querySelector("h1")!.className).toContain("lg:whitespace-nowrap");
+    const stats = container.querySelector("[data-hero-stats]")!.className.split(" ");
+    expect(stats).toEqual(expect.arrayContaining(["[@media(min-height:860px)]:lg:absolute", "[@media(min-height:860px)]:lg:bottom-[calc(1.5rem-var(--nav-h,84px))]"]));
+  });
+
+  it("uses the home headline verbatim: 'Your business' then 'just run better.' (W24-A)", () => {
+    const { container } = renderHero();
+    expect(textOf(container.querySelector("h1"))).toBe("Your business just run better.");
+  });
+
   it("shows the eyebrow, both title lines, and their words with the name", () => {
     const { container } = renderHero();
     expect(textOf(container.querySelector("h1"))).toBe(`${copy("hx.h1")} ${copy("hx.h2")}`);

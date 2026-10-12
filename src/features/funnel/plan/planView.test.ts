@@ -117,8 +117,8 @@ describe("markOf and heroTitle", () => {
 
   it("split ph.hx.h into the hero's two lines", () => {
     expect(heroTitle()).toEqual([
-      { desktop: "137 Jobs.", phone: "137 Jobs." },
-      { desktop: "33 AI Agents.", phone: "33 AI Agents." },
+      { desktop: "Your business", phone: "Your business" },
+      { desktop: "just run better.", phone: "just run better." },
     ]);
   });
 });
