@@ -9,16 +9,16 @@
  * view (§10).
  */
 import type { PlanDescriptor, PlanProgress } from "@/features/funnel/data/light";
+import { KEEP_MS, PLAN_KEY, dropExpiredPlan } from "./plan-expiry";
 import { loadPlanData } from "./plan-chunk";
 import { initialFlow, type Answers, type FlowState, type SaveNotice } from "./state";
 import { peekVisit } from "./visit-id";
 import { problemTextFrom } from "./words";
 
-const KEY = "ziiro.funnel.plan";
+const KEY = PLAN_KEY;
 /** Goes up whenever the kept shape changes, so a tab never reopens a plan that an older build kept. */
 const VERSION = 2;
-/** A copy older than this is dropped, even on its own visit (review C-2). */
-export const KEEP_MS = 30 * 60 * 1000;
+export { KEEP_MS };
 
 /** What the plan draws, and nothing else. `words` is "" unless the plan quotes them. The two counters keep a resumed
  *  plan from timing or saving itself again (review C-1). */
@@ -42,6 +42,10 @@ let memory: KeptPlan | null = null;
 let blocked = false;
 /** Goes up on every keepPlan, so a words check that resolves late never writes over a newer copy. */
 let writes = 0;
+/** The words decided for this visit, in memory only: a re-keep with the same text reuses them (review N-3). */
+let decided: { visitId: string; text: string; parts: string; words: string } | null = null;
+/** Which departments a plan has: where its quote can go. */
+const partsOf = (plan: PlanDescriptor): string => plan.stops.map((stop) => stop.department).join(",");
 
 /** Enough of the shape to draw the plan. Anything else, another build's copy or a hand edit, is no plan. */
 function isKeptPlan(value: unknown): value is KeptPlan {
@@ -95,17 +99,30 @@ export function keepPlan(state: FlowState, starter: string): void {
   if (!visit) return;
   const { problemText, businessOther: _box, ...answers } = state.answers;
   const earlier = memory?.visitId === visit.id ? memory.savedAt : null;
+  if (earlier !== null && Date.now() - earlier > KEEP_MS) {
+    write(null);  // past its 30 minutes: not kept again (review N-4)
+    return;
+  }
+  const parts = partsOf(state.plan);
+  const known = decided?.visitId === visit.id && decided.text === problemText && decided.parts === parts ? decided.words : null;
   const kept: KeptPlan = {
     v: VERSION, visitId: visit.id, savedAt: earlier ?? Date.now(), round: state.round, seq: state.nav.seq,
     name: state.visitor.name, plan: state.plan, saveNotice: state.saveNotice,
-    secondsToResult: state.secondsToResult, progress: state.progress, answers, words: "",
+    secondsToResult: state.secondsToResult, progress: state.progress, answers, words: known ?? "",
   };
   write(kept);
+  if (earlier === null) dropExpiredPlan();  // the 30 minutes run on whatever page the visitor goes to
+  if (known !== null) return;
   const words = problemTextFrom(problemText, starter);
-  if (words === "") return;
+  const decide = (chosen: string) => {
+    decided = { visitId: visit.id, text: problemText, parts, words: chosen };
+  };
+  if (words === "") return decide("");
   void planQuotes(state.plan, words).then((quoted) => {
-    if (quoted && token === writes) write({ ...kept, words });
-  }, () => undefined);  // no data chunk: the copy stays without the words
+    if (token !== writes) return;
+    decide(quoted ? words : "");
+    if (quoted) write({ ...kept, words });
+  }, () => undefined);  // no data chunk: the copy stays without the words, and the next keep asks again
 }
 
 /**
@@ -121,11 +138,13 @@ export function resumedPlan(starter: string, now = Date.now()): FlowState | null
   }
   memory = kept;
   const blank = initialFlow(starter);
+  const problemText = kept.words || starter;
+  decided = { visitId: kept.visitId, text: problemText, parts: partsOf(kept.plan), words: kept.words };
   return {
     ...blank,
     screen: "plan",
     nav: { mode: "replace", seq: kept.seq },
-    answers: { ...blank.answers, ...kept.answers, problemText: kept.words || starter },
+    answers: { ...blank.answers, ...kept.answers, problemText },
     problemDone: true,
     visitor: { name: kept.name, email: "" },
     plan: kept.plan,

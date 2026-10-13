@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 // (C) W24-C2, review C-2: the kept plan holds the visitor's words only when the plan quotes them, never the email.
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { copy, type PlanDescriptor } from "@/features/funnel/data/light";
 import { departments, wordsDepartmentFor } from "@/features/funnel/data";
 import { loadPlanData } from "./plan-chunk";
 import { KEEP_MS, keepPlan, resumedPlan } from "./resume";
+import { dropExpiredPlan } from "./plan-expiry";
 import { initialFlow, type FlowState } from "./state";
 import { startVisit } from "./visit-id";
 
@@ -38,6 +39,9 @@ beforeEach(() => {
   sessionStorage.clear();
   startVisit();
 });
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("the kept plan (W24-C2, review C-2)", () => {
   it("keeps the words when the plan quotes them, and they come back on the plan", async () => {
@@ -70,6 +74,43 @@ describe("the kept plan (W24-C2, review C-2)", () => {
     keepPlan(state, starter);
     keepPlan({ ...state, screen: "s6" }, starter);  // Back to S6 before the check lands
     await settle();
+    expect(stored()).toBeNull();
+  });
+
+  it("a re-keep carries the words already decided, with no window where they're blank (review N-3)", async () => {
+    const state = onPlan(planAt(wordsDepartmentFor(WORDS)!));
+    keepPlan(state, starter);
+    await settle();
+    keepPlan({ ...state, progress: { planDepth: 3 } }, starter);
+    expect(stored()?.words).toBe(WORDS);  // synchronously, before any check could land
+  });
+
+  it("a resumed plan's words carry into its next keep too", async () => {
+    keepPlan(onPlan(planAt(wordsDepartmentFor(WORDS)!)), starter);
+    await settle();
+    const resumed = resumedPlan(starter)!;
+    keepPlan({ ...resumed, progress: { planDepth: 4 } }, starter);
+    expect(stored()?.words).toBe(WORDS);
+  });
+
+  it("is not kept again once its 30 minutes are up (review N-4)", () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    const state = onPlan(planAt("deals"), starter);
+    keepPlan(state, starter);
+    vi.setSystemTime(Date.now() + KEEP_MS + 1_000);
+    keepPlan({ ...state, progress: { planDepth: 2 } }, starter);
+    expect(stored()).toBeNull();
+  });
+
+  it("leaves storage at 30 minutes on any page, by the timer the first keep sets, and at boot (review N-4)", () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    keepPlan(onPlan(planAt("deals"), starter), starter);
+    vi.advanceTimersByTime(KEEP_MS - 1_000);
+    expect(stored()).not.toBeNull();
+    vi.advanceTimersByTime(2_000);
+    expect(stored()).toBeNull();
+    sessionStorage.setItem(KEY, JSON.stringify({ v: 2, savedAt: Date.now() - KEEP_MS - 1 }));
+    dropExpiredPlan();  // main.tsx, on whatever route the tab reopens
     expect(stored()).toBeNull();
   });
 

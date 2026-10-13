@@ -3,7 +3,7 @@
  * Each carries the landing context and every answer so far, so a dropped save loses nothing (index §1.2).
  */
 import { useEffect, useRef, useState } from "react";
-import type { VisitFields } from "@/features/funnel/data/light";
+import { NOTICE_VERSION, type VisitFields } from "@/features/funnel/data/light";
 import type { Boot } from "./boot";
 import { localTimeZone } from "./region";
 import type { FlowState } from "./state";
@@ -30,24 +30,28 @@ export function useVisitSaves(state: FlowState, env: SaveEnv): { country: string
   }, []);
 
   const step = stepOf(state, introDone);
-  const fields = answerFields(state, env.starter);
+  // A resumed plan's visit already holds its landing context and answers. This page view's would overwrite them
+  // (review C-1b: another width, theme or hour; N-2: inputMode from the kept words), so on that visit it saves only
+  // what the plan adds: depth, the film, the CTAs. A new round is a new visit, and saves everything again.
+  const resumedRound = useRef(env.resumed ? state.round : null);
+  const quiet = state.round === resumedRound.current;
+  const fields = quiet ? { ...state.progress } : answerFields(state, env.starter);
   const key = JSON.stringify([state.round, step, fields]);
-  // A resumed plan was saved before it was kept. Posting it again would overwrite the visit's landing context with
-  // this page view's (review C-1), so its first key counts as saved.
+  // ...and the resumed plan itself was saved before it was kept, so its first key counts as saved (review C-1).
   const saved = useRef(env.resumed ? key : null);
 
   useEffect(() => {
     if (key === saved.current) return;
     const visit = markStep(step);
     const save = () => {
-      landing.current ??= landingFields(window, env.boot, localTimeZone());
-      void postVisit({ id: visit.id, step, fields: { ...landing.current, ...fields } }).then((answer) => {
+      const context = quiet ? { noticeVersion: NOTICE_VERSION } : (landing.current ??= landingFields(window, env.boot, localTimeZone()));
+      void postVisit({ id: visit.id, step, fields: { ...context, ...fields } }).then((answer) => {
         if (answer?.success && answer.country) setCountry(answer.country);
       });
     };
     // The first save runs among the first commit's effects. Its time-zone lookup loads ICU's zone data (~30 ms on a
     // phone profile), so it gets a task of its own (W15-E). Saves queued behind it keep their order: timers are FIFO.
-    if (landing.current) save();
+    if (landing.current || quiet) save();
     else setTimeout(save, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the key holds the round, the step and the fields
   }, [key]);
