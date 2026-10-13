@@ -31,7 +31,7 @@ export function FunnelRoot(): JSX.Element {
   const boot = useBoot();
   const [starter] = useState(() => copy("s6.text"));
   // Back to "/" once the plan has shown, by the logo, a link, Back or a reload: the same plan on the same visit (W24-C).
-  const [resumed] = useState(() => (typeof window === "undefined" ? null : resumedPlan()));
+  const [resumed] = useState(() => (typeof window === "undefined" ? null : resumedPlan(starter)));
   const [state, dispatch] = useReducer(reduce, starter, (text: string) => resumed ?? initialFlow(text));
   const roundAtMount = useRef(state.round);
   const [gate] = useState(() => createTapGate());
@@ -48,7 +48,8 @@ export function FunnelRoot(): JSX.Element {
   );
 
   useIsoLayoutEffect(() => {
-    if (state.nav.seq > 0) gate.lock(performance.now());
+    // A resumed plan mounts with seq > 0 but no step just changed, so Start over isn't swallowed (review C-3).
+    if (state.nav.seq > 0 && state.nav.seq !== resumed?.nav.seq) gate.lock(performance.now());
   }, [state.nav.seq]);
   useFunnelAttributes(useChosenTheme(boot.theme), funnelStageOf(state));
   useEffect(() => startClockTheme(), []);  // W18-B: 06:00 and 18:00 cross-fade too, until the visitor chooses
@@ -79,14 +80,14 @@ export function FunnelRoot(): JSX.Element {
     if (state.round !== roundAtMount.current) rotateVisit();  // leaving the plan: sending again is a new visit (§4.1)
   }, [state.round]);
   useEffect(() => {
-    keepPlan(state);
-  }, [state]);
+    keepPlan(state, starter);
+  }, [state, starter]);
   useEffect(() => {
     if (state.screen !== "s5" && state.screen !== "s1b") return;
     prefetchPlan();  // the plan's code loads during S5 to S8 (§13.1), and on S1b for the sample plan (W17-B)
     setWarm(true);   // and the hero still S9 shows (§6.6)
   }, [state.screen]);
-  const { country } = useVisitSaves(state, { boot, starter, introOffsetMs: introOffset });
+  const { country } = useVisitSaves(state, { boot, starter, introOffsetMs: introOffset, resumed: resumed !== null });
   const startOver = useCallback(() => {
     if (!gate.allow(performance.now())) return;
     setLeadContact(null);  // a new visit: the header's booking link drops the last send's name and email

@@ -7,6 +7,7 @@ import { FunnelRoot } from "./FunnelRoot";
 import { prefetchPlan } from "./plan-chunk";
 import { setLeadContact } from "./session";
 import { button, click, mount, stubBrowser, stubClock, tap, tapThrough, typeInto, type Mounted } from "./test/dom";
+import { KEEP_MS } from "./resume";
 import { peekVisit } from "./visit-id";
 
 vi.mock("@/features/funnel/data/light", async (importOriginal) => ({
@@ -55,6 +56,7 @@ const noAnswer: Reply = (signal) =>
 
 let replies: Reply[] = [];
 let leads: LeadRequest[] = [];
+let visitPosts = 0;
 let view: Mounted;
 const root = () => view.container;
 const screenNow = () => root().querySelector(".f-root")?.getAttribute("data-screen");
@@ -76,12 +78,14 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });   // S8's clock
   replies = [];
   leads = [];
+  visitPosts = 0;
   turnstile.wait = () => Promise.resolve("");
   turnstile.reset.mockClear();
   setLeadContact(null);
   sessionStorage.clear();
   window.history.replaceState(null, "", "/");
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === "/api/funnel/visit") visitPosts += 1;
     if (url !== "/api/funnel/lead") return new Response(JSON.stringify({ success: true, country: "IN" }));
     leads.push(JSON.parse(String(init?.body)) as LeadRequest);
     return (replies.shift() ?? json(200, { success: true, planEmail: "sent" }))(init?.signal ?? undefined);
@@ -114,7 +118,7 @@ function comeBack(entry: { funnel: string } | null): void {
 }
 
 const KEPT = "ziiro.funnel.plan";
-const kept = () => JSON.parse(sessionStorage.getItem(KEPT) ?? "null") as { visitId: string; state: Record<string, unknown> } | null;
+const kept = () => JSON.parse(sessionStorage.getItem(KEPT) ?? "null") as Record<string, unknown> & { visitId: string; savedAt: number } | null;
 
 async function reachPlan(): Promise<string> {
   send();
@@ -167,14 +171,57 @@ describe("\"/\" opens on the plan for the rest of the visit (W24-C)", () => {
     const visitId = await reachPlan();
     const copy = kept();
     expect(copy?.visitId).toBe(visitId);
-    expect(copy?.state).toMatchObject({ screen: "plan", visitor: { name: "Ananya", email: "ananya@example.com" } });
-    expect(copy?.state.contact).toEqual({ name: "", email: "", phone: "", consent: false });
+    expect(copy).toMatchObject({ name: "Ananya" });
     // What storage holds is what "/" opens on, not a copy in memory.
-    sessionStorage.setItem(KEPT, JSON.stringify({ ...copy, state: { ...copy?.state, visitor: { name: "Ananya R", email: "ananya@example.com" } } }));
+    sessionStorage.setItem(KEPT, JSON.stringify({ ...copy, name: "Ananya R" }));
     comeBack(null);
     expect(planText()).toBe("Ananya R · none");
     sessionStorage.removeItem(KEPT);
     comeBack(null);
+    expect(screenNow()).toBe("s1");
+  });
+
+  it("keeps only what the plan draws: the name, the plan and the taps; never the email, the S7 draft or words it doesn't quote (review C-2)", async () => {
+    await reachPlan();
+    await run(0);  // the words check
+    const copy = kept();
+    expect(Object.keys(copy ?? {}).sort()).toEqual(["answers", "name", "plan", "progress", "round", "saveNotice", "savedAt", "secondsToResult", "seq", "v", "visitId", "words"]);
+    expect(copy?.words).toBe("");  // the fake plan has no stops, so nothing quotes them
+    expect(Object.keys(copy?.answers as object)).not.toContain("problemText");
+    expect(Object.keys(copy?.answers as object)).not.toContain("businessOther");
+    const raw = sessionStorage.getItem(KEPT) ?? "";
+    expect(raw).not.toContain("ananya@example.com");
+    // Their typed sentence. (The plan keeps the classifier's matched phrases, from its own word list.)
+    expect(raw).not.toContain("by the time someone calls back");
+  });
+
+  it("drops a copy older than 30 minutes, even on its own visit, and asks the questions (review C-2)", async () => {
+    await reachPlan();
+    const copy = kept();
+    sessionStorage.setItem(KEPT, JSON.stringify({ ...copy, savedAt: Date.now() - KEEP_MS - 1 }));
+    comeBack(null);
+    expect(screenNow()).toBe("s1");
+    expect(kept()).toBeNull();
+  });
+
+  it("a resumed plan posts no /visit: the visit row keeps its landing context (review C-1)", async () => {
+    await reachPlan();
+    await run(1_000);
+    const before = visitPosts;
+    expect(before).toBeGreaterThan(0);
+    comeBack(null);
+    await run(5_000);
+    expect(screenNow()).toBe("plan");
+    expect(visitPosts).toBe(before);
+    comeBack({ funnel: "plan" });
+    await run(5_000);
+    expect(visitPosts).toBe(before);
+  });
+
+  it("start over straight after a resume is not swallowed by the tap gate (review C-3)", async () => {
+    await reachPlan();
+    comeBack(null);
+    click(button(root(), "Start over"));  // no time passes: nothing changed step, so nothing locks the gate
     expect(screenNow()).toBe("s1");
   });
 

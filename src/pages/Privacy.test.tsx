@@ -28,6 +28,11 @@ describe("the Privacy page covers the funnel (spec §13.8, B6)", () => {
     ]) expect(text).toContain(phrase);
   });
 
+  it("says the browser keeps a copy of the plan for the tab, 30 minutes at most, never the email (W24-C2)", () => {
+    expect(text).toContain("your browser keeps a copy of it in this tab&#x27;s storage");
+    expect(text).toContain("never your email, until you close the tab or 30 minutes pass");
+  });
+
   it("says a reply to the plan email is enough to be deleted", () => {
     expect(text).toContain("reply to the plan email and say so");
     expect(text).toContain("within 7 days");
