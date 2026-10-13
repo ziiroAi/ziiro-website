@@ -61,6 +61,21 @@ test.describe("after a send", () => {
     expect(visitIds).toEqual(new Set([funnelApi.leads[0].visitId]));
   });
 
+  test("scrolling a resumed plan saves only what it adds, never this page view's landing context or answers", async ({ page, funnelApi }) => {
+    await settledVisits(page, funnelApi);
+    await page.setViewportSize({ width: 700, height: 900 });  // another device class: it must not reach the visit's row
+    await page.reload();
+    await expectPlan(page);
+    const from = await settledVisits(page, funnelApi);
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await expect.poll(() => funnelApi.visits.length, { timeout: 10_000 }).toBeGreaterThan(from);
+    for (const visit of funnelApi.visits.slice(from)) {
+      const fields: object = visit.fields;
+      for (const key of ["landingPath", "deviceClass", "theme", "timezone", "inputMode", "segment"]) expect(fields).not.toHaveProperty(key);
+      expect(visit.id).toBe(funnelApi.leads[0].visitId);
+    }
+  });
+
   test("Start over asks the questions again, as a new visit, and the logo no longer brings the plan back", async ({ page, funnelApi }) => {
     const restart = page.getByRole("button", { name: copy("s9.restart"), exact: true });
     await restart.scrollIntoViewIfNeeded();

@@ -3,6 +3,9 @@ import App from "./app/App";
 import { preloadHome } from "./app/home-route";
 import { mountRoot } from "./app/mount";
 import "./index.css";
+import { dropExpiredPlan } from "./features/funnel/flow/plan-expiry";
+
+dropExpiredPlan();  // the funnel's kept plan leaves storage after 30 minutes, on any page (/privacy section 05)
 
 const mount = () => {
   mountRoot(

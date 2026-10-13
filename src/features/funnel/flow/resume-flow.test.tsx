@@ -57,6 +57,7 @@ const noAnswer: Reply = (signal) =>
 let replies: Reply[] = [];
 let leads: LeadRequest[] = [];
 let visitPosts = 0;
+let visitBodies: { step: string; fields: Record<string, unknown> }[] = [];
 let view: Mounted;
 const root = () => view.container;
 const screenNow = () => root().querySelector(".f-root")?.getAttribute("data-screen");
@@ -79,13 +80,17 @@ beforeEach(() => {
   replies = [];
   leads = [];
   visitPosts = 0;
+  visitBodies = [];
   turnstile.wait = () => Promise.resolve("");
   turnstile.reset.mockClear();
   setLeadContact(null);
   sessionStorage.clear();
   window.history.replaceState(null, "", "/");
   vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-    if (url === "/api/funnel/visit") visitPosts += 1;
+    if (url === "/api/funnel/visit") {
+      visitPosts += 1;
+      visitBodies.push(JSON.parse(String(init?.body)) as { step: string; fields: Record<string, unknown> });
+    }
     if (url !== "/api/funnel/lead") return new Response(JSON.stringify({ success: true, country: "IN" }));
     leads.push(JSON.parse(String(init?.body)) as LeadRequest);
     return (replies.shift() ?? json(200, { success: true, planEmail: "sent" }))(init?.signal ?? undefined);
@@ -216,6 +221,17 @@ describe("\"/\" opens on the plan for the rest of the visit (W24-C)", () => {
     comeBack({ funnel: "plan" });
     await run(5_000);
     expect(visitPosts).toBe(before);
+  });
+
+  it("what a resumed plan does save carries only what it adds: no landing context, no answers (review C-1b, N-2)", async () => {
+    await reachPlan();
+    await run(1_000);
+    comeBack(null);
+    await run(1_000);
+    const before = visitBodies.length;
+    click(root().querySelector(".plan-stub"));  // the stub reports planDepth 2
+    await run(1_000);
+    expect(visitBodies.slice(before)).toEqual([{ id: peekVisit()?.id, step: "S9", fields: { noticeVersion: expect.any(String), planDepth: 2 } }]);
   });
 
   it("start over straight after a resume is not swallowed by the tap gate (review C-3)", async () => {
