@@ -1,29 +1,17 @@
 /**
- * The departments' path: a closed, uneven loop round the brain, and where each
- * department is on it.
+ * The departments' path: one ring round the brain, and where each department
+ * is on it.
  *
- * The loop is a circle about the brain whose radius wanders with four slow
- * harmonics, fitted to the owner's r8 mockup (brain/spline/r8-target.png): at
- * the start the eight departments sit where the mockup puts them, just
- * outside the brain's silhouette, at irregular angles and radii, and the loop
- * keeps close over the top and under the bottom, as the mockup's departments
- * do. It is smooth all the way round, no corners. CSS scales it (`--loop-a`,
- * index.css) and sizes it from EXTENT, so the labels always fit.
- *
- * The departments orbit it continuously, one lap per turn of the brain,
- * dragged with it; the mockup's layout is the frame they start from.
+ * The ring is a circle of the loop's base radius, which is twice the brain's
+ * half-width (BRAIN_HALF, brainFrame.ts), as in the owner's mockup. At the
+ * start the eight departments sit where the mockup puts them, and they orbit
+ * the ring continuously, one lap per turn of the brain, dragged with it; the
+ * mockup's layout is the frame they start from. CSS scales the ring
+ * (`--loop-a`, index.css) and sizes it from REACH, so the labels always fit.
  *
  * Angles are maths convention: 0 is right, anticlockwise positive, y up.
  * Screen y runs down, so a point's screen offset is (r cos θ, −r sin θ).
  */
-
-/** [harmonic, amplitude, phase], for `a sin(kθ + phase)`. */
-const LUMPS = [
-  [1, 0.0359, -0.4247],
-  [2, 0.1373, 2.0549],
-  [3, 0.0394, -0.0424],
-  [4, 0.0174, -2.5423],
-] as const;
 
 /** Each department drifts in and out along its radius by up to this much,
  *  each on its own slow period, so the ring never moves as one rigid thing. */
@@ -34,42 +22,18 @@ const DRIFT_PHASES = [0.2, 2.4, 4.1, 1.3, 5.2, 3.3, 0.9, 2.8] as const;
 const TAU = Math.PI * 2;
 const DEG = Math.PI / 180;
 
-/** The loop's radius at `theta`, as a multiple of the base radius. */
-export function loopRadius(theta: number): number {
-  let r = 1;
-  for (const [k, a, ph] of LUMPS) r += a * Math.sin(k * theta + ph);
-  return r;
-}
+/** How far the departments reach from the brain as they go round, in base
+ *  radii, drift included, every way round. HeroStage publishes it for the
+ *  CSS. */
+export const REACH = 1 + DRIFT;
 
 /**
- * How far the departments reach from the brain as they go round, in base
- * radii, drift included: to the right, left, up and down. Measured off the
- * loop itself, so it follows any change above. HeroStage publishes it for the
- * CSS.
+ * Each department's angle at the start, 01 to 08, as the mockup has them.
+ * Clockwise from the top: Sales at half past eleven, Marketing at one, Product
+ * at half past two, Strategy at four, Technology at half past five, Finance at
+ * half past seven, GTM at a quarter to nine, Operations at half past ten.
  */
-export const EXTENT = (() => {
-  let right = 0;
-  let left = 0;
-  let up = 0;
-  let down = 0;
-  for (let k = 0; k < 1440; k++) {
-    const t = (k / 1440) * TAU;
-    const r = loopRadius(t) * (1 + DRIFT);
-    right = Math.max(right, r * Math.cos(t));
-    left = Math.max(left, -r * Math.cos(t));
-    up = Math.max(up, r * Math.sin(t));
-    down = Math.max(down, -r * Math.sin(t));
-  }
-  return { right, left, up, down };
-})();
-
-/**
- * Each department's angle at the start, 01 to 08, as the mockup has them:
- * Strategy low right, Product right, Marketing top right, Sales top,
- * Operations upper left, GTM low left, Finance bottom left, Technology bottom
- * right.
- */
-const START_DEG = [341.2, 15.9, 46.5, 131.5, 150, 209, 235.8, 300] as const;
+const START_DEG = [330, 15, 60, 105, 135, 187.5, 225, 285] as const;
 export function startAngle(i: number): number {
   return START_DEG[i % START_DEG.length] * DEG;
 }
@@ -85,6 +49,18 @@ export const FOCUS = Math.PI;
 /** How far the words sit beside the dot, px: past the ring and a little air.
  *  `.zo-words` in index.css places them from --gx / --gy. */
 const BESIDE = 19;
+/** Beside the dot, the line nearest it sits level with it, as the mockup
+ *  sets them: the role above the dot, the number below. Half a line, px. */
+const LEVEL = 9;
+/** Passing over or under the dot, the words clear its ring (9.5px), px. */
+const CLEAR = 14;
+
+/** Where the words cross from one side of the dot to the other, degrees:
+ *  between Sales and Operations over the top, and between Finance and
+ *  Technology under the bottom. Each crossing takes SLIDE. */
+const CROSS_TOP = 120;
+const CROSS_BOTTOM = 264;
+const SLIDE = 6;
 
 export interface NodePlace {
   /** Offset from the brain's centre, in base radii (screen axes). */
@@ -116,22 +92,26 @@ const signedApart = (a: number, b: number) => {
 
 /**
  * Which side of its dot a department's words go, as the mockup sets them:
- * right of the dot round most of the loop, left of it on the copy's side
- * (from just past Sales, round to just past Finance), sliding across in the
- * two short stretches between.
+ * right of the dot round most of the ring, left of it on the copy's side
+ * (Operations, GTM, Finance), sliding across in the two short crossings.
  */
 function sideOf(theta: number): number {
   const d = (((theta / DEG) % 360) + 360) % 360;
-  if (d <= 138 || d >= 285) return 1;
-  if (d < 144) return 1 - 2 * smooth((d - 138) / 6);
-  if (d <= 255) return -1;
-  return -1 + 2 * smooth((d - 255) / 30);
+  const half = SLIDE / 2;
+  if (d < CROSS_TOP - half || d > CROSS_BOTTOM + half) return 1;
+  if (d < CROSS_TOP + half) return 1 - 2 * smooth((d - CROSS_TOP + half) / SLIDE);
+  if (d < CROSS_BOTTOM - half) return -1;
+  return -1 + 2 * smooth((d - CROSS_BOTTOM + half) / SLIDE);
 }
 
 /**
  * Where department `i` of `n` is, `turn` radians of the brain after the
  * start, `t` seconds into the drift (0 holds it still). One radian of turn
  * moves every department one radian round, anticlockwise.
+ *
+ * The words hang above the dot on the upper half of the ring and below it on
+ * the lower, beside it with their nearest line level with it, and drop clear
+ * of it while they slide across.
  *
  * `act` weighs each department against the one on the far side of the focus
  * from it, over the step between the two: fully lit within a quarter of that
@@ -144,15 +124,15 @@ export function placeAt(i: number, n: number, turn: number, t: number): NodePlac
   const d = signedApart(theta, FOCUS);
   const other = (i + (d < 0 ? 1 : n - 1)) % n;
   const step = Math.abs(signedApart(startAngle(other), startAngle(i)));
-  const drift = t ? DRIFT * Math.sin(t * DRIFT_RATES[i % 8] + DRIFT_PHASES[i % 8]) : 0;
-  const r = loopRadius(theta) * (1 + drift);
+  const r = t ? 1 + DRIFT * Math.sin(t * DRIFT_RATES[i % 8] + DRIFT_PHASES[i % 8]) : 1;
   const side = sideOf(theta);
+  const beside = Math.abs(side);
   const ay = Math.max(-1, Math.min(1, -2.5 * Math.sin(theta)));
   return {
     ox: r * Math.cos(theta),
     oy: -r * Math.sin(theta),
     gx: BESIDE * side,
-    gy: 2 * ay,
+    gy: ay * (CLEAR * (1 - beside) - LEVEL * beside),
     ax: side,
     ay,
     theta,

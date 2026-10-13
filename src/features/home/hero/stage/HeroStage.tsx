@@ -6,33 +6,29 @@ import { Helmet } from "react-helmet-async";
 import HeroBrain, { BRAIN_STILL_AVIF_SRCSET, BRAIN_STILL_SIZES } from "../HeroBrain";
 import DepartmentOrbit, { type OrbitHandle } from "../orbit";
 import { BRAIN_BOX, BRAIN_HALF } from "../brainFrame";
-import { EXTENT } from "../orbit/loop";
+import { REACH } from "../orbit/loop";
 
 /**
- * The loop's and the brain's measurements, published once for the CSS, which
- * sizes the loop (`--loop-a` in index.css) so that the departments and their
+ * The ring's and the brain's measurements, published once for the CSS, which
+ * sizes the ring (`--loop-a` in index.css) so that the departments and their
  * labels always fit round it, and the brain box inside it. loop.ts and
  * brainFrame.ts stay the one source: change them and the sizing follows.
  */
 const LOOP_VARS = {
-  "--reach-l": EXTENT.left.toFixed(4),
-  "--reach-r": EXTENT.right.toFixed(4),
-  "--reach-up": EXTENT.up.toFixed(4),
-  "--reach-dn": EXTENT.down.toFixed(4),
+  "--reach": REACH.toFixed(4),
   "--brain-half": String(BRAIN_HALF),
   "--brain-box": String(BRAIN_BOX),
 } as CSSProperties;
 
 /**
- * The hero's picture: the glass brain, with its fibres, the eight departments
- * travelling round it on an uneven loop, and the string web running through
- * them, out across the hero.
+ * The hero's picture: the glass brain, with its strands, the eight departments
+ * travelling round it on one ring, and the string web wound round it.
  *
  * index.css (`.cb-stage`) makes this box the band under the bar, the full
- * width, on desktop, with the brain placed in the room right of the copy; and
- * a band under the copy when the hero stacks. Everything inside is placed
- * from the loop's radii and the brain's centre, so the brain, the departments
- * and the web scale together.
+ * width, on desktop, with the brain placed right of the copy; and a band
+ * under the copy when the hero stacks. Everything inside is placed from the
+ * ring's radius and the brain's centre, so the brain, the departments and the
+ * web scale together.
  *
  * ONE CLOCK. The brain's turn moves the departments and the web (HeroBrain
  * drives the orbit through its handle); without the live brain the orbit
