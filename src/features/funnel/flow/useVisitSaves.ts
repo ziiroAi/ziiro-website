@@ -14,6 +14,7 @@ interface SaveEnv {
   boot: Boot;
   starter: string;
   introOffsetMs: number;  // minus the time since first paint (Task 2)
+  resumed: boolean;       // the plan came back from resume.ts: its visit already holds this step and these answers
 }
 
 export function useVisitSaves(state: FlowState, env: SaveEnv): { country: string | null } {
@@ -31,8 +32,12 @@ export function useVisitSaves(state: FlowState, env: SaveEnv): { country: string
   const step = stepOf(state, introDone);
   const fields = answerFields(state, env.starter);
   const key = JSON.stringify([state.round, step, fields]);
+  // A resumed plan was saved before it was kept. Posting it again would overwrite the visit's landing context with
+  // this page view's (review C-1), so its first key counts as saved.
+  const saved = useRef(env.resumed ? key : null);
 
   useEffect(() => {
+    if (key === saved.current) return;
     const visit = markStep(step);
     const save = () => {
       landing.current ??= landingFields(window, env.boot, localTimeZone());

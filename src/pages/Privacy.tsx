@@ -315,6 +315,10 @@ const Privacy = () => {
                 business, when you agreed, and which version of this notice you agreed to.
                 We never store audio, your precise location or a WhatsApp number.
               </p>
+              <p>
+                So you can come back to your plan, your browser keeps a copy of it in this tab&apos;s
+                storage, with your name but never your email, until you close the tab or 30 minutes pass.
+              </p>
               <p>These services handle it for us:</p>
               <ul className="space-y-3">
                 <li className="flex items-start gap-3">
