@@ -1080,19 +1080,19 @@ html:not(.js) [data-reveal] {
 
 /* ── The stage: the brain, its departments and the web (stage/HeroStage.tsx)
    HeroStage publishes the measurements from orbit/loop.ts and brainFrame.ts:
-   how far the departments reach from the brain to the left, right, up and
-   down as they orbit, in the loop's radii (--reach-*); and the brain's
-   half-width and its box, in the same radii (--brain-half, --brain-box). Each layout below
-   sets the loop's radius, --loop-a, from the room it has, and the brain's
-   centre, --cx / --cy. The brain box, the departments and the web are all
-   placed from those, so they scale together. Nothing in it takes a click but
-   the brain's hit area. */
+   how far the departments reach from the brain as they orbit, in the ring's
+   radii (--reach); and the brain's half-width and its box, in the same radii
+   (--brain-half, --brain-box). Each layout below sets the ring's radius,
+   --loop-a, from the room it has, and the brain's centre, --cx / --cy. The
+   brain box, the departments and the web are all placed from those, so they
+   scale together. Nothing in it takes a click but the brain's hit area. */
 .cb-stage {
   /* The room a department's words take: beside the dot, the 19px step and
      the widest line ("AI Product Manager", about 117px); above or below it,
-     the three lines (53px), the 2px step and 3px. */
+     the three lines (53px) dropped 14px clear of the dot as they slide
+     across it (orbit/loop.ts). */
   --lbl-w: 136px;
-  --lbl-h: 58px;
+  --lbl-h: 68px;
   --loop-b: var(--loop-a);
   pointer-events: none;
 }
@@ -1118,9 +1118,9 @@ html:not(.js) [data-reveal] {
    never touches layout. The web is a canvas under them, redrawn in the same
    frame.
 
-   After the owner's r8 mockup (brain/spline/r8-target.png): navy ringed dots;
-   beside each, a mono number, a bold tracked name and the role in regular
-   dark grey. No accent colour. */
+   After the owner's mockup: small navy dots in a fine navy ring; beside
+   each, a mono number, a bold tracked name and the role in regular dark
+   grey. No accent colour. */
 .zo-root {
   --zo-ink: #000000;
   --zo-muted: #2C2E33;
@@ -1165,17 +1165,17 @@ html:not(.js) [data-reveal] {
 }
 
 /* The marker: a fine navy ring, white inside so the strands meet it and
-   stop, round a solid navy dot. */
+   stop, round a solid navy dot (7px). */
 .zo-dot {
   opacity: var(--do, 1);
   position: absolute;
-  left: -10.5px;
-  top: -10.5px;
-  width: 21px;
-  height: 21px;
+  left: -9.5px;
+  top: -9.5px;
+  width: 19px;
+  height: 19px;
   border-radius: 50%;
   background: #FFFFFF;
-  box-shadow: inset 0 0 0 1.2px rgb(10 26 58 / 0.75);
+  box-shadow: inset 0 0 0 1.2px var(--zo-navy);
 }
 .zo-dot::after {
   content: "";
@@ -1216,7 +1216,7 @@ html:not(.js) [data-reveal] {
    its last letter does. */
 .zo-label {
   margin-right: -0.2em;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 18px;
   font-weight: 700;
   letter-spacing: 0.2em;
@@ -1321,16 +1321,22 @@ html:not(.js) [data-reveal] {
     letter-spacing: 0.175em;
   }
 
-  /* The band under the bar, the full width, so the web's arcs and
-     particles can reach across behind the copy. As in the r8 mockup, the
-     loop hangs from the top of the band (the highest words may rise 12px into
-     the bar's band, where it has nothing at their height) and the right-hand
-     words end 12px short of the screen's edge, wherever a department is on
-     its orbit. The loop is the largest that fits: the band's height as the
-     departments go round; the room right of the headline, whose widest line
-     is about 6.8 of its size, with 40px before the brain's frontal lobe (0.77
-     of the loop); and the mockup's proportion to the band, 0.455. On its
-     left the loop passes behind the copy, and the departments fade there
+  /* The band under the bar, the full width, so the web can reach across
+     behind the copy. The ring is the mockup's: 330u in radius, twice the
+     brain's 165u half-width, its centre 438u under the bar (51% down a
+     1536x1024 window, the middle of the band between the bar and the strip),
+     and smaller only where a short window leaves too little room for the
+     words above and below it, 12px clear of the bar and of the strip, or a
+     narrow one too little room beside the copy: the ring's dots 24px clear
+     of the support paragraph and its three o'clock words on screen.
+     Across, it sits at 62% of the width, as the mockup does, unless the copy
+     is in the way: never so far left that the words at its nine o'clock
+     (GTM's, 88px with the step) come within 24px of the support paragraph
+     (46ch of its 18px, the copy's widest line at that height), or its dots
+     within 24px of the headline (whose widest line is about 6.8 of its
+     size); and never so far right that the widest words at its three o'clock
+     come within 12px of the screen's edge. As the departments orbit, words
+     that near the copy cross to the inner side of their dots
      (DepartmentOrbit). */
   .cb-stage {
     position: absolute;
@@ -1339,14 +1345,21 @@ html:not(.js) [data-reveal] {
     top: var(--nav-h, 84px);
     height: calc((927 - 83) * var(--u));
     --copy-l: max(40px, calc((var(--vw, 100vw) - 1400px) / 2 + 40px));
-    --copy-r: calc(var(--copy-l) + 6.8 * var(--h1));
+    --cy: calc(438 * var(--u));
     --loop-a: min(
-      calc((871 * var(--u) + 12px - 14px - 2 * var(--lbl-h)) / (var(--reach-up, 0.9176) + var(--reach-dn, 0.905))),
-      calc((var(--vw, 100vw) - 12px - var(--lbl-w) - 40px - var(--copy-r)) / (var(--reach-r, 1.1285) + 0.77)),
-      calc(0.455 * 844 * var(--u))
+      calc(330 * var(--u)),
+      calc((var(--cy) - var(--lbl-h) - 12px) / var(--reach, 1.03)),
+      calc((871 * var(--u) - var(--cy) - var(--lbl-h) - 12px) / var(--reach, 1.03)),
+      calc((var(--vw, 100vw) - var(--copy-l) - 460px - 36px - 12px - var(--lbl-w)) / (2 * var(--reach, 1.03)))
     );
-    --cx: calc(var(--vw, 100vw) - 12px - var(--lbl-w) - var(--reach-r, 1.1285) * var(--loop-a));
-    --cy: calc(var(--lbl-h) - 12px + var(--reach-up, 0.9176) * var(--loop-a));
+    --cx: min(
+      max(
+        calc(0.62 * var(--vw, 100vw)),
+        calc(var(--copy-l) + 460px + 24px + 88px + var(--loop-a)),
+        calc(var(--copy-l) + 6.8 * var(--h1) + 24px + var(--reach, 1.03) * var(--loop-a))
+      ),
+      calc(var(--vw, 100vw) - 12px - var(--lbl-w) - var(--reach, 1.03) * var(--loop-a))
+    );
   }
 
   .cb-strip {
@@ -1392,19 +1405,19 @@ html:not(.js) [data-reveal] {
      column's elements carry its type sizes and margins. */
   .cb-copy { padding-inline: 24px; }
 
-  /* A band under the copy, the full width, with the web centred across it
+  /* A band under the copy, the full width, with the ring centred across it
      and its top labels at the band's top. Capped, so a tablet's brain stays
      in proportion with the copy above it. */
   .cb-stage {
     position: relative;
     margin-top: 44px;
     --loop-a: min(
-      calc((var(--vw, 100vw) - 2 * (var(--lbl-w) + 24px)) / (var(--reach-l, 1.1963) + var(--reach-r, 1.1285))),
+      calc((var(--vw, 100vw) - 2 * (var(--lbl-w) + 24px)) / (2 * var(--reach, 1.03))),
       250px
     );
-    --cx: calc(50% + (var(--reach-l, 1.1963) - var(--reach-r, 1.1285)) * var(--loop-a) / 2);
-    --cy: calc(var(--loop-b) * var(--reach-up, 0.9176) + var(--lbl-h));
-    height: calc(var(--loop-b) * (var(--reach-up, 0.9176) + var(--reach-dn, 0.905)) + 2 * var(--lbl-h));
+    --cx: 50%;
+    --cy: calc(var(--loop-b) * var(--reach, 1.03) + var(--lbl-h));
+    height: calc(2 * (var(--loop-b) * var(--reach, 1.03) + var(--lbl-h)));
   }
 
   .cb-strip {
@@ -1452,11 +1465,12 @@ html:not(.js) [data-reveal] {
    frame). */
 @media (max-width: 659.98px) {
   .cb-stage {
-    /* The step and a two-digit number; one line. */
+    /* The step and a two-digit number; one line (17px), dropped 14px clear
+       of the dot as it slides across it. */
     --lbl-w: 38px;
-    --lbl-h: 24px;
-    /* Room under the loop for the caption. */
-    height: calc(var(--loop-b) * (var(--reach-up, 0.9176) + var(--reach-dn, 0.905)) + 2 * var(--lbl-h) + 60px);
+    --lbl-h: 32px;
+    /* Room under the ring for the caption. */
+    height: calc(2 * (var(--loop-b) * var(--reach, 1.03) + var(--lbl-h)) + 60px);
   }
   .zo-label,
   .zo-role { display: none; }

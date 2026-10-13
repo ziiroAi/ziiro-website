@@ -114,11 +114,35 @@ interface RuntimeInternals {
 }
 
 /** The fibre cage: the fine dark strands the scene wraps round the brain
- *  (see quietScene). Off since the r8 mockup: the plexus on the brain and the
- *  web's fine strings round it carry the strings now, and the cage's heavy
- *  black loops would run out under the departments' labels, which sit just
- *  outside the brain. */
+ *  (see quietScene). Off since the r8 mockup: the strands on the brain
+ *  (orbit/brainMesh.ts) and the web's fine strings round it carry the strings
+ *  now. */
 const FIBRES = false;
+
+/**
+ * The glass, darkened to the mockup's chrome: deep darks round the silhouette
+ * and into the folds, white glints, a mid-grey body. As exported it reads flat
+ * pale grey on white. Three of the export's own layers on the `Model` mesh,
+ * set through the runtime (its layered material takes writes live):
+ * - the fresnel mask over the dark chrome matcap (the first fresnel layer):
+ *   a higher bias lets the matcap in from the rim (-1.23 as exported);
+ * - the noise mask over the grey veil: lower lets more veil through, a darker
+ *   body (0.25 as exported);
+ * - transmission: less of the white behind refracted through (0.4).
+ * The still is rendered with it (HeroBrain), so the two match.
+ */
+const GLASS = { matcapBias: -0.8, veilMask: 0.06, transmission: 0.2 };
+
+function darkenGlass(app: Application) {
+  const material = app.findObjectByName("Model")?.material;
+  if (!material || !("layers" in material)) return;
+  const matcapMask = material.layers.find((layer) => layer.type === "fresnel");
+  if (matcapMask) matcapMask.bias = GLASS.matcapBias;
+  for (const layer of material.layers) {
+    if (layer.type === "noise") layer.alpha = GLASS.veilMask;
+    if (layer.type === "transmission") layer.alpha = GLASS.transmission;
+  }
+}
 
 /**
  * Switch off what the export does by itself, so the only motion is ours.
@@ -186,6 +210,7 @@ export default function SplineBrain({ onReady }: { onReady: (scene: BrainScene) 
         // layer, on the same white, so it reads as no background at all.
         loaded.setBackgroundColor("#FFFFFF");
         quietScene(loaded);
+        darkenGlass(loaded);
         const brain = loaded.findObjectByName("Brain");
         if (!brain) return;
         const model = loaded.findObjectByName("Model");
