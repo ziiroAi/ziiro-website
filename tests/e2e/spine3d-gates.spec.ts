@@ -117,8 +117,16 @@ async function throttle(page: Page): Promise<CDPSession> {
   return cdp;
 }
 
-/** S0 to S7 the way a person answers, then the contact step, stopping before the send. */
+/** S0 to S7 the way a person answers, then the contact step, stopping before the send. Each call is a new visit:
+ *  since W24-C, "/" reopens the plan this tab already showed, so (b)'s later runs drop that kept copy first. */
 async function toContactStep(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    try {
+      window.sessionStorage.removeItem("ziiro.funnel.plan");
+    } catch {
+      // about:blank, before the first visit: there is nothing kept yet.
+    }
+  });
   await page.goto("/");
   await tapThrough(page, "I run a business", "Interior design / architecture", "5–10 years", "6–20", "₹1–5Cr");
   await tapThrough(page, "Leads don't convert", "That's it");
