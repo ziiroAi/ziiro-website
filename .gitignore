@@ -51,3 +51,9 @@ dist-ssr/
 # Agent tool state (oh-my-claudecode). Holds local command lines and paths;
 # it can appear at any depth, including inside src/.
 .omc/
+
+# Test output
+coverage/
+playwright-report/
+test-results/
+blob-report/

@@ -1,16 +1,14 @@
-import { Toaster } from "@/shared/ui/toaster";
-import { Toaster as Sonner } from "@/shared/ui/sonner";
-import { TooltipProvider } from "@/shared/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
-import Preloader from "@/shared/components/Preloader";
+import { SiteSheet } from "@/shared/components/funnel-form";
 import PageAtmosphere from "@/shared/components/PageAtmosphere";
 import SmoothScroll, { easeInOutCubic, headerOffset, scrollTo } from "@/shared/motion/SmoothScroll";
 import ScrollProgress from "@/shared/motion/ScrollProgress";
+import { HomeRoute } from "@/app/home-route";
+import { RouteBoundary } from "@/app/RouteBoundary";
 
 /**
  * EVERY route is code-split, the homepage included. It used to be imported
@@ -24,8 +22,8 @@ import ScrollProgress from "@/shared/motion/ScrollProgress";
  * Splitting it costs `/` one extra request for its own chunk, which is
  * preloaded next to the entry rather than serialised behind it, and saves
  * every other route the whole homepage.
+ * `/` loads through src/app/home-route.tsx, which main.tsx preloads before it mounts on `/`.
  */
-const Index = lazy(() => import("@/pages/Index"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
@@ -186,15 +184,11 @@ function ScrollToTop() {
   return null;
 }
 
-const queryClient = new QueryClient();
-
 /** App-wide providers, shared by the client entry and the SSG server entry. */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark">
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>{children}</TooltipProvider>
-      </QueryClientProvider>
+      {children}
     </ThemeProvider>
   );
 }
@@ -203,7 +197,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
+      <Route path="/" element={<HomeRoute />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/mission" element={<Mission />} />
@@ -230,10 +224,7 @@ export function AppRoutes() {
 
 const App = () => (
   <Providers>
-    <Preloader />
     <PageAtmosphere />
-    <Toaster />
-    <Sonner />
     <BrowserRouter>
       <SmoothScroll />
       <ScrollProgress />
@@ -242,11 +233,13 @@ const App = () => (
       {/* The page is one sheet that scrolls up off the footer pinned behind
           it (index.css, SITE FOOTER). The server entry wraps its page the same
           way, so the prerendered first paint is already layered. */}
-      <div className="site-sheet">
-        <Suspense fallback={<div className="min-h-screen" />}>
-          <AppRoutes />
-        </Suspense>
-      </div>
+      <SiteSheet>
+        <RouteBoundary>
+          <Suspense fallback={<div className="min-h-screen" />}>
+            <AppRoutes />
+          </Suspense>
+        </RouteBoundary>
+      </SiteSheet>
       <Footer />
     </BrowserRouter>
   </Providers>

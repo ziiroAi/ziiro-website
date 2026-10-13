@@ -1,36 +1,38 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import SectionHeader from "@/shared/ui/section-header";
-import ScrollScene from "@/shared/motion/ScrollScene";
+import MotionReveal from "@/shared/motion/MotionReveal";
+import { copy } from "@/features/funnel/data/light";
 import EcosystemMap, { ALL, type Selection } from "./EcosystemMap";
-import FlowView from "./FlowView";
 import MobileCore from "./MobileCore";
 import PipelinePanel, {
   PipelineIdentity,
   PipelineDetail,
 } from "./PipelinePanel";
-import { DIRECTORY_STATS, PIPELINES, findPipeline } from "./pipelines";
 import {
-  CSS_EASE,
-  DURATION,
-  EASE_OUT_EXPO,
-  MS,
-} from "@/shared/motion/tokens";
+  DIRECTORY_STATS,
+  MARKS,
+  PIPELINES,
+  findPipeline,
+  jobsIn,
+} from "./pipelines";
+import { useReducedMotion } from "./motion";
+import { CSS_EASE, MS } from "@/shared/motion/tokens";
+import "./directory.css";
 
 /**
- * The system directory — the page's proof section.
+ * The system directory: the first section of /products, under its hero.
  *
- * The hero makes a claim; this is where a visitor goes and looks at what the
- * claim is made of.
+ * The page sells the work; this is where a visitor looks at what the work is
+ * made of: seven departments, the agents in each, and every job those agents
+ * carry, read straight off the funnel's catalog (see pipelines.ts).
  *
  * The map is the section's fixed point. It is always mounted, it is never
  * swapped for anything else, and it is sticky, so it holds its place on the
  * left while the right column scrolls past it. Everything else answers to it:
- * the right column says what the current selection is made of, and the toggle
- * chooses how — "detail" for what a system is, "flow" for how it runs.
+ * the right column says what the current selection is made of.
  *
- * Selection lives here and has three parts: which system (or "all"), which
- * agent inside it, and what the right column shows. Passing all three down is
+ * Selection lives here and has two parts: which system (or "all") and which
+ * agent inside it. Passing both down is
  * what makes the map and the panel one interface rather than two: clicking a
  * hub selects that system, clicking the core selects them all, clicking an
  * agent node opens its row, and opening a row lights its node.
@@ -62,40 +64,18 @@ import {
  *      happened. The phone keeps a scoped Back control, because it has no node
  *      to click twice.
  *
- * ── THE DETAIL/FLOW BUG, AND WHY MOVING THE CONTROL IS THE FIX ────────────
+ * The section opens on "all", every system at equal weight. A visitor narrows
+ * from there by clicking the map.
  *
- * Detail and Flow used to be a global control in that same row, present even
- * with nothing selected. In that state it was broken, and not subtly: with no
- * system selected, PipelinePanel and FlowView BOTH fell back to rendering the
- * same AllSystemsIndex. So pressing Flow re-keyed the Crossfade, played the
- * fade, and produced byte-identical content. It looked like a refresh that
- * failed to load, and it only began working after the reader selected a system
- * by some other means.
- *
- * It was never a stale closure or a state read before its re-render. It was a
- * control offered in a state where both of its options were defined to produce
- * the same output. So the fix is not a forced re-render, it is scope: the
- * toggle now mounts inside the right column and only when a system is
- * selected, which is also exactly what the review asked for. A state where the
- * control does nothing no longer exists.
- *
- * The section still opens on "all", every system at equal weight, because that
- * is the honest first answer to "what has been built". A visitor narrows from
- * there by clicking the map.
+ * On main this section also had a Detail/Flow toggle and a flow view of each
+ * system's workflow steps. The catalog holds no steps, so both were left out
+ * of the port rather than fed invented ones.
  *
  * Desktop and mobile render different trees on purpose. A radial graph at
  * 360px wide is unreadable, so the phone gets the intelligence mark, then the
- * system, then its workflow, then its agents — the same information in the
+ * system, then its agents and their jobs — the same information in the
  * order a small screen can actually read it.
  */
-
-/** What the right column shows. The left column never changes. */
-type RightView = "detail" | "flow";
-
-const RIGHT_VIEWS: { id: RightView; label: string }[] = [
-  { id: "detail", label: "Detail" },
-  { id: "flow", label: "Flow" },
-];
 
 /** Matches the lg breakpoint the layout switches at. Starts false so the
  *  server render is the mobile one, which is the safe default. */
@@ -111,10 +91,19 @@ function useIsWide() {
   return wide;
 }
 
-export default function SystemDirectory() {
+interface SystemDirectoryProps {
+  /**
+   * Set when the directory OPENS the page, as it does on /products (W24-B2):
+   * this is the page's eyebrow, drawn in place of the section header, and the
+   * counted sentence becomes the page's h1. The section then clears the navbar
+   * itself, and nothing sits between the navbar and the map but these two.
+   */
+  lead?: ReactNode;
+}
+
+export default function SystemDirectory({ lead }: SystemDirectoryProps = {}) {
   const [selectedId, setSelectedId] = useState<Selection>(ALL);
   const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
-  const [view, setView] = useState<RightView>("detail");
   const isWide = useIsWide();
 
   // findPipeline answers an unknown id with the first system, so "all" has to
@@ -141,17 +130,6 @@ export default function SystemDirectory() {
   return (
     <section
       id="systems"
-      // `data-dir-dark` stays: the palette re-asserts the light values through
-      // it now, so it flips nothing and the attribute costs nothing.
-      //
-      // `data-nav-dark` is gone. It is not inert the way that one is: the
-      // navbar paints an explicit rgba(0,0,0,0.72) bar while it is over a
-      // section carrying it, hardcoded inline rather than through a token, so
-      // it survived the palette going white. This was the last section in the
-      // app still declaring itself dark, and it is white, so the bar spent
-      // every scroll through the directory as a black strip across the top of
-      // a white page. The hero dropped the same attribute for the same reason.
-      data-dir-dark
       // `overflow-x-clip`, not `overflow-hidden`: hidden makes this a scroll
       // container, which silently kills the sticky map inside it. Clip keeps
       // anything the section overhangs with off the horizontal scrollbar
@@ -160,7 +138,11 @@ export default function SystemDirectory() {
     >
       <Atmosphere />
 
-      <div className="relative z-10 mx-auto max-w-[1400px] px-6 py-24 md:px-10 md:py-32">
+      <div
+        className={`relative z-10 mx-auto max-w-[1400px] px-6 md:px-10 ${
+          lead ? "clears-nav-page pb-20 md:pb-24" : "py-24 md:py-32"
+        }`}
+      >
         {/* No headline. The eyebrow names the section and the counted sentence
             below says what it is; a display title on top of both was a third
             voice saying the same thing.
@@ -171,25 +153,42 @@ export default function SystemDirectory() {
             An sr-only h2 names the section for crawlers and screen readers
             without putting the third voice back on the page — the same trick
             the hero uses to keep its full sentence. */}
-        <h2 className="sr-only">The Ziiro System</h2>
-        <SectionHeader
-          index="01"
-          label="The Ziiro System"
-          meta={`${DIRECTORY_STATS.departments} departments`}
-        />
-
-        {/* Every number here is counted off the pipeline data, not typed into
-            a sentence, so it cannot drift as systems are added. */}
-        <ScrollScene exitTo={1}>
-          <p
-            className="mt-8 max-w-[46ch] text-[17px] leading-relaxed md:text-[19px]"
-            style={{ color: "var(--dir-dim)" }}
-          >
-            <Figure>{DIRECTORY_STATS.jobs}</Figure> jobs of work, mapped across{" "}
-            <Figure>{DIRECTORY_STATS.agents}</Figure> agents in{" "}
-            <Figure>{DIRECTORY_STATS.departments}</Figure> departments.
-          </p>
-        </ScrollScene>
+        {lead ? (
+          <>
+            {lead}
+            {/* The page's h1 and its first content, so it is never held back
+                behind a scroll reveal. */}
+            <h1
+              className="mt-6 max-w-[24ch] font-display font-semibold"
+              style={{
+                fontSize: "clamp(1.9rem, 3.6vw, 3rem)",
+                letterSpacing: "-0.03em",
+                lineHeight: 1.1,
+                color: "var(--dir-dim)",
+              }}
+            >
+              <CountedSentence />
+            </h1>
+            <h2 className="sr-only">The Ziiro System</h2>
+          </>
+        ) : (
+          <>
+            <h2 className="sr-only">The Ziiro System</h2>
+            <SectionHeader
+              index="01"
+              label="The Ziiro System"
+              meta={`${DIRECTORY_STATS.departments} departments`}
+            />
+            <MotionReveal>
+              <p
+                className="mt-8 max-w-[46ch] text-[17px] leading-relaxed md:text-[19px]"
+                style={{ color: "var(--dir-dim)" }}
+              >
+                <CountedSentence />
+              </p>
+            </MotionReveal>
+          </>
+        )}
 
         {/* The control row that used to sit here is gone, both halves of it.
             See the note at the top of this file for what each one was and why
@@ -218,34 +217,19 @@ export default function SystemDirectory() {
               </p>
             </div>
 
-            {/* Keyed on the view and the system together, so changing either
-                arrives. The agent is deliberately not in the key: opening an
-                agent row must not re-fade the panel that row lives in. */}
+            {/* Keyed on the system, so changing it arrives. The agent is
+                deliberately not in the key: opening an agent row must not
+                re-fade the panel that row lives in. */}
             <div className="min-w-0">
               {pipeline ? (
-                <>
-                  <ViewToggle
-                    view={view}
-                    onChange={setView}
-                    systemName={pipeline.name}
+                <Crossfade id={selectedId}>
+                  <PipelinePanel
+                    pipeline={pipeline}
+                    activeAgentId={activeAgentId}
+                    onAgentSelect={setActiveAgentId}
+                    onSelect={select}
                   />
-                  <Crossfade id={`${view}:${selectedId}`}>
-                    {view === "detail" ? (
-                      <PipelinePanel
-                        pipeline={pipeline}
-                        activeAgentId={activeAgentId}
-                        onAgentSelect={setActiveAgentId}
-                        onSelect={select}
-                      />
-                    ) : (
-                      <FlowView
-                        pipeline={pipeline}
-                        activeAgentId={activeAgentId}
-                        onSelect={select}
-                      />
-                    )}
-                  </Crossfade>
-                </>
+                </Crossfade>
               ) : (
                 <DirectorySummary />
               )}
@@ -270,11 +254,6 @@ export default function SystemDirectory() {
                       reintroduce the control that was removed. */}
                   <BackToSystems onClick={() => select(ALL)} />
                   <PipelineIdentity pipeline={pipeline} />
-                  <FlowView
-                    pipeline={pipeline}
-                    activeAgentId={activeAgentId}
-                    onSelect={select}
-                  />
                   <PipelineDetail
                     pipeline={pipeline}
                     activeAgentId={activeAgentId}
@@ -299,106 +278,29 @@ export default function SystemDirectory() {
   );
 }
 
-/**
- * Detail and Flow, for the system that is currently focused.
- *
- * It sits INSIDE the right column, above the content it governs, and it is
- * mounted only when a system is selected. That placement is the whole fix: as
- * a global control in the row above, it existed in a state where both its
- * options rendered the same thing, so pressing it crossfaded the column and
- * changed nothing. See the bug note at the top of this file.
- *
- * It names the system it belongs to, so a reader can tell it governs the
- * selection rather than the section.
- */
-function ViewToggle({
-  view,
-  onChange,
-  systemName,
-}: {
-  view: RightView;
-  onChange: (v: RightView) => void;
-  systemName: string;
-}) {
-  return (
-    <div
-      className="mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 border-b pb-4"
-      style={{ borderColor: "var(--dir-line)" }}
-    >
-      <p
-        className="font-mono text-[10px] uppercase"
-        style={{ letterSpacing: "0.18em", color: "var(--dir-faint)" }}
-      >
-        {systemName}
-      </p>
-      <div
-        role="group"
-        aria-label={`Choose what to show for ${systemName}`}
-        className="flex shrink-0 items-center gap-5"
-      >
-        {RIGHT_VIEWS.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            aria-pressed={view === v.id}
-            onClick={() => onChange(v.id)}
-            className="relative -my-3 rounded-sm py-3 font-mono text-[10px] font-bold uppercase focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--dir-ink)] focus-visible:ring-offset-4 focus-visible:ring-offset-[var(--dir-bg)]"
-            style={{
-              letterSpacing: "0.24em",
-              color: view === v.id ? "var(--dir-ink)" : "var(--dir-faint)",
-              transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
-            }}
-          >
-            {v.label}
-            <span
-              aria-hidden="true"
-              className="absolute bottom-1.5 left-0 block h-px w-full"
-              style={{
-                background: "var(--dir-ink)",
-                opacity: view === v.id ? 1 : 0,
-                transition: `opacity ${MS.micro}ms ${CSS_EASE.out}`,
-              }}
-            />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** Two digits, so 07 and 48 line up in a column. Matches the panel's own. */
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
- * The whole system in totals, counted off the pipeline data.
+ * The whole system in totals, counted off the catalog.
  *
- * Deliberately the SAME six figures, in the same order and the same grid, that
- * PipelineDetail shows for one system. One system and all seven are then the
- * same shape at two scales, and selecting a department reads as zooming rather
- * than as swapping to an unrelated panel.
+ * Deliberately the SAME figures, in the same order and the same grid, that
+ * PipelineDetail shows for one system: agents, jobs, then the three marks. One
+ * system and all seven are then the same shape at two scales, and selecting a
+ * department reads as zooming rather than as swapping to an unrelated panel.
  *
- * Integrations and outputs are counted DISTINCT rather than summed. Two
- * departments connecting to the same tool are one integration, and adding the
- * per-system counts reports 32 where the truth is 21.
- *
- * Nothing here is typed. A new department, agent or step in pipelines.ts moves
+ * Nothing here is typed. A new department, agent or job in the catalog moves
  * every one of these numbers on its own.
  */
 const SYSTEM_TOTALS = (() => {
-  const steps = PIPELINES.flatMap((p) => p.steps);
+  const jobs = PIPELINES.flatMap(jobsIn);
   return [
-    { label: "Steps", value: steps.length },
-    { label: "Automated", value: steps.filter((s) => s.automated).length },
     { label: "Agents", value: DIRECTORY_STATS.agents },
-    {
-      label: "Capabilities",
-      value: PIPELINES.reduce(
-        (n, p) => n + p.agents.reduce((m, a) => m + a.capabilities.length, 0),
-        0,
-      ),
-    },
-    { label: "Integrations", value: new Set(PIPELINES.flatMap((p) => p.integrations)).size },
-    { label: "Outputs", value: new Set(PIPELINES.flatMap((p) => p.outputs)).size },
+    { label: "Jobs", value: DIRECTORY_STATS.jobs },
+    ...MARKS.map((m) => ({
+      label: m.label,
+      value: jobs.filter((j) => j.status === m.status).length,
+    })),
   ];
 })();
 
@@ -411,15 +313,12 @@ const SYSTEM_TOTALS = (() => {
  * hub nodes sitting beside it: a second way to do the same selection. This
  * names no system and offers no selection at all. It says what the directory
  * is made of in aggregate and how the parts relate, which is the one thing the
- * graph cannot express, because a picture of seven hubs cannot tell you that
- * forty of forty-eight steps run unattended.
+ * graph cannot express: how many of the jobs carry which mark.
  *
  * The hint survives, but as a footnote under the overview rather than as the
  * entire content of the column.
  */
 function DirectorySummary() {
-  const inBuild = DIRECTORY_STATS.departments - DIRECTORY_STATS.live;
-
   return (
     <div className="border-t pt-6" style={{ borderColor: "var(--dir-line)" }}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
@@ -429,44 +328,23 @@ function DirectorySummary() {
         >
           The whole system
         </h3>
-        {/* The "in build" half is printed ONLY when something is in build.
-            With every department running it would otherwise read
-            "07 ACTIVE · 00 IN BUILD", which states a cohort that does not
-            exist and contradicts the sentence below it. The conditional is
-            not cosmetic: it is what keeps this line true in both states, and
-            it restores itself the moment a department goes back to
-            "in-build" in pipelines.ts. */}
         <p
           className="font-mono text-[10px] uppercase tabular-nums"
           style={{ letterSpacing: "0.18em", color: "var(--dir-faint)" }}
         >
-          {pad(DIRECTORY_STATS.live)} active
-          {inBuild > 0 ? ` · ${pad(inBuild)} in build` : ""}
+          {pad(DIRECTORY_STATS.departments)} departments
         </p>
       </div>
 
-      {/* The counts are interpolated rather than written out, for the same
-          reason every other figure in this section is: a number spelled into a
-          sentence is a number that goes stale silently. */}
+      {/* No figure is spelled into this paragraph; the honest line is the
+          plan's own copy line, so the graph and the plan say it the same way. */}
       <p
         className="mt-5 max-w-[46ch] text-[15px] leading-relaxed"
         style={{ color: "var(--dir-dim)" }}
       >
-        {inBuild > 0 ? (
-          <>
-            <Figure>{DIRECTORY_STATS.live}</Figure> of the{" "}
-            <Figure>{DIRECTORY_STATS.departments}</Figure> departments run
-            today, and <Figure>{inBuild}</Figure> are still in build.
-          </>
-        ) : (
-          <>
-            All <Figure>{DIRECTORY_STATS.departments}</Figure> departments run
-            today.
-          </>
-        )}{" "}
-        Each one is a workflow: agents carry the steps, and an agent's
-        capabilities are the outermost dots on the map, so the picture and
-        these totals describe the same structure.
+        Each department is a set of agents, and each agent carries its jobs,
+        the outermost dots on the map, so the picture and these totals
+        describe the same structure. {copy("sp.hero.honest")}
       </p>
 
       <dl className="mt-9 grid grid-cols-2 gap-x-8 gap-y-7 sm:grid-cols-3">
@@ -508,8 +386,8 @@ function DirectorySummary() {
           className="max-w-[42ch] text-[13px] leading-relaxed"
           style={{ color: "var(--dir-faint)" }}
         >
-          Click a system on the map to see what it is made of and how it runs.
-          Click it again to come back here.
+          Click a system on the map to see its agents and their jobs. Click it
+          again to come back here.
         </p>
       </div>
     </div>
@@ -545,9 +423,10 @@ function BackToSystems({ onClick }: { onClick: () => void }) {
  * immediately and animates only its opacity, which is the part a reader
  * actually notices.
  *
- * The very first render carries no `initial`, because framer writes `initial`
- * into the prerendered markup — and a panel that ships as opacity:0 is a panel
- * nobody whose JS failed will ever read.
+ * The very first render carries no fade, because it would be written into the
+ * prerendered markup — and a panel that ships as opacity:0 is a panel nobody
+ * whose JS failed will ever read. The fade is a CSS animation (index.css), so
+ * the swap costs no animation library.
  */
 function Crossfade({
   id,
@@ -567,20 +446,34 @@ function Crossfade({
   if (shouldReduce) return <div className={className}>{children}</div>;
 
   return (
-    <motion.div
+    <div
       key={id}
       className={className}
-      initial={mounted.current ? { opacity: 0 } : false}
-      animate={{ opacity: 1 }}
-      transition={{ duration: DURATION.swap, ease: EASE_OUT_EXPO }}
+      style={
+        mounted.current
+          ? { animation: `directory-fade ${MS.swap}ms ${CSS_EASE.outExpo} both` }
+          : undefined
+      }
     >
       {children}
-    </motion.div>
+    </div>
+  );
+}
+
+/** Every number here is counted off the catalog, not typed into a sentence,
+ *  so it cannot drift as the catalog changes. */
+function CountedSentence() {
+  return (
+    <>
+      <Figure>{DIRECTORY_STATS.jobs}</Figure> jobs of work, mapped across{" "}
+      <Figure>{DIRECTORY_STATS.agents}</Figure> agents in{" "}
+      <Figure>{DIRECTORY_STATS.departments}</Figure> departments.
+    </>
   );
 }
 
 /** A counted number, set to read as a figure rather than as prose. */
-function Figure({ children }: { children: React.ReactNode }) {
+function Figure({ children }: { children: ReactNode }) {
   return (
     <span
       className="font-display font-semibold tabular-nums"

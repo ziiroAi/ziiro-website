@@ -8,7 +8,7 @@
 export const routes = [
   {
     path: "/",
-    sources: ["src/pages/Index.tsx", "src/features/home"],
+    sources: ["src/pages/Index.tsx", "src/features/funnel"],
     changefreq: "weekly",
     priority: "1.0",
     // Fallback <lastmod> for build environments without usable git history
@@ -17,7 +17,7 @@ export const routes = [
   },
   {
     path: "/products",
-    sources: ["src/pages/Products.tsx"],
+    sources: ["src/pages/Products.tsx", "src/features/home/directory", "src/features/funnel/data/agents.generated.ts"],
     changefreq: "monthly",
     priority: "0.9",
     fallback: "2026-07-27",

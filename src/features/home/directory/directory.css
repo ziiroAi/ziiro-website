@@ -1,0 +1,89 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   SYSTEM DIRECTORY (/products, first section)
+   ──────────────────────────────────────────────────────────────────────────
+   Ported from main's index.css directory block. It lives here, imported by
+   SystemDirectory, so it ships with the /products chunk rather than in the
+   global sheet D26 cleared of the old homepage (tests/unit/old-home-css).
+   Its [data-dir-dark] scope is not ported: the --dir-* tokens already live in
+   index.css's palette, so the section is simply part of the white page. The
+   status pulse went with the "Active" tag it drew, and directory-fade
+   replaces framer-motion's opacity swap.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* The travelling dash on the selected spoke. */
+@keyframes directory-flow {
+  to { stroke-dashoffset: -40; }
+}
+
+@keyframes directory-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes directory-core {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* The bundle's two depth halves yaw against each other. Six tenths of a
+   degree is enough for the parallax to read as depth and small enough that the
+   strands never visibly part company with the nodes they run through. */
+@keyframes directory-yaw-a {
+  0%, 100% { transform: rotate(-0.6deg); }
+  50% { transform: rotate(0.6deg); }
+}
+
+@keyframes directory-yaw-b {
+  0%, 100% { transform: rotate(0.6deg); }
+  50% { transform: rotate(-0.6deg); }
+}
+
+/* Strands are authored with pathLength="1", so one dash covers the whole path
+   and the offset animates it on from the core outwards. */
+@keyframes directory-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* A panel swap: the new content takes the box at once and only fades in. */
+@keyframes directory-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.directory-yaw-front { animation: directory-yaw-a 32s ease-in-out infinite; }
+.directory-yaw-back { animation: directory-yaw-b 32s ease-in-out infinite; }
+.directory-draw {
+  stroke-dasharray: 1;
+  animation: directory-draw 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.directory-flow { animation: directory-flow 2.4s linear infinite; }
+.directory-orbit { animation: directory-orbit 24s linear infinite; }
+.directory-core { animation: directory-core 4.5s ease-in-out infinite; }
+
+/* Hidden only where JS can reveal it, so the prerendered markup a crawler
+   sees is complete. */
+.js [data-map-reveal] { opacity: 0; }
+
+/* SVG nodes are real buttons, so they need a real focus ring. The ring is a
+   drawn circle rather than an outline, because outline on an SVG <g> is
+   inconsistent across browsers. */
+[data-map-node] { outline: none; }
+.map-focus { opacity: 0; transition: opacity 150ms ease; }
+[data-map-node]:focus-visible .map-focus { opacity: 0.9; }
+
+@media (prefers-reduced-motion: reduce) {
+  .directory-flow,
+  .directory-orbit,
+  .directory-core,
+  .directory-yaw-front,
+  .directory-yaw-back {
+    animation: none;
+  }
+  /* The strands must end up drawn, not stuck at zero length. */
+  .directory-draw {
+    stroke-dasharray: none;
+    animation: none;
+  }
+  .js [data-map-reveal] { opacity: 1; }
+}

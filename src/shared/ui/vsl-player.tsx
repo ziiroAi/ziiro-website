@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
 import { CSS_EASE, DURATION } from "@/shared/motion/tokens";
-import ScrollAutoplayVideo from "@/shared/ui/scroll-autoplay-video";
+import ScrollAutoplayVideo, { NARROW } from "@/shared/ui/scroll-autoplay-video";
 
 export type VslSource =
   | { kind: "youtube"; id: string }
@@ -11,11 +11,9 @@ export type VslSource =
       kind: "file";
       src: string;
       /**
-       * Lighter encode for narrow viewports. A phone renders this frame at a
-       * third of its desktop width and pays for the bytes on a metered plan,
-       * so shipping the 1080p master to it is a tax with nothing bought.
-       * Only consulted in "autoplay" mode, where the file downloads on
-       * approach rather than on a press.
+       * Lighter encode for narrow viewports, offered as a <source media> in every mode: the
+       * browser picks it on approach in "autoplay" and on the press in "facade". A phone pays
+       * for the bytes on a metered plan, so the 1080p master is a tax with nothing bought.
        */
       narrowSrc?: string;
     };
@@ -298,13 +296,15 @@ export default function VslPlayer({
         vslSource.kind === "file" ? (
           <video
             className="absolute inset-0 h-full w-full"
-            src={vslSource.src}
             poster={poster}
             controls
             autoPlay={playing}
             preload={mode === "embed" ? "metadata" : undefined}
             playsInline
-          />
+          >
+            {vslSource.narrowSrc && <source media={NARROW} src={vslSource.narrowSrc} type="video/mp4" />}
+            <source src={vslSource.src} type="video/mp4" />
+          </video>
         ) : (
           <iframe
             className="absolute inset-0 h-full w-full"

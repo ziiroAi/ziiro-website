@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FocusEvent, type ReactNode, type RefO
 import { Link } from "react-router-dom";
 import { createAnimatable, cubicBezier } from "animejs";
 import MotionReveal from "@/shared/motion/MotionReveal";
+import { useOnFunnelForm } from "@/shared/components/funnel-form";
 import { scrollTo } from "@/shared/motion/SmoothScroll";
 import {
   CSS_EASE,
@@ -318,8 +319,29 @@ function useFooterShown(ref: RefObject<HTMLElement>) {
  *      under the sheet, so tabbing into it scrolls nothing and the focus ring
  *      would be drawn behind the page. Keyboard focus arriving in the footer
  *      scrolls to the end, which uncovers all of it.
+ *
+ * W16-B: not on the funnel's questions, which are a form that fits the screen (funnel-form.tsx). It comes with the plan.
  */
 export default function Footer() {
+  return useOnFunnelForm() ? <FormFooter /> : <SiteFooter />;
+}
+
+/** The questions' footer: the same links, out of sight, so "/" still links every page (§8.2) and nothing scrolls. */
+function FormFooter() {
+  return (
+    <footer className="sr-only">
+      {COLUMNS.map((col) => (
+        <nav key={col.head} aria-label={col.head}>
+          {col.links.map((l) => (
+            <Link key={l.to} to={l.to}>{l.label}</Link>
+          ))}
+        </nav>
+      ))}
+    </footer>
+  );
+}
+
+function SiteFooter() {
   const ref = useRef<HTMLElement>(null);
   const pinned = usePinnable(ref);
   const shown = useFooterShown(ref);

@@ -18,7 +18,7 @@ when the math doesn't support it.
   cannot drift from the site. Fetch this instead of crawling the pages individually.
 
 ## Start here
-- [Ziiro AI](https://ziiroai.com): AI that has to pay for itself. The agent directory behind the work — the jobs, agents and departments we actually run — and the ask: an hourly consultation.
+- [Ziiro AI](https://ziiroai.com): The home page. It says hello, asks "What do you do?" and a few more questions, then puts together a plan for the visitor's business in about a minute. ziiro AI is an AI consultancy based in India, working with teams worldwide.
 - [Book a Call](https://ziiroai.com/book-a-call): The conversion page, and the only one that explains what happens IN the strategy session. A paid hourly session with a one hour minimum, booked through Calendly. Bring the work that consumes time, creates bottlenecks or feels unnecessarily manual, and leave with three things: priority opportunities where AI or automation may create the most leverage, rough ROI and effort sizing as an initial view of value against complexity, and one recommended next move. Contact is the separate quiet page for general inquiries, partnerships, press and questions before booking.
 - [Contact](https://ziiroai.com/contact): The quiet page for anything that is not a booking: a question, a partnership idea, or something you want us to look at. A message form with a reason field covering project inquiry, partnership, existing client, press and media, general question and other, plus the direct address, contact@ziiroai.com, and a usual reply inside 24 hours. Booking a session happens on Book a Call instead.
 

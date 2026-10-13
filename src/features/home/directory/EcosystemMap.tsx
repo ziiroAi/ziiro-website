@@ -7,22 +7,22 @@ import {
   type RefObject,
 } from "react";
 import { createTimeline, stagger } from "animejs";
-import { useReducedMotion } from "framer-motion";
 
-import type { Pipeline } from "./pipelines";
+import { jobsIn, type Pipeline } from "./pipelines";
 import { buildLayout, CENTRE, VIEW, type MapNode } from "./layout";
+import { useReducedMotion } from "./motion";
 
 /**
  * The ecosystem map: the section's fixed anchor.
  *
- * Seven systems around a shared core, each grown as a real tree: agents, then
- * what each agent can do and which steps it runs, then that step's input and
- * output. Branches end at different depths because the data does, and that
- * unevenness is what stops it looking like a diagram of itself. Every dot is a
- * string that also appears in the right column; none of it is filler, and no
- * number here is invented: counts are read off the pipeline objects.
+ * Seven departments around a shared core, each grown as a real tree: agents,
+ * then the jobs each agent carries. Branches end at different lengths because
+ * the catalog does, and that unevenness is what stops it looking like a
+ * diagram of itself. Every dot is a job that also appears in the right column;
+ * none of it is filler, and no number here is invented: counts are read off
+ * the catalog.
  *
- * Under the trees, every node in the fourth rank also puts down a root into the
+ * Under the trees, every agent and job also puts down a root into the
  * core. Those roots are what make the centre dense: the whole inventory
  * converging on one point, drawn, rather than a particle effect. The bundle is
  * split into a far and a near half so the core sits inside the tangle, and the
@@ -79,7 +79,7 @@ const BG = "var(--dir-bg)";
 const PX = {
   /** The rim label: the system's name. */
   name: 19,
-  /** Its three-word caption, drawn from the system's own step names. */
+  /** Its caption: how many agents and jobs it holds. */
   caption: 9.5,
   /** The numeral inside a hub. */
   hub: 11,
@@ -92,8 +92,8 @@ const PX = {
   agentHit: 13,
 } as const;
 
-/** Below this column width the three-word captions come off: at that size they
- *  are more texture than information, and the names have to win. */
+/** Below this column width the captions come off: at that size they are more
+ *  texture than information, and the names have to win. */
 const CAPTION_MIN_WIDTH = 380;
 
 /** What the map assumes until it has measured itself. Matches the desktop
@@ -195,8 +195,8 @@ export default function EcosystemMap({
             {
               ...s.node,
               // A hub's readout says what the system is and what it is made of,
-              // counted off the data rather than asserted.
-              label: `${pipeline.name} · ${pipeline.steps.length} steps · ${pipeline.agents.length} agents`,
+              // counted off the catalog rather than asserted.
+              label: `${pipeline.name} · ${pipeline.agents.length} agents · ${jobsIn(pipeline).length} jobs`,
             },
             ...s.agents,
             ...s.nodes,
@@ -524,8 +524,7 @@ export default function EcosystemMap({
                   })}
                 </g>
 
-                {/* Everything below the agents: what each one can do, the steps
-                    it runs, and a step's two ends.
+                {/* Everything below the agents: the jobs each one carries.
 
                     This is the detail, and it is only drawn for systems being
                     read: all seven in the "all" view, one when one is selected.
@@ -542,7 +541,6 @@ export default function EcosystemMap({
                 >
                   <g aria-hidden="true" style={{ pointerEvents: "none" }}>
                     {system.nodes.map((n, i) => {
-                      if (n.kind === "io" && !open) return null;
                       const dimmed =
                         open && !!activeAgentId && activeAgentId !== n.agentId;
                       return (
@@ -553,7 +551,7 @@ export default function EcosystemMap({
                           x2={n.x}
                           y2={n.y}
                           stroke={open ? DIM : LINE_STRONG}
-                          strokeWidth={n.kind === "io" ? 0.7 : 1}
+                          strokeWidth={1}
                           vectorEffect="non-scaling-stroke"
                           strokeLinecap="round"
                           pathLength={1}
@@ -570,15 +568,11 @@ export default function EcosystemMap({
                     })}
                   </g>
 
-                  {/* Two marks, and the difference carries meaning: a solid dot
-                      is something the system does, a hollow ring is one end of
-                      it, an input or an output. */}
+                  {/* One mark: every dot out here is a job. */}
                   {system.nodes.map((n) => {
-                    if (n.kind === "io" && !open) return null;
-                    const tip = n.kind === "io";
                     const dimmed =
                       open && !!activeAgentId && activeAgentId !== n.agentId;
-                    const r = (tip ? 3.6 : open ? 5.6 : 4.8) + n.z * 1.1;
+                    const r = (open ? 5.6 : 4.8) + n.z * 1.1;
                     return (
                       <g
                         key={n.key}
@@ -594,9 +588,9 @@ export default function EcosystemMap({
                           cx={n.x}
                           cy={n.y}
                           r={r}
-                          fill={tip ? BG : open ? INK : DIM}
-                          stroke={tip ? FAINT : BG}
-                          strokeWidth={tip ? 1 : 0.75}
+                          fill={open ? INK : DIM}
+                          stroke={BG}
+                          strokeWidth={0.75}
                           vectorEffect="non-scaling-stroke"
                         />
                       </g>
@@ -687,7 +681,7 @@ export default function EcosystemMap({
                   role="button"
                   tabIndex={0}
                   aria-pressed={open}
-                  aria-label={`${pipeline.name}. ${pipeline.steps.length} steps, ${pipeline.agents.length} agents.`}
+                  aria-label={`${pipeline.name}. ${pipeline.agents.length} agents, ${jobsIn(pipeline).length} jobs.`}
                   className="cursor-pointer"
                   onClick={() => select(system.pipelineId)}
                   onKeyDown={activate(() => select(system.pipelineId))}
@@ -796,7 +790,7 @@ export default function EcosystemMap({
                       paintOrder="stroke"
                       style={{ transition: ease("fill") }}
                     >
-                      {pipeline.tags.join("  ·  ").toUpperCase()}
+                      {`${pipeline.agents.length} agents  ·  ${jobsIn(pipeline).length} jobs`.toUpperCase()}
                     </text>
                   )}
                 </g>

@@ -1,25 +1,22 @@
 import type { Pipeline } from "./pipelines";
 
 /**
- * The ecosystem map's geometry: a real tree per system, and the root bundle
+ * The ecosystem map's geometry: a real tree per department, and the root bundle
  * they all share.
  *
- * Each system grows a branching tree several levels deep, and every level is
- * something in the data:
+ * Each department grows a branching tree, and every level is something in the
+ * catalog:
  *
- *   system      the pipeline
+ *   system      the department
  *   agent       the agents inside it
- *   capability  what that agent does          (leaf)
- *   step        the workflow steps it owns
- *   io          that step's input and output  (leaf)
+ *   job         what that agent does  (leaf)
  *
- * So branches are uneven by construction — a capability stops at level four,
- * a step carries on to level five — which is what stops the picture looking
- * like a diagram of itself. Nothing here is filler: every dot is a string that
- * also appears in the panel or the workflow.
+ * Branches are uneven by construction, because agents carry different numbers
+ * of jobs (two to ten), which is what stops the picture looking like a diagram
+ * of itself. Nothing here is filler: every dot is a job the panel also lists.
  *
- * Underneath, every level-four node also puts down a short root into the
- * shared core. Around a hundred and thirty of those converge on one point,
+ * Underneath, every agent and every job also puts down a short root into the
+ * shared core. Around a hundred and seventy of those converge on one point,
  * which is what makes the centre dense: it is the whole inventory feeding back
  * into one place, drawn, rather than a particle effect.
  *
@@ -39,9 +36,8 @@ const R_SYSTEM = 158;
 const R_AGENT = 196;
 const R_LABEL = 452;
 
-/** One step along a chain, and the stub out to a step's input or output. */
+/** One step along a chain. */
 const SEG = 36;
-const IO_SEG = 22;
 /** Children per limb. Long limbs are the point: the reference's trees are
  *  chains of four or five stepping outward, not clusters hanging off a hub. */
 const CHAIN_LEN = 4;
@@ -83,7 +79,7 @@ function polar(angleDeg: number, radius: number) {
 const fmt = (p: { x: number; y: number }) =>
   `${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
 
-export type NodeKind = "system" | "agent" | "capability" | "step" | "io";
+export type NodeKind = "system" | "agent" | "job";
 
 export interface MapNode {
   key: string;
@@ -123,8 +119,8 @@ export interface SystemLayout {
   anchor: "start" | "middle" | "end";
   /** Clickable agent nodes, kept separate because they carry interaction. */
   agents: MapNode[];
-  /** Everything below the agents: capabilities, steps, and step inputs and
-   *  outputs, flattened — each already knows where its parent sits. */
+  /** Everything below the agents, their jobs, flattened: each already knows
+   *  where its parent sits. */
   nodes: MapNode[];
   roots: RootStrand[];
 }
@@ -192,17 +188,13 @@ export function buildLayout(pipelines: Pipeline[]): SystemLayout[] {
       });
     };
 
-    // Branches off the system: one per agent, plus one for any steps no agent
-    // owns, so nothing in the data goes unrepresented.
-    const orphanSteps = pipeline.steps.filter((s) => !s.agent);
-    const branchCount = pipeline.agents.length + (orphanSteps.length ? 1 : 0);
+    // Branches off the system: one per agent.
+    const branchCount = pipeline.agents.length;
     const branchHalf = (arcHalf / Math.max(branchCount, 1)) * 0.95;
 
     interface Child {
       id: string;
       label: string;
-      kind: "capability" | "step";
-      step?: Pipeline["steps"][number];
     }
 
     /**
@@ -241,7 +233,7 @@ export function buildLayout(pipelines: Pipeline[]): SystemLayout[] {
 
         nodes.push({
           key: seed,
-          kind: child.kind,
+          kind: "job",
           pipelineId: pipeline.id,
           agentId,
           label: child.label,
@@ -253,33 +245,6 @@ export function buildLayout(pipelines: Pipeline[]): SystemLayout[] {
           z,
         });
         root(seed, agentId, z);
-
-        // A step's two ends hang off it as short stubs, which is where the
-        // small hollow rings in the picture come from.
-        if (child.step) {
-          const ends = [
-            { id: "in", label: child.step.input },
-            { id: "out", label: child.step.output },
-          ];
-          ends.forEach((end, k) => {
-            const eSeed = `${seed}:${end.id}`;
-            const ea = a + (k === 0 ? -1 : 1) * (12 + hash01(eSeed) * 12);
-            const epos = polar(ea, r + IO_SEG * (0.7 + hash01(eSeed + "r") * 0.6));
-            nodes.push({
-              key: eSeed,
-              kind: "io",
-              pipelineId: pipeline.id,
-              agentId,
-              label: end.label,
-              x: epos.x,
-              y: epos.y,
-              r: 4,
-              px: pos.x,
-              py: pos.y,
-              z: hash01(eSeed + "z"),
-            });
-          });
-        }
 
         parent = pos;
         void j;
@@ -306,21 +271,10 @@ export function buildLayout(pipelines: Pipeline[]): SystemLayout[] {
       };
       root(`${pipeline.id}:${agent.id}`, agent.id, aZ);
 
-      const children: Child[] = [
-        ...agent.capabilities.map((c, k) => ({
-          id: `c${k}`,
-          label: c,
-          kind: "capability" as const,
-        })),
-        ...pipeline.steps
-          .filter((st) => st.agent === agent.id)
-          .map((st) => ({
-            id: st.id,
-            label: st.name,
-            kind: "step" as const,
-            step: st,
-          })),
-      ];
+      const children: Child[] = agent.jobs.map((job) => ({
+        id: job.id,
+        label: job.name,
+      }));
 
       // Split into short chains rather than one long one, so an agent throws
       // two or three limbs instead of a single tendril.
@@ -342,25 +296,6 @@ export function buildLayout(pipelines: Pipeline[]): SystemLayout[] {
 
       return agentNode;
     });
-
-    // Steps nobody owns still belong to the system: they get their own branch
-    // rather than being dropped from the picture.
-    if (orphanSteps.length) {
-      const mid = fan(branchCount - 1, branchCount, angle, arcHalf);
-      growChain(
-        orphanSteps.map((st) => ({
-          id: st.id,
-          label: st.name,
-          kind: "step" as const,
-          step: st,
-        })),
-        mid,
-        R_SYSTEM + 26,
-        sys,
-        undefined,
-        `${pipeline.id}:unowned`,
-      );
-    }
 
     return {
       pipelineId: pipeline.id,

@@ -62,17 +62,46 @@ const POOLS = [
  *  Index-matched to POOLS. The keyframes themselves live in index.css. */
 const POOL_DRIFT = ["hero-drift-a", "hero-drift-b", "hero-drift-a"] as const;
 
+/** Runs `task` once the browser is idle (or soon, where it has no idle callback); returns a cancel. */
+function whenIdle(task: () => void): () => void {
+  if (typeof window.requestIdleCallback === "function") {
+    const id = window.requestIdleCallback(task, { timeout: IDLE_TIMEOUT_MS });
+    return () => window.cancelIdleCallback(id);
+  }
+  const id = window.setTimeout(task, 0);
+  return () => window.clearTimeout(id);
+}
+
+/** The latest the token is read, even on a page that never goes idle. */
+const IDLE_TIMEOUT_MS = 2000;
+
 export default function PageAtmosphere() {
   const poolRefs = useRef<(HTMLDivElement | null)[]>([]);
   const fieldRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let disarm: (() => void) | undefined;
+    // Not in the mount effect itself: a getComputedStyle there forces a style
+    // recalc and a layout inside the app's first long task (~17 ms on a phone
+    // profile, W15-E). The layer starts out of the box tree, so waiting costs
+    // nothing; once the page is idle, styles are clean and the read is cheap.
+    const cancel = whenIdle(() => {
+      disarm = arm();
+    });
+    return () => {
+      cancel();
+      disarm?.();
+    };
+  }, []);
+
+  /** Reads the token and, if the field is on, brings it back and starts the scroll work. */
+  const arm = (): (() => void) | undefined => {
     const root = rootRef.current;
 
     // Nothing is visible while the palette keeps the field at zero, and a
     // scroll listener that moves an invisible layer is pure cost on every page
-    // of the site. Read once, in an effect, so SSR never touches the DOM.
+    // of the site. Read once, after mount, so SSR never touches the DOM.
     const level = getComputedStyle(document.documentElement)
       .getPropertyValue("--page-atmosphere")
       .trim();
@@ -94,19 +123,18 @@ export default function PageAtmosphere() {
     // says the field is actually on. Nothing about the live behaviour changes:
     // raise the token and the classes, the will-change and the scroll work all
     // come back together. What changes is that "off" now means off.
-    if (!live) {
-      // Not display:none. The grain plate and the pools are already invisible;
-      // this just tells the browser it has nothing here worth a layer.
-      if (root) root.style.display = "none";
-      return;
-    }
+    // The layer renders with display:none and stays that way while the field
+    // is off. The grain plate and the pools would be invisible anyway; this
+    // just tells the browser it has nothing here worth a layer.
+    if (!live) return undefined;
+    if (root) root.style.display = "";
 
     // Reduced motion keeps the field but not the movement, so it stays inert
     // too: the static gradients are the whole point for this reader, and
     // arming will-change for transforms that are never going to run would be
     // the same waste in a quieter costume. index.css already zeroes the drift
     // animations here; not adding them at all is the same picture for less.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
 
     if (fieldRef.current) fieldRef.current.style.willChange = "transform";
     for (let i = 0; i < POOLS.length; i++) {
@@ -164,7 +192,7 @@ export default function PageAtmosphere() {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
     };
-  }, []);
+  };
 
   const pool = (i: number) => (el: HTMLDivElement | null) => {
     poolRefs.current[i] = el;
@@ -175,7 +203,7 @@ export default function PageAtmosphere() {
       ref={rootRef}
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
-      style={{ opacity: "var(--page-atmosphere, 1)" }}
+      style={{ opacity: "var(--page-atmosphere, 1)", display: "none" }}
     >
       {/* No will-change here either, for the same reason as the pools: the
           effect adds it when the field is actually live. */}

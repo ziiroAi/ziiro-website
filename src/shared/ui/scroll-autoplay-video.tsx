@@ -57,7 +57,7 @@ const WARM_MARGIN = "400px 0px";
 
 /** Where the lighter encode takes over. Matches Tailwind's `md`, which is the
  *  breakpoint the rest of the site lays out against. */
-const NARROW = "(max-width: 767px)";
+export const NARROW = "(max-width: 767px)";
 
 /** Level the film plays at once the viewer asks for sound. Deliberately low:
  *  this plays under a page someone is reading, and a brand film at full gain

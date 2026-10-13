@@ -16,6 +16,43 @@
          them. That hiding is gated on this class, so the prerendered HTML a
          non-JS crawler receives has every word of the hero visible. -->
     <script>document.documentElement.classList.add("js");</script>
+    <!-- (C) The funnel's greeting map (spec §4.2, decision 21). A row shows only when "checked" is true.
+         Hindi turns on once the owner has checked its three lines. 3 KB at most (§13.10). -->
+    <script id="funnel-greetings" type="application/json">[{"lang":"en","checked":true,"lines":["Hello, good morning.","Hello, good afternoon.","Hello, good evening."]},{"lang":"hi","checked":false,"lines":["नमस्ते, सुप्रभात।","नमस्ते, शुभ दोपहर।","नमस्ते, शुभ संध्या।"]}]</script>
+    <!-- (C) The funnel's boot (§4.2, §13.1, D9): theme, day-part and greeting before first paint, on "/" only.
+         It mirrors src/features/funnel/flow/boot.ts; head-script.test.ts keeps them in step. 2 KB at most. -->
+    <script id="funnel-boot">
+      (function () {
+        try {
+          if (location.pathname !== "/") return;
+          var d = document, w = window, h = new Date().getHours(), s = null;
+          try { s = w.localStorage.getItem("ziiro-theme"); } catch (e) {}
+          var part = h >= 5 && h < 12 ? 0 : h >= 12 && h < 17 ? 1 : 2;
+          var b = {
+            hour: h, t0: w.performance.now(), dayPart: ["morning", "afternoon", "evening"][part],
+            theme: s === "light" || s === "dark" ? s : h >= 6 && h < 18 ? "light" : "dark",
+            sub: h >= 5 && h < 8 ? "s0.sub.early" : h >= 8 && h < 22 ? "s0.sub.day" : "s0.sub.late",
+            lang: "en", greeting: "Hello.", early: null, ready: false
+          };
+          w.__funnelBoot = b;
+          d.documentElement.setAttribute("data-theme", b.theme);
+          d.documentElement.setAttribute("data-funnel", "questions");
+          d.addEventListener("click", function (e) {
+            var el = e.target && e.target.closest ? e.target.closest("[data-early]") : null;
+            if (!el || b.ready) return;
+            if (b.early === null) b.early = el.getAttribute("data-early");
+            el.setAttribute("data-pressed", "");
+          }, true);
+          var map = JSON.parse(d.getElementById("funnel-greetings").textContent);
+          var n = w.navigator, langs = n.languages && n.languages.length ? n.languages : [n.language || "en"];
+          var live = function (l) { for (var i = 0; i < map.length; i++) if (map[i].checked && map[i].lang === l) return map[i]; };
+          var row;
+          for (var j = 0; j < langs.length && !row; j++) { var t = String(langs[j]).toLowerCase(); row = live(t) || live(t.split("-")[0]); }
+          row = row || live("en");
+          if (row) { b.lang = row.lang; b.greeting = row.lines[part]; }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Load font CSS async so it doesn't block first paint.

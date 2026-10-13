@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { createAnimatable, createTimeline, cubicBezier } from "animejs";
 import SEO from "@/shared/components/SEO";
 import { CONTACT_EMAIL } from "@/shared/lib/contact";
+import { useTurnstile } from "@/shared/hooks/useTurnstile";
+import { TURNSTILE_SITE_KEY } from "@/shared/lib/turnstile";
 import SplitHeadline from "@/shared/components/SplitHeadline";
 import { CSS_EASE, DURATION, EASE_OUT_EXPO, MS, STAGGER, TRAVEL } from "@/shared/motion/tokens";
 
@@ -72,15 +74,7 @@ const ENDPOINT = "/api/send-contact";
  * addresses beside it. That is deliberate: a contact form that silently
  * pretends to send is worse than one that says it could not.
  */
-const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
-const TURNSTILE_SRC =
-  "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-
-interface TurnstileApi {
-  render: (el: HTMLElement, opts: Record<string, unknown>) => string;
-  reset: (id?: string) => void;
-  remove: (id?: string) => void;
-}
+const SITE_KEY = TURNSTILE_SITE_KEY;
 
 type Status = "idle" | "sending" | "sent" | "error";
 
@@ -103,56 +97,7 @@ const Contact = () => {
 
   /** The Turnstile token, and the widget id so it can be reset. A token is
    *  single use, so a second message needs a fresh one. */
-  const [token, setToken] = useState("");
-  const widgetHost = useRef<HTMLDivElement>(null);
-  const widgetId = useRef<string | null>(null);
-
-  // Load the Turnstile script and render the widget, but only when a site key
-  // is configured. No key means no third-party request from this page at all,
-  // which is why this is not in index.html: the quietest page on the site
-  // should not fetch Cloudflare for a visitor who is only reading it.
-  useEffect(() => {
-    if (!SITE_KEY) return;
-    const host = widgetHost.current;
-    if (!host) return;
-    let cancelled = false;
-
-    const render = () => {
-      const api = (window as unknown as { turnstile?: TurnstileApi }).turnstile;
-      if (cancelled || !api || widgetId.current) return;
-      widgetId.current = api.render(host, {
-        sitekey: SITE_KEY,
-        theme: "light",
-        callback: (t: string) => setToken(t),
-        // A token expires. Clearing it here means the next submit fails the
-        // server check honestly rather than sending something already stale.
-        "expired-callback": () => setToken(""),
-        "error-callback": () => setToken(""),
-      });
-    };
-
-    let script = document.querySelector<HTMLScriptElement>(
-      `script[src="${TURNSTILE_SRC}"]`,
-    );
-    if (!script) {
-      script = document.createElement("script");
-      script.src = TURNSTILE_SRC;
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-    script.addEventListener("load", render);
-    // Already loaded from a previous visit to this route in the same session.
-    render();
-
-    return () => {
-      cancelled = true;
-      script?.removeEventListener("load", render);
-      const api = (window as unknown as { turnstile?: TurnstileApi }).turnstile;
-      if (api && widgetId.current) api.remove(widgetId.current);
-      widgetId.current = null;
-    };
-  }, []);
+  const turnstile = useTurnstile({ siteKey: SITE_KEY, theme: "light" });
 
   // Sequenced entrance: label, headline, sub, then the form and the aside.
   useEffect(() => {
@@ -224,7 +169,7 @@ const Contact = () => {
           company: data.get("company"),
           reason: data.get("reason"),
           message: data.get("message"),
-          turnstileToken: token,
+          turnstileToken: turnstile.token,
         }),
       });
       const body = (await res.json().catch(() => null)) as
@@ -237,9 +182,7 @@ const Contact = () => {
       form.reset();
       // Single-use token: without this a second message reuses a spent one
       // and the server correctly refuses it.
-      const api = (window as unknown as { turnstile?: TurnstileApi }).turnstile;
-      if (api && widgetId.current) api.reset(widgetId.current);
-      setToken("");
+      turnstile.reset();
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "That did not send.");
@@ -407,7 +350,7 @@ const Contact = () => {
 
               {/* The bot check. Empty and invisible when no site key is
                   configured, so nothing shifts and nothing is fetched. */}
-              <div ref={widgetHost} className="mt-8 empty:mt-0" />
+              <div ref={turnstile.hostRef} className="mt-8 empty:mt-0" />
 
               <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4">
                 {/* THE LABEL SWAPS BUT THE BUTTON DOES NOT RESIZE.

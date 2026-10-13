@@ -56,16 +56,23 @@ export default defineConfig({
         // route preloads anything but the runtime, react-dom and lenis, and
         // ogl is requested only by `/`.
         //
-        // NAMING CAVEAT: the "toast" group is ~167 kB and is mostly react-dom,
-        // not sonner. react-dom is reachable from sonner and got assigned to
-        // the first group that claimed it. That is not a leak, react-dom is
-        // needed on every route regardless, but do not read the size of this
-        // chunk as the cost of the toaster.
+        // The "react" group holds react, react-dom and the scheduler, so a deploy leaves them cached.
         codeSplitting: {
           groups: [
             { name: "webgl", test: /node_modules[\\/]ogl[\\/]/ },
             { name: "scroll", test: /node_modules[\\/]lenis[\\/]/ },
-            { name: "toast", test: /node_modules[\\/]sonner[\\/]/ },
+            { name: "react", test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            // (C) W15-D: the live spine starts as a relay (probe → host → worker → mesh), one round trip per hop,
+            // which costs ~175 ms on a phone on Fast 4G. The host and its message protocol are ~1.4 kB of glue
+            // with no three.js in them, so they ride in the lazy viewer chunk and import("./host") needs no
+            // request. Three.js stays in the worker chunk; tests/build/spine-chain.check.ts holds both.
+            // Only these three files: by default a group also swallows its dependencies, which pulled shared
+            // funnel modules in and put the chunk on the first paint.
+            {
+              name: "spine-viewer",
+              test: /src[\\/]features[\\/]funnel[\\/]spine3d[\\/](SpineViewer\.tsx|host\.ts|protocol\.ts)$/,
+              includeDependenciesRecursively: false,
+            },
           ],
         },
       },

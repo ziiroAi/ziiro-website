@@ -1,9 +1,9 @@
 import { useEffect, useRef } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 
 import type { Pipeline } from "./pipelines";
 import { DIRECTORY_STATS, PIPELINES } from "./pipelines";
-import { DURATION, EASE_OUT_EXPO } from "@/shared/motion/tokens";
+import { useReducedMotion } from "./motion";
+import { CSS_EASE, MS } from "@/shared/motion/tokens";
 
 /**
  * The intelligence layer, for a phone.
@@ -17,7 +17,7 @@ import { DURATION, EASE_OUT_EXPO } from "@/shared/motion/tokens";
  * With nothing narrowed to — the "all" selection the section opens on — it
  * says what the whole directory holds instead, every system at equal weight,
  * which is the same thing the radial says on a wide screen. Both figures are
- * counted off the pipeline data.
+ * counted off the catalog.
  *
  * The seven per-system hues are gone from here for the same reason they are
  * gone from the radial: they were seven lights chosen for a black field, and
@@ -30,9 +30,9 @@ export default function MobileCore({ pipeline }: { pipeline: Pipeline | null }) 
   const shouldReduce = useReducedMotion();
   // The ring stays mounted through a system change so its 24-second rotation is
   // never reset to zero; only the identity beneath it is re-keyed, and only
-  // from the second render onwards — framer writes `initial` into the
-  // prerendered markup, and a system name that ships as opacity:0 is a name
-  // nobody whose JS failed will ever read.
+  // from the second render onwards — a fade in the prerendered markup would
+  // ship the system name at opacity:0, and a name nobody whose JS failed will
+  // ever read.
   const mounted = useRef(false);
   useEffect(() => {
     mounted.current = true;
@@ -73,12 +73,14 @@ export default function MobileCore({ pipeline }: { pipeline: Pipeline | null }) 
         Ziiro Intelligence
       </p>
 
-      <motion.div
+      <div
         key={pipeline ? pipeline.id : "all"}
         className="flex flex-col items-center"
-        initial={!shouldReduce && mounted.current ? { opacity: 0 } : false}
-        animate={{ opacity: 1 }}
-        transition={{ duration: DURATION.swap, ease: EASE_OUT_EXPO }}
+        style={
+          !shouldReduce && mounted.current
+            ? { animation: `directory-fade ${MS.swap}ms ${CSS_EASE.outExpo} both` }
+            : undefined
+        }
       >
         <span
           aria-hidden="true"
@@ -134,7 +136,7 @@ export default function MobileCore({ pipeline }: { pipeline: Pipeline | null }) 
             </p>
           </>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

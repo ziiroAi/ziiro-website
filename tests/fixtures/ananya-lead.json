@@ -1,0 +1,29 @@
+{
+  "visitId": "6f1c2a7e-6c1d-4f5e-9a51-0a7c1e2d3b4f",
+  "name": "Ananya",
+  "email": "ananya@example.com",
+  "consent": { "given": true, "version": "2026-10-08" },
+  "turnstileToken": "XXXX.DUMMY.TOKEN.XXXX",
+  "answers": {
+    "problemText": "Enquiries come in, but by the time someone calls back they've gone cold.",
+    "chips": [],
+    "inputMode": "typed"
+  },
+  "plan": {
+    "template": "B",
+    "orderVariant": "B-convert",
+    "tier": "M",
+    "agentIds": [
+      "deals-inbound",
+      "deals-reply-handling",
+      "deals-call-cycle",
+      "sales-sequencing-send",
+      "marketing-insights",
+      "back-office-finance-reporting"
+    ],
+    "matchedPhrases": ["calls back", "gone cold"],
+    "classifierVersion": "kw-1",
+    "agentsVersion": "2026-10-04",
+    "fallback": false
+  }
+}

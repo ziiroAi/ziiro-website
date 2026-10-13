@@ -1,9 +1,16 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { animate, cubicBezier, stagger } from "animejs";
-import { useReducedMotion } from "framer-motion";
 
-import type { Pipeline, PipelineStatus } from "./pipelines";
-import { DIRECTORY_STATS, PIPELINES } from "./pipelines";
+import type { Pipeline } from "./pipelines";
+import {
+  DIRECTORY_STATS,
+  PIPELINES,
+  glyphFor,
+  jobsIn,
+  markCounts,
+  markLabel,
+} from "./pipelines";
+import { useReducedMotion } from "./motion";
 import {
   CSS_EASE,
   EASE_OUT_EXPO,
@@ -13,10 +20,9 @@ import {
 } from "@/shared/motion/tokens";
 
 /**
- * The right column's detail view: what the selected system is, what it is made
- * of, and which agents run it. With no system selected it hands over to the
- * all-systems index below, which is the same content the flow view falls back
- * to — one selection, one index.
+ * The right column's detail view: what the selected department is, what it is
+ * made of, and the jobs each of its agents carries. With no department
+ * selected it hands over to the all-systems index below.
  *
  * Three rules hold the look together:
  *
@@ -25,7 +31,7 @@ import {
  *      shadow. The panel should read as a specification, not an admin screen.
  *   2. The number is the hero of a data row. A large tabular figure with a
  *      small mono caption above it, and every figure is COUNTED off the
- *      pipeline data — there are no performance metrics here because no
+ *      catalog — there are no performance metrics here because no
  *      measured figure exists, and inventing one would undo the claim the rest
  *      of the page makes.
  *   3. Content arrives one element at a time, the way the dot-art scenes do.
@@ -44,7 +50,7 @@ const ARRIVE_MS = Math.round(STAGGER.tight * 1000);
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
- * The staggered arrival, shared in shape with FlowView's copy of it.
+ * The staggered arrival.
  *
  * Elements opt in with `data-map-reveal`, which index.css hides ONLY under the
  * `js` class — so the prerendered markup a crawler sees is complete, and the
@@ -55,9 +61,6 @@ const pad = (n: number) => String(n).padStart(2, "0");
  * the cascade plays once per change rather than every render. Remounting is
  * what avoids a frame of fully-visible content: React would otherwise leave
  * the previous run's inline opacity in place until the effect fired.
- *
- * It lives in both files rather than in a shared module because the other
- * files in this directory belong to other owners.
  *
  * `enabled` is false for a block whose ancestor is already running the cascade
  * over it. That matters because the identity and the detail are rendered two
@@ -140,8 +143,8 @@ export default function PipelinePanel({
 
 /**
  * Every system at once: the state the section opens in, and what the core node
- * selects. Compact on purpose — a name, what it is, what it is made of, and
- * whether it runs today. Clicking a row is the same selection the map makes.
+ * selects. Compact on purpose — a name, what it is and what it is made of.
+ * Clicking a row is the same selection the map makes.
  */
 export function AllSystemsIndex({ onSelect }: { onSelect?: (id: string) => void }) {
   return (
@@ -155,8 +158,8 @@ export function AllSystemsIndex({ onSelect }: { onSelect?: (id: string) => void 
           className="font-mono text-[10px] uppercase tabular-nums"
           style={{ letterSpacing: "0.18em", color: "var(--dir-faint)" }}
         >
-          {pad(DIRECTORY_STATS.departments)} systems · {pad(DIRECTORY_STATS.live)} active ·{" "}
-          {DIRECTORY_STATS.agents} agents
+          {pad(DIRECTORY_STATS.departments)} systems · {DIRECTORY_STATS.agents} agents ·{" "}
+          {DIRECTORY_STATS.jobs} jobs
         </p>
       </div>
 
@@ -206,7 +209,6 @@ export function AllSystemsIndex({ onSelect }: { onSelect?: (id: string) => void 
                 >
                   {system.name}
                 </span>
-                <StatusTag status={system.status} className="ml-auto shrink-0" />
               </span>
 
               <span className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 pl-7">
@@ -223,7 +225,7 @@ export function AllSystemsIndex({ onSelect }: { onSelect?: (id: string) => void 
                   className="font-mono text-[10px] uppercase tabular-nums"
                   style={{ letterSpacing: "0.18em", color: "var(--dir-faint)" }}
                 >
-                  {pad(system.steps.length)} steps · {pad(system.agents.length)} agents
+                  {pad(system.agents.length)} agents · {pad(jobsIn(system).length)} jobs
                 </span>
               </span>
             </button>
@@ -243,21 +245,16 @@ export function PipelineIdentity({
 
   return (
     <div key={pipeline.id} ref={rootRef}>
-      <p
-        data-map-reveal
-        className="flex flex-wrap items-center gap-x-4 gap-y-2"
-      >
-        {/* The eyebrow names the Ziiro pipeline that runs this department, and
-            it is the header of the one system you have narrowed to, so it is
-            where the accent belongs. It was the system's own hue, which on
-            paper ran as low as 2.4:1 for the warm end of the seven. */}
+      <p data-map-reveal>
+        {/* The eyebrow says where on the spine this department sits, and it
+            is the header of the one system you have narrowed to, so it is
+            where the accent belongs. */}
         <span
-          className="font-mono text-[10px] font-bold uppercase"
+          className="font-mono text-[10px] font-bold uppercase tabular-nums"
           style={{ letterSpacing: "0.26em", color: "var(--dir-live)" }}
         >
-          {pipeline.category}
+          Agents {pad(pipeline.numbers[0])}–{pad(pipeline.numbers[1])}
         </span>
-        <StatusTag status={pipeline.status} />
       </p>
 
       <div data-map-reveal>
@@ -302,18 +299,14 @@ export function PipelineDetail({
   const rootRef = useArrival(pipeline ? pipeline.id : "none", !managed);
   if (!pipeline) return null;
 
-  // Every figure on this panel, counted. Nothing here is typed by hand, so a
-  // sixth step or a fourth agent in pipelines.ts changes the panel by itself.
+  // Every figure on this panel, counted off the catalog. Nothing here is typed
+  // by hand, so a job added to the catalog changes the panel by itself. The
+  // three marks are the plan's own legend lines.
+  const jobs = jobsIn(pipeline);
   const counts = [
-    { label: "Steps", value: pipeline.steps.length },
-    { label: "Automated", value: pipeline.steps.filter((s) => s.automated).length },
     { label: "Agents", value: pipeline.agents.length },
-    {
-      label: "Capabilities",
-      value: pipeline.agents.reduce((n, a) => n + a.capabilities.length, 0),
-    },
-    { label: "Integrations", value: pipeline.integrations.length },
-    { label: "Outputs", value: pipeline.outputs.length },
+    { label: "Jobs", value: jobs.length },
+    ...markCounts(jobs).map((m) => ({ label: m.label, value: m.value })),
   ];
 
   return (
@@ -347,20 +340,13 @@ export function PipelineDetail({
         ))}
       </dl>
 
-      <Row label="Trigger">{pipeline.trigger}</Row>
-
-      <Row label="Connected to">
-        <Series items={pipeline.integrations} />
-      </Row>
-
       <div data-map-reveal className="mt-10">
         <Caption>Agents</Caption>
       </div>
 
       <ul className="mt-4">
-        {pipeline.agents.map((agent, i) => {
+        {pipeline.agents.map((agent) => {
           const open = activeAgentId === agent.id;
-          const next = pipeline.agents[i + 1];
 
           return (
             <li
@@ -394,7 +380,7 @@ export function PipelineDetail({
                     transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
                   }}
                 >
-                  {pad(i + 1)}
+                  {pad(agent.number)}
                 </span>
                 <span
                   className={`text-[15px] group-hover:text-[var(--dir-ink)] ${
@@ -405,8 +391,8 @@ export function PipelineDetail({
                   {agent.name}
                 </span>
                 {/* Not aria-hidden: unlike the "+" it replaced, this is data —
-                    how many named jobs the agent does, counted off its
-                    capabilities, which are also its nodes on the map. */}
+                    how many jobs the agent carries, counted off the catalog,
+                    and each one is also a node on the map. */}
                 <span
                   className="ml-auto shrink-0 font-mono text-[10px] uppercase tabular-nums"
                   style={{
@@ -415,16 +401,14 @@ export function PipelineDetail({
                     transition: `color ${MS.micro}ms ${CSS_EASE.out}`,
                   }}
                 >
-                  {open ? "Close" : `${pad(agent.capabilities.length)} jobs`}
+                  {open ? "Close" : `${pad(agent.jobs.length)} jobs`}
                 </span>
               </button>
 
               <AgentDetail
                 open={open}
                 agent={agent}
-                nextName={next ? next.name : pipeline.outputs[0]}
-                isLast={!next}
-                shouldReduce={!!shouldReduce}
+                shouldReduce={shouldReduce}
               />
             </li>
           );
@@ -435,21 +419,17 @@ export function PipelineDetail({
 }
 
 /**
- * An agent's chain, opened in place. The height animates through the
+ * An agent's jobs, opened in place, each with its mark. The height animates through the
  * grid-template-rows 0fr→1fr technique, so nothing is measured in JS; where a
  * browser doesn't support it the detail simply appears.
  */
 function AgentDetail({
   open,
   agent,
-  nextName,
-  isLast,
   shouldReduce,
 }: {
   open: boolean;
   agent: Pipeline["agents"][number];
-  nextName: string;
-  isLast: boolean;
   /** The row's height is the one thing here that genuinely travels, so it is
    *  also the one thing a reduced-motion preference removes: the detail still
    *  opens, it just arrives already open. */
@@ -476,25 +456,23 @@ function AgentDetail({
             {agent.role}
           </p>
 
-          <dl className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2">
-            <Field label="Input">{agent.input}</Field>
-            <Field label="Does">
-              <Series items={agent.capabilities} />
-            </Field>
-            <Field label="Output">{agent.output}</Field>
-            <Field label={isLast ? "Leaves as" : "Hands to"}>{nextName}</Field>
-          </dl>
-
           <div className="mt-6">
-            <Caption>Weighs up</Caption>
+            <Caption>Jobs</Caption>
             <ul className="mt-2.5 space-y-1.5">
-              {agent.logic.map((line) => (
+              {agent.jobs.map((job) => (
                 <li
-                  key={line}
-                  className="max-w-[46ch] text-[13px] leading-snug"
-                  style={{ color: "var(--dir-dim)" }}
+                  key={job.id}
+                  data-directory-job={job.status}
+                  className="flex max-w-[46ch] gap-2.5 text-[13px] leading-snug"
+                  style={{ color: "var(--dir-ink)" }}
                 >
-                  {line}
+                  <span aria-hidden="true" style={{ color: "var(--dir-faint)" }}>
+                    {glyphFor(job.status)}
+                  </span>
+                  <span>
+                    {job.name}
+                    <span className="sr-only">, {markLabel(job.status)}</span>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -502,63 +480,6 @@ function AgentDetail({
         </div>
       </div>
     </div>
-  );
-}
-
-/** A labelled line under its own hairline, and the nearest this panel comes to
- *  a box: one rule, one caption, one value. */
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div
-      data-map-reveal
-      className="mt-6 border-t pt-5"
-      style={{ borderColor: "var(--dir-line)" }}
-    >
-      <Caption>{label}</Caption>
-      <p
-        className="mt-2 max-w-[52ch] text-[13px] leading-relaxed"
-        style={{ color: "var(--dir-dim)" }}
-      >
-        {children}
-      </p>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <dt
-        className="font-mono text-[9px] uppercase"
-        style={{ letterSpacing: "0.24em", color: "var(--dir-faint)" }}
-      >
-        {label}
-      </dt>
-      <dd
-        className="mt-1.5 max-w-[42ch] text-[13px] leading-snug"
-        style={{ color: "var(--dir-ink)" }}
-      >
-        {children}
-      </dd>
-    </div>
-  );
-}
-
-/** Values on one line, separated by a middot rather than by chrome. */
-export function Series({ items }: { items: string[] }) {
-  return (
-    <>
-      {items.map((item, i) => (
-        <span key={item}>
-          {i > 0 && (
-            <span aria-hidden="true" style={{ color: "var(--dir-faint)" }}>
-              {"  ·  "}
-            </span>
-          )}
-          {item}
-        </span>
-      ))}
-    </>
   );
 }
 
@@ -570,34 +491,5 @@ export function Caption({ children }: { children: ReactNode }) {
     >
       {children}
     </p>
-  );
-}
-
-/** Live or not, in the one hue the field reserves for liveness. */
-export function StatusTag({
-  status,
-  className = "",
-}: {
-  status: PipelineStatus;
-  className?: string;
-}) {
-  const live = status === "active";
-
-  return (
-    <span
-      className={`flex items-center gap-2 font-mono text-[10px] uppercase ${className}`}
-      style={{ letterSpacing: "0.22em", color: "var(--dir-dim)" }}
-    >
-      <span
-        aria-hidden="true"
-        className={`block h-1.5 w-1.5 rounded-full ${live ? "directory-pulse" : ""}`}
-        style={
-          live
-            ? { background: "var(--dir-live)" }
-            : { border: "1px solid var(--dir-line-strong)" }
-        }
-      />
-      {live ? "Active" : "In build"}
-    </span>
   );
 }

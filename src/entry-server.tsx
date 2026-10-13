@@ -5,6 +5,7 @@ import { HelmetProvider, type HelmetServerState } from "react-helmet-async";
 import { Providers } from "@/app/App";
 import Navbar from "@/shared/components/Navbar";
 import Footer from "@/shared/components/Footer";
+import { SiteSheet } from "@/shared/components/funnel-form";
 import Index from "@/pages/Index";
 import Contact from "@/pages/Contact";
 import Privacy from "@/pages/Privacy";
@@ -55,9 +56,9 @@ export function render(url: string): { appHtml: string; head: string } {
       <Providers>
         <StaticRouter location={url}>
           <Navbar />
-          <div className="site-sheet">
+          <SiteSheet>
             <Page />
-          </div>
+          </SiteSheet>
           <Footer />
         </StaticRouter>
       </Providers>
