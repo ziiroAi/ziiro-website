@@ -118,15 +118,13 @@ async function throttle(page: Page): Promise<CDPSession> {
 }
 
 /** S0 to S7 the way a person answers, then the contact step, stopping before the send. Each call is a new visit:
- *  since W24-C, "/" reopens the plan this tab already showed, so (b)'s later runs drop that kept copy first. */
+ *  since W24-C, "/" reopens the plan this tab already showed, so (b)'s later runs drop that kept copy first. They do
+ *  it from /mission: on the plan, any change keeps it again (resume.ts keepPlan) and can undo the drop before "/". */
 async function toContactStep(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    try {
-      window.sessionStorage.removeItem("ziiro.funnel.plan");
-    } catch {
-      // about:blank, before the first visit: there is nothing kept yet.
-    }
-  });
+  if (page.url().startsWith("http")) {
+    await page.goto("/mission");
+    await page.evaluate(() => window.sessionStorage.removeItem("ziiro.funnel.plan"));
+  }
   await page.goto("/");
   await tapThrough(page, "I run a business", "Interior design / architecture", "5–10 years", "6–20", "₹1–5Cr");
   await tapThrough(page, "Leads don't convert", "That's it");
