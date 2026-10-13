@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 
-import { START_YAW, scrollPose } from "./brainFrame";
+import { START_PITCH, START_YAW, scrollPose } from "./brainFrame";
 import { createBrainMotion } from "./brainMotion";
 import { LAP_S, type OrbitHandle } from "./orbit";
 import SplineBrain, { type BrainScene } from "./SplineBrain";
@@ -9,8 +9,8 @@ import SplineBrain, { type BrainScene } from "./SplineBrain";
  * The hero's brain: the Spline glass brain, as HeroStage's brain layer.
  *
  * It fills the stage's brain box (`.cb-stage__brain`, centred on the
- * department loop) and draws the brain centred in it (brainFrame.ts), large,
- * the departments just outside it. The plexus on it and the strings round it
+ * department loop) and draws the brain centred in it (brainFrame.ts), about
+ * half the departments' ring across. The plexus on it and the strings round it
  * are the web's (orbit/web.ts), on a canvas above.
  *
  * - The still. A render of the scene at the start pose, on white. It is in the
@@ -27,18 +27,20 @@ import SplineBrain, { type BrainScene } from "./SplineBrain";
  * dragging the brain moves them with it. Without the live brain the orbit
  * keeps its own clock at the same pace; under reduced motion it rests.
  *
- * To re-render the still after a scene, pose or framing change: render the
- * scene the way SplineBrain sets it up, at START_YAW (brainFrame.ts), into a
- * box 800 css px square (the brain box) at 2x, so 1600 square, on white and
- * without the badge. Save it at 1600px wide and at 800px, as AVIF at quality
- * 60 and WebP at 80.
+ * To re-render the still after a scene, pose, framing or material change:
+ * render the scene the way SplineBrain sets it up, at START_YAW and
+ * START_PITCH (brainFrame.ts), into a box 800 css px square (the brain box)
+ * at 2x, so 1600 square, on white and without the badge. Save it at 1600px
+ * wide and at 800px, as AVIF at quality 60 and WebP at 80.
+ * brain-raster/tools/render_brain_still.py does all of it from the dev server.
  */
 
 const STILL_AVIF_SRCSET = "/media/hero-brain-800.avif 800w, /media/hero-brain.avif 1600w";
 const STILL_WEBP_SRCSET = "/media/hero-brain-800.webp 800w, /media/hero-brain.webp 1600w";
-/** The brain box's width (index.css): about half the width beside the copy,
- *  at most 525px on a stacked tablet, and about 62vw on a phone. */
-const STILL_SIZES = "(min-width: 1024px) and (min-aspect-ratio: 1/1) 52vw, (min-width: 660px) 525px, 62vw";
+/** The brain box's width, 2 × BRAIN_BOX of the loop's radius (index.css):
+ *  about 31vw beside the copy, at most 360px on a stacked tablet, and about
+ *  48vw on a phone. */
+const STILL_SIZES = "(min-width: 1024px) and (min-aspect-ratio: 1/1) 31vw, (min-width: 660px) 360px, 48vw";
 
 /** For HeroStage's preload: the same files and sizes, so the preload is the
  *  request the <img> makes. Strings, because react-refresh only lets a
@@ -106,19 +108,21 @@ export default function HeroBrain({ orbitRef }: { orbitRef?: RefObject<OrbitHand
       onFrame(pose) {
         const scroll = scrolled();
         const yaw = pose.yaw + scroll.turn;
-        scene.setPose({ ...pose, yaw });
+        // brainMotion tilts from level; the brain rests tilted by START_PITCH.
+        const pitch = START_PITCH + pose.pitch;
+        scene.setPose({ ...pose, yaw, pitch });
         scene.setZoom(scroll.zoom);
         orbit?.follow({
           turn: pose.turn + scroll.turn,
           yaw,
-          pitch: pose.pitch,
+          pitch,
           zoom: scroll.zoom,
           fade: scroll.fade,
         });
         settle();
       },
     });
-    scene.setPose({ yaw: START_YAW, pitch: 0, turn: START_YAW });
+    scene.setPose({ yaw: START_YAW, pitch: START_PITCH, turn: START_YAW });
 
     // Run only while it can be seen: the stage on screen, the tab visible,
     // the desktop layout. Off screen the orbit waits where it is with the

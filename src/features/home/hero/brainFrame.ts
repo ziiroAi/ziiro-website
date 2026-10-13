@@ -8,23 +8,30 @@
  * the loop; the brain's own measures are in its half-width.
  */
 
-/** The start pose: the brain side-on, its front toward the copy, as in the
- *  owner's mockups. The still is rendered at exactly this angle. */
-export const START_YAW = (350 * Math.PI) / 180;
+/** The start pose: the brain in side profile, as in the owner's mockup, its
+ *  frontal lobe toward the copy and the stem at the bottom centre. The still
+ *  is rendered at exactly this angle. */
+export const START_YAW = (328 * Math.PI) / 180;
 
-/** Half the brain's width, in the loop's base radius: the r8 mockup's
- *  proportion, where the departments sit just outside its silhouette. */
-export const BRAIN_HALF = 0.74;
+/** The brain's rest tilt: its top turned a little toward the viewer, as in
+ *  the mockup. A drag tilts it from here and it settles back here. The still
+ *  is rendered at this tilt too. */
+export const START_PITCH = (6 * Math.PI) / 180;
+
+/** Half the brain's width, in the loop's base radius: the mockup's
+ *  proportion, the brain about half the departments' ring. */
+export const BRAIN_HALF = 0.5;
 
 /** The brain box's half-size, in the loop's base radius: the canvas and the
- *  still, centred on the loop. Room for the whole brain at any turn, and at
- *  the scroll's full zoom (below). */
-export const BRAIN_BOX = 1.05;
+ *  still, centred on the loop. Room for the whole brain at any turn (at most
+ *  1.05 half-widths from the centre), and at the scroll's full zoom (below). */
+export const BRAIN_BOX = 0.72;
 
 /** The brain's pivot sits this many half-widths below the centre of the
- *  brain box. Measured for this export: the pivot is low in the brain, and
- *  92px of lift per 170px of half-width centres the brain in its box. */
-export const BRAIN_LIFT = 92 / 170;
+ *  brain box. Measured for this export with the fibres off: the pivot is low
+ *  in the brain, and this lift centres the brain's silhouette in its box at
+ *  any turn, to within 1% of its half-width. */
+export const BRAIN_LIFT = 0.463;
 
 /**
  * The scroll: as the hero scrolls away, the brain, the plexus on it, the web

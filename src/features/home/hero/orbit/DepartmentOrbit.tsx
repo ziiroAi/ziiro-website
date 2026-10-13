@@ -1,18 +1,18 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, type CSSProperties } from "react";
 
-import { START_YAW } from "../brainFrame";
+import { START_PITCH, START_YAW } from "../brainFrame";
 import { DEPARTMENTS } from "./departments";
 import { LAP_S, placeAt, type NodePlace } from "./loop";
 import { createWeb, type Rect } from "./web";
 
 /**
- * The departments round the brain: eight navy ringed dots on an uneven loop
+ * The departments round the brain: eight navy ringed dots on one ring
  * (loop.ts), each with its number, name and role beside it; and the web
- * (web.ts), drawn on a canvas under them, with the plexus on the brain.
+ * (web.ts), drawn on a canvas under them, with the strands on the brain.
  *
  * MOTION. Every department is placed from one number, the turn, and orbits
- * the brain continuously, one lap per turn of it; the owner's r8 mockup is
- * the frame they start from. While the live brain is up, the turn is the
+ * the brain continuously, one lap per turn of it; the owner's mockup is the
+ * frame they start from. While the live brain is up, the turn is the
  * brain's own (HeroBrain calls `follow` from its frame), so dragging the
  * brain moves the departments, the web and the plexus, which also takes the
  * brain's yaw and tilt; and on desktop the scroll turns and zooms them all
@@ -22,10 +22,11 @@ import { createWeb, type Rect } from "./web";
  * out on its own slow period. Under reduced motion it holds its start frame,
  * and moves only when the visitor turns the brain.
  *
- * THE COPY WINS. On desktop the loop passes behind the copy on its left; a
- * department fades as it nears the copy's words, dot and label each on its
- * own, and comes back past them, so nothing ever sits over the headline. As
- * the scroll zooms the brain, the labels fade out too.
+ * THE COPY WINS. On desktop the ring passes close to the copy on its left;
+ * a department's words cross to the inner side of its dot as they near the
+ * copy's words, and back out past them, and a dot that comes too near fades,
+ * so nothing ever sits over the headline. As the scroll zooms the brain, the
+ * labels fade out too.
  *
  * COST. A frame writes eight custom properties per department (the dots and
  * words are placed in CSS from them, index.css `.zo-*`, and nothing touches
@@ -76,7 +77,27 @@ interface Geometry {
   lines: { w: number; h: number }[][];
   /** The copy's boxes, which departments fade near (desktop only). */
   copy: Rect[];
+  /** The same boxes as one column, for the words choosing their side of the
+   *  dot (columnOf). */
+  bands: Rect[];
 }
+
+/** Half the widest gap between the copy's blocks, px. */
+const BRIDGE = 16;
+
+/** The copy's blocks, top to bottom, as one column: each stretched BRIDGE px
+ *  up and down, and widened to fill any notch between wider blocks above and
+ *  below it (the actions row between the support and the footnote), so words
+ *  passing beside the copy cross sides once, not in and out at every gap. */
+const columnOf = (copy: Rect[]) => {
+  const right = (rs: Rect[]) => Math.max(-Infinity, ...rs.map((r) => r.x + r.w));
+  return copy.map((r, k) => ({
+    x: r.x,
+    y: r.y - BRIDGE,
+    w: Math.max(r.w, Math.min(right(copy.slice(0, k)), right(copy.slice(k + 1))) - r.x),
+    h: r.h + 2 * BRIDGE,
+  }));
+};
 
 const smooth = (t: number) => {
   const c = Math.max(0, Math.min(1, t));
@@ -93,6 +114,27 @@ const clearOf = (r: Rect, boxes: Rect[], near = 6, far = 24) => {
   let o = 1;
   for (const c of boxes) o = Math.min(o, smooth((gapBetween(r, c) - near) / (far - near)));
   return o;
+};
+
+/** The same, for every one of `rs`. */
+const allClearOf = (rs: Rect[], boxes: Rect[], near?: number, far?: number) =>
+  rs.reduce((o, r) => Math.min(o, clearOf(r, boxes, near, far)), 1);
+
+/** A department's lines, each a box, hung off its dot at (x, y): the same
+ *  arithmetic as `.zo-words` in index.css. */
+const wordBoxes = (
+  x: number,
+  y: number,
+  { gx, gy, ax, ay }: Pick<NodePlace, "gx" | "gy" | "ax" | "ay">,
+  lines: { w: number; h: number }[],
+) => {
+  let top = y + gy + (-0.5 + 0.5 * ay) * lines.reduce((sum, l) => sum + l.h, 0);
+  const boxes: Rect[] = [];
+  for (const l of lines) {
+    if (l.w > 0 && l.h > 0) boxes.push({ x: x + gx + (-0.5 + 0.5 * ax) * l.w, y: top, w: l.w, h: l.h });
+    top += l.h;
+  }
+  return boxes;
 };
 
 const DepartmentOrbit = forwardRef<OrbitHandle>(function DepartmentOrbit(_, ref) {
@@ -113,7 +155,7 @@ const DepartmentOrbit = forwardRef<OrbitHandle>(function DepartmentOrbit(_, ref)
   const lastT = useRef(0);
   // The brain's pose for the plexus, and the scroll's zoom and fade: the
   // still's pose, at rest, until the live brain drives.
-  const pose = useRef({ yaw: START_YAW, pitch: 0, zoom: 1, fade: 0 });
+  const pose = useRef({ yaw: START_YAW, pitch: START_PITCH, zoom: 1, fade: 0 });
 
   // Refs only, so one function serves every render and every hook below.
   const place = useRef((turn: number, t: number) => {
@@ -129,32 +171,36 @@ const DepartmentOrbit = forwardRef<OrbitHandle>(function DepartmentOrbit(_, ref)
     // a smaller screen), the later one fades until they part.
     const placed: Rect[] = [];
     for (let i = 0; i < N; i++) {
-      const p = placeAt(i, N, turn, t);
+      let p = placeAt(i, N, turn, t);
       const li = nodes.current[i];
       const cap = captions.current[i];
       if (cap) cap.style.opacity = p.act.toFixed(3);
       let dotOpacity = 1;
       let wordsOpacity = zoomFade;
       if (g) {
-        // The same arithmetic as `.zo-node` and `.zo-words` in index.css.
+        // The same arithmetic as `.zo-node` in index.css.
         const x = g.cx + g.a * p.ox * zoom;
         const y = g.cy + g.b * p.oy * zoom;
         points.push({ x, y, theta: p.theta });
         const lines = g.lines[i] ?? [];
-        const height = lines.reduce((sum, l) => sum + l.h, 0);
-        const ox = x + p.gx;
-        let top = y + p.gy + (-0.5 + 0.5 * p.ay) * height;
-        const boxes: Rect[] = [];
-        for (const l of lines) {
-          if (l.w > 0 && l.h > 0) boxes.push({ x: ox + (-0.5 + 0.5 * p.ax) * l.w, y: top, w: l.w, h: l.h });
-          top += l.h;
-        }
+        let boxes = wordBoxes(x, y, p, lines);
         if (g.copy.length) {
           dotOpacity = clearOf({ x: x - 11, y: y - 11, w: 22, h: 22 }, g.copy);
-          for (const b of boxes) wordsOpacity = Math.min(wordsOpacity, clearOf(b, g.copy));
+          // Words about to run into the copy cross to the inner side of their
+          // dot, out on the outer side and in on the inner while they are 28
+          // to 20px from it, a quick swap, so every department keeps its name
+          // as it passes.
+          const outer = allClearOf(boxes, g.bands, 20, 28);
+          if (outer < 0.5) {
+            p = { ...p, gx: -p.gx, ax: -p.ax };
+            boxes = wordBoxes(x, y, p, lines);
+            wordsOpacity = Math.min(wordsOpacity, 1 - 2 * outer, allClearOf(boxes, g.copy));
+          } else {
+            wordsOpacity = Math.min(wordsOpacity, 2 * outer - 1);
+          }
           wordsOpacity = Math.min(wordsOpacity, dotOpacity);
         }
-        for (const b of boxes) wordsOpacity = Math.min(wordsOpacity, clearOf(b, placed, 2, 12));
+        wordsOpacity = Math.min(wordsOpacity, allClearOf(boxes, placed, 2, 12));
         // Only words that show keep the strands off them, and others off.
         if (wordsOpacity > 0.05) labels.push(...boxes);
         if (wordsOpacity > 0.5) placed.push(...boxes);
@@ -188,7 +234,7 @@ const DepartmentOrbit = forwardRef<OrbitHandle>(function DepartmentOrbit(_, ref)
         if (on) {
           own.current?.stop();
         } else {
-          pose.current = { yaw: START_YAW, pitch: 0, zoom: 1, fade: 0 };
+          pose.current = { yaw: START_YAW, pitch: START_PITCH, zoom: 1, fade: 0 };
           own.current?.start();
         }
       },
@@ -237,7 +283,7 @@ const DepartmentOrbit = forwardRef<OrbitHandle>(function DepartmentOrbit(_, ref)
             return { x: r.left - box.left, y: r.top - box.top, w: r.width, h: r.height };
           })
         : [];
-      geometry.current = { cx, cy, a, b, lines, copy };
+      geometry.current = { cx, cy, a, b, lines, copy, bands: columnOf(copy) };
       web.current?.resize({
         width: box.width,
         height: box.height,
